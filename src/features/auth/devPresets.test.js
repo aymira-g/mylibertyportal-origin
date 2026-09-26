@@ -101,6 +101,28 @@ describe("DevPresets configuration", () => {
     expect(roleKeys).toContain("officeboy");
     expect(roleKeys).toContain("parent");
   });
+
+  it("maintains complete role alignment between Mode 1 and Mode 2 for all operational roles including Parent", () => {
+    const mode1Roles = new Set(MODE_1_TEST_ACCOUNTS.map((a) => a.role));
+    const mode2Roles = new Set(PREVIEW_ROLES.map((r) => r.role));
+
+    const requiredOperationalRoles = [
+      "admin",
+      "manager",
+      "instructor",
+      "instructorleader",
+      "frontoffice",
+      "opslead",
+      "marketing",
+      "officeboy",
+      "parent",
+    ];
+
+    requiredOperationalRoles.forEach((role) => {
+      expect(mode1Roles.has(role)).toBe(true);
+      expect(mode2Roles.has(role)).toBe(true);
+    });
+  });
 });
 
 describe("Legacy role aliases compatibility", () => {

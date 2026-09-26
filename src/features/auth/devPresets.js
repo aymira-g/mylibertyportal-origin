@@ -127,6 +127,7 @@ export const MODE_1_TEST_ACCOUNTS = [
 /**
  * Mode 2: In-memory preview roles for rapid layout and UI testing.
  * All canonical roles supported by App.jsx dashboard router.
+ * Fully aligned with MODE_1_TEST_ACCOUNTS (including Parent).
  */
 export const PREVIEW_ROLES = [
   { label: "Admin", role: "admin", supportsDivision: false },

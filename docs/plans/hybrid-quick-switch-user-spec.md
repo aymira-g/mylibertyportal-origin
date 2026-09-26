@@ -160,9 +160,12 @@ For Mode 1 (Authentic Auth Switch) to pass Firestore rules, the following test a
 | **Admin** | `admin.test@myliberty.id` | `admin` | `studio` | `kota_gorontalo` |
 | **Manager** | `manager.test@myliberty.id` | `manager` | `studio` | `kota_gorontalo` |
 | **Manager · TK** | `manager-tk.test@myliberty.id` | `manager` | `kindergarten` | `kota_gorontalo` |
-| **Instructor** | `instructor.test@myliberty.id` | `instructor` | `studio` | `kota_gorontalo` |
+| **Instructor (Studio)** | `instructor.test@myliberty.id` | `instructor` | `studio` | `kota_gorontalo` |
+| **Instructor · TK** | `instructor-tk.test@myliberty.id` | `instructor` | `kindergarten` | `kota_gorontalo` |
 | **Instructor Leader** | `instructorleader.test@myliberty.id` | `instructorleader` | `studio` | `kota_gorontalo` |
-| **Front Office** | `frontoffice.test@myliberty.id` | `frontoffice` | `studio` | `kota_gorontalo` |
+| **Front Office (Studio)** | `frontoffice.test@myliberty.id` | `frontoffice` | `studio` | `kota_gorontalo` |
+| **Front Office · TK** | `frontoffice-tk.test@myliberty.id` | `frontoffice` | `kindergarten` | `kota_gorontalo` |
+| **Front Office Lead** | `frontofficelead.test@myliberty.id` | `opslead` | `studio` | `kota_gorontalo` |
 | **Marketing** | `marketing.test@myliberty.id` | `marketing` | `studio` | `kota_gorontalo` |
 | **Office Boy** | `officeboy.test@myliberty.id` | `officeboy` | `studio` | `kota_gorontalo` |
 

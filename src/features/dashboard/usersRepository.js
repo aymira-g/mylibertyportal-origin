@@ -15,7 +15,11 @@ import {
 } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { branchToId, idToBranch, DEFAULT_BRANCH_ID } from "../../constants/branches";
-import { createParentPayloadSchema } from "../../schemas/parentSchema";
+import {
+  createParentPayloadSchema,
+  parentUserSchema,
+  parentChildLinkSchema,
+} from "../../schemas/parentSchema";
 
 /**
  * Normalizes user payload to include both branch and branchId.
@@ -203,14 +207,14 @@ export async function deleteUserProfile(uid) {
  */
 export async function createParentAccount(email, password, parentData) {
   // Validate parent creation payload prior to creating Auth user
-  createParentPayloadSchema.parse({
+  const input = createParentPayloadSchema.parse({
     email,
     password,
     ...parentData,
   });
 
   const secAuth = getSecondaryAuth();
-  const cred = await createUserWithEmailAndPassword(secAuth, email, password);
+  const cred = await createUserWithEmailAndPassword(secAuth, input.email, input.password);
 
   const initialChildren = [];
   if (parentData.initialChildStudentId) {
@@ -225,18 +229,20 @@ export async function createParentAccount(email, password, parentData) {
   const canonicalBranch = idToBranch(canonicalBranchId);
 
   const now = new Date().toISOString();
-  const payload = {
-    displayName: (parentData.displayName || "").trim(),
-    email: email.trim().toLowerCase(),
-    phone: (parentData.phone || "").trim(),
+  const rawPayload = {
+    displayName: (input.displayName || "").trim(),
+    email: input.email.trim().toLowerCase(),
+    phone: (input.phone || "").trim(),
     role: "parent",
     childStudentIds: initialChildren,
-    status: parentData.status || "active",
+    status: input.status || "active",
     branchId: canonicalBranchId,
     branch: canonicalBranch,
     createdAt: now,
     updatedAt: now,
   };
+
+  const payload = parentUserSchema.parse(rawPayload);
 
   try {
     await setDoc(doc(db, "users", cred.user.uid), payload, { merge: true });
@@ -257,13 +263,11 @@ export async function createParentAccount(email, password, parentData) {
  * @param {string} studentId
  */
 export function linkChildToParent(parentUid, studentId) {
-  if (!parentUid || !studentId) {
-    throw new Error("Both parentUid and studentId are required to link.");
-  }
+  const parsed = parentChildLinkSchema.parse({ parentUid, studentId });
   return setDoc(
-    doc(db, "users", parentUid),
+    doc(db, "users", parsed.parentUid),
     {
-      childStudentIds: arrayUnion(studentId),
+      childStudentIds: arrayUnion(parsed.studentId),
       updatedAt: new Date().toISOString(),
     },
     { merge: true }
@@ -277,13 +281,11 @@ export function linkChildToParent(parentUid, studentId) {
  * @param {string} studentId
  */
 export function unlinkChildFromParent(parentUid, studentId) {
-  if (!parentUid || !studentId) {
-    throw new Error("Both parentUid and studentId are required to unlink.");
-  }
+  const parsed = parentChildLinkSchema.parse({ parentUid, studentId });
   return setDoc(
-    doc(db, "users", parentUid),
+    doc(db, "users", parsed.parentUid),
     {
-      childStudentIds: arrayRemove(studentId),
+      childStudentIds: arrayRemove(parsed.studentId),
       updatedAt: new Date().toISOString(),
     },
     { merge: true }

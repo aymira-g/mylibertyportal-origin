@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { normalizeBranch, branchToId } from "../constants/branches.js";
+import { branchToId, idToBranch, DEFAULT_BRANCH_ID } from "../constants/branches.js";
 
 /**
  * Validates a parent user document in the /users collection.
@@ -14,22 +14,20 @@ export const parentUserSchema = z
     childStudentIds: z
       .preprocess((val) => (Array.isArray(val) ? val : []), z.array(z.string().trim()))
       .default([]),
-    branch: z
-      .string()
-      .trim()
-      .optional()
-      .transform((b) => normalizeBranch(b)),
+    branch: z.string().trim().optional(),
     branchId: z.string().trim().optional(),
     status: z.string().trim().optional().default("active"),
     createdAt: z.string().trim().optional(),
     updatedAt: z.string().trim().optional(),
   })
   .transform((data) => {
-    const rawBranch = data.branch || data.branchId;
-    const branchId = data.branchId || (rawBranch ? branchToId(rawBranch) : undefined);
+    const rawBranch = data.branchId || data.branch || DEFAULT_BRANCH_ID;
+    const branchId = branchToId(rawBranch);
+    const branch = idToBranch(branchId);
     return {
       ...data,
-      ...(branchId ? { branchId } : {}),
+      branchId,
+      branch,
     };
   });
 

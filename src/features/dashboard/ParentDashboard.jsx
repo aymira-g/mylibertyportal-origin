@@ -7,6 +7,7 @@ import {
 } from "../students/parentPortalRepository";
 import LevelBadge from "../shared/LevelBadge";
 import Badge from "../shared/Badge";
+import { buildFrontDeskWhatsAppUrl } from "../../constants/contact";
 import {
   Users,
   Calendar,
@@ -112,10 +113,22 @@ export default function ParentDashboard({ user = null }) {
 
   const handleWhatsAppContact = () => {
     const childName = selectedChild?.displayName || selectedChild?.name || "anak saya";
-    const text = encodeURIComponent(
-      `Halo Front Desk My Liberty, saya orang tua dari ${childName} (NIS: ${selectedChild?.studentId || selectedChild?.nis || "-"}). Saya ingin menanyakan terkait program belajar dan informasi kehadiran.`
-    );
-    window.open(`https://wa.me/6281244445555?text=${text}`, "_blank");
+    const childId = selectedChild?.studentId || selectedChild?.nis || "-";
+    const text = `Halo Front Desk My Liberty, saya orang tua dari ${childName} (NIS: ${childId}). Saya ingin menanyakan terkait program belajar dan informasi kehadiran.`;
+    const branchKey =
+      selectedChild?.branchId ||
+      selectedChild?.branch ||
+      parentProfile?.branchId ||
+      parentProfile?.branch;
+    const url = buildFrontDeskWhatsAppUrl(branchKey, text);
+    window.open(url, "_blank");
+  };
+
+  const handleGeneralWhatsAppContact = () => {
+    const text = `Halo Front Desk My Liberty, saya orang tua / wali siswa. Saya ingin menanyakan informasi akun dan penautan profil anak di portal orang tua.`;
+    const branchKey = parentProfile?.branchId || parentProfile?.branch;
+    const url = buildFrontDeskWhatsAppUrl(branchKey, text);
+    window.open(url, "_blank");
   };
 
   if (loadingInitial) {
@@ -152,7 +165,7 @@ export default function ParentDashboard({ user = null }) {
         </div>
         <button
           type="button"
-          onClick={handleWhatsAppContact}
+          onClick={handleGeneralWhatsAppContact}
           className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer"
         >
           <MessageSquare className="w-4 h-4" />

@@ -45,13 +45,33 @@ export default function DevQuickSwitcher({
   const [mode1Error, setMode1Error] = useState("");
   const [provisioning, setProvisioning] = useState(false);
   const [provisionStatus, setProvisionStatus] = useState(null);
-  const [userPasswordOverride, setUserPasswordOverride] = useState(null);
+  const [userPasswordOverride, setUserPasswordOverride] = useState(() => {
+    try {
+      return localStorage.getItem("myliberty_dev_test_password") || null;
+    } catch {
+      return null;
+    }
+  });
 
   // Derive password reactively: prefers user override when typed, otherwise defaults to DEV_TEST_PASSWORD
   const effectivePassword =
     userPasswordOverride !== null
       ? userPasswordOverride
       : (DEV_TEST_PASSWORD || "");
+
+  const handlePasswordChange = (newPassword) => {
+    setUserPasswordOverride(newPassword);
+    setMode1Error("");
+    try {
+      if (newPassword) {
+        localStorage.setItem("myliberty_dev_test_password", newPassword);
+      } else {
+        localStorage.removeItem("myliberty_dev_test_password");
+      }
+    } catch {
+      // Storage unavailable or disabled
+    }
+  };
 
   if (!isDevSwitcherEnabled && normalizeRole(realRole) !== "admin") {
     return null;
@@ -77,7 +97,7 @@ export default function DevQuickSwitcher({
     } catch (err) {
       if (err?.code === "auth/invalid-credential" || err?.message?.includes("invalid-credential")) {
         setMode1Error(
-          `Account ${account.email} has not been created in Firebase yet. Sign in with your real Admin account and click "Create / Update All Test Accounts" below to initialize them.`
+          `Unable to sign in as ${account.email}. Check that the password matches the test accounts, or sign in as Admin once to click "Create / Update All Test Accounts" if they haven't been provisioned yet.`
         );
       } else {
         setMode1Error(err?.message || "Failed to switch account.");
@@ -159,8 +179,13 @@ export default function DevQuickSwitcher({
 
       setProvisionStatus({
         type: "success",
-        message: `Done! ${createdCount} accounts created in Firebase (${existingCount} already existed). Password: "${password}".`,
+        message: `Done! ${createdCount} accounts created in Firebase (${existingCount} already existed). Test accounts ready.`,
       });
+      try {
+        localStorage.setItem("myliberty_dev_test_password", password);
+      } catch {
+        // Storage unavailable
+      }
     } catch (err) {
       setProvisionStatus({
         type: "error",
@@ -409,24 +434,25 @@ export default function DevQuickSwitcher({
                     <span className="font-bold text-[10px] text-slate-700 uppercase tracking-wider">
                       Test Account Password:
                     </span>
-                    {DEV_TEST_PASSWORD && (
+                    {effectivePassword ? (
                       <span className="text-[9px] text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                        Default loaded
+                        Saved & Ready
+                      </span>
+                    ) : (
+                      <span className="text-[9px] text-amber-600 font-semibold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                        Required to Switch
                       </span>
                     )}
                   </div>
                   <input
                     type="password"
                     value={effectivePassword}
-                    onChange={(e) => {
-                      setUserPasswordOverride(e.target.value);
-                      setMode1Error("");
-                    }}
+                    onChange={(e) => handlePasswordChange(e.target.value)}
                     placeholder="Enter test password (e.g. 123456)"
                     className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-mono focus:outline-indigo-500"
                   />
                   <p className="text-[10px] text-slate-400 leading-tight">
-                    Used for 1-click test account switching and initial provisioning.
+                    Remembered across switches for instant 1-click login.
                   </p>
                 </div>
 
@@ -435,10 +461,10 @@ export default function DevQuickSwitcher({
                   <div className="p-2.5 rounded-xl bg-indigo-50/70 border border-indigo-200 text-xs space-y-2">
                     <span className="font-bold text-[11px] text-indigo-950 flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                      Admin: Provision Test Accounts
+                      Admin: One-Time Test Accounts Setup
                     </span>
                     <p className="text-[10px] text-slate-500 leading-tight">
-                      Registers all {MODE_1_TEST_ACCOUNTS.length} test accounts in Firebase Auth and Firestore with password <code>{effectivePassword || "(enter password above)"}</code> so 1-click login works.
+                      <strong>First-time setup only:</strong> Registers all {MODE_1_TEST_ACCOUNTS.length} test accounts in Firebase Auth with password <code>{effectivePassword || "(enter password above)"}</code>. You do <em>not</em> need to click this every time you switch.
                     </p>
                     <button
                       type="button"

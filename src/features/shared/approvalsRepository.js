@@ -59,7 +59,13 @@ export function listenToPendingApprovals(userRole, branchId, onData, onError) {
     } else if (normalizedRole === "instructor_leader" || normalizedRole === "instructorleader") {
       constraints.push(where("approverRole", "==", APPROVAL_ROLES.INSTRUCTOR_LEADER));
       constraints.push(where("approverBranchId", "==", normalizedBranch));
-    } else if (normalizedRole === "frontoffice" || normalizedRole === "ops_lead" || normalizedRole === "opslead") {
+    } else if (
+      normalizedRole === "frontoffice" ||
+      normalizedRole === "ops_lead" ||
+      normalizedRole === "opslead" ||
+      normalizedRole === "frontofficelead" ||
+      normalizedRole === "front_office_lead"
+    ) {
       constraints.push(where("approverRole", "==", APPROVAL_ROLES.OPS_LEAD));
       constraints.push(where("approverBranchId", "==", normalizedBranch));
     }

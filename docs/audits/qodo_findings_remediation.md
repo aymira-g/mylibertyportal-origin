@@ -1,6 +1,6 @@
 # Qodo Security Findings — Remediation Summary
 
-All 14 findings have been addressed and verified.
+All 15 findings have been addressed and verified.
 
 ---
 
@@ -151,11 +151,41 @@ All three now fail closed (deny) when the class document doesn't exist, instead 
 
 ---
 
+## Finding 15: Harden Dev Switcher (Admin-Only Live Site Gating & Remove Password Fallback) ✅
+
+**Risk:** `isDevSwitcherEnabled` previously allowed enabling the dev quick-switcher via env flags on the public login page, and `DEV_TEST_PASSWORD` fell back to `"123456"`, risking exposure of test accounts and 1-click superadmin sign-in with a known fallback credential on public/live sites.
+
+**Fix:**
+- In [`LoginPage.jsx`](file:///E:/myliberty-portal/src/features/auth/LoginPage.jsx#L335-L345): gated public login screen test accounts strictly to `isDevSwitcherEnabled` (`import.meta.env.DEV`), ensuring the public production login screen never exposes test accounts or credentials.
+- In [`App.jsx`](file:///E:/myliberty-portal/src/App.jsx#L84) and [`DevQuickSwitcher.jsx`](file:///E:/myliberty-portal/src/features/shared/DevQuickSwitcher.jsx#L48): permitted the in-app floating switcher widget in production exclusively for authenticated Admins (`role === "admin"`). Regular staff and unauthenticated visitors cannot see or access it.
+- In [`devPresets.js`](file:///E:/myliberty-portal/src/features/auth/devPresets.js#L10) and [`DevQuickSwitcher.jsx`](file:///E:/myliberty-portal/src/features/shared/DevQuickSwitcher.jsx#L56-L85): removed the hardcoded `"123456"` fallback password entirely. Added a secure runtime password input inside the Admin popover for Mode 1 switching and account provisioning.
+- In [`.github/workflows/firebase-hosting-merge.yml`](file:///E:/myliberty-portal/.github/workflows/firebase-hosting-merge.yml) and [`.github/workflows/firebase-hosting-pull-request.yml`](file:///E:/myliberty-portal/.github/workflows/firebase-hosting-pull-request.yml): removed `VITE_ENABLE_DEV_SWITCHER` and `VITE_DEV_TEST_PASSWORD` so production deployments never carry dev-switcher build flags.
+- In [`.env`](file:///E:/myliberty-portal/.env): cleaned dev switcher flags from repository configuration.
+
+---
+
+## Finding 16: Legacy Role Aliases Normalization & Complete Test Coverage ✅
+
+**Risk:** The codebase supports multiple legacy role aliases for front office leadership (`opslead`, `ops_lead`, `frontofficelead`) and instructor leadership (`instructorleader`, `instructor_leader`). Because dev presets and tests previously only used canonical `opslead`, regressions and unhandled legacy aliases in approval routing and repository queries could go undetected. Specifically:
+- `approvalGates.js` did not recognize `frontofficelead` in `getSelfCorrectionApprover` (falling through to general staff routing instead of escalating to Branch Manager) or `canApproveGate`.
+- `approvalsRepository.js` omitted `frontofficelead` in query constraints, which would cause an unconstrained Firestore query and permission denial under security rules for users with legacy documents.
+
+**Fix:**
+- In [`approvalGates.js`](file:///E:/myliberty-portal/src/features/shared/approvalGates.js): added `frontofficelead` and `front_office_lead` to `getSelfCorrectionApprover` (escalates to `APPROVAL_ROLES.BRANCH_MANAGER`) and `canApproveGate` (`APPROVAL_ROLES.OPS_LEAD`).
+- In [`approvalsRepository.js`](file:///E:/myliberty-portal/src/features/shared/approvalsRepository.js): added `frontofficelead` and `front_office_lead` to query constraints in `listenToPendingApprovals`.
+- In [`devPresets.js`](file:///E:/myliberty-portal/src/features/auth/devPresets.js): exported `LEGACY_ROLE_ALIASES`, `normalizeRoleAlias()`, and explicit `MODE_1_LEGACY_ALIAS_ACCOUNTS` for targeted testing without cluttering the primary user-facing UI.
+- In [`approvalGates.test.js`](file:///E:/myliberty-portal/src/features/shared/approvalGates.test.js) and [`devPresets.test.js`](file:///E:/myliberty-portal/src/features/auth/devPresets.test.js): added unit test coverage verifying alias normalization, approval gate satisfaction, self-correction routing, and structural validity of legacy alias accounts.
+
+---
+
 ## Verification
 
 | Check | Result |
 |---|---|
-| `npm test` | ✅ 768 passed, 39 skipped |
+| `npm test` | ✅ 775 passed, 39 skipped |
 | `npm run typecheck` | ✅ Clean (0 errors) |
 | `npm run build` | ✅ Clean |
 | `npm run lint` | ✅ Clean (0 errors) |
+
+
+

@@ -1,13 +1,13 @@
 /**
  * Configuration and presets for Development Quick Switcher (Mode 1 & Mode 2).
- * Strictly guarded: only active when in development or VITE_ENABLE_DEV_SWITCHER is true.
+ * Strictly guarded: only active during development (import.meta.env.DEV).
+ * Never enabled in production builds to prevent exposing test credentials.
  */
 
-export const isDevSwitcherEnabled = Boolean(
-  import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_SWITCHER === "true"
-);
+export const isDevSwitcherEnabled = Boolean(import.meta.env.DEV);
 
-export const DEV_TEST_PASSWORD = import.meta.env.VITE_DEV_TEST_PASSWORD || "123456";
+export const DEV_TEST_PASSWORD = import.meta.env.VITE_DEV_TEST_PASSWORD || "";
+
 
 /**
  * Mode 1: Test accounts with actual Firestore /users/{uid} documents
@@ -42,7 +42,7 @@ export const MODE_1_TEST_ACCOUNTS = [
     badgeColor: "bg-amber-100 text-amber-800 border-amber-200",
   },
   {
-    label: "Instructor",
+    label: "Instructor (Studio)",
     shortLabel: "Instructor",
     email: "instructor.test@myliberty.id",
     role: "instructor",
@@ -69,7 +69,7 @@ export const MODE_1_TEST_ACCOUNTS = [
     badgeColor: "bg-teal-100 text-teal-800 border-teal-200",
   },
   {
-    label: "Front Office",
+    label: "Front Office (Studio)",
     shortLabel: "Front Office",
     email: "frontoffice.test@myliberty.id",
     role: "frontoffice",
@@ -129,3 +129,68 @@ export const PREVIEW_ROLES = [
   { label: "Marketing", role: "marketing", supportsDivision: false },
   { label: "Office Boy", role: "officeboy", supportsDivision: false },
 ];
+
+/**
+ * Role alias normalization map.
+ * Canonical roles:
+ * - "opslead" <- "ops_lead", "frontofficelead", "front_office_lead"
+ * - "instructorleader" <- "instructor_leader", "head_instructor"
+ */
+export const LEGACY_ROLE_ALIASES = {
+  ops_lead: "opslead",
+  frontofficelead: "opslead",
+  front_office_lead: "opslead",
+  instructor_leader: "instructorleader",
+  head_instructor: "instructorleader",
+};
+
+/**
+ * Normalizes legacy role aliases to canonical operational roles.
+ *
+ * @param {string | any} role
+ * @returns {string | any} Canonical role
+ */
+export function normalizeRoleAlias(role) {
+  if (!role || typeof role !== "string") return role;
+  const normalized = role.trim().toLowerCase();
+  return LEGACY_ROLE_ALIASES[normalized] || normalized;
+}
+
+/**
+ * Mode 1 Legacy Alias Test Accounts:
+ * Explicit accounts covering legacy role aliases for test suites, regression tests,
+ * and emulator verification without cluttering the primary user-facing quick switcher UI.
+ */
+export const MODE_1_LEGACY_ALIAS_ACCOUNTS = [
+  {
+    label: "Front Office Lead (Legacy ops_lead)",
+    shortLabel: "FO Lead · ops_lead",
+    email: "opslead-legacy.test@myliberty.id",
+    role: "ops_lead",
+    canonicalRole: "opslead",
+    division: "studio",
+    branch: "kota_gorontalo",
+    badgeColor: "bg-cyan-100 text-cyan-800 border-cyan-200",
+  },
+  {
+    label: "Front Office Lead (Legacy frontofficelead)",
+    shortLabel: "FO Lead · frontofficelead",
+    email: "frontofficelead-legacy.test@myliberty.id",
+    role: "frontofficelead",
+    canonicalRole: "opslead",
+    division: "studio",
+    branch: "kota_gorontalo",
+    badgeColor: "bg-cyan-100 text-cyan-800 border-cyan-200",
+  },
+  {
+    label: "Instructor Leader (Legacy instructor_leader)",
+    shortLabel: "Inst. Leader · instructor_leader",
+    email: "instructorleader-legacy.test@myliberty.id",
+    role: "instructor_leader",
+    canonicalRole: "instructorleader",
+    division: "studio",
+    branch: "kota_gorontalo",
+    badgeColor: "bg-teal-100 text-teal-800 border-teal-200",
+  },
+];
+

@@ -159,6 +159,8 @@ export function getSelfCorrectionApprover(requesterRole) {
   if (
     normalized === "ops_lead" ||
     normalized === "opslead" ||
+    normalized === "frontofficelead" ||
+    normalized === "front_office_lead" ||
     normalized === "frontoffice" ||
     normalized === "front_office"
   ) {
@@ -250,7 +252,9 @@ export function canApproveGate(userRole, approverRole) {
         normalized === "manager" ||
         normalized === "frontoffice" ||
         normalized === "ops_lead" ||
-        normalized === "opslead"
+        normalized === "opslead" ||
+        normalized === "frontofficelead" ||
+        normalized === "front_office_lead"
       );
     default:
       return false;

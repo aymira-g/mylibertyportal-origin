@@ -96,12 +96,11 @@ To ensure production safety and prevent unauthorized privilege escalation:
 
 1. **Environment Guard:**
    ```javascript
-   const isDevSwitcherEnabled = 
-     import.meta.env.DEV || 
-     import.meta.env.VITE_ENABLE_DEV_SWITCHER === "true";
+   const isDevSwitcherEnabled = Boolean(import.meta.env.DEV);
    ```
-2. **Production Tree-Shaking:**
-   If `isDevSwitcherEnabled` is false (default in production builds without the env flag), the component returns `null` and test credentials are never bundled.
+2. **Production Tree-Shaking & Security:**
+   In any production build (`npm run build`), `isDevSwitcherEnabled` evaluates to `false` at compile-time, completely stripping out the switcher, test accounts, and credentials. The switcher cannot be forced on in production via build flags.
+
 3. **No Secret Leaks:**
    All test accounts share a single password stored in one environment variable:
    ```env

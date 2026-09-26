@@ -356,7 +356,7 @@ export default function LoginPage({ onLogin, loading }) {
                       Note: Set <code>VITE_DEV_TEST_PASSWORD</code> in <code>.env.local</code> to auto-authenticate. Clicking below will fill the email.
                     </div>
                   )}
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 pt-1">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
                     {MODE_1_TEST_ACCOUNTS.map((acc) => (
                       <button
                         key={acc.email}

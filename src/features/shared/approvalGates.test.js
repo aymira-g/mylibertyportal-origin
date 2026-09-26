@@ -53,9 +53,11 @@ describe("Maker-Checker Approval Gates", () => {
     expect(getSelfCorrectionApprover("officeboy")).toBe(APPROVAL_ROLES.OPS_LEAD);
     expect(getSelfCorrectionApprover("instructor_leader")).toBe(APPROVAL_ROLES.OPS_LEAD);
 
-    // 2. Front Office Lead's own record -> Branch Manager
+    // 2. Front Office Lead's own record -> Branch Manager (covers opslead, ops_lead, frontofficelead)
     expect(getSelfCorrectionApprover("frontoffice")).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
+    expect(getSelfCorrectionApprover("opslead")).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
     expect(getSelfCorrectionApprover("ops_lead")).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
+    expect(getSelfCorrectionApprover("frontofficelead")).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
 
     // 3. Branch Manager's own record -> Admin (Owner / Director tier)
     expect(getSelfCorrectionApprover("manager")).toBe(APPROVAL_ROLES.ADMIN);
@@ -122,10 +124,13 @@ describe("Maker-Checker Approval Gates", () => {
     expect(canApproveGate("head_instructor", APPROVAL_ROLES.INSTRUCTOR_LEADER)).toBe(true);
     expect(canApproveGate("instructor_leader", APPROVAL_ROLES.INSTRUCTOR_LEADER)).toBe(true);
 
-    // Front office / Ops Lead
+    // Front office / Ops Lead (covers canonical opslead and legacy aliases ops_lead, frontofficelead)
     expect(canApproveGate("frontoffice", APPROVAL_ROLES.BRANCH_MANAGER)).toBe(false);
     expect(canApproveGate("frontoffice", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
+    expect(canApproveGate("opslead", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
     expect(canApproveGate("ops_lead", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
+    expect(canApproveGate("frontofficelead", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
+    expect(canApproveGate("front_office_lead", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
   });
 
   it("evaluates operational status according to blocking vs logged mode", () => {

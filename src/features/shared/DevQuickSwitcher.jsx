@@ -44,8 +44,9 @@ export default function DevQuickSwitcher({
   const [mode1Error, setMode1Error] = useState("");
   const [provisioning, setProvisioning] = useState(false);
   const [provisionStatus, setProvisionStatus] = useState(null);
+  const [authPassword, setAuthPassword] = useState(DEV_TEST_PASSWORD || "");
 
-  if (!isDevSwitcherEnabled) {
+  if (!isDevSwitcherEnabled && realRole !== "admin") {
     return null;
   }
 
@@ -53,7 +54,13 @@ export default function DevQuickSwitcher({
 
   const handleMode1Switch = async (account) => {
     setMode1Error("");
-    const password = DEV_TEST_PASSWORD || "123456";
+    const password = authPassword || DEV_TEST_PASSWORD;
+    if (!password) {
+      setMode1Error(
+        "Please enter the test account password below to switch."
+      );
+      return;
+    }
 
     try {
       // Clear any preview override so the real account state is clean
@@ -63,7 +70,7 @@ export default function DevQuickSwitcher({
     } catch (err) {
       if (err?.code === "auth/invalid-credential" || err?.message?.includes("invalid-credential")) {
         setMode1Error(
-          `Account ${account.email} has not been created in Firebase yet. Sign in with your real Admin account and click "Create / Update All 8 Test Accounts" below to initialize them.`
+          `Account ${account.email} has not been created in Firebase yet. Sign in with your real Admin account and click "Create / Update All Test Accounts" below to initialize them.`
         );
       } else {
         setMode1Error(err?.message || "Failed to switch account.");
@@ -75,7 +82,15 @@ export default function DevQuickSwitcher({
     setProvisioning(true);
     setProvisionStatus(null);
     setMode1Error("");
-    const password = DEV_TEST_PASSWORD || "123456";
+    const password = authPassword || DEV_TEST_PASSWORD;
+    if (!password) {
+      setProvisionStatus({
+        type: "error",
+        message: "Please enter a test password below to create/update accounts.",
+      });
+      setProvisioning(false);
+      return;
+    }
 
     try {
       const secAuth = getSecondaryAuth();
@@ -352,6 +367,33 @@ export default function DevQuickSwitcher({
                   </div>
                 )}
 
+                {/* ── Test Account Password Input ── */}
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[10px] text-slate-700 uppercase tracking-wider">
+                      Test Account Password:
+                    </span>
+                    {DEV_TEST_PASSWORD && (
+                      <span className="text-[9px] text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                        Default loaded
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="password"
+                    value={authPassword}
+                    onChange={(e) => {
+                      setAuthPassword(e.target.value);
+                      setMode1Error("");
+                    }}
+                    placeholder="Enter test password (e.g. 123456)"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-mono focus:outline-indigo-500"
+                  />
+                  <p className="text-[10px] text-slate-400 leading-tight">
+                    Used for 1-click test account switching and initial provisioning.
+                  </p>
+                </div>
+
                 {/* ── 1-Click Provisioning (For Admins) ── */}
                 {realRole === "admin" && (
                   <div className="p-2.5 rounded-xl bg-indigo-50/70 border border-indigo-200 text-xs space-y-2">
@@ -360,11 +402,11 @@ export default function DevQuickSwitcher({
                       Admin: Provision Test Accounts
                     </span>
                     <p className="text-[10px] text-slate-500 leading-tight">
-                      Registers all 8 test accounts in Firebase Auth and Firestore with password <code>{DEV_TEST_PASSWORD}</code> so 1-click login works.
+                      Registers all {MODE_1_TEST_ACCOUNTS.length} test accounts in Firebase Auth and Firestore with password <code>{authPassword || DEV_TEST_PASSWORD || "(enter password above)"}</code> so 1-click login works.
                     </p>
                     <button
                       type="button"
-                      disabled={provisioning}
+                      disabled={provisioning || !(authPassword || DEV_TEST_PASSWORD)}
                       onClick={handleProvisionAccounts}
                       className="w-full py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 shadow-xs"
                     >
@@ -376,7 +418,7 @@ export default function DevQuickSwitcher({
                       ) : (
                         <>
                           <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
-                          <span>Create / Update All 8 Test Accounts</span>
+                          <span>Create / Update All {MODE_1_TEST_ACCOUNTS.length} Test Accounts</span>
                         </>
                       )}
                     </button>

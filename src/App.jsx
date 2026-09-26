@@ -81,6 +81,8 @@ function App() {
   const [idleWarning, setIdleWarning] = useState(false);
   const [profileError, setProfileError] = useState("");
 
+  const canUseDevSwitcher = Boolean(isDevSwitcherEnabled || role === "admin");
+
   const handleClearPreview = useCallback(() => {
     setPreviewRole(null);
     setPreviewDivision(null);
@@ -430,7 +432,7 @@ function App() {
         </div>
 
         {/* Mode 2 Preview Sticky Warning Banner */}
-        {isDevSwitcherEnabled && previewRole && (
+        {canUseDevSwitcher && previewRole && (
           <div className="bg-amber-500 text-white px-3.5 py-2 text-xs font-semibold flex items-center justify-between shadow-xs sticky top-0 z-40 border-b border-amber-600 animate-in fade-in duration-150">
             <div className="flex items-center gap-2 min-w-0 pr-2">
               <AlertTriangle className="w-4 h-4 shrink-0 text-amber-100" />
@@ -452,7 +454,7 @@ function App() {
         <div className="p-3 sm:p-4 md:p-6 w-full">
           {/* Dynamic Role Router Switcher — wrapped in PreviewModeProvider for write protection */}
           <PreviewModeProvider
-            isPreviewMode={Boolean(isDevSwitcherEnabled && previewRole)}
+            isPreviewMode={Boolean(canUseDevSwitcher && previewRole)}
             previewRole={previewRole}
             previewDivision={previewDivision || division}
             exitPreview={handleClearPreview}
@@ -583,7 +585,7 @@ function App() {
       )}
 
       {/* Floating Dev Quick Switcher widget */}
-      {isDevSwitcherEnabled && (
+      {canUseDevSwitcher && (
         <DevQuickSwitcher
           currentUser={user}
           realRole={role}

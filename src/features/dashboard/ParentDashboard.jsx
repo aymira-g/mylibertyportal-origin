@@ -249,7 +249,7 @@ export default function ParentDashboard({ user = null }) {
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-semibold text-slate-500">Status Pembayaran:</span>
                 <Badge
-                  color={
+                  tone={
                     paymentSummary.status === "paid"
                       ? "emerald"
                       : paymentSummary.status === "pending"

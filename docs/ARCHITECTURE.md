@@ -42,7 +42,9 @@ The main domain areas currently live under `src/features/`:
   - applications;
   - rosters;
   - progress;
-  - student-facing forms.
+  - student-facing forms;
+  - parent account linkage and management (`StudentParentLinkage`);
+  - authenticated parent data-access bundle (`parentPortalRepository`).
 
 - `features/attendance`
   - kiosk;
@@ -87,6 +89,7 @@ The dashboard area currently contains role/workflow-specific modules, including:
 - `dashboard/marketing`
 - `dashboard/instructor`
 - `dashboard/kids`
+- `ParentDashboard.jsx` (authenticated parent portal with multi-child switching, attendance tracking, and schedule visibility)
 
 The dashboard area is an orchestration and role-entry layer. It should not become a substitute for domain ownership when logic clearly belongs to another domain.
 
@@ -280,6 +283,33 @@ For each significant historical dataset, identify:
 - retention;
 - indexes;
 - listener scope.
+
+---
+
+## 7A. Parent + Student + Class Roster Data Model
+
+The application enforces a clear separation between parent identity, student identity, class rosters, and class attendance:
+
+```text
+users
+├── parent users (role: "parent", childStudentIds: [studentId1, ...])
+├── student users (role: "student", student profile fields)
+└── staff users (admin, manager, instructor, frontoffice, opslead, marketing, officeboy)
+
+classes
+└── roster: studentIds: [studentId1, ...] + enrollments
+
+classAttendance
+└── attendance records: classId + studentId + attendanceDate + status + method
+```
+
+### Key architectural rules:
+- **Students remain real user entities:** Students are full entity records in `/users/{studentId}` with `role: "student"`. They are not replaced by parents or reduced to class roster rows.
+- **Parents are real user entities:** Parents are authenticated entities in `/users/{parentUid}` with `role: "parent"`.
+- **Linkage stored on parent document:** The `childStudentIds` array on `/users/{parentUid}` stores authorized child student IDs. This naturally supports 1-to-many (siblings) and many-to-many (multiple parents for a child).
+- **Roster is class membership:** Class roster is represented by `studentIds` and `enrollments` on `/classes/{classId}`, not a distinct user collection.
+- **Authorization & Security Enforcement:** Parents receive read-only access to their linked children's student, class, and attendance records enforced via Firestore Rules `isParentOf(resource.data.studentId)` (or `isParentOf(userId)` on `/users/{userId}`). Arbitrary student document reads are strictly blocked. Parents cannot mutate `childStudentIds` on their own profile (managed by Front Office / Admin).
+- **Identity vs. Portal separation:** `/portal` remains available for transitional unauthenticated phone/NIS lookup. Authenticated parents log in via Firebase Auth and are routed to `/parent` (`ParentDashboard.jsx`).
 
 ---
 
@@ -517,3 +547,4 @@ When a feature intentionally changes architecture:
 | 2026-09-23 | Architecture V2 refresh | Reconciled documentation with the current feature layout, outreach/manager tracking, repository patterns, shared utilities, and current migration state |
 | 2026-09-23 | Audit Roadmap Implementation | Classified `deskInquiries` & `corporateEvents` in Class B; documented `deskInquiriesRepository.js` & `usersRepository.js`; aligned agent instructions reference with `AGENTS.md` |
 | 2026-09-24 | Multi-Branch Isolation & Dual-Control Approvals | Implemented branchId normalization across admissions, payments, shifts, outreach, and inquiries with Firestore rule scoping; added Maker-Checker Approval Registry, repository, and dashboard inboxes |
+| 2026-09-27 | Parent + Student + Class Roster Architecture | Implemented role: "parent" in users collection, childStudentIds linkage, parent authorization rules (isParentOf), Front Office linkage UI, composite indexes, and lazy-loaded ParentDashboard |

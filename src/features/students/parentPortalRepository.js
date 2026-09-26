@@ -146,6 +146,7 @@ export async function getAuthenticatedParentBundle(parentUid) {
   if (!parentDoc.exists()) {
     return { parent: null, children: [] };
   }
+  /** @type {any} */
   const parent = { id: parentDoc.id, ...parentDoc.data() };
   const childStudentIds = Array.isArray(parent.childStudentIds) ? parent.childStudentIds : [];
 

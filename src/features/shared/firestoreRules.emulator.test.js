@@ -597,9 +597,9 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       await assertFails(addDoc(collection(anon, "payments"), PAYMENT_KOTA));
     });
 
-    it("documents that student user profiles are world-readable by design", async () => {
+    it("denies unauthenticated access to student user profiles", async () => {
       const anon = testEnv.unauthenticatedContext().firestore();
-      await assertSucceeds(getDoc(doc(anon, "users", "student1")));
+      await assertFails(getDoc(doc(anon, "users", "student1")));
     });
 
     it("denies everything on collections with no explicit rules", async () => {

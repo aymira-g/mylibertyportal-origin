@@ -963,6 +963,78 @@ describe("Security Rules Matrix & Branch Isolation", () => {
       // Admin updating any parent: ALLOWED
       expect(canUpdateParentProfileKeys(parentDocBoba, ["childStudentIds", "updatedAt"], adminUser)).toBe(true);
     });
+
+    function canGetUser(targetUserDoc, requester) {
+      if (!requester) return false;
+      if (isAdmin(requester)) return true;
+      if (isManager(requester) && isSameBranch(targetUserDoc, requester)) return true;
+      if (
+        isStaff(requester) &&
+        ["student", "instructor", "instructorleader", "instructor_leader", "parent"].includes(targetUserDoc.role) &&
+        isSameBranch(targetUserDoc, requester)
+      ) {
+        return true;
+      }
+      if (requester.uid && targetUserDoc.id === requester.uid) return true;
+      if (isParentOf(targetUserDoc.id, requester) && targetUserDoc.role === "student") return true;
+      return false;
+    }
+
+    function canListUsers(requester) {
+      if (!requester) return false;
+      if (isAdmin(requester)) return true;
+      if (isManager(requester)) return true;
+      if (isStaff(requester)) return true;
+      return false;
+    }
+
+    it("restricts /users/{userId} get so parents can only read own doc and linked children", () => {
+      // 1. Parent self-read: allowed
+      expect(canGetUser({ id: "parent_a", role: "parent" }, parentA)).toBe(true);
+      expect(canGetUser({ id: "parent_b", role: "parent" }, parentB)).toBe(true);
+
+      // 2. Parent-to-parent reads: strictly blocked
+      expect(canGetUser({ id: "parent_b", role: "parent" }, parentA)).toBe(false);
+      expect(canGetUser({ id: "parent_a", role: "parent" }, parentB)).toBe(false);
+
+      // 3. Parent reading linked children: allowed
+      expect(canGetUser({ id: "student_1", role: "student" }, parentA)).toBe(true);
+      expect(canGetUser({ id: "student_2", role: "student" }, parentA)).toBe(true);
+      expect(canGetUser({ id: "student_3", role: "student" }, parentB)).toBe(true);
+
+      // 4. Parent reading arbitrary unlinked students: strictly blocked
+      expect(canGetUser({ id: "student_3", role: "student" }, parentA)).toBe(false);
+      expect(canGetUser({ id: "student_1", role: "student" }, parentB)).toBe(false);
+      expect(canGetUser({ id: "student_2", role: "student" }, parentB)).toBe(false);
+
+      // 5. Parent reading other roles (e.g. staff): strictly blocked
+      expect(canGetUser({ id: "ins_1", role: "instructor", branchId: "kota_gorontalo" }, parentA)).toBe(false);
+
+      // 6. Student reads: student can read self, but cannot read other students or parents
+      const student1 = { uid: "student_1", role: "student" };
+      expect(canGetUser({ id: "student_1", role: "student" }, student1)).toBe(true);
+      expect(canGetUser({ id: "student_2", role: "student" }, student1)).toBe(false);
+      expect(canGetUser({ id: "parent_a", role: "parent" }, student1)).toBe(false);
+
+      // 7. Unauthenticated reads: strictly blocked
+      expect(canGetUser({ id: "student_1", role: "student" }, null)).toBe(false);
+      expect(canGetUser({ id: "parent_a", role: "parent" }, null)).toBe(false);
+
+      // 8. Staff reads with branch isolation
+      expect(canGetUser({ id: "student_1", role: "student", branchId: "kota_gorontalo" }, foGto)).toBe(true);
+      expect(canGetUser({ id: "parent_a", role: "parent", branchId: "kota_gorontalo" }, foGto)).toBe(true);
+      expect(canGetUser({ id: "parent_b", role: "parent", branchId: "bone_bolango" }, foGto)).toBe(false);
+      expect(canGetUser({ id: "parent_b", role: "parent", branchId: "bone_bolango" }, adminUser)).toBe(true);
+    });
+
+    it("ensures parents and students cannot list /users collection", () => {
+      expect(canListUsers(parentA)).toBe(false);
+      expect(canListUsers(parentB)).toBe(false);
+      expect(canListUsers({ uid: "student_1", role: "student" })).toBe(false);
+      expect(canListUsers(null)).toBe(false);
+      expect(canListUsers(foGto)).toBe(true);
+      expect(canListUsers(adminUser)).toBe(true);
+    });
   });
 });
 

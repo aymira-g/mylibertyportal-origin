@@ -197,7 +197,7 @@ export async function deleteUserProfile(uid) {
  *
  * @param {string} email
  * @param {string} password
- * @param {object} parentData
+ * @param {Record<string, any>} parentData
  * @returns {Promise<string>} Created parent UID
  */
 export async function createParentAccount(email, password, parentData) {

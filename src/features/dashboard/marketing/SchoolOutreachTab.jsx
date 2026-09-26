@@ -10,33 +10,45 @@ import {
 } from "./schoolOutreachRepository";
 import { useToast } from "../../shared";
 
-export default function SchoolOutreachTab({ currentUser, branchId }) {
+export default function SchoolOutreachTab({
+  currentUser,
+  branchId,
+  schools: propSchools,
+  loading: propLoading,
+}) {
   const toast = useToast();
 
-  const [schools, setSchools] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [internalSchools, setInternalSchools] = useState([]);
+  const [internalLoading, setInternalLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("all");
   const [selectedSchool, setSelectedSchool] = useState(null);
   const [modalSchool, setModalSchool] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [seeding, setSeeding] = useState(false);
 
-  // Real-time listener for school outreach documents
+  // If parent component (MarketingDashboard) already provides schools, consume them directly
+  // to avoid redundant duplicate Firestore listeners on the same collection.
+  const isControlled = Array.isArray(propSchools);
+  const schools = isControlled ? propSchools : internalSchools;
+  const loading = isControlled ? Boolean(propLoading) : internalLoading;
+
+  // Real-time listener for school outreach documents only when not provided by parent
   useEffect(() => {
+    if (isControlled) return;
     const unsub = listenToSchools(
       { branchId },
       (data) => {
-        setSchools(data);
-        setLoading(false);
+        setInternalSchools(data);
+        setInternalLoading(false);
       },
       (err) => {
         console.error("Failed to load schools:", err);
-        setLoading(false);
+        setInternalLoading(false);
         toast("Failed to load schools data", "error");
       }
     );
     return () => unsub();
-  }, [branchId, toast]);
+  }, [isControlled, branchId, toast]);
 
   // Filtered schools passed to the map and list
   const filteredSchools = useMemo(() => {

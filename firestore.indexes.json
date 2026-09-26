@@ -133,15 +133,6 @@
       ]
     },
     {
-      "collectionGroup": "schoolOutreach",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "active", "order": "ASCENDING" },
-        { "fieldPath": "branchId", "order": "ASCENDING" },
-        { "fieldPath": "name", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "classAttendance",
       "queryScope": "COLLECTION",
       "fields": [

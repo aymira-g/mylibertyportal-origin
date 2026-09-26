@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { db, auth } from "../../firebase";
+import { onAuthStateChanged } from "firebase/auth";
 import { collection, onSnapshot, doc } from "firebase/firestore";
 import { WelcomeBanner, DashboardShell, useToast } from "../shared";
 import { UserPlus, BookOpen, Users, Copy, Check, ExternalLink } from "lucide-react";
@@ -147,6 +148,7 @@ export default function MarketingDashboard() {
   const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState([]);
   const [schools, setSchools] = useState([]);
+  const [schoolsLoading, setSchoolsLoading] = useState(true);
 
   const {
     activeDirectives,
@@ -159,19 +161,39 @@ export default function MarketingDashboard() {
   const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
-    if (!auth.currentUser?.uid) return;
-    const unsub = onSnapshot(
-      doc(db, "users", auth.currentUser.uid),
-      (snap) => {
-        if (snap.exists()) {
-          setUserProfile(snap.data());
-        }
-      },
-      (err) => {
-        console.error("Marketing user profile listener error:", err);
+    /** @type {(() => void) | null} */
+    let unsubProfile = null;
+
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      if (unsubProfile) {
+        unsubProfile();
+        unsubProfile = null;
       }
-    );
-    return () => unsub();
+
+      if (!user?.uid) {
+        setUserProfile(null);
+        return;
+      }
+
+      unsubProfile = onSnapshot(
+        doc(db, "users", user.uid),
+        (snap) => {
+          if (snap.exists()) {
+            setUserProfile(snap.data());
+          } else {
+            setUserProfile(null);
+          }
+        },
+        (err) => {
+          console.error("Marketing user profile listener error:", err);
+        }
+      );
+    });
+
+    return () => {
+      if (unsubProfile) unsubProfile();
+      unsubAuth();
+    };
   }, []);
 
   const marketingBranchId = useMemo(() => {
@@ -215,9 +237,11 @@ export default function MarketingDashboard() {
       { branchId: marketingBranchId },
       (data) => {
         setSchools(data);
+        setSchoolsLoading(false);
       },
       (err) => {
         console.error("marketing schools listener:", err);
+        setSchoolsLoading(false);
       }
     );
     return () => unsubSchools();
@@ -256,7 +280,12 @@ export default function MarketingDashboard() {
       badge: scheduledSchoolsCount > 0 ? `${scheduledSchoolsCount} scheduled` : null,
       component: (
         <div className="w-full">
-          <SchoolOutreachTab currentUser={auth.currentUser} branchId={marketingBranchId} />
+          <SchoolOutreachTab
+            currentUser={auth.currentUser}
+            branchId={marketingBranchId}
+            schools={schools}
+            loading={schoolsLoading}
+          />
         </div>
       ),
     },

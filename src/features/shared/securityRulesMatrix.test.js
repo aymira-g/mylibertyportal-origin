@@ -804,6 +804,27 @@ describe("Security Rules Matrix & Branch Isolation", () => {
       expect(canCreateVisitCollectionGroup(visitBoba, mktGto)).toBe(false);
     });
 
+    function canReadDirectSchoolVisit(visit, user) {
+      if (!user) return false;
+      if (isAdmin(user)) return true;
+      if ((isManager(user) || user.role === "marketing") && isSameBranchStrict(visit, user)) return true;
+      return false;
+    }
+
+    it("ensures direct nested visit reads and collection-group reads are consistently strict", () => {
+      // Valid same branch
+      expect(canReadDirectSchoolVisit(visitGto, mgrGto)).toBe(true);
+      expect(canReadVisitCollectionGroup(visitGto, mgrGto)).toBe(true);
+
+      // Cross branch
+      expect(canReadDirectSchoolVisit(visitBoba, mgrGto)).toBe(false);
+      expect(canReadVisitCollectionGroup(visitBoba, mgrGto)).toBe(false);
+
+      // Missing branchId on visit: denied consistently across both direct and collection-group paths
+      expect(canReadDirectSchoolVisit(legacyVisitMissingBranch, mgrGto)).toBe(false);
+      expect(canReadVisitCollectionGroup(legacyVisitMissingBranch, mgrGto)).toBe(false);
+    });
+
     it("denies visits missing branchId under strict collection-group rule", () => {
       expect(canReadVisitCollectionGroup(legacyVisitMissingBranch, mgrGto)).toBe(false);
       expect(canReadVisitCollectionGroup(legacyVisitMissingBranch, mktGto)).toBe(false);

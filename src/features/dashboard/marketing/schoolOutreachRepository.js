@@ -78,7 +78,6 @@ export function listenToSchools(arg1, arg2, arg3) {
   if (options.region) {
     constraints.push(where("region", "==", options.region));
   }
-  constraints.push(orderBy("name"));
 
   const q = query(collection(db, COLLECTION_NAME), ...constraints);
 
@@ -86,6 +85,12 @@ export function listenToSchools(arg1, arg2, arg3) {
     q,
     (snap) => {
       const schools = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      // Sort in memory by school name to eliminate composite index requirements
+      schools.sort((a, b) =>
+        String(/** @type {any} */ (a).name || "").localeCompare(
+          String(/** @type {any} */ (b).name || "")
+        )
+      );
       onData(schools);
     },
     (err) => {
@@ -342,17 +347,22 @@ export async function createSchoolVisit(schoolId, rawVisit, creatorUid, options 
   const validated = schoolVisitSchema.parse(rawVisit);
 
   const schoolRef = doc(db, COLLECTION_NAME, schoolId);
-  let parentBranchId = options.parentSchool?.branchId;
-  let parentBranch = options.parentSchool?.branch;
+  const parentSnap = await getDoc(schoolRef);
+  if (!parentSnap.exists()) {
+    throw new Error(`School with ID "${schoolId}" does not exist.`);
+  }
 
-  if (!parentBranchId || !parentBranch) {
-    const parentSnap = await getDoc(schoolRef);
-    if (!parentSnap.exists()) {
-      throw new Error(`School with ID "${schoolId}" does not exist.`);
-    }
-    const parentData = parentSnap.data() || {};
-    parentBranchId = parentData.branchId || branchToId(parentData.branch || parentData.municipality || DEFAULT_BRANCH_ID);
-    parentBranch = parentData.branch || idToBranch(parentBranchId);
+  const parentData = parentSnap.data() || {};
+  const parentBranchId =
+    parentData.branchId ||
+    branchToId(parentData.branch || parentData.municipality || DEFAULT_BRANCH_ID);
+  const parentBranch = parentData.branch || idToBranch(parentBranchId);
+
+  // If caller provided client-side parentSchool, verify it does not contradict the database record
+  if (options.parentSchool?.branchId && options.parentSchool.branchId !== parentBranchId) {
+    throw new Error(
+      `Branch mismatch: parentSchool branchId "${options.parentSchool.branchId}" does not match database record "${parentBranchId}".`
+    );
   }
 
   const batch = writeBatch(db);

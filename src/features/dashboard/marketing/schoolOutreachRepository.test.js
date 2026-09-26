@@ -184,7 +184,16 @@ describe("schoolOutreachRepository", () => {
       });
     });
 
-    it("inherits branch from options.parentSchool without an extra database read", async () => {
+    it("verifies parentSchool branch against database record and succeeds on match", async () => {
+      fake.seed("schoolOutreach", [
+        {
+          id: "school-direct",
+          name: "SMAN 1 Suwawa",
+          branchId: "bone_bolango",
+          branch: "Bone Bolango",
+        },
+      ]);
+
       const visitId = await createSchoolVisit(
         "school-direct",
         {
@@ -206,6 +215,35 @@ describe("schoolOutreachRepository", () => {
       expect(sets.length).toBe(1);
       expect(sets[0].data.branchId).toBe("bone_bolango");
       expect(sets[0].data.branch).toBe("Bone Bolango");
+    });
+
+    it("rejects createSchoolVisit if caller provides mismatched client branch metadata", async () => {
+      fake.seed("schoolOutreach", [
+        {
+          id: "school-mismatch",
+          name: "SMAN 1 Suwawa",
+          branchId: "bone_bolango",
+          branch: "Bone Bolango",
+        },
+      ]);
+
+      await expect(
+        createSchoolVisit(
+          "school-mismatch",
+          {
+            visitDate: "2026-09-24",
+            contactName: "Pak Imposter",
+            contactRole: "Wakil Kurikulum",
+          },
+          "officer-888",
+          {
+            parentSchool: {
+              branchId: "kota_gorontalo",
+              branch: "Kota Gorontalo",
+            },
+          }
+        )
+      ).rejects.toThrow(/Branch mismatch: parentSchool branchId "kota_gorontalo" does not match database record "bone_bolango"/);
     });
 
     it("throws an error when parent school document does not exist", async () => {

@@ -469,12 +469,11 @@ service cloud.firestore {
       allow delete: if isAdmin();
 
       match /visits/{visitId} {
-        // Enforce branch check against parent school document so visits are isolated per branch
+        // Enforce strict branch check so visits are consistently isolated per branch across direct and collectionGroup queries
         allow read: if isAdmin()
-          || ((isManager() || hasRole('marketing'))
-            && (isSameBranchStrict(resource.data)
-                || isSameBranch(get(/databases/$(database)/documents/schoolOutreach/$(schoolId)).data)));
+          || ((isManager() || hasRole('marketing')) && isSameBranchStrict(resource.data));
         allow create: if (isAdmin() || ((isManager() || hasRole('marketing'))
+            && isSameBranchStrict(request.resource.data)
             && isSameBranch(get(/databases/$(database)/documents/schoolOutreach/$(schoolId)).data)))
           && request.resource.data.visitDate is string
           && request.resource.data.contactName is string

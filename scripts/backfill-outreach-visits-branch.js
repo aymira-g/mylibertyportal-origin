@@ -5,60 +5,21 @@
  * resolves the parent school document, and populates `branchId` and `branch` if missing.
  *
  * Usage:
- *   node scripts/backfill-outreach-visits-branch.js [--dry-run] [--email=admin@email.com] [--password=pass]
+ *   node scripts/backfill-outreach-visits-branch.js --projectId=<id> [--dry-run] [--service-account=path/to/key.json] [--emulator] [--adc]
  *
  * Flags:
- *   --dry-run       Analyze and print required changes without writing to Firestore.
- *   --email         Admin/Staff user email for authentication.
- *   --password      Password for authentication.
+ *   --projectId=<id>        Firebase project ID (or set FIREBASE_PROJECT_ID env var). Required.
+ *   --service-account=<path> Path to GCP service account JSON key (or set GOOGLE_APPLICATION_CREDENTIALS).
+ *   --emulator[=<host>]     Run against local Firestore emulator (default: 127.0.0.1:8080).
+ *   --adc                   Use Google Cloud Application Default Credentials (gcloud auth application-default login).
+ *   --dry-run               Analyze and print required changes without writing to Firestore.
  */
 
 /* global process */
-import { initializeApp } from "firebase/app";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import {
-  getFirestore,
-  collection,
-  getDocs,
-  doc,
-  updateDoc,
-} from "firebase/firestore";
+import { initializeApp, cert, applicationDefault } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
-
-// Load .env or .env.local variables if available
-function loadEnv() {
-  const env = { ...process.env };
-  const envFiles = [".env.local", ".env"];
-  for (const file of envFiles) {
-    const fullPath = resolve(process.cwd(), file);
-    if (existsSync(fullPath)) {
-      const content = readFileSync(fullPath, "utf-8");
-      for (const line of content.split("\n")) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith("#")) continue;
-        const eqIdx = trimmed.indexOf("=");
-        if (eqIdx > 0) {
-          const key = trimmed.slice(0, eqIdx).trim();
-          const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, "");
-          if (!env[key]) env[key] = val;
-        }
-      }
-    }
-  }
-  return env;
-}
-
-const env = loadEnv();
-
-const firebaseConfig = {
-  apiKey: env.VITE_FIREBASE_API_KEY || "AIzaSyCut-lqqGwpwZ9FjaifrBObi8Kr76tawIU",
-  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || "mylibertyies-f2f38.firebaseapp.com",
-  projectId: env.VITE_FIREBASE_PROJECT_ID || "mylibertyies-f2f38",
-  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || "mylibertyies-f2f38.firebasestorage.app",
-  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || "1072836543676",
-  appId: env.VITE_FIREBASE_APP_ID || "1:1072836543676:web:713dc5f12930e89ce5fcb9",
-};
 
 const BRANCH_MAP = {
   cabang_utama: "Kota Gorontalo",
@@ -80,29 +41,72 @@ function normalizeBranchId(raw) {
 async function runMigration() {
   const args = process.argv.slice(2);
   const isDryRun = args.includes("--dry-run");
-  const emailArg = args.find((a) => a.startsWith("--email="))?.split("=")[1];
-  const passArg = args.find((a) => a.startsWith("--password="))?.split("=")[1];
+
+  // Explicit project ID requirement — no hardcoded fallback or implicit frontend .env lookup
+  const projectIdArg = args.find((a) => a.startsWith("--projectId="))?.split("=")[1];
+  const projectId = projectIdArg || process.env.FIREBASE_PROJECT_ID;
+
+  if (!projectId) {
+    console.error("\n[Error] Missing required Firebase Project ID.");
+    console.error("To prevent targeting the wrong environment, you must explicitly provide:");
+    console.error("  --projectId=<id>  (e.g. node scripts/backfill-outreach-visits-branch.js --projectId=my-project-id)");
+    console.error("  or set FIREBASE_PROJECT_ID in your environment.\n");
+    process.exit(1);
+  }
+
+  // Emulator configuration
+  const emulatorFlag = args.find((a) => a.startsWith("--emulator"));
+  const emulatorHost =
+    (emulatorFlag && emulatorFlag.includes("=") ? emulatorFlag.split("=")[1] : null) ||
+    (emulatorFlag ? "127.0.0.1:8080" : null) ||
+    process.env.FIRESTORE_EMULATOR_HOST;
+
+  if (emulatorHost) {
+    process.env.FIRESTORE_EMULATOR_HOST = emulatorHost;
+  }
+
+  // Service account or Application Default Credentials
+  const serviceAccountArg = args.find((a) => a.startsWith("--service-account="))?.split("=")[1];
+  const serviceAccountPath = serviceAccountArg || process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  const useAdc = args.includes("--adc");
+
+  /** @type {any} */
+  let appConfig = { projectId };
+
+  if (emulatorHost) {
+    console.log(`[Config] Connected to Firestore Emulator: ${emulatorHost}`);
+  } else if (serviceAccountPath) {
+    const resolvedPath = resolve(process.cwd(), serviceAccountPath);
+    if (!existsSync(resolvedPath)) {
+      console.error(`\n[Error] Service account file not found at: ${resolvedPath}\n`);
+      process.exit(1);
+    }
+    console.log(`[Config] Using Service Account credentials: ${resolvedPath}`);
+    const serviceAccount = JSON.parse(readFileSync(resolvedPath, "utf-8"));
+    appConfig.credential = cert(serviceAccount);
+  } else if (useAdc) {
+    console.log("[Config] Using Google Cloud Application Default Credentials (ADC)...");
+    appConfig.credential = applicationDefault();
+  } else {
+    console.error("\n[Error] Authentication or emulator configuration required.");
+    console.error("To prevent unintended live access, specify one of the following:");
+    console.error("  1) Local Emulator:      --emulator[=127.0.0.1:8080]");
+    console.error("  2) Service Account Key: --service-account=path/to/key.json");
+    console.error("  3) Google Cloud ADC:    --adc (requires 'gcloud auth application-default login')\n");
+    process.exit(1);
+  }
 
   console.log("==================================================");
   console.log(" Outreach Visits Branch Backfill Tool");
-  console.log(` Mode: ${isDryRun ? "DRY RUN (no writes)" : "LIVE EXECUTION"}`);
-  console.log(` Project: ${firebaseConfig.projectId}`);
+  console.log(` Mode:    ${isDryRun ? "DRY RUN (no writes)" : "LIVE EXECUTION"}`);
+  console.log(` Project: ${projectId}`);
   console.log("==================================================\n");
 
-  const app = initializeApp(firebaseConfig);
+  const app = initializeApp(appConfig);
   const db = getFirestore(app);
-  const auth = getAuth(app);
-
-  if (emailArg && passArg) {
-    console.log(`Authenticating as ${emailArg}...`);
-    await signInWithEmailAndPassword(auth, emailArg, passArg);
-    console.log("Authenticated successfully.\n");
-  } else {
-    console.log("Note: Running without explicit auth. If security rules require auth, pass --email=... --password=...\n");
-  }
 
   console.log("Fetching all schools from schoolOutreach collection...");
-  const schoolsSnap = await getDocs(collection(db, "schoolOutreach"));
+  const schoolsSnap = await db.collection("schoolOutreach").get();
   console.log(`Found ${schoolsSnap.size} school documents.\n`);
 
   let totalVisitsScanned = 0;
@@ -117,8 +121,11 @@ async function runMigration() {
     const parentBranchId = schoolData.branchId || normalizeBranchId(schoolData.branch || schoolData.municipality);
     const parentBranch = schoolData.branch || BRANCH_MAP[parentBranchId] || "Kota Gorontalo";
 
-    const visitsRef = collection(db, "schoolOutreach", schoolId, "visits");
-    const visitsSnap = await getDocs(visitsRef);
+    const visitsSnap = await db
+      .collection("schoolOutreach")
+      .doc(schoolId)
+      .collection("visits")
+      .get();
 
     if (visitsSnap.empty) continue;
 
@@ -136,13 +143,13 @@ async function runMigration() {
       }
 
       visitsToUpdate++;
-      console.log(`[Target] Visit ${visitId} at school "${schoolData.name}" (${schoolId}):`);
+      console.log(`[Target] Visit ${visitId} at school "${schoolData.name || schoolId}" (${schoolId}):`);
       console.log(`         Current: branchId=${visitData.branchId || "(missing)"}, branch=${visitData.branch || "(missing)"}`);
       console.log(`         Target:  branchId=${parentBranchId}, branch=${parentBranch}`);
 
       if (!isDryRun) {
         try {
-          await updateDoc(doc(db, "schoolOutreach", schoolId, "visits", visitId), {
+          await visitDoc.ref.update({
             branchId: parentBranchId,
             branch: parentBranch,
             source: visitData.source || "schoolOutreach",
@@ -150,8 +157,9 @@ async function runMigration() {
           visitsUpdated++;
           console.log(`         -> Successfully updated.`);
         } catch (err) {
-          console.error(`         -> FAILED to update: ${err.message}`);
-          errors.push({ schoolId, visitId, error: err.message });
+          const message = err instanceof Error ? err.message : String(err);
+          console.error(`         -> FAILED to update: ${message}`);
+          errors.push({ schoolId, visitId, error: message });
         }
       }
     }

@@ -43,7 +43,8 @@ export async function handleKioskScan(
     todayClasses = [],
     markedBy = null,
     markedByName = "",
-    showStatus = () => {},
+    // eslint-disable-next-line no-unused-vars
+    showStatus = (_title = "", _type = "", _message = "", _name = "") => {},
     setLastScanned = null,
     setPendingClockIn = null,
     setPendingTransition = null,

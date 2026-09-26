@@ -58,8 +58,14 @@ export default function DevQuickSwitcher({
   const [mode1Error, setMode1Error] = useState("");
   const [provisioning, setProvisioning] = useState(false);
   const [provisionStatus, setProvisionStatus] = useState(null);
+  const [accountsProvisioned, setAccountsProvisioned] = useState(() => {
+    try {
+      return sessionStorage.getItem("myliberty_dev_accounts_provisioned") === "1";
+    } catch {
+      return false;
+    }
+  });
   const [userPasswordOverride, setUserPasswordOverride] = useState(() => {
-    if (!isDevSwitcherEnabled) return null;
     try {
       // Purge any stale persistent storage from older versions
       localStorage.removeItem("myliberty_dev_test_password");
@@ -81,28 +87,24 @@ export default function DevQuickSwitcher({
     const nextOverride = trimmed ? trimmed : null;
     setUserPasswordOverride(nextOverride);
     setMode1Error("");
-    if (isDevSwitcherEnabled) {
-      try {
-        if (nextOverride) {
-          sessionStorage.setItem("myliberty_dev_test_password", nextOverride);
-        } else {
-          sessionStorage.removeItem("myliberty_dev_test_password");
-        }
-      } catch {
-        // Storage unavailable or disabled
+    try {
+      if (nextOverride) {
+        sessionStorage.setItem("myliberty_dev_test_password", nextOverride);
+      } else {
+        sessionStorage.removeItem("myliberty_dev_test_password");
       }
+    } catch {
+      // Storage unavailable or disabled
     }
   };
 
   const handleResetPassword = () => {
     setUserPasswordOverride(null);
     setMode1Error("");
-    if (isDevSwitcherEnabled) {
-      try {
-        sessionStorage.removeItem("myliberty_dev_test_password");
-      } catch {
-        // Storage unavailable or disabled
-      }
+    try {
+      sessionStorage.removeItem("myliberty_dev_test_password");
+    } catch {
+      // Storage unavailable or disabled
     }
   };
 
@@ -214,12 +216,12 @@ export default function DevQuickSwitcher({
         type: "success",
         message: `Done! ${createdCount} accounts created in Firebase (${existingCount} already existed). Test accounts ready.`,
       });
-      if (isDevSwitcherEnabled) {
-        try {
-          sessionStorage.setItem("myliberty_dev_test_password", password);
-        } catch {
-          // Storage unavailable
-        }
+      setAccountsProvisioned(true);
+      try {
+        sessionStorage.setItem("myliberty_dev_test_password", password);
+        sessionStorage.setItem("myliberty_dev_accounts_provisioned", "1");
+      } catch {
+        // Storage unavailable
       }
     } catch (err) {
       setProvisionStatus({
@@ -463,96 +465,40 @@ export default function DevQuickSwitcher({
                   </div>
                 )}
 
-                {/* ── Test Account Password Input ── */}
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-[10px] text-slate-700 uppercase tracking-wider">
-                      Test Account Password:
+                {/* ── Test Account Password Input (collapsed when .env.local provides it) ── */}
+                {effectivePassword ? (
+                  <div className="px-2.5 py-1.5 rounded-xl bg-emerald-50/70 border border-emerald-200 text-[10px] text-emerald-800 font-medium flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                      Password ready{DEV_TEST_PASSWORD && userPasswordOverride === null ? " (from .env.local)" : " (session override)"}
                     </span>
-                    <div className="flex items-center gap-1.5">
-                      {userPasswordOverride !== null && (
-                        <button
-                          type="button"
-                          onClick={handleResetPassword}
-                          className="text-[9px] text-slate-500 hover:text-rose-600 underline font-semibold cursor-pointer"
-                          title="Clear session override and restore default"
-                        >
-                          Clear
-                        </button>
-                      )}
-                      {userPasswordOverride !== null ? (
-                        <span className="text-[9px] text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                          Session Override
-                        </span>
-                      ) : effectivePassword ? (
-                        <span className="text-[9px] text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                          Default loaded
-                        </span>
-                      ) : (
-                        <span className="text-[9px] text-rose-600 font-semibold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
-                          Required to Switch
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <input
-                    type="password"
-                    value={effectivePassword}
-                    onChange={(e) => handlePasswordChange(e.target.value)}
-                    placeholder="Enter test password (e.g. 123456)"
-                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-mono focus:outline-indigo-500"
-                  />
-                  <p className="text-[10px] text-slate-400 leading-tight">
-                    {userPasswordOverride !== null
-                      ? "Custom password saved for this browser tab session (cleared on close)."
-                      : DEV_TEST_PASSWORD
-                      ? "Using default test password from .env.local."
-                      : "Enter password to enable 1-click test account switching."}
-                  </p>
-                </div>
-
-                {/* ── 1-Click Provisioning (For Admins) ── */}
-                {normalizeRole(realRole) === "admin" && (
-                  <div className="p-2.5 rounded-xl bg-indigo-50/70 border border-indigo-200 text-xs space-y-2">
-                    <span className="font-bold text-[11px] text-indigo-950 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                      Admin: One-Time Test Accounts Setup
-                    </span>
-                    <p className="text-[10px] text-slate-500 leading-tight">
-                      <strong>First-time setup only:</strong> Registers all {MODE_1_TEST_ACCOUNTS.length} test accounts in Firebase Auth with password <code>{effectivePassword || "(enter password above)"}</code>. You do <em>not</em> need to click this every time you switch.
-                    </p>
                     <button
                       type="button"
-                      disabled={provisioning || !effectivePassword}
-                      onClick={handleProvisionAccounts}
-                      className="w-full py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 shadow-xs"
+                      onClick={() => setActiveTab("auth_settings")}
+                      className="text-[9px] text-slate-500 hover:text-indigo-600 underline cursor-pointer"
                     >
-                      {provisioning ? (
-                        <>
-                          <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          <span>Provisioning in Firebase...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
-                          <span>Create / Update All {MODE_1_TEST_ACCOUNTS.length} Test Accounts</span>
-                        </>
-                      )}
+                      Change
                     </button>
-                    {provisionStatus && (
-                      <div
-                        className={`p-2 rounded-lg text-[10px] font-medium ${
-                          provisionStatus.type === "success"
-                            ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                            : "bg-rose-50 text-rose-800 border border-rose-200"
-                        }`}
-                      >
-                        {provisionStatus.message}
-                      </div>
-                    )}
+                  </div>
+                ) : (
+                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs space-y-1.5">
+                    <span className="font-bold text-[10px] text-amber-900 uppercase tracking-wider">
+                      ⚠ Test Password Required
+                    </span>
+                    <input
+                      type="password"
+                      value={effectivePassword}
+                      onChange={(e) => handlePasswordChange(e.target.value)}
+                      placeholder="Enter test password (e.g. 123456)"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-mono focus:outline-indigo-500"
+                    />
+                    <p className="text-[10px] text-amber-700 leading-tight">
+                      Set <code>VITE_DEV_TEST_PASSWORD</code> in <code>.env.local</code> to skip this, or type it here.
+                    </p>
                   </div>
                 )}
 
+                {/* ── Account Buttons (primary UI) ── */}
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                     Sign In As Test Account
@@ -598,6 +544,126 @@ export default function DevQuickSwitcher({
                       );
                     })}
                   </div>
+                </div>
+
+                {/* ── 1-Click Provisioning (For Admins — collapsed once done) ── */}
+                {normalizeRole(realRole) === "admin" && (
+                  <details
+                    open={!accountsProvisioned}
+                    className="rounded-xl bg-indigo-50/70 border border-indigo-200 text-xs overflow-hidden"
+                  >
+                    <summary className="p-2.5 cursor-pointer select-none flex items-center justify-between list-none">
+                      <span className="font-bold text-[11px] text-indigo-950 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                        {accountsProvisioned ? "Test Accounts Ready ✓" : "Admin: First-Time Test Accounts Setup"}
+                      </span>
+                      <span className="text-[10px] text-indigo-600 font-semibold">▼</span>
+                    </summary>
+                    <div className="px-2.5 pb-2.5 space-y-2">
+                      <p className="text-[10px] text-slate-500 leading-tight">
+                        {accountsProvisioned
+                          ? "Accounts were already provisioned this session. Only re-run if you changed the password or need to reset Firestore user documents."
+                          : <><strong>First-time setup:</strong> Creates all {MODE_1_TEST_ACCOUNTS.length} test accounts in Firebase Auth. You only need to do this once.</>}
+                      </p>
+                      <button
+                        type="button"
+                        disabled={provisioning || !effectivePassword}
+                        onClick={handleProvisionAccounts}
+                        className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 shadow-xs ${
+                          accountsProvisioned
+                            ? "bg-slate-500 hover:bg-slate-600 text-white"
+                            : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                        }`}
+                      >
+                        {provisioning ? (
+                          <>
+                            <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <span>Provisioning in Firebase...</span>
+                          </>
+                        ) : accountsProvisioned ? (
+                          <>
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Re-provision All {MODE_1_TEST_ACCOUNTS.length} Test Accounts</span>
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+                            <span>Create All {MODE_1_TEST_ACCOUNTS.length} Test Accounts</span>
+                          </>
+                        )}
+                      </button>
+                      {provisionStatus && (
+                        <div
+                          className={`p-2 rounded-lg text-[10px] font-medium ${
+                            provisionStatus.type === "success"
+                              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                              : "bg-rose-50 text-rose-800 border border-rose-200"
+                          }`}
+                        >
+                          {provisionStatus.message}
+                        </div>
+                      )}
+                    </div>
+                  </details>
+                )}
+              </div>
+            )}
+
+            {/* ── Mode 1 Settings: Password management (hidden sub-view) ── */}
+            {activeTab === "auth_settings" && (
+              <div className="space-y-2.5">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("auth")}
+                  className="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold cursor-pointer flex items-center gap-1"
+                >
+                  ← Back to account list
+                </button>
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[10px] text-slate-700 uppercase tracking-wider">
+                      Test Account Password:
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {userPasswordOverride !== null && (
+                        <button
+                          type="button"
+                          onClick={handleResetPassword}
+                          className="text-[9px] text-slate-500 hover:text-rose-600 underline font-semibold cursor-pointer"
+                          title="Clear session override and restore default"
+                        >
+                          Clear
+                        </button>
+                      )}
+                      {userPasswordOverride !== null ? (
+                        <span className="text-[9px] text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                          Session Override
+                        </span>
+                      ) : effectivePassword ? (
+                        <span className="text-[9px] text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                          Default from .env.local
+                        </span>
+                      ) : (
+                        <span className="text-[9px] text-rose-600 font-semibold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                          Not Set
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <input
+                    type="password"
+                    value={effectivePassword}
+                    onChange={(e) => handlePasswordChange(e.target.value)}
+                    placeholder="Enter test password (e.g. 123456)"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-mono focus:outline-indigo-500"
+                  />
+                  <p className="text-[10px] text-slate-400 leading-tight">
+                    {userPasswordOverride !== null
+                      ? "Custom password saved for this browser tab session (cleared on close)."
+                      : DEV_TEST_PASSWORD
+                      ? "Using default test password from .env.local."
+                      : "Enter password to enable 1-click test account switching."}
+                  </p>
                 </div>
               </div>
             )}

@@ -10,7 +10,7 @@ import {
 } from "./schoolOutreachRepository";
 import { useToast } from "../../shared";
 
-export default function SchoolOutreachTab({ currentUser }) {
+export default function SchoolOutreachTab({ currentUser, branchId }) {
   const toast = useToast();
 
   const [schools, setSchools] = useState([]);
@@ -24,6 +24,7 @@ export default function SchoolOutreachTab({ currentUser }) {
   // Real-time listener for school outreach documents
   useEffect(() => {
     const unsub = listenToSchools(
+      { branchId },
       (data) => {
         setSchools(data);
         setLoading(false);
@@ -35,7 +36,7 @@ export default function SchoolOutreachTab({ currentUser }) {
       }
     );
     return () => unsub();
-  }, [toast]);
+  }, [branchId, toast]);
 
   // Filtered schools passed to the map and list
   const filteredSchools = useMemo(() => {

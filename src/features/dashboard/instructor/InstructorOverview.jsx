@@ -22,6 +22,7 @@ export default function InstructorOverview({
   students,
   instructorName,
   onNavigate,
+  // eslint-disable-next-line no-unused-vars
   onOpenKiosk = () => {},
   onSelectClass,
   allClasses = [],

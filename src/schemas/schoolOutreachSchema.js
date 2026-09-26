@@ -97,6 +97,8 @@ export const schoolVisitSchema = z.object({
     .optional()
     .or(z.literal("")),
   statusAfterVisit: z.enum(["visited", "follow_up"]).default("visited"),
+  branch: z.string().trim().optional(),
+  branchId: z.string().trim().optional(),
   createdBy: z.string().trim().optional(),
   createdAt: z.any().optional(),
 });

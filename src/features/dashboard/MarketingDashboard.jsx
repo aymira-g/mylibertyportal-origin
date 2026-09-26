@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { db, auth } from "../../firebase";
-import { collection, onSnapshot } from "firebase/firestore";
+import { collection, onSnapshot, doc } from "firebase/firestore";
 import { WelcomeBanner, DashboardShell, useToast } from "../shared";
 import { UserPlus, BookOpen, Users, Copy, Check, ExternalLink } from "lucide-react";
 import { copyText } from "../../utils/copyText";
 import { AvailableBatches } from "../classes";
 import { useStaffDirectives, StaffDirectivesWidget } from "../staff";
 import { getRegistrationUrl } from "../../constants/externalLinks";
+import { branchToId, DEFAULT_BRANCH } from "../../constants/branches";
 import {
   SchoolOutreachTab,
   OutreachProgressWidget,
@@ -155,6 +156,28 @@ export default function MarketingDashboard() {
     handleToggle: handleToggleDirective,
   } = useStaffDirectives("marketing");
 
+  const [userProfile, setUserProfile] = useState(null);
+
+  useEffect(() => {
+    if (!auth.currentUser?.uid) return;
+    const unsub = onSnapshot(
+      doc(db, "users", auth.currentUser.uid),
+      (snap) => {
+        if (snap.exists()) {
+          setUserProfile(snap.data());
+        }
+      },
+      (err) => {
+        console.error("Marketing user profile listener error:", err);
+      }
+    );
+    return () => unsub();
+  }, []);
+
+  const marketingBranchId = useMemo(() => {
+    return userProfile?.branchId || branchToId(userProfile?.branch || DEFAULT_BRANCH);
+  }, [userProfile]);
+
   useEffect(() => {
     const unsubApplications = onSnapshot(
       collection(db, "applications"),
@@ -181,16 +204,24 @@ export default function MarketingDashboard() {
       }
     );
 
-    const unsubSchools = listenToSchools((data) => {
-      setSchools(data);
-    });
-
     return () => {
       unsubApplications();
       unsubClasses();
-      unsubSchools();
     };
   }, []);
+
+  useEffect(() => {
+    const unsubSchools = listenToSchools(
+      { branchId: marketingBranchId },
+      (data) => {
+        setSchools(data);
+      },
+      (err) => {
+        console.error("marketing schools listener:", err);
+      }
+    );
+    return () => unsubSchools();
+  }, [marketingBranchId]);
 
   const openSeats = useMemo(() => {
     return classes.reduce((sum, cls) => {
@@ -225,7 +256,7 @@ export default function MarketingDashboard() {
       badge: scheduledSchoolsCount > 0 ? `${scheduledSchoolsCount} scheduled` : null,
       component: (
         <div className="w-full">
-          <SchoolOutreachTab currentUser={auth.currentUser} />
+          <SchoolOutreachTab currentUser={auth.currentUser} branchId={marketingBranchId} />
         </div>
       ),
     },

@@ -707,5 +707,120 @@ describe("Security Rules Matrix & Branch Isolation", () => {
       expect(canReadClassAttendance(testClass, validRecord, managerBoneBolango)).toBe(false);
     });
   });
+
+  describe("School Outreach and Visits Collection Group Rules", () => {
+    function isSameBranchStrict(data, user) {
+      if (!user || !data) return false;
+      if (data.branchId) {
+        return data.branchId === userBranch(user);
+      }
+      if (data.branch) {
+        let docBranch = "";
+        if (data.branch === "Bone Bolango") docBranch = "bone_bolango";
+        else if (data.branch === "Pohuwato") docBranch = "pohuwato";
+        else if (data.branch === "Limboto") docBranch = "limboto";
+        else if (data.branch === "Cabang Utama" || data.branch === "Kota Gorontalo") docBranch = "kota_gorontalo";
+        return docBranch === userBranch(user);
+      }
+      return false;
+    }
+
+    function canReadVisitCollectionGroup(visit, user) {
+      if (!user) return false;
+      if (isAdmin(user)) return true;
+      if ((isManager(user) || user.role === "marketing") && isSameBranchStrict(visit, user)) return true;
+      return false;
+    }
+
+    function canCreateVisitCollectionGroup(visit, user) {
+      if (!user) return false;
+      const isAuthorizedRole =
+        isAdmin(user) || ((isManager(user) || user.role === "marketing") && isSameBranchStrict(visit, user));
+      if (!isAuthorizedRole) return false;
+      return (
+        typeof visit.visitDate === "string" &&
+        typeof visit.contactName === "string" &&
+        typeof visit.contactRole === "string" &&
+        typeof visit.branchId === "string" &&
+        typeof visit.branch === "string" &&
+        visit.source === "schoolOutreach"
+      );
+    }
+
+    const admin = { uid: "admin_1", role: "admin", branchId: "kota_gorontalo" };
+    const mgrGto = { uid: "mgr_1", role: "manager", branchId: "kota_gorontalo" };
+    const mgrBoba = { uid: "mgr_2", role: "manager", branchId: "bone_bolango" };
+    const mktGto = { uid: "mkt_1", role: "marketing", branchId: "kota_gorontalo" };
+    const instructor = { uid: "ins_1", role: "instructor", branchId: "kota_gorontalo" };
+    const frontOffice = { uid: "fo_1", role: "frontoffice", branchId: "kota_gorontalo" };
+    const student = { uid: "std_1", role: "student", branchId: "kota_gorontalo" };
+
+    const visitGto = {
+      id: "v_1",
+      visitDate: "2026-09-27",
+      contactName: "Ibu Nur",
+      contactRole: "Guru BK",
+      branchId: "kota_gorontalo",
+      branch: "Kota Gorontalo",
+      source: "schoolOutreach",
+    };
+
+    const visitBoba = {
+      id: "v_2",
+      visitDate: "2026-09-27",
+      contactName: "Pak Suwawa",
+      contactRole: "Guru BK",
+      branchId: "bone_bolango",
+      branch: "Bone Bolango",
+      source: "schoolOutreach",
+    };
+
+    const legacyVisitMissingBranch = {
+      id: "v_3",
+      visitDate: "2026-09-20",
+      contactName: "Pak Old",
+      contactRole: "Kepala Sekolah",
+      source: "schoolOutreach",
+    };
+
+    it("allows admin full read/create access across any branch", () => {
+      expect(canReadVisitCollectionGroup(visitGto, admin)).toBe(true);
+      expect(canReadVisitCollectionGroup(visitBoba, admin)).toBe(true);
+      expect(canCreateVisitCollectionGroup(visitGto, admin)).toBe(true);
+      expect(canCreateVisitCollectionGroup(visitBoba, admin)).toBe(true);
+    });
+
+    it("allows manager to read only same-branch visits in collectionGroup queries", () => {
+      expect(canReadVisitCollectionGroup(visitGto, mgrGto)).toBe(true);
+      expect(canReadVisitCollectionGroup(visitBoba, mgrGto)).toBe(false);
+      expect(canReadVisitCollectionGroup(visitBoba, mgrBoba)).toBe(true);
+      expect(canReadVisitCollectionGroup(visitGto, mgrBoba)).toBe(false);
+    });
+
+    it("allows marketing to read and create only same-branch visits", () => {
+      expect(canReadVisitCollectionGroup(visitGto, mktGto)).toBe(true);
+      expect(canReadVisitCollectionGroup(visitBoba, mktGto)).toBe(false);
+      expect(canCreateVisitCollectionGroup(visitGto, mktGto)).toBe(true);
+      expect(canCreateVisitCollectionGroup(visitBoba, mktGto)).toBe(false);
+    });
+
+    it("denies visits missing branchId under strict collection-group rule", () => {
+      expect(canReadVisitCollectionGroup(legacyVisitMissingBranch, mgrGto)).toBe(false);
+      expect(canReadVisitCollectionGroup(legacyVisitMissingBranch, mktGto)).toBe(false);
+    });
+
+    it("denies marketing user attempting to create a visit with forged branchId", () => {
+      const forgedVisit = { ...visitGto, branchId: "bone_bolango", branch: "Bone Bolango" };
+      expect(canCreateVisitCollectionGroup(forgedVisit, mktGto)).toBe(false);
+    });
+
+    it("blocks roles without outreach business from reading or creating visits", () => {
+      expect(canReadVisitCollectionGroup(visitGto, instructor)).toBe(false);
+      expect(canReadVisitCollectionGroup(visitGto, frontOffice)).toBe(false);
+      expect(canReadVisitCollectionGroup(visitGto, student)).toBe(false);
+      expect(canCreateVisitCollectionGroup(visitGto, instructor)).toBe(false);
+      expect(canCreateVisitCollectionGroup(visitGto, frontOffice)).toBe(false);
+    });
+  });
 });
 

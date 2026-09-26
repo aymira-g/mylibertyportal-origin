@@ -39,7 +39,27 @@ export default function GorontaloOutreachMap({
     markersLayerRef.current = markersGroup;
     mapInstanceRef.current = map;
 
+    const refresh = () => {
+      requestAnimationFrame(() => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      });
+    };
+
+    // Initial sizing check
+    refresh();
+
+    let resizeObserver = null;
+    if (typeof ResizeObserver !== "undefined" && mapContainerRef.current) {
+      resizeObserver = new ResizeObserver(refresh);
+      resizeObserver.observe(mapContainerRef.current);
+    }
+
     return () => {
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
       map.remove();
       mapInstanceRef.current = null;
       markersLayerRef.current = null;

@@ -145,6 +145,7 @@ export default function ManagerDashboard() {
   // error logging to telemetry, and toast notifications.
   useEffect(() => {
     const unsubSchools = listenToSchools(
+      { branchId: managerBranchId },
       (data) => {
         setSchools(data);
         setSchoolsLoading(false);
@@ -171,7 +172,7 @@ export default function ManagerDashboard() {
     const startDate = `${windowStart.getUTCFullYear()}-${pad(windowStart.getUTCMonth() + 1)}-${pad(windowStart.getUTCDate())}`;
 
     const unsubVisits = listenToOutreachVisits(
-      { startDate, orderDirection: "desc", limitCount: 200 },
+      { branchId: managerBranchId, startDate, orderDirection: "desc", limitCount: 200 },
       (data) => {
         setVisits(data);
         setVisitsLoading(false);
@@ -191,7 +192,7 @@ export default function ManagerDashboard() {
     const weekStart = getStartOfWeekWita();
     const weekEnd = getEndOfWeekWita();
     const unsubWeekVisits = listenToOutreachVisits(
-      { startDate: weekStart, endDate: weekEnd, orderDirection: "desc", limitCount: 500 },
+      { branchId: managerBranchId, startDate: weekStart, endDate: weekEnd, orderDirection: "desc", limitCount: 500 },
       (data) => {
         setWeekVisits(data);
         setWeekVisitsLoading(false);
@@ -208,7 +209,7 @@ export default function ManagerDashboard() {
       unsubVisits();
       unsubWeekVisits();
     };
-  }, [outreachRetryKey, toast]);
+  }, [managerBranchId, outreachRetryKey, toast]);
 
   // Load today's payments for daily cash drawer summary (WITA)
   const fetchTodayPayments = useCallback(async () => {

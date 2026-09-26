@@ -17,6 +17,21 @@ import { resolveStudentClass } from "./classResolution";
 /**
  * Core business resolution for QR badge scan at the kiosk station or class session.
  * Evaluates role, permissions, status, corporate events, shifts, and class attendance.
+ *
+ * @param {string} uid
+ * @param {object} [options]
+ * @param {boolean} [options.studentsOnly]
+ * @param {boolean} [options.staffOnly]
+ * @param {string} [options.attendanceMode]
+ * @param {string|null} [options.classId]
+ * @param {any[]} [options.todayClasses]
+ * @param {string|null} [options.markedBy]
+ * @param {string} [options.markedByName]
+ * @param {(title?: string, type?: string, message?: string, name?: string) => void} [options.showStatus]
+ * @param {((user: any) => void)|null} [options.setLastScanned]
+ * @param {((data: any) => void)|null} [options.setPendingClockIn]
+ * @param {((data: any) => void)|null} [options.setPendingTransition]
+ * @param {((cls: any) => void)|null} [options.onClassResolved]
  */
 export async function handleKioskScan(
   uid,
@@ -28,7 +43,7 @@ export async function handleKioskScan(
     todayClasses = [],
     markedBy = null,
     markedByName = "",
-    showStatus = (_title = "", _type = "", _message = "", _name = "") => {},
+    showStatus = () => {},
     setLastScanned = null,
     setPendingClockIn = null,
     setPendingTransition = null,

@@ -60,7 +60,7 @@ export default function SchoolVisitModal({ school, currentUser, onClose, onVisit
         statusAfterVisit,
       };
 
-      await createSchoolVisit(school.id, payload, currentUser?.uid || "marketing-user");
+      await createSchoolVisit(school.id, payload, currentUser?.uid || "marketing-user", { parentSchool: school });
 
       toast(`Visit to ${school.name} successfully logged!`, "success");
       if (onVisitLogged) onVisitLogged();

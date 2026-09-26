@@ -5,6 +5,7 @@ import {
   doc,
   addDoc,
   updateDoc,
+  getDoc,
   getDocs,
   onSnapshot,
   serverTimestamp,
@@ -69,10 +70,15 @@ export function listenToSchools(arg1, arg2, arg3) {
     throw new TypeError("listenToSchools: onData callback is required");
   }
 
-  const constraints = [where("active", "==", true), orderBy("name")];
-  if (options.region) {
-    constraints.unshift(where("region", "==", options.region)); // region filter first
+  /** @type {QueryConstraint[]} */
+  const constraints = [where("active", "==", true)];
+  if (options.branchId && options.branchId !== "all") {
+    constraints.push(where("branchId", "==", options.branchId));
   }
+  if (options.region) {
+    constraints.push(where("region", "==", options.region));
+  }
+  constraints.push(orderBy("name"));
 
   const q = query(collection(db, COLLECTION_NAME), ...constraints);
 
@@ -149,6 +155,7 @@ export function getEndOfWeekWita(date = new Date()) {
 
 /**
  * @typedef {object} OutreachVisitOptions
+ * @property {string}  [branchId]       - Branch ID to isolate visits (e.g. "kota_gorontalo"); pass "all" to skip.
  * @property {string}  [startDate]      - ISO date string lower bound for visitDate (inclusive).
  * @property {string}  [endDate]        - ISO date string upper bound for visitDate (inclusive).
  * @property {string}  [officerId]      - UID to filter by createdBy; pass "all" to skip.
@@ -182,6 +189,11 @@ export function listenToOutreachVisits(options, onData, onError) {
   // entire database if Firestore rules ever allow broader reads.
   /** @type {QueryConstraint[]} */
   const constraints = [where("source", "==", COLLECTION_NAME)];
+
+  // Filter by branch if specified
+  if (opts.branchId && opts.branchId !== "all") {
+    constraints.push(where("branchId", "==", opts.branchId));
+  }
 
   // Filter by marketing officer if specified
   if (opts.officerId && opts.officerId !== "all") {
@@ -324,10 +336,24 @@ export async function updateSchool(schoolId, updates, updaterUid) {
  * @param {string} creatorUid
  * @returns {Promise<string>} Created visit ID
  */
-export async function createSchoolVisit(schoolId, rawVisit, creatorUid) {
+export async function createSchoolVisit(schoolId, rawVisit, creatorUid, options = {}) {
   if (!schoolId) throw new Error("schoolId is required.");
 
   const validated = schoolVisitSchema.parse(rawVisit);
+
+  const schoolRef = doc(db, COLLECTION_NAME, schoolId);
+  let parentBranchId = options.parentSchool?.branchId;
+  let parentBranch = options.parentSchool?.branch;
+
+  if (!parentBranchId || !parentBranch) {
+    const parentSnap = await getDoc(schoolRef);
+    if (!parentSnap.exists()) {
+      throw new Error(`School with ID "${schoolId}" does not exist.`);
+    }
+    const parentData = parentSnap.data() || {};
+    parentBranchId = parentData.branchId || branchToId(parentData.branch || parentData.municipality || DEFAULT_BRANCH_ID);
+    parentBranch = parentData.branch || idToBranch(parentBranchId);
+  }
 
   const batch = writeBatch(db);
 
@@ -340,6 +366,8 @@ export async function createSchoolVisit(schoolId, rawVisit, creatorUid) {
     // Discriminator written at creation time so collectionGroup queries can scope
     // reads to only schoolOutreach visits without relying on path inspection.
     source: COLLECTION_NAME,
+    branchId: parentBranchId,
+    branch: parentBranch,
     visitDate: validated.visitDate,
     contactName: validated.contactName,
     contactRole: validated.contactRole,
@@ -357,7 +385,6 @@ export async function createSchoolVisit(schoolId, rawVisit, creatorUid) {
   batch.set(visitRef, visitData);
 
   // 2. Update summary on parent school document
-  const schoolRef = doc(db, COLLECTION_NAME, schoolId);
   const schoolSummaryUpdate = {
     status: validated.statusAfterVisit || "visited",
     lastVisitDate: validated.visitDate,
@@ -394,8 +421,12 @@ export async function seedInitialSchoolsIfEmpty(creatorUid) {
   const batch = writeBatch(db);
   for (const school of KOTA_GORONTALO_SEEDS) {
     const newDocRef = doc(colRef);
+    const branchId = school.branchId || "kota_gorontalo";
+    const branch = school.branch || "Kota Gorontalo";
     batch.set(newDocRef, {
       ...school,
+      branchId,
+      branch,
       scheduledDate: "",
       lastVisitDate: "",
       lastVisitId: "",

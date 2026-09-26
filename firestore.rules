@@ -472,14 +472,33 @@ service cloud.firestore {
         // Enforce branch check against parent school document so visits are isolated per branch
         allow read: if isAdmin()
           || ((isManager() || hasRole('marketing'))
-            && isSameBranch(get(/databases/$(database)/documents/schoolOutreach/$(schoolId)).data));
+            && (isSameBranchStrict(resource.data)
+                || isSameBranch(get(/databases/$(database)/documents/schoolOutreach/$(schoolId)).data)));
         allow create: if (isAdmin() || ((isManager() || hasRole('marketing'))
             && isSameBranch(get(/databases/$(database)/documents/schoolOutreach/$(schoolId)).data)))
           && request.resource.data.visitDate is string
           && request.resource.data.contactName is string
-          && request.resource.data.contactRole is string;
+          && request.resource.data.contactRole is string
+          && request.resource.data.branchId is string
+          && request.resource.data.branch is string
+          && request.resource.data.source == 'schoolOutreach';
         allow update, delete: if isAdmin();
       }
+    }
+
+    match /{path=**}/visits/{visitId} {
+      // Collection-group query matcher for outreach visits across schools
+      allow read: if isAdmin()
+        || ((isManager() || hasRole('marketing')) && isSameBranchStrict(resource.data));
+      allow create: if (isAdmin()
+          || ((isManager() || hasRole('marketing')) && isSameBranchStrict(request.resource.data)))
+        && request.resource.data.visitDate is string
+        && request.resource.data.contactName is string
+        && request.resource.data.contactRole is string
+        && request.resource.data.branchId is string
+        && request.resource.data.branch is string
+        && request.resource.data.source == 'schoolOutreach';
+      allow update, delete: if isAdmin();
     }
 
     match /kioskDevices/{deviceId} {

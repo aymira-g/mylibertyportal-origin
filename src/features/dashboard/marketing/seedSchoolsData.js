@@ -2,12 +2,15 @@
  * Seed dataset of prominent public and private schools in Kota Gorontalo.
  * Used for initial seeding or testing.
  * Verified coordinates centered around Kota Gorontalo (WITA).
+ * Explicitly carries branchId and branch for multi-branch data isolation.
  */
 
 export const KOTA_GORONTALO_SEEDS = [
   {
     name: "SMAN 1 Gorontalo",
     municipality: "Kota Gorontalo",
+    branchId: "kota_gorontalo",
+    branch: "Kota Gorontalo",
     district: "Kota Tengah",
     address: "Jl. Jend. Sudirman No. 37, Wumialo",
     lat: 0.5512,
@@ -19,6 +22,8 @@ export const KOTA_GORONTALO_SEEDS = [
   {
     name: "SMAN 2 Gorontalo",
     municipality: "Kota Gorontalo",
+    branchId: "kota_gorontalo",
+    branch: "Kota Gorontalo",
     district: "Kota Tengah",
     address: "Jl. Pangeran Hidayat No. 84, Pulubala",
     lat: 0.5594,
@@ -30,6 +35,8 @@ export const KOTA_GORONTALO_SEEDS = [
   {
     name: "SMAN 3 Gorontalo",
     municipality: "Kota Gorontalo",
+    branchId: "kota_gorontalo",
+    branch: "Kota Gorontalo",
     district: "Kota Selatan",
     address: "Jl. Panglima Polem No. 47, Limba U Dua",
     lat: 0.5348,
@@ -41,6 +48,8 @@ export const KOTA_GORONTALO_SEEDS = [
   {
     name: "SMAN 4 Gorontalo",
     municipality: "Kota Gorontalo",
+    branchId: "kota_gorontalo",
+    branch: "Kota Gorontalo",
     district: "Kota Utara",
     address: "Jl. Brigjend Piola Isa, Dulomo Selatan",
     lat: 0.5701,
@@ -52,6 +61,8 @@ export const KOTA_GORONTALO_SEEDS = [
   {
     name: "SMKN 1 Gorontalo",
     municipality: "Kota Gorontalo",
+    branchId: "kota_gorontalo",
+    branch: "Kota Gorontalo",
     district: "Sipatana",
     address: "Jl. Tondano No. 1, Tapa / Sipatana",
     lat: 0.5621,
@@ -63,6 +74,8 @@ export const KOTA_GORONTALO_SEEDS = [
   {
     name: "SMKN 2 Gorontalo",
     municipality: "Kota Gorontalo",
+    branchId: "kota_gorontalo",
+    branch: "Kota Gorontalo",
     district: "Kota Tengah",
     address: "Jl. Drs. Achmad Nadjamuddin, Dulalowo Timur",
     lat: 0.5489,
@@ -74,6 +87,8 @@ export const KOTA_GORONTALO_SEEDS = [
   {
     name: "SMKN 3 Gorontalo",
     municipality: "Kota Gorontalo",
+    branchId: "kota_gorontalo",
+    branch: "Kota Gorontalo",
     district: "Kota Tengah",
     address: "Jl. Bali No. 1, Pulubala",
     lat: 0.5562,
@@ -85,6 +100,8 @@ export const KOTA_GORONTALO_SEEDS = [
   {
     name: "MAN 1 Kota Gorontalo",
     municipality: "Kota Gorontalo",
+    branchId: "kota_gorontalo",
+    branch: "Kota Gorontalo",
     district: "Sipatana",
     address: "Jl. Poigar No. 54, Molosipat U",
     lat: 0.5645,
@@ -96,6 +113,8 @@ export const KOTA_GORONTALO_SEEDS = [
   {
     name: "MAN 2 Kota Gorontalo",
     municipality: "Kota Gorontalo",
+    branchId: "kota_gorontalo",
+    branch: "Kota Gorontalo",
     district: "Kota Barat",
     address: "Jl. Kasmat Lahay, Tenilo",
     lat: 0.5372,
@@ -107,6 +126,8 @@ export const KOTA_GORONTALO_SEEDS = [
   {
     name: "SMPN 1 Gorontalo",
     municipality: "Kota Gorontalo",
+    branchId: "kota_gorontalo",
+    branch: "Kota Gorontalo",
     district: "Kota Timur",
     address: "Jl. Sultan Botutihe No. 17, Ipilo",
     lat: 0.5415,
@@ -118,6 +139,8 @@ export const KOTA_GORONTALO_SEEDS = [
   {
     name: "SMPN 2 Gorontalo",
     municipality: "Kota Gorontalo",
+    branchId: "kota_gorontalo",
+    branch: "Kota Gorontalo",
     district: "Kota Timur",
     address: "Jl. HB. Jassin, Moodu",
     lat: 0.5458,
@@ -129,6 +152,8 @@ export const KOTA_GORONTALO_SEEDS = [
   {
     name: "SMPN 6 Gorontalo",
     municipality: "Kota Gorontalo",
+    branchId: "kota_gorontalo",
+    branch: "Kota Gorontalo",
     district: "Kota Selatan",
     address: "Jl. Sam Ratulangi No. 4, Limba U Dua",
     lat: 0.5365,
@@ -140,6 +165,8 @@ export const KOTA_GORONTALO_SEEDS = [
   {
     name: "SMA Prasetya Gorontalo",
     municipality: "Kota Gorontalo",
+    branchId: "kota_gorontalo",
+    branch: "Kota Gorontalo",
     district: "Sipatana",
     address: "Jl. Ki Hajar Dewantara, Bulotadaa Timur",
     lat: 0.5688,
@@ -151,6 +178,8 @@ export const KOTA_GORONTALO_SEEDS = [
   {
     name: "SMA Katolik Santa Maria Gorontalo",
     municipality: "Kota Gorontalo",
+    branchId: "kota_gorontalo",
+    branch: "Kota Gorontalo",
     district: "Kota Timur",
     address: "Jl. Nani Wartabone No. 25, Ipilo",
     lat: 0.5392,
@@ -162,6 +191,8 @@ export const KOTA_GORONTALO_SEEDS = [
   {
     name: "SDN 1 Kota Tengah Gorontalo",
     municipality: "Kota Gorontalo",
+    branchId: "kota_gorontalo",
+    branch: "Kota Gorontalo",
     district: "Kota Tengah",
     address: "Jl. Jend. Sudirman, Wumialo",
     lat: 0.552,
@@ -173,6 +204,8 @@ export const KOTA_GORONTALO_SEEDS = [
   {
     name: "SD Islam Al-Azhar 43 Gorontalo",
     municipality: "Kota Gorontalo",
+    branchId: "kota_gorontalo",
+    branch: "Kota Gorontalo",
     district: "Kota Utara",
     address: "Jl. Rusli Datau, Dulomo Selatan",
     lat: 0.572,
@@ -184,6 +217,8 @@ export const KOTA_GORONTALO_SEEDS = [
   {
     name: "SDN 30 Kota Selatan Gorontalo",
     municipality: "Kota Gorontalo",
+    branchId: "kota_gorontalo",
+    branch: "Kota Gorontalo",
     district: "Kota Selatan",
     address: "Jl. Raja Eyato, Molosipat W",
     lat: 0.538,
@@ -195,6 +230,8 @@ export const KOTA_GORONTALO_SEEDS = [
   {
     name: "SD Katolik Santa Maria Gorontalo",
     municipality: "Kota Gorontalo",
+    branchId: "kota_gorontalo",
+    branch: "Kota Gorontalo",
     district: "Kota Timur",
     address: "Jl. Nani Wartabone No. 25, Ipilo",
     lat: 0.5395,

@@ -7,8 +7,6 @@ import {
   Shield,
   Building2,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   AlertTriangle,
   RotateCcw,
   Sparkles,

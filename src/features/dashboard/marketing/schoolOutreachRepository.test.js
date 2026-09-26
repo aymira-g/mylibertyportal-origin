@@ -5,6 +5,7 @@ import {
   updateSchool,
   createSchoolVisit,
   seedInitialSchoolsIfEmpty,
+  listenToSchools,
   listenToOutreachVisits,
   getStartOfWeekWita,
   getEndOfWeekWita,
@@ -113,7 +114,17 @@ describe("schoolOutreachRepository", () => {
   });
 
   describe("createSchoolVisit", () => {
-    it("atomically writes visit subcollection doc and updates parent summary", async () => {
+    it("atomically writes visit subcollection doc, inherits parent branch, and updates parent summary", async () => {
+      fake.seed("schoolOutreach", [
+        {
+          id: "school-100",
+          name: "SMAN 1 Gorontalo",
+          branchId: "kota_gorontalo",
+          branch: "Kota Gorontalo",
+          status: "pending",
+        },
+      ]);
+
       const visitId = await createSchoolVisit(
         "school-100",
         {
@@ -139,7 +150,7 @@ describe("schoolOutreachRepository", () => {
       expect(sets.length).toBe(1);
       expect(updates.length).toBe(1);
 
-      // 1. Check visit subcollection write
+      // 1. Check visit subcollection write with inherited branchId and branch
       expect(sets[0].path).toMatch(/^schoolOutreach\/school-100\/visits\//);
       expect(sets[0].via).toBe("batch");
       expect(sets[0].data).toMatchObject({
@@ -154,6 +165,9 @@ describe("schoolOutreachRepository", () => {
         nextActionDate: "2026-09-30",
         statusAfterVisit: "visited",
         createdBy: "officer-777",
+        source: "schoolOutreach",
+        branchId: "kota_gorontalo",
+        branch: "Kota Gorontalo",
       });
 
       // 2. Check parent summary update
@@ -170,7 +184,46 @@ describe("schoolOutreachRepository", () => {
       });
     });
 
+    it("inherits branch from options.parentSchool without an extra database read", async () => {
+      const visitId = await createSchoolVisit(
+        "school-direct",
+        {
+          visitDate: "2026-09-24",
+          contactName: "Pak Direct",
+          contactRole: "Wakil Kurikulum",
+        },
+        "officer-888",
+        {
+          parentSchool: {
+            branchId: "bone_bolango",
+            branch: "Bone Bolango",
+          },
+        }
+      );
+
+      expect(typeof visitId).toBe("string");
+      const sets = fake.opsOf("set");
+      expect(sets.length).toBe(1);
+      expect(sets[0].data.branchId).toBe("bone_bolango");
+      expect(sets[0].data.branch).toBe("Bone Bolango");
+    });
+
+    it("throws an error when parent school document does not exist", async () => {
+      await expect(
+        createSchoolVisit(
+          "non-existent-school",
+          {
+            visitDate: "2026-09-23",
+            contactName: "Pak Rahman",
+            contactRole: "Kepala Sekolah",
+          },
+          "officer-777"
+        )
+      ).rejects.toThrow('School with ID "non-existent-school" does not exist.');
+    });
+
     it("rejects negative flyer or lead counts", async () => {
+      fake.seed("schoolOutreach", [{ id: "school-100", name: "SMAN 1" }]);
       await expect(
         createSchoolVisit(
           "school-100",
@@ -201,6 +254,7 @@ describe("schoolOutreachRepository", () => {
     });
 
     it("rejects invalid visitDate format", async () => {
+      fake.seed("schoolOutreach", [{ id: "school-100", name: "SMAN 1" }]);
       await expect(
         createSchoolVisit(
           "school-100",
@@ -216,7 +270,7 @@ describe("schoolOutreachRepository", () => {
   });
 
   describe("seedInitialSchoolsIfEmpty", () => {
-    it("seeds default schools when collection is empty", async () => {
+    it("seeds default schools when collection is empty with branchId and branch", async () => {
       const result = await seedInitialSchoolsIfEmpty("admin-seed");
       expect(result.seeded).toBe(true);
       expect(result.count).toBeGreaterThan(0);
@@ -225,6 +279,8 @@ describe("schoolOutreachRepository", () => {
       expect(setOps.length).toBe(result.count);
       expect(setOps[0].path.startsWith("schoolOutreach/")).toBe(true);
       expect(setOps[0].data.municipality).toBe("Kota Gorontalo");
+      expect(setOps[0].data.branchId).toBe("kota_gorontalo");
+      expect(setOps[0].data.branch).toBe("Kota Gorontalo");
     });
 
     it("does not seed if collection already has documents", async () => {
@@ -235,6 +291,41 @@ describe("schoolOutreachRepository", () => {
       expect(result.count).toBe(1);
 
       expect(fake.opsOf("set").length).toBe(0);
+    });
+  });
+
+  describe("listenToSchools", () => {
+    it("filters schools by branchId when provided", () => {
+      fake.seed("schoolOutreach", [
+        { id: "s1", name: "SMAN 1 Gorontalo", branchId: "kota_gorontalo", active: true },
+        { id: "s2", name: "SMAN 2 Gorontalo", branchId: "kota_gorontalo", active: true },
+        { id: "s3", name: "SMAN 1 Suwawa", branchId: "bone_bolango", active: true },
+        { id: "s4", name: "SMAN Inactive", branchId: "kota_gorontalo", active: false },
+      ]);
+
+      let receivedSchools = [];
+      const unsub = listenToSchools({ branchId: "kota_gorontalo" }, (schools) => {
+        receivedSchools = schools;
+      });
+
+      expect(receivedSchools.length).toBe(2);
+      expect(receivedSchools.map((s) => s.id)).toEqual(["s1", "s2"]);
+      unsub();
+    });
+
+    it("returns all active schools when branchId is omitted or 'all'", () => {
+      fake.seed("schoolOutreach", [
+        { id: "s1", name: "SMAN 1 Gorontalo", branchId: "kota_gorontalo", active: true },
+        { id: "s3", name: "SMAN 1 Suwawa", branchId: "bone_bolango", active: true },
+      ]);
+
+      let receivedSchools = [];
+      const unsub = listenToSchools({ branchId: "all" }, (schools) => {
+        receivedSchools = schools;
+      });
+
+      expect(receivedSchools.length).toBe(2);
+      unsub();
     });
   });
 
@@ -377,6 +468,23 @@ describe("schoolOutreachRepository", () => {
       expect(filtered.length).toBe(1);
       expect(filtered[0].id).toBe("v-tue"); // Most recent of officer-a
       expect(filtered[0].createdBy).toBe("officer-a");
+      unsub();
+    });
+
+    it("applies branchId query constraint to isolate multi-branch visits", () => {
+      fake.seed("schoolOutreach/school-1/visits", [
+        { id: "v-gto", visitDate: "2026-09-22", branchId: "kota_gorontalo", source: "schoolOutreach" },
+        { id: "v-boba", visitDate: "2026-09-23", branchId: "bone_bolango", source: "schoolOutreach" },
+      ]);
+
+      let visits = [];
+      const unsub = listenToOutreachVisits({ branchId: "kota_gorontalo" }, (res) => {
+        visits = res;
+      });
+
+      expect(visits.length).toBe(1);
+      expect(visits[0].id).toBe("v-gto");
+      expect(visits[0].branchId).toBe("kota_gorontalo");
       unsub();
     });
   });

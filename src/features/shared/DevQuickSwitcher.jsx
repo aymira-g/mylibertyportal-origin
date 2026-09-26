@@ -18,9 +18,9 @@ import {
   PREVIEW_ROLES,
 } from "../auth/devPresets";
 import { db, getSecondaryAuth } from "../../firebase";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { normalizeRole } from "./roles";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc, getDoc } from "firebase/firestore";
+import { normalizeRole, isParentRole } from "./roles";
 
 /**
  * DevQuickSwitcher: Floating widget providing:
@@ -113,25 +113,44 @@ export default function DevQuickSwitcher({
         } catch (authErr) {
           if (authErr.code === "auth/email-already-in-use") {
             existingCount++;
+            try {
+              const cred = await signInWithEmailAndPassword(secAuth, acc.email, password);
+              uid = cred.user.uid;
+            } catch (loginErr) {
+              console.warn("Could not sign into existing test account to resolve uid:", acc.email, loginErr);
+            }
           } else {
             console.warn("Error creating test user in Auth:", acc.email, authErr);
           }
         }
 
         if (uid) {
+          const isParent = isParentRole(acc.role);
+          let parentDocExtra = {};
+          if (isParent) {
+            try {
+              const existingSnap = await getDoc(doc(db, "users", uid));
+              if (!existingSnap.exists() || !Array.isArray(existingSnap.data()?.childStudentIds)) {
+                parentDocExtra = { childStudentIds: [] };
+              }
+            } catch {
+              parentDocExtra = { childStudentIds: [] };
+            }
+          }
+
           await setDoc(
             doc(db, "users", uid),
             {
               displayName: `Test ${acc.label}`,
               nickname: acc.shortLabel || acc.label,
               email: acc.email,
-              role: acc.role,
+              role: normalizeRole(acc.role),
               division: acc.division,
               branchId: acc.branch,
               branch: "Kota Gorontalo",
               status: "active",
               createdAt: new Date().toISOString(),
-              ...(acc.role === "parent" ? { childStudentIds: [] } : {}),
+              ...parentDocExtra,
             },
             { merge: true }
           );

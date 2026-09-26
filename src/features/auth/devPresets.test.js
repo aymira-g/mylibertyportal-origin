@@ -33,6 +33,7 @@ describe("DevPresets configuration", () => {
     expect(roles).toContain("opslead");
     expect(roles).toContain("marketing");
     expect(roles).toContain("officeboy");
+    expect(roles).toContain("parent");
   });
 
   it("includes separate Manager TK, Front Office TK, and Instructor TK test accounts for Kindergarten division testing", () => {

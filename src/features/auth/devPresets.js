@@ -113,6 +113,15 @@ export const MODE_1_TEST_ACCOUNTS = [
     branch: "kota_gorontalo",
     badgeColor: "bg-slate-100 text-slate-800 border-slate-200",
   },
+  {
+    label: "Parent",
+    shortLabel: "Parent",
+    email: "parent.test@myliberty.id",
+    role: "parent",
+    division: "studio",
+    branch: "kota_gorontalo",
+    badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  },
 ];
 
 /**

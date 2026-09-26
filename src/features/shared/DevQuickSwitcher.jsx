@@ -131,6 +131,7 @@ export default function DevQuickSwitcher({
               branch: "Kota Gorontalo",
               status: "active",
               createdAt: new Date().toISOString(),
+              ...(acc.role === "parent" ? { childStudentIds: [] } : {}),
             },
             { merge: true }
           );

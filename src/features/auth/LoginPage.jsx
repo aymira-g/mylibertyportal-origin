@@ -335,7 +335,7 @@ export default function LoginPage({ onLogin, loading }) {
           {/* ── Mode 1: Quick Test Accounts for Dev Mode ── */}
           {isDevSwitcherEnabled && (
             <div className="pt-2">
-              <details className="group rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/40 p-3.5 transition">
+              <details open className="group rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/40 p-3.5 transition">
                 <summary className="text-xs font-bold text-indigo-950 cursor-pointer flex items-center justify-between list-none select-none">
                   <span className="flex items-center gap-2">
                     <span className="w-5 h-5 rounded-md bg-amber-400/20 text-amber-600 flex items-center justify-center">

@@ -19,6 +19,8 @@ jobs:
       - run: npm install && npm test && npm run build
         env:
           VITE_AI_WORKER_URL: ${{ vars.VITE_AI_WORKER_URL || 'https://myliberty-ai-proxy.kifryh.workers.dev' }}
+          VITE_ENABLE_DEV_SWITCHER: 'true'
+          VITE_DEV_TEST_PASSWORD: '123456'
       - uses: FirebaseExtended/action-hosting-deploy@500ac625ca2dd40cbd15f7659af953801858032a # v0.11.0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

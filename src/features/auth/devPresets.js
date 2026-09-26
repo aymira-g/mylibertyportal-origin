@@ -7,7 +7,7 @@ export const isDevSwitcherEnabled = Boolean(
   import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_SWITCHER === "true"
 );
 
-export const DEV_TEST_PASSWORD = import.meta.env.VITE_DEV_TEST_PASSWORD || "";
+export const DEV_TEST_PASSWORD = import.meta.env.VITE_DEV_TEST_PASSWORD || "123456";
 
 /**
  * Mode 1: Test accounts with actual Firestore /users/{uid} documents

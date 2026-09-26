@@ -11,6 +11,7 @@ import {
   ChevronUp,
   AlertTriangle,
   RotateCcw,
+  Sparkles,
 } from "lucide-react";
 import {
   isDevSwitcherEnabled,
@@ -18,6 +19,9 @@ import {
   MODE_1_TEST_ACCOUNTS,
   PREVIEW_ROLES,
 } from "../auth/devPresets";
+import { db, getSecondaryAuth } from "../../firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 
 /**
  * DevQuickSwitcher: Floating widget providing:
@@ -40,6 +44,8 @@ export default function DevQuickSwitcher({
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("preview"); // 'preview' | 'auth'
   const [mode1Error, setMode1Error] = useState("");
+  const [provisioning, setProvisioning] = useState(false);
+  const [provisionStatus, setProvisionStatus] = useState(null);
 
   if (!isDevSwitcherEnabled) {
     return null;
@@ -49,20 +55,79 @@ export default function DevQuickSwitcher({
 
   const handleMode1Switch = async (account) => {
     setMode1Error("");
-    if (!DEV_TEST_PASSWORD) {
-      setMode1Error(
-        "VITE_DEV_TEST_PASSWORD is not set in .env.local. Please configure a test password first."
-      );
-      return;
-    }
+    const password = DEV_TEST_PASSWORD || "123456";
 
     try {
       // Clear any preview override so the real account state is clean
       onClearPreview();
-      await onLogin(account.email, DEV_TEST_PASSWORD);
+      await onLogin(account.email, password);
       setIsOpen(false);
     } catch (err) {
-      setMode1Error(err?.message || "Failed to switch account.");
+      if (err?.code === "auth/invalid-credential" || err?.message?.includes("invalid-credential")) {
+        setMode1Error(
+          `Account ${account.email} has not been created in Firebase yet. Sign in with your real Admin account and click "Create / Update All 8 Test Accounts" below to initialize them.`
+        );
+      } else {
+        setMode1Error(err?.message || "Failed to switch account.");
+      }
+    }
+  };
+
+  const handleProvisionAccounts = async () => {
+    setProvisioning(true);
+    setProvisionStatus(null);
+    setMode1Error("");
+    const password = DEV_TEST_PASSWORD || "123456";
+
+    try {
+      const secAuth = getSecondaryAuth();
+      let createdCount = 0;
+      let existingCount = 0;
+
+      for (const acc of MODE_1_TEST_ACCOUNTS) {
+        let uid = null;
+        try {
+          const cred = await createUserWithEmailAndPassword(secAuth, acc.email, password);
+          uid = cred.user.uid;
+          createdCount++;
+        } catch (authErr) {
+          if (authErr.code === "auth/email-already-in-use") {
+            existingCount++;
+          } else {
+            console.warn("Error creating test user in Auth:", acc.email, authErr);
+          }
+        }
+
+        if (uid) {
+          await setDoc(
+            doc(db, "users", uid),
+            {
+              displayName: `Test ${acc.label}`,
+              nickname: acc.shortLabel || acc.label,
+              email: acc.email,
+              role: acc.role,
+              division: acc.division,
+              branchId: acc.branch,
+              branch: "Kota Gorontalo",
+              status: "active",
+              createdAt: new Date().toISOString(),
+            },
+            { merge: true }
+          );
+        }
+      }
+
+      setProvisionStatus({
+        type: "success",
+        message: `Done! ${createdCount} accounts created in Firebase (${existingCount} already existed). Password: "${password}".`,
+      });
+    } catch (err) {
+      setProvisionStatus({
+        type: "error",
+        message: `Provisioning failed: ${err.message}`,
+      });
+    } finally {
+      setProvisioning(false);
     }
   };
 
@@ -289,15 +354,45 @@ export default function DevQuickSwitcher({
                   </div>
                 )}
 
-                {!DEV_TEST_PASSWORD && (
-                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
-                    <p className="font-bold text-[11px] flex items-center gap-1">
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                      Configuration Notice
+                {/* ── 1-Click Provisioning (For Admins) ── */}
+                {realRole === "admin" && (
+                  <div className="p-2.5 rounded-xl bg-indigo-50/70 border border-indigo-200 text-xs space-y-2">
+                    <span className="font-bold text-[11px] text-indigo-950 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                      Admin: Provision Test Accounts
+                    </span>
+                    <p className="text-[10px] text-slate-500 leading-tight">
+                      Registers all 8 test accounts in Firebase Auth and Firestore with password <code>{DEV_TEST_PASSWORD}</code> so 1-click login works.
                     </p>
-                    <p className="text-[10px] text-amber-800 mt-1">
-                      Set <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">VITE_DEV_TEST_PASSWORD</code> in <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">.env.local</code> to enable 1-click login.
-                    </p>
+                    <button
+                      type="button"
+                      disabled={provisioning}
+                      onClick={handleProvisionAccounts}
+                      className="w-full py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 shadow-xs"
+                    >
+                      {provisioning ? (
+                        <>
+                          <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span>Provisioning in Firebase...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+                          <span>Create / Update All 8 Test Accounts</span>
+                        </>
+                      )}
+                    </button>
+                    {provisionStatus && (
+                      <div
+                        className={`p-2 rounded-lg text-[10px] font-medium ${
+                          provisionStatus.type === "success"
+                            ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                            : "bg-rose-50 text-rose-800 border border-rose-200"
+                        }`}
+                      >
+                        {provisionStatus.message}
+                      </div>
+                    )}
                   </div>
                 )}
 

@@ -26,28 +26,44 @@ import { normalizeRole, isParentRole } from "./roles";
  * DevQuickSwitcher: Floating widget providing:
  * 1. Mode 1: Authentic Firebase Auth Switcher (validates Firestore security rules & real data).
  * 2. Mode 2: Instant in-memory UI preview (fast layout/CSS inspection without network latency).
+ *
+ * @param {Object} [props]
+ * @param {any} [props.currentUser]
+ * @param {string} [props.realRole]
+ * @param {string} [props.realDivision]
+ * @param {string} [props.realBranch]
+ * @param {string|null} [props.previewRole]
+ * @param {string|null} [props.previewDivision]
+ * @param {(role: string, division: string) => void} [props.onSetPreview]
+ * @param {() => void} [props.onClearPreview]
+ * @param {(email: string, password: string) => Promise<any>} [props.onLogin]
+ * @param {() => void} [props.onLogout]
+ * @param {boolean} [props.loading]
  */
 export default function DevQuickSwitcher({
-  currentUser,
-  realRole,
-  realDivision,
-  realBranch,
-  previewRole,
-  previewDivision,
+  currentUser = null,
+  realRole = "",
+  realDivision = "",
+  realBranch = "",
+  previewRole = null,
+  previewDivision = null,
   onSetPreview,
   onClearPreview,
   onLogin,
   onLogout,
   loading = false,
-}) {
+} = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(isDevSwitcherEnabled ? "preview" : "auth");
   const [mode1Error, setMode1Error] = useState("");
   const [provisioning, setProvisioning] = useState(false);
   const [provisionStatus, setProvisionStatus] = useState(null);
   const [userPasswordOverride, setUserPasswordOverride] = useState(() => {
+    if (!isDevSwitcherEnabled) return null;
     try {
-      return localStorage.getItem("myliberty_dev_test_password") || null;
+      // Purge any stale persistent storage from older versions
+      localStorage.removeItem("myliberty_dev_test_password");
+      return sessionStorage.getItem("myliberty_dev_test_password") || null;
     } catch {
       return null;
     }
@@ -60,16 +76,33 @@ export default function DevQuickSwitcher({
       : (DEV_TEST_PASSWORD || "");
 
   const handlePasswordChange = (newPassword) => {
-    setUserPasswordOverride(newPassword);
+    const trimmed = (newPassword || "").trim();
+    // Normalize empty string to null to allow falling back to DEV_TEST_PASSWORD
+    const nextOverride = trimmed ? trimmed : null;
+    setUserPasswordOverride(nextOverride);
     setMode1Error("");
-    try {
-      if (newPassword) {
-        localStorage.setItem("myliberty_dev_test_password", newPassword);
-      } else {
-        localStorage.removeItem("myliberty_dev_test_password");
+    if (isDevSwitcherEnabled) {
+      try {
+        if (nextOverride) {
+          sessionStorage.setItem("myliberty_dev_test_password", nextOverride);
+        } else {
+          sessionStorage.removeItem("myliberty_dev_test_password");
+        }
+      } catch {
+        // Storage unavailable or disabled
       }
-    } catch {
-      // Storage unavailable or disabled
+    }
+  };
+
+  const handleResetPassword = () => {
+    setUserPasswordOverride(null);
+    setMode1Error("");
+    if (isDevSwitcherEnabled) {
+      try {
+        sessionStorage.removeItem("myliberty_dev_test_password");
+      } catch {
+        // Storage unavailable or disabled
+      }
     }
   };
 
@@ -91,8 +124,8 @@ export default function DevQuickSwitcher({
 
     try {
       // Clear any preview override so the real account state is clean
-      onClearPreview();
-      await onLogin(account.email, password);
+      onClearPreview?.();
+      await onLogin?.(account.email, password);
       setIsOpen(false);
     } catch (err) {
       if (err?.code === "auth/invalid-credential" || err?.message?.includes("invalid-credential")) {
@@ -181,10 +214,12 @@ export default function DevQuickSwitcher({
         type: "success",
         message: `Done! ${createdCount} accounts created in Firebase (${existingCount} already existed). Test accounts ready.`,
       });
-      try {
-        localStorage.setItem("myliberty_dev_test_password", password);
-      } catch {
-        // Storage unavailable
+      if (isDevSwitcherEnabled) {
+        try {
+          sessionStorage.setItem("myliberty_dev_test_password", password);
+        } catch {
+          // Storage unavailable
+        }
       }
     } catch (err) {
       setProvisionStatus({
@@ -199,11 +234,11 @@ export default function DevQuickSwitcher({
   const handlePreviewRoleSelect = (roleKey) => {
     const roleDef = PREVIEW_ROLES.find((r) => r.role === roleKey);
     const div = roleDef?.supportsDivision ? previewDivision || realDivision || "studio" : "studio";
-    onSetPreview(roleKey, div);
+    onSetPreview?.(roleKey, div);
   };
 
   const handleToggleDivision = (targetDiv) => {
-    onSetPreview(previewRole || realRole || "admin", targetDiv);
+    onSetPreview?.(previewRole || realRole || "admin", targetDiv);
   };
 
   return (
@@ -434,15 +469,31 @@ export default function DevQuickSwitcher({
                     <span className="font-bold text-[10px] text-slate-700 uppercase tracking-wider">
                       Test Account Password:
                     </span>
-                    {effectivePassword ? (
-                      <span className="text-[9px] text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                        Saved & Ready
-                      </span>
-                    ) : (
-                      <span className="text-[9px] text-amber-600 font-semibold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                        Required to Switch
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      {userPasswordOverride !== null && (
+                        <button
+                          type="button"
+                          onClick={handleResetPassword}
+                          className="text-[9px] text-slate-500 hover:text-rose-600 underline font-semibold cursor-pointer"
+                          title="Clear session override and restore default"
+                        >
+                          Clear
+                        </button>
+                      )}
+                      {userPasswordOverride !== null ? (
+                        <span className="text-[9px] text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                          Session Override
+                        </span>
+                      ) : effectivePassword ? (
+                        <span className="text-[9px] text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                          Default loaded
+                        </span>
+                      ) : (
+                        <span className="text-[9px] text-rose-600 font-semibold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                          Required to Switch
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <input
                     type="password"
@@ -452,7 +503,11 @@ export default function DevQuickSwitcher({
                     className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-mono focus:outline-indigo-500"
                   />
                   <p className="text-[10px] text-slate-400 leading-tight">
-                    Remembered across switches for instant 1-click login.
+                    {userPasswordOverride !== null
+                      ? "Custom password saved for this browser tab session (cleared on close)."
+                      : DEV_TEST_PASSWORD
+                      ? "Using default test password from .env.local."
+                      : "Enter password to enable 1-click test account switching."}
                   </p>
                 </div>
 

@@ -130,31 +130,10 @@ export const PREVIEW_ROLES = [
   { label: "Office Boy", role: "officeboy", supportsDivision: false },
 ];
 
-/**
- * Role alias normalization map.
- * Canonical roles:
- * - "opslead" <- "ops_lead", "frontofficelead", "front_office_lead"
- * - "instructorleader" <- "instructor_leader", "head_instructor"
- */
-export const LEGACY_ROLE_ALIASES = {
-  ops_lead: "opslead",
-  frontofficelead: "opslead",
-  front_office_lead: "opslead",
-  instructor_leader: "instructorleader",
-  head_instructor: "instructorleader",
-};
-
-/**
- * Normalizes legacy role aliases to canonical operational roles.
- *
- * @param {string | any} role
- * @returns {string | any} Canonical role
- */
-export function normalizeRoleAlias(role) {
-  if (!role || typeof role !== "string") return role;
-  const normalized = role.trim().toLowerCase();
-  return LEGACY_ROLE_ALIASES[normalized] || normalized;
-}
+export {
+  LEGACY_ROLE_ALIASES,
+  normalizeRoleAlias,
+} from "../shared/roles";
 
 /**
  * Mode 1 Legacy Alias Test Accounts:

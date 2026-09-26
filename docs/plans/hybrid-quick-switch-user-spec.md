@@ -98,8 +98,10 @@ To ensure production safety and prevent unauthorized privilege escalation:
    ```javascript
    const isDevSwitcherEnabled = Boolean(import.meta.env.DEV);
    ```
-2. **Production Tree-Shaking & Security:**
-   In any production build (`npm run build`), `isDevSwitcherEnabled` evaluates to `false` at compile-time, completely stripping out the switcher, test accounts, and credentials. The switcher cannot be forced on in production via build flags.
+2. **Production Security & Admin-Only Live Availability:**
+   - **Public Login Screen (`LoginPage.jsx`):** Mode 1 quick test accounts are strictly gated to `isDevSwitcherEnabled` (`import.meta.env.DEV`). In production builds, `isDevSwitcherEnabled` evaluates to `false`, ensuring public visitors never see test accounts or email identifiers. Verified by `LoginPage.test.js`.
+   - **In-App Floating Switcher (`DevQuickSwitcher.jsx`):** Allowed in production exclusively for authenticated Administrators (`role === "admin"`). Regular staff (instructors, front office, managers, etc.) and unauthenticated visitors cannot access or render the widget.
+   - **Zero Hardcoded Secrets in Production Bundle:** No default or fallback passwords exist in the production bundle. For Mode 1 switching or test account provisioning in production, the authenticated Admin enters the test password securely at runtime in the widget popover.
 
 3. **No Secret Leaks:**
    All test accounts share a single password stored in one environment variable:
@@ -198,7 +200,7 @@ For Mode 1 (Authentic Auth Switch) to pass Firestore rules, the following test a
 - **Financial Cost:** $0. Uses existing Firebase Free Tier (Spark Plan).
 - **Firestore Reads:** 0 extra reads for Mode 2 (in-memory). Standard 1 user document read on sign-in for Mode 1.
 - **Dependencies:** 0 new dependencies. Built with existing Tailwind CSS and `lucide-react`.
-- **Bundle Impact:** `DevQuickSwitcher` and `devPresets` are only imported when `isDevSwitcherEnabled` is true. In production builds without the env flag, Vite's tree-shaking eliminates them entirely.
+- **Bundle Impact:** `DevQuickSwitcher` is bundled as an operational tool available strictly to authenticated Admins in production (gated to `role === "admin"`) and developers in dev mode (`isDevSwitcherEnabled`). The public login screen never renders test accounts in production builds (`LoginPage.test.js` verifies zero leakage).
 
 ---
 
@@ -208,7 +210,7 @@ For Mode 1 (Authentic Auth Switch) to pass Firestore rules, the following test a
 3. **Mode 1 Verification:** Click a test account; verify Firebase Auth updates, Firestore snapshot attaches, and proper branch data is retrieved.
 4. **Division Verification (Mode 1):** Switch to `manager-tk.test@myliberty.id`; verify `KidsManagerDashboard` loads with Kindergarten data.
 5. **Division Verification (Mode 2):** Toggle division to Kindergarten while previewing Manager; verify `KidsManagerDashboard` layout loads (data may be inconsistent — expected).
-6. **Security Verification:** Build production bundle with `VITE_ENABLE_DEV_SWITCHER` unset and confirm widget is completely absent from the bundle.
+6. **Security Verification:** Build production bundle and verify `LoginPage.test.js` passes (asserting test accounts and emails are completely absent from the production login page markup). Confirm that unauthenticated users and non-admin roles cannot render `DevQuickSwitcher`.
 7. **Write Protection Verification:** In Mode 2, attempt a form submission; confirm it is blocked with a "Disabled in preview mode" indicator.
 
 ---

@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { APPROVAL_STATUS, APPROVAL_ROLES } from "./approvalGates";
 import { branchToId, DEFAULT_BRANCH_ID } from "../../constants/branches";
+import { normalizeRole } from "./roles";
 
 const COLLECTION_NAME = "approvals";
 
@@ -47,25 +48,19 @@ export async function submitApprovalRequest(envelope) {
  * @returns {(() => void)} Unsubscribe callback
  */
 export function listenToPendingApprovals(userRole, branchId, onData, onError) {
-  const normalizedRole = (userRole || "").toLowerCase().trim();
+  const normalizedRole = normalizeRole(userRole);
   const normalizedBranch = branchId ? branchToId(branchId) : DEFAULT_BRANCH_ID;
 
   const constraints = [where("status", "==", APPROVAL_STATUS.PENDING)];
 
   if (normalizedRole !== "admin") {
-    if (normalizedRole === "manager" || normalizedRole === "branch_manager") {
+    if (normalizedRole === "manager") {
       constraints.push(where("approverRole", "in", [APPROVAL_ROLES.BRANCH_MANAGER, APPROVAL_ROLES.OPS_LEAD]));
       constraints.push(where("approverBranchId", "==", normalizedBranch));
-    } else if (normalizedRole === "instructor_leader" || normalizedRole === "instructorleader") {
+    } else if (normalizedRole === "instructorleader") {
       constraints.push(where("approverRole", "==", APPROVAL_ROLES.INSTRUCTOR_LEADER));
       constraints.push(where("approverBranchId", "==", normalizedBranch));
-    } else if (
-      normalizedRole === "frontoffice" ||
-      normalizedRole === "ops_lead" ||
-      normalizedRole === "opslead" ||
-      normalizedRole === "frontofficelead" ||
-      normalizedRole === "front_office_lead"
-    ) {
+    } else if (normalizedRole === "frontoffice" || normalizedRole === "opslead") {
       constraints.push(where("approverRole", "==", APPROVAL_ROLES.OPS_LEAD));
       constraints.push(where("approverBranchId", "==", normalizedBranch));
     }

@@ -178,14 +178,54 @@ All three now fail closed (deny) when the class document doesn't exist, instead 
 
 ---
 
+---
+
+## Finding 17: Centralize Role Alias Normalization in Shared Module (`roles.js`) ✅
+
+**Risk:** Role alias lists were previously duplicated in `devPresets.js`, `approvalGates.js`, and `approvalsRepository.js`, risking divergence where new aliases or modifications in one place were omitted from others.
+
+**Fix:**
+- Created [`roles.js`](file:///E:/myliberty-portal/src/features/shared/roles.js) as the single authoritative source of truth for `CANONICAL_ROLES`, `LEGACY_ROLE_ALIASES`, `normalizeRole()`, and role classification helpers (`isFrontOfficeRole`, `isInstructorRole`, `isManagerRole`).
+- Updated [`approvalGates.js`](file:///E:/myliberty-portal/src/features/shared/approvalGates.js) to import `normalizeRole` and use canonical checks in `getSelfCorrectionApprover` and `canApproveGate`.
+- Updated [`approvalsRepository.js`](file:///E:/myliberty-portal/src/features/shared/approvalsRepository.js) to use `normalizeRole` in `listenToPendingApprovals`.
+- Re-exported `LEGACY_ROLE_ALIASES` and `normalizeRoleAlias` from [`roles.js`](file:///E:/myliberty-portal/src/features/shared/roles.js) in [`devPresets.js`](file:///E:/myliberty-portal/src/features/auth/devPresets.js).
+- Added comprehensive unit tests in [`roles.test.js`](file:///E:/myliberty-portal/src/features/shared/roles.test.js).
+
+---
+
+## Finding 18: Mode 1 Test Accounts Gating & Leakage Prevention Test (`LoginPage.test.js`) ✅
+
+**Risk:** Mode 1 test accounts contain real-looking test email addresses (e.g. `admin.test@myliberty.id`). Without explicit regression testing, a regression in conditional rendering could expose these test accounts in production HTML.
+
+**Fix:**
+- Verified that Mode 1 test accounts in [`LoginPage.jsx`](file:///E:/myliberty-portal/src/features/auth/LoginPage.jsx#L336) are strictly gated behind `{isDevSwitcherEnabled && (...)}`.
+- Created [`LoginPage.test.js`](file:///E:/myliberty-portal/src/features/auth/LoginPage.test.js) which renders `<LoginPage />` to static markup under simulated production (`isDevSwitcherEnabled === false`) and asserts that:
+  - "Quick Test Accounts (Dev Mode)" is never rendered.
+  - None of the test account emails exist in the rendered output.
+  - Test accounts render only when `isDevSwitcherEnabled === true`.
+
+---
+
+## Finding 19: DevQuickSwitcher Password Dynamic Sync (Eliminate Stale State) ✅
+
+**Risk:** In `DevQuickSwitcher.jsx`, initializing `authPassword` from `DEV_TEST_PASSWORD` once in `useState` meant that if `DEV_TEST_PASSWORD` changed at runtime or during hot reload, `authPassword` remained stale. Attempting to synchronize via an effect violated React 19's `react-hooks/set-state-in-effect` lint rule.
+
+**Fix:**
+- Replaced the synchronized state pattern with reactive derivation: `userPasswordOverride` state (defaults to `null`).
+- Derived `effectivePassword = userPasswordOverride !== null ? userPasswordOverride : (DEV_TEST_PASSWORD || "")`.
+- Bound the password input directly to `effectivePassword` and updated `userPasswordOverride` on change, guaranteeing that `DEV_TEST_PASSWORD` updates dynamically without effects or cascading renders, while respecting intentional user overrides.
+
+---
+
 ## Verification
 
 | Check | Result |
 |---|---|
-| `npm test` | ✅ 775 passed, 39 skipped |
+| `npm test` | ✅ 790 passed, 39 skipped |
 | `npm run typecheck` | ✅ Clean (0 errors) |
 | `npm run build` | ✅ Clean |
 | `npm run lint` | ✅ Clean (0 errors) |
+
 
 
 

@@ -44,7 +44,13 @@ export default function DevQuickSwitcher({
   const [mode1Error, setMode1Error] = useState("");
   const [provisioning, setProvisioning] = useState(false);
   const [provisionStatus, setProvisionStatus] = useState(null);
-  const [authPassword, setAuthPassword] = useState(DEV_TEST_PASSWORD || "");
+  const [userPasswordOverride, setUserPasswordOverride] = useState(null);
+
+  // Derive password reactively: prefers user override when typed, otherwise defaults to DEV_TEST_PASSWORD
+  const effectivePassword =
+    userPasswordOverride !== null
+      ? userPasswordOverride
+      : (DEV_TEST_PASSWORD || "");
 
   if (!isDevSwitcherEnabled && realRole !== "admin") {
     return null;
@@ -54,7 +60,7 @@ export default function DevQuickSwitcher({
 
   const handleMode1Switch = async (account) => {
     setMode1Error("");
-    const password = authPassword || DEV_TEST_PASSWORD;
+    const password = effectivePassword;
     if (!password) {
       setMode1Error(
         "Please enter the test account password below to switch."
@@ -82,7 +88,7 @@ export default function DevQuickSwitcher({
     setProvisioning(true);
     setProvisionStatus(null);
     setMode1Error("");
-    const password = authPassword || DEV_TEST_PASSWORD;
+    const password = effectivePassword;
     if (!password) {
       setProvisionStatus({
         type: "error",
@@ -381,9 +387,9 @@ export default function DevQuickSwitcher({
                   </div>
                   <input
                     type="password"
-                    value={authPassword}
+                    value={effectivePassword}
                     onChange={(e) => {
-                      setAuthPassword(e.target.value);
+                      setUserPasswordOverride(e.target.value);
                       setMode1Error("");
                     }}
                     placeholder="Enter test password (e.g. 123456)"
@@ -402,11 +408,11 @@ export default function DevQuickSwitcher({
                       Admin: Provision Test Accounts
                     </span>
                     <p className="text-[10px] text-slate-500 leading-tight">
-                      Registers all {MODE_1_TEST_ACCOUNTS.length} test accounts in Firebase Auth and Firestore with password <code>{authPassword || DEV_TEST_PASSWORD || "(enter password above)"}</code> so 1-click login works.
+                      Registers all {MODE_1_TEST_ACCOUNTS.length} test accounts in Firebase Auth and Firestore with password <code>{effectivePassword || "(enter password above)"}</code> so 1-click login works.
                     </p>
                     <button
                       type="button"
-                      disabled={provisioning || !(authPassword || DEV_TEST_PASSWORD)}
+                      disabled={provisioning || !effectivePassword}
                       onClick={handleProvisionAccounts}
                       className="w-full py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 shadow-xs"
                     >

@@ -1,4 +1,5 @@
 import { branchToId } from "../../constants/branches";
+import { normalizeRole } from "./roles";
 
 /**
  * approvalGates.js
@@ -149,21 +150,14 @@ export const GATED_ACTIONS = Object.freeze({
  * @returns {string|null} Approver role key or null if exempt
  */
 export function getSelfCorrectionApprover(requesterRole) {
-  const normalized = (requesterRole || "").toLowerCase().trim();
+  const normalized = normalizeRole(requesterRole);
   if (!normalized || normalized === "admin") {
     return null; // Admin is exempt
   }
-  if (normalized === "manager" || normalized === "branch_manager") {
+  if (normalized === "manager") {
     return APPROVAL_ROLES.ADMIN;
   }
-  if (
-    normalized === "ops_lead" ||
-    normalized === "opslead" ||
-    normalized === "frontofficelead" ||
-    normalized === "front_office_lead" ||
-    normalized === "frontoffice" ||
-    normalized === "front_office"
-  ) {
+  if (normalized === "opslead" || normalized === "frontoffice") {
     return APPROVAL_ROLES.BRANCH_MANAGER;
   }
   // All other staff (instructor, marketing, officeboy, instructorleader, etc.)
@@ -232,29 +226,21 @@ export function createApprovalEnvelope(actionId, requester = {}, context = {}) {
  */
 export function canApproveGate(userRole, approverRole) {
   if (!userRole) return false;
-  const normalized = userRole.toLowerCase().trim();
+  const normalized = normalizeRole(userRole);
   if (normalized === "admin") return true;
 
   switch (approverRole) {
     case APPROVAL_ROLES.ADMIN:
       return normalized === "admin";
     case APPROVAL_ROLES.BRANCH_MANAGER:
-      return normalized === "manager" || normalized === "branch_manager";
+      return normalized === "manager";
     case APPROVAL_ROLES.INSTRUCTOR_LEADER:
-      return (
-        normalized === "manager" ||
-        normalized === "instructor_leader" ||
-        normalized === "instructorleader" ||
-        normalized === "head_instructor"
-      );
+      return normalized === "manager" || normalized === "instructorleader";
     case APPROVAL_ROLES.OPS_LEAD:
       return (
         normalized === "manager" ||
         normalized === "frontoffice" ||
-        normalized === "ops_lead" ||
-        normalized === "opslead" ||
-        normalized === "frontofficelead" ||
-        normalized === "front_office_lead"
+        normalized === "opslead"
       );
     default:
       return false;

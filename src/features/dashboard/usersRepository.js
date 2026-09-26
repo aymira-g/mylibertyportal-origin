@@ -15,6 +15,7 @@ import {
 } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { branchToId, idToBranch, DEFAULT_BRANCH_ID } from "../../constants/branches";
+import { createParentPayloadSchema } from "../../schemas/parentSchema";
 
 /**
  * Normalizes user payload to include both branch and branchId.
@@ -201,6 +202,13 @@ export async function deleteUserProfile(uid) {
  * @returns {Promise<string>} Created parent UID
  */
 export async function createParentAccount(email, password, parentData) {
+  // Validate parent creation payload prior to creating Auth user
+  createParentPayloadSchema.parse({
+    email,
+    password,
+    ...parentData,
+  });
+
   const secAuth = getSecondaryAuth();
   const cred = await createUserWithEmailAndPassword(secAuth, email, password);
 
@@ -211,21 +219,24 @@ export async function createParentAccount(email, password, parentData) {
     initialChildren.push(...parentData.childStudentIds);
   }
 
+  // Canonicalize branch fields (convert branch name or branchId to slug and canonical display name)
+  const rawBranch = parentData.branchId || parentData.branch || DEFAULT_BRANCH_ID;
+  const canonicalBranchId = branchToId(rawBranch);
+  const canonicalBranch = idToBranch(canonicalBranchId);
+
   const now = new Date().toISOString();
-  const rawPayload = {
-    displayName: parentData.displayName || "",
+  const payload = {
+    displayName: (parentData.displayName || "").trim(),
     email: email.trim().toLowerCase(),
-    phone: parentData.phone || "",
+    phone: (parentData.phone || "").trim(),
     role: "parent",
     childStudentIds: initialChildren,
     status: parentData.status || "active",
+    branchId: canonicalBranchId,
+    branch: canonicalBranch,
     createdAt: now,
     updatedAt: now,
-    ...(parentData.branch ? { branch: parentData.branch } : {}),
-    ...(parentData.branchId ? { branchId: parentData.branchId } : {}),
   };
-
-  const payload = normalizeUserBranchFields(rawPayload);
 
   try {
     await setDoc(doc(db, "users", cred.user.uid), payload, { merge: true });

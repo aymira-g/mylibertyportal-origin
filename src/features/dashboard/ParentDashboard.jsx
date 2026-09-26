@@ -25,10 +25,18 @@ export default function ParentDashboard({ user = null }) {
   const [parentProfile, setParentProfile] = useState(null);
   const [children, setChildren] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState(null);
+  const [prevChildId, setPrevChildId] = useState(null);
   const [childDetails, setChildDetails] = useState({ classes: [], attendance: [] });
   const [loadingInitial, setLoadingInitial] = useState(Boolean(currentUid));
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [error, setError] = useState("");
+
+  // Reset child details and set loadingDetails immediately when child changes
+  if (selectedChildId !== prevChildId) {
+    setPrevChildId(selectedChildId);
+    setChildDetails({ classes: [], attendance: [] });
+    setLoadingDetails(Boolean(selectedChildId));
+  }
 
   // 1. Load Parent Profile and Linked Children
   useEffect(() => {
@@ -66,12 +74,15 @@ export default function ParentDashboard({ user = null }) {
       .then((data) => {
         if (!active) return;
         setChildDetails(data);
-        setLoadingDetails(false);
       })
       .catch((err) => {
         if (!active) return;
         console.error("Failed loading child classes/attendance:", err);
-        setLoadingDetails(false);
+      })
+      .finally(() => {
+        if (active) {
+          setLoadingDetails(false);
+        }
       });
 
     return () => {

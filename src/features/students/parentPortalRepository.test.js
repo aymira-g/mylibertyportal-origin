@@ -131,10 +131,11 @@ describe("getAuthenticatedParentBundle", () => {
 });
 
 describe("getChildAttendanceAndClasses", () => {
-  it("fetches enrolled classes and attendance records for a student", async () => {
+  it("fetches enrolled open classes and attendance records for a student", async () => {
     fake.seed("classes", [
-      { id: "c1", className: "English 1", studentIds: ["child_1", "other"] },
-      { id: "c2", className: "English 2", studentIds: ["other_only"] },
+      { id: "c1", className: "English 1", studentIds: ["child_1", "other"], status: "open" },
+      { id: "c2", className: "English 2", studentIds: ["other_only"], status: "open" },
+      { id: "c3", className: "English Archived", studentIds: ["child_1"], status: "closed" },
     ]);
 
     fake.seed("classAttendance", [
@@ -144,6 +145,7 @@ describe("getChildAttendanceAndClasses", () => {
     ]);
 
     const result = await getChildAttendanceAndClasses("child_1");
+    // Returns only open classes enrolled by child_1 (filters out c2 not enrolled and c3 closed)
     expect(result.classes.length).toBe(1);
     expect(result.classes[0].className).toBe("English 1");
     expect(result.attendance.length).toBe(2);

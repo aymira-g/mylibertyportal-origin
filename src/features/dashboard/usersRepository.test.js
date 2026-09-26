@@ -193,7 +193,34 @@ describe("createParentAccount", () => {
     expect(userDoc.data.email).toBe("parent@example.com");
     expect(userDoc.data.childStudentIds).toEqual(["student_abc"]);
     expect(userDoc.data.branchId).toBe("kota_gorontalo");
+    expect(userDoc.data.branch).toBe("Kota Gorontalo");
     expect(userDoc.data.status).toBe("active");
+  });
+
+  it("canonicalizes branchId even when callers pass a branch display name as branchId", async () => {
+    authMock.createUserWithEmailAndPassword.mockResolvedValueOnce({
+      user: { uid: "parent_boba_1" },
+    });
+
+    const uid = await createParentAccount("parentboba@example.com", "pass123456", {
+      displayName: "Pak Rusli",
+      branchId: "Bone Bolango",
+      initialChildStudentId: "student_boba_1",
+    });
+
+    expect(uid).toBe("parent_boba_1");
+    const userDoc = fake.find("users/parent_boba_1");
+    expect(userDoc.data.branchId).toBe("bone_bolango");
+    expect(userDoc.data.branch).toBe("Bone Bolango");
+  });
+
+  it("throws validation error and halts before calling auth when payload is invalid", async () => {
+    await expect(
+      createParentAccount("invalid-email", "short", {
+        displayName: "",
+      })
+    ).rejects.toThrow();
+    expect(authMock.createUserWithEmailAndPassword).not.toHaveBeenCalled();
   });
 });
 

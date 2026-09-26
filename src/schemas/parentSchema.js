@@ -44,6 +44,8 @@ export const createParentPayloadSchema = z.object({
   branchId: z.string().trim().optional(),
   branch: z.string().trim().optional(),
   initialChildStudentId: z.string().trim().optional(),
+  childStudentIds: z.array(z.string().trim()).optional(),
+  status: z.string().trim().optional(),
 });
 
 /**

@@ -180,6 +180,7 @@ export async function getChildAttendanceAndClasses(childId) {
     const qClasses = query(
       collection(db, "classes"),
       where("studentIds", "array-contains", childId),
+      where("status", "==", "open"),
       limit(20)
     );
     const snapClasses = await getDocs(qClasses);

@@ -5,6 +5,7 @@ import {
   unlinkChildFromParent,
 } from "../dashboard/usersRepository";
 import { useToast, useConfirm } from "../shared";
+import { branchToId } from "../../constants/branches";
 import { Users, UserPlus, Unlink, Key, Loader2, CheckCircle2, Shield } from "lucide-react";
 
 export default function StudentParentLinkage({
@@ -72,10 +73,11 @@ export default function StudentParentLinkage({
     setSubmitting(true);
     setActionError("");
     try {
+      const canonicalBranchId = branchToId(studentBranch);
       await createParentAccount(parentEmail, parentPassword, {
         displayName: parentName,
         phone: parentPhone,
-        branchId: studentBranch,
+        branchId: canonicalBranchId,
         initialChildStudentId: studentId,
       });
 

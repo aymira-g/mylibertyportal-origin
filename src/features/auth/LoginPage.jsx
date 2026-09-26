@@ -16,7 +16,13 @@ import {
   AlertCircle,
   KeyRound,
   UserPlus,
+  Zap,
 } from "lucide-react";
+import {
+  isDevSwitcherEnabled,
+  MODE_1_TEST_ACCOUNTS,
+  DEV_TEST_PASSWORD,
+} from "./devPresets";
 
 export default function LoginPage({ onLogin, loading }) {
   const [email, setEmail] = useState("");
@@ -325,6 +331,58 @@ export default function LoginPage({ onLogin, loading }) {
               )}
             </button>
           </form>
+
+          {/* ── Mode 1: Quick Test Accounts for Dev Mode ── */}
+          {isDevSwitcherEnabled && (
+            <div className="pt-2">
+              <details className="group rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/40 p-3.5 transition">
+                <summary className="text-xs font-bold text-indigo-950 cursor-pointer flex items-center justify-between list-none select-none">
+                  <span className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-md bg-amber-400/20 text-amber-600 flex items-center justify-center">
+                      <Zap className="w-3.5 h-3.5 fill-amber-500" />
+                    </span>
+                    <span>Quick Test Accounts (Dev Mode)</span>
+                  </span>
+                  <span className="text-[10px] text-indigo-600 font-semibold group-open:rotate-180 transition-transform">
+                    ▼
+                  </span>
+                </summary>
+                <div className="pt-2.5 space-y-2">
+                  <p className="text-[11px] text-slate-500 leading-tight">
+                    1-click sign in via real Firebase Auth. Validates live security rules & branch data.
+                  </p>
+                  {!DEV_TEST_PASSWORD && (
+                    <div className="p-2 rounded-lg bg-amber-100/70 border border-amber-300 text-amber-900 text-[10px] font-medium">
+                      Note: Set <code>VITE_DEV_TEST_PASSWORD</code> in <code>.env.local</code> to auto-authenticate. Clicking below will fill the email.
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1">
+                    {MODE_1_TEST_ACCOUNTS.map((acc) => (
+                      <button
+                        key={acc.email}
+                        type="button"
+                        disabled={loading}
+                        onClick={() => {
+                          if (DEV_TEST_PASSWORD) {
+                            onLogin(acc.email, DEV_TEST_PASSWORD);
+                          } else {
+                            setEmail(acc.email);
+                          }
+                        }}
+                        className="p-1.5 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-lg text-left transition flex items-center justify-between cursor-pointer disabled:opacity-50"
+                        title={`${acc.label} (${acc.email})`}
+                      >
+                        <span className="text-[11px] font-bold text-slate-700 truncate">
+                          {acc.shortLabel || acc.label}
+                        </span>
+                        <ArrowRight className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </details>
+            </div>
+          )}
 
           {/* ── Public Student Application Quick Banner ── */}
           <div className="pt-2">

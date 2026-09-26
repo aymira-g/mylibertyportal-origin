@@ -3,8 +3,16 @@ import { auth, db } from "./firebase";
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { ProfilePanel, LoginPage } from "./features/auth";
-import { useToast, ErrorBoundary, ConnectivityBanner } from "./features/shared";
+import { isDevSwitcherEnabled } from "./features/auth/devPresets";
+import {
+  useToast,
+  ErrorBoundary,
+  ConnectivityBanner,
+  DevQuickSwitcher,
+  PreviewModeProvider,
+} from "./features/shared";
 import { InstallButton } from "./features/pwa";
+import { AlertTriangle } from "lucide-react";
 import schoolLogo from "./assets/school-logo.webp";
 
 // Code-split: each of these becomes its own downloaded chunk, fetched
@@ -61,6 +69,9 @@ function App() {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState("");
   const [division, setDivision] = useState(DEFAULT_DIVISION);
+  const [branch, setBranch] = useState("kota_gorontalo");
+  const [previewRole, setPreviewRole] = useState(null);
+  const [previewDivision, setPreviewDivision] = useState(null);
   const [displayName, setDisplayName] = useState("");
   const [nickname, setNickname] = useState("");
   const [photoURL, setPhotoURL] = useState("");
@@ -70,10 +81,18 @@ function App() {
   const [idleWarning, setIdleWarning] = useState(false);
   const [profileError, setProfileError] = useState("");
 
+  const handleClearPreview = useCallback(() => {
+    setPreviewRole(null);
+    setPreviewDivision(null);
+  }, []);
+
   const resetUserState = useCallback(() => {
     setUser(null);
     setRole("");
     setDivision(DEFAULT_DIVISION);
+    setBranch("kota_gorontalo");
+    setPreviewRole(null);
+    setPreviewDivision(null);
     setDisplayName("");
     setNickname("");
     setPhotoURL("");
@@ -137,6 +156,7 @@ function App() {
         }
         setRole(data.role || "student");
         setDivision(normalizeDivision(data.division));
+        setBranch(data.branchId || data.branch || "kota_gorontalo");
         setDisplayName(data.displayName || "");
         setNickname(data.nickname || data.displayName || "");
         setPhotoURL(data.photoURL || "");
@@ -409,70 +429,101 @@ function App() {
           </div>
         </div>
 
+        {/* Mode 2 Preview Sticky Warning Banner */}
+        {isDevSwitcherEnabled && previewRole && (
+          <div className="bg-amber-500 text-white px-3.5 py-2 text-xs font-semibold flex items-center justify-between shadow-xs sticky top-0 z-40 border-b border-amber-600 animate-in fade-in duration-150">
+            <div className="flex items-center gap-2 min-w-0 pr-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-amber-100" />
+              <span className="truncate">
+                <strong>UI Preview Mode:</strong> [{previewRole.toUpperCase()} ·{" "}
+                {(previewDivision || division) === "kindergarten" ? "Kindergarten" : "English Studio"}] — Layout only. Data &amp; writes belong to your real session ({user?.email || "user"}).
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleClearPreview}
+              className="bg-amber-700 hover:bg-amber-800 text-white px-2.5 py-1 rounded text-xs font-bold transition shrink-0 cursor-pointer shadow-2xs"
+            >
+              Exit Preview
+            </button>
+          </div>
+        )}
+
         <div className="p-3 sm:p-4 md:p-6 w-full">
-          {/* Dynamic Role Router Switcher — each branch is its own chunk,
-              only the matching one is ever fetched for a given user */}
-          <Suspense fallback={<LoadingFallback />}>
-            {role === "admin" && (
-              <ErrorBoundary label="Admin dashboard">
-                <AdminDashboard />
-              </ErrorBoundary>
-            )}
-            {role === "manager" && (
-              <ErrorBoundary label="Manager dashboard">
-                {division === "kindergarten" ? (
-                  <KidsManagerDashboard />
-                ) : (
-                  <ManagerDashboard />
-                )}
-              </ErrorBoundary>
-            )}
-            {(role === "instructor" || role === "instructorleader" || role === "instructor_leader") && (
-              <ErrorBoundary label="Instructor dashboard">
-                {division === "kindergarten" ? (
-                  <KidsInstructorDashboard />
-                ) : (
-                  <InstructorDashboard role={role} />
-                )}
-              </ErrorBoundary>
-            )}
-            {(role === "frontoffice" || role === "opslead" || role === "ops_lead" || role === "frontofficelead") && (
-              <ErrorBoundary label="Front Office dashboard">
-                {division === "kindergarten" ? (
-                  <KidsFrontOfficeDashboard />
-                ) : (
-                  <FrontOfficeDashboard role={role} />
-                )}
-              </ErrorBoundary>
-            )}
-            {role === "marketing" && (
-              <ErrorBoundary label="Marketing dashboard">
-                <MarketingDashboard />
-              </ErrorBoundary>
-            )}
-            {role === "officeboy" && (
-              <ErrorBoundary label="Office Boy dashboard">
-                <OfficeBoyDashboard />
-              </ErrorBoundary>
-            )}
-            {![
-              "admin",
-              "manager",
-              "instructor",
-              "instructorleader",
-              "instructor_leader",
-              "marketing",
-              "frontoffice",
-              "opslead",
-              "ops_lead",
-              "frontofficelead",
-              "officeboy",
-            ].includes(role) && (
-              <div className="bg-white p-6 rounded-xl border text-center text-gray-500 text-sm max-w-md mx-auto">
-                This account doesn't have dashboard access. Please contact your administrator.
-              </div>
-            )}
-          </Suspense>
+          {/* Dynamic Role Router Switcher — wrapped in PreviewModeProvider for write protection */}
+          <PreviewModeProvider
+            isPreviewMode={Boolean(isDevSwitcherEnabled && previewRole)}
+            previewRole={previewRole}
+            previewDivision={previewDivision || division}
+            exitPreview={handleClearPreview}
+          >
+            <Suspense fallback={<LoadingFallback />}>
+              {(previewRole || role) === "admin" && (
+                <ErrorBoundary label="Admin dashboard">
+                  <AdminDashboard />
+                </ErrorBoundary>
+              )}
+              {(previewRole || role) === "manager" && (
+                <ErrorBoundary label="Manager dashboard">
+                  {(previewDivision || division) === "kindergarten" ? (
+                    <KidsManagerDashboard />
+                  ) : (
+                    <ManagerDashboard />
+                  )}
+                </ErrorBoundary>
+              )}
+              {((previewRole || role) === "instructor" ||
+                (previewRole || role) === "instructorleader" ||
+                (previewRole || role) === "instructor_leader") && (
+                <ErrorBoundary label="Instructor dashboard">
+                  {(previewDivision || division) === "kindergarten" ? (
+                    <KidsInstructorDashboard />
+                  ) : (
+                    <InstructorDashboard role={previewRole || role} />
+                  )}
+                </ErrorBoundary>
+              )}
+              {((previewRole || role) === "frontoffice" ||
+                (previewRole || role) === "opslead" ||
+                (previewRole || role) === "ops_lead" ||
+                (previewRole || role) === "frontofficelead") && (
+                <ErrorBoundary label="Front Office dashboard">
+                  {(previewDivision || division) === "kindergarten" ? (
+                    <KidsFrontOfficeDashboard />
+                  ) : (
+                    <FrontOfficeDashboard role={previewRole || role} />
+                  )}
+                </ErrorBoundary>
+              )}
+              {(previewRole || role) === "marketing" && (
+                <ErrorBoundary label="Marketing dashboard">
+                  <MarketingDashboard />
+                </ErrorBoundary>
+              )}
+              {(previewRole || role) === "officeboy" && (
+                <ErrorBoundary label="Office Boy dashboard">
+                  <OfficeBoyDashboard />
+                </ErrorBoundary>
+              )}
+              {![
+                "admin",
+                "manager",
+                "instructor",
+                "instructorleader",
+                "instructor_leader",
+                "marketing",
+                "frontoffice",
+                "opslead",
+                "ops_lead",
+                "frontofficelead",
+                "officeboy",
+              ].includes(previewRole || role) && (
+                <div className="bg-white p-6 rounded-xl border text-center text-gray-500 text-sm max-w-md mx-auto">
+                  This account doesn't have dashboard access. Please contact your administrator.
+                </div>
+              )}
+            </Suspense>
+          </PreviewModeProvider>
         </div>
       </div>
 
@@ -529,6 +580,26 @@ function App() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Floating Dev Quick Switcher widget */}
+      {isDevSwitcherEnabled && (
+        <DevQuickSwitcher
+          currentUser={user}
+          realRole={role}
+          realDivision={division}
+          realBranch={branch}
+          previewRole={previewRole}
+          previewDivision={previewDivision}
+          onSetPreview={(r, d) => {
+            setPreviewRole(r);
+            setPreviewDivision(d);
+          }}
+          onClearPreview={handleClearPreview}
+          onLogin={handleLogin}
+          onLogout={handleLogout}
+          loading={loading}
+        />
       )}
     </div>
   );

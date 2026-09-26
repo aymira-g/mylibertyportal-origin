@@ -5,6 +5,8 @@ import {
   lookupStudentForParent,
   buildPaymentSummary,
   getStudentParentPortalBundle,
+  getAuthenticatedParentBundle,
+  getChildAttendanceAndClasses,
 } from "./parentPortalRepository";
 
 vi.mock(
@@ -101,5 +103,49 @@ describe("getStudentParentPortalBundle", () => {
 
   it("throws when the student does not exist", async () => {
     await expect(getStudentParentPortalBundle("missing")).rejects.toThrow("Student not found.");
+  });
+});
+
+describe("getAuthenticatedParentBundle", () => {
+  it("fetches parent doc and resolves linked child student profiles", async () => {
+    fake.seed("users", [
+      { id: "parent_1", role: "parent", displayName: "Pak Hendra", childStudentIds: ["child_1", "child_2"] },
+      { id: "child_1", role: "student", displayName: "Ayu", currentLevel: "warrior" },
+      { id: "child_2", role: "student", displayName: "Bima", currentLevel: "hero" },
+    ]);
+
+    const bundle = await getAuthenticatedParentBundle("parent_1");
+    expect(bundle.parent.displayName).toBe("Pak Hendra");
+    expect(bundle.children.length).toBe(2);
+    expect(bundle.children.map((c) => c.displayName)).toEqual(["Ayu", "Bima"]);
+  });
+
+  it("handles missing parent or empty children list safely", async () => {
+    const emptyBundle = await getAuthenticatedParentBundle(null);
+    expect(emptyBundle).toEqual({ parent: null, children: [] });
+
+    fake.seed("users", [{ id: "parent_2", role: "parent" }]);
+    const noKids = await getAuthenticatedParentBundle("parent_2");
+    expect(noKids.children).toEqual([]);
+  });
+});
+
+describe("getChildAttendanceAndClasses", () => {
+  it("fetches enrolled classes and attendance records for a student", async () => {
+    fake.seed("classes", [
+      { id: "c1", className: "English 1", studentIds: ["child_1", "other"] },
+      { id: "c2", className: "English 2", studentIds: ["other_only"] },
+    ]);
+
+    fake.seed("classAttendance", [
+      { id: "att1", studentId: "child_1", attendanceDate: "2026-09-26", status: "PRESENT" },
+      { id: "att2", studentId: "child_1", attendanceDate: "2026-09-25", status: "LATE" },
+      { id: "att3", studentId: "other", attendanceDate: "2026-09-26", status: "PRESENT" },
+    ]);
+
+    const result = await getChildAttendanceAndClasses("child_1");
+    expect(result.classes.length).toBe(1);
+    expect(result.classes[0].className).toBe("English 1");
+    expect(result.attendance.length).toBe(2);
   });
 });

@@ -20,6 +20,7 @@ import {
 import { db, getSecondaryAuth } from "../../firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
+import { normalizeRole } from "./roles";
 
 /**
  * DevQuickSwitcher: Floating widget providing:
@@ -40,7 +41,7 @@ export default function DevQuickSwitcher({
   loading = false,
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("preview"); // 'preview' | 'auth'
+  const [activeTab, setActiveTab] = useState(isDevSwitcherEnabled ? "preview" : "auth");
   const [mode1Error, setMode1Error] = useState("");
   const [provisioning, setProvisioning] = useState(false);
   const [provisionStatus, setProvisionStatus] = useState(null);
@@ -52,11 +53,11 @@ export default function DevQuickSwitcher({
       ? userPasswordOverride
       : (DEV_TEST_PASSWORD || "");
 
-  if (!isDevSwitcherEnabled && realRole !== "admin") {
+  if (!isDevSwitcherEnabled && normalizeRole(realRole) !== "admin") {
     return null;
   }
 
-  const isPreviewActive = Boolean(previewRole);
+  const isPreviewActive = Boolean(isDevSwitcherEnabled && previewRole);
 
   const handleMode1Switch = async (account) => {
     setMode1Error("");
@@ -243,35 +244,44 @@ export default function DevQuickSwitcher({
           </div>
 
           {/* Mode Switch Tabs */}
-          <div className="flex border-b border-slate-200 bg-slate-100/70 p-1 gap-1 text-xs font-bold">
-            <button
-              onClick={() => setActiveTab("preview")}
-              className={`flex-1 py-1.5 rounded-lg text-center transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeTab === "preview"
-                  ? "bg-white text-indigo-900 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <Eye className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Mode 2: UI Preview</span>
-            </button>
-            <button
-              onClick={() => setActiveTab("auth")}
-              className={`flex-1 py-1.5 rounded-lg text-center transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeTab === "auth"
-                  ? "bg-white text-amber-900 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-              <span>Mode 1: Real Auth</span>
-            </button>
-          </div>
+          {isDevSwitcherEnabled ? (
+            <div className="flex border-b border-slate-200 bg-slate-100/70 p-1 gap-1 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setActiveTab("preview")}
+                className={`flex-1 py-1.5 rounded-lg text-center transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  activeTab === "preview"
+                    ? "bg-white text-indigo-900 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Mode 2: UI Preview</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("auth")}
+                className={`flex-1 py-1.5 rounded-lg text-center transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  activeTab === "auth"
+                    ? "bg-white text-amber-900 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                <span>Mode 1: Real Auth</span>
+              </button>
+            </div>
+          ) : (
+            <div className="border-b border-slate-200 bg-amber-50/70 px-3.5 py-2 text-xs font-bold text-amber-950 flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />
+              <span>Real Account Switcher (Live Admin Gated)</span>
+            </div>
+          )}
 
           {/* Drawer Body */}
           <div className="p-3.5 overflow-y-auto space-y-3 max-h-[60vh]">
-            {/* ── Mode 2: UI Preview Tab ── */}
-            {activeTab === "preview" && (
+            {/* ── Mode 2: UI Preview Tab (Strictly Development Mode) ── */}
+            {isDevSwitcherEnabled && activeTab === "preview" && (
               <div className="space-y-3">
                 <div className="text-[11px] text-slate-500 leading-tight">
                   Instant layout preview. Underlying auth session and Firestore writes remain unchanged.
@@ -401,7 +411,7 @@ export default function DevQuickSwitcher({
                 </div>
 
                 {/* ── 1-Click Provisioning (For Admins) ── */}
-                {realRole === "admin" && (
+                {normalizeRole(realRole) === "admin" && (
                   <div className="p-2.5 rounded-xl bg-indigo-50/70 border border-indigo-200 text-xs space-y-2">
                     <span className="font-bold text-[11px] text-indigo-950 flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-indigo-600" />

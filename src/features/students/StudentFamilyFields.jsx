@@ -1,10 +1,12 @@
-export default function StudentFamilyFields({ formData, field }) {
+import StudentParentLinkage from "./StudentParentLinkage";
+
+export default function StudentFamilyFields({ formData, field, editId, readOnly = false }) {
   return (
     <>
       <hr className="border-slate-100" />
 
       {/* Section 3: Parents / Guardians */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         <h4 className="text-xs font-black uppercase tracking-wider text-[#1a3a8f] flex items-center gap-1.5">
           <span>👨‍👩‍👦</span> Parents / Guardians Information
         </h4>
@@ -96,6 +98,18 @@ export default function StudentFamilyFields({ formData, field }) {
             </div>
           </div>
         </div>
+
+        {/* Authenticated Parent Accounts Linkage */}
+        {(editId || formData.id) && (
+          <div className="pt-2">
+            <StudentParentLinkage
+              studentId={editId || formData.id}
+              studentName={formData.displayName || "Student"}
+              studentBranch={formData.branchId || formData.branch}
+              readOnly={readOnly}
+            />
+          </div>
+        )}
       </div>
 
       <hr className="border-slate-100" />

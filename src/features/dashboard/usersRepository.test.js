@@ -4,6 +4,11 @@ import {
   checkStaffHasAttendanceHistory,
   checkStudentHasHistory,
   createStaffAccount,
+  createParentAccount,
+  linkChildToParent,
+  unlinkChildFromParent,
+  getParentLinkedStudents,
+  findParentsForStudent,
   deleteUserProfile,
   updateStaffStatus,
 } from "./usersRepository.js";
@@ -164,5 +169,80 @@ describe("deleteUserProfile", () => {
 
     // Class c2 should NOT be touched
     expect(fake.find("classes/c2")).toBeUndefined();
+  });
+});
+
+describe("createParentAccount", () => {
+  it("creates auth user via secondary auth and saves profile with role: parent", async () => {
+    authMock.createUserWithEmailAndPassword.mockResolvedValueOnce({
+      user: { uid: "parent_uid_123" },
+    });
+
+    const uid = await createParentAccount("parent@example.com", "pass123456", {
+      displayName: "Ibu Linda",
+      phone: "081299998888",
+      initialChildStudentId: "student_abc",
+      branch: "Kota Gorontalo",
+    });
+
+    expect(uid).toBe("parent_uid_123");
+    const userDoc = fake.find("users/parent_uid_123");
+    expect(userDoc.opts).toEqual({ merge: true });
+    expect(userDoc.data.role).toBe("parent");
+    expect(userDoc.data.displayName).toBe("Ibu Linda");
+    expect(userDoc.data.email).toBe("parent@example.com");
+    expect(userDoc.data.childStudentIds).toEqual(["student_abc"]);
+    expect(userDoc.data.branchId).toBe("kota_gorontalo");
+    expect(userDoc.data.status).toBe("active");
+  });
+});
+
+describe("linkChildToParent and unlinkChildFromParent", () => {
+  it("links a child to a parent with arrayUnion", async () => {
+    await linkChildToParent("parent1", "child1");
+    const op = fake.find("users/parent1");
+    expect(op.opts).toEqual({ merge: true });
+    expect(op.data.childStudentIds).toEqual({ __op: "arrayUnion", items: ["child1"] });
+    expect(op.data.updatedAt).toBeTruthy();
+  });
+
+  it("unlinks a child from a parent with arrayRemove", async () => {
+    await unlinkChildFromParent("parent1", "child1");
+    const op = fake.find("users/parent1");
+    expect(op.opts).toEqual({ merge: true });
+    expect(op.data.childStudentIds).toEqual({ __op: "arrayRemove", items: ["child1"] });
+    expect(op.data.updatedAt).toBeTruthy();
+  });
+
+  it("throws if IDs are missing", () => {
+    expect(() => linkChildToParent("", "child1")).toThrow();
+    expect(() => linkChildToParent("p1", "")).toThrow();
+    expect(() => unlinkChildFromParent("", "child1")).toThrow();
+    expect(() => unlinkChildFromParent("p1", "")).toThrow();
+  });
+});
+
+describe("getParentLinkedStudents and findParentsForStudent", () => {
+  it("retrieves childStudentIds array for a parent doc", async () => {
+    fake.seed("users", [
+      { id: "parent1", role: "parent", childStudentIds: ["s1", "s2"] },
+      { id: "parent2", role: "parent" },
+    ]);
+
+    expect(await getParentLinkedStudents("parent1")).toEqual(["s1", "s2"]);
+    expect(await getParentLinkedStudents("parent2")).toEqual([]);
+    expect(await getParentLinkedStudents("nonexistent")).toEqual([]);
+  });
+
+  it("finds parents linked to a student", async () => {
+    fake.seed("users", [
+      { id: "parent1", role: "parent", displayName: "Ayah", childStudentIds: ["s1"] },
+      { id: "parent2", role: "parent", displayName: "Ibu", childStudentIds: ["s1", "s2"] },
+      { id: "parent3", role: "parent", displayName: "Lain", childStudentIds: ["s3"] },
+      { id: "student1", role: "student", childStudentIds: ["s1"] }, // not role parent
+    ]);
+
+    const parents = await findParentsForStudent("s1");
+    expect(parents.map((p) => p.id)).toEqual(["parent1", "parent2"]);
   });
 });

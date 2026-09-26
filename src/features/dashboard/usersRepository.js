@@ -9,6 +9,9 @@ import {
   where,
   limit,
   getDocs,
+  getDoc,
+  arrayUnion,
+  arrayRemove,
 } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { branchToId, idToBranch, DEFAULT_BRANCH_ID } from "../../constants/branches";
@@ -185,4 +188,124 @@ export async function deleteUserProfile(uid) {
   }
 
   return batch.commit();
+}
+
+/**
+ * Creates an authenticated parent account via secondary Firebase Auth instance
+ * and saves their profile with role: "parent" and initial child linkage.
+ * Prevents session logout for the current staff user.
+ *
+ * @param {string} email
+ * @param {string} password
+ * @param {object} parentData
+ * @returns {Promise<string>} Created parent UID
+ */
+export async function createParentAccount(email, password, parentData) {
+  const secAuth = getSecondaryAuth();
+  const cred = await createUserWithEmailAndPassword(secAuth, email, password);
+
+  const initialChildren = [];
+  if (parentData.initialChildStudentId) {
+    initialChildren.push(parentData.initialChildStudentId);
+  } else if (Array.isArray(parentData.childStudentIds)) {
+    initialChildren.push(...parentData.childStudentIds);
+  }
+
+  const now = new Date().toISOString();
+  const rawPayload = {
+    displayName: parentData.displayName || "",
+    email: email.trim().toLowerCase(),
+    phone: parentData.phone || "",
+    role: "parent",
+    childStudentIds: initialChildren,
+    status: parentData.status || "active",
+    createdAt: now,
+    updatedAt: now,
+    ...(parentData.branch ? { branch: parentData.branch } : {}),
+    ...(parentData.branchId ? { branchId: parentData.branchId } : {}),
+  };
+
+  const payload = normalizeUserBranchFields(rawPayload);
+
+  try {
+    await setDoc(doc(db, "users", cred.user.uid), payload, { merge: true });
+  } catch (err) {
+    throw new Error(
+      `Parent account created in Firebase Auth, but saving user doc failed: ${err.message}.`,
+      { cause: err }
+    );
+  }
+
+  return cred.user.uid;
+}
+
+/**
+ * Links a student to a parent's childStudentIds list.
+ *
+ * @param {string} parentUid
+ * @param {string} studentId
+ */
+export function linkChildToParent(parentUid, studentId) {
+  if (!parentUid || !studentId) {
+    throw new Error("Both parentUid and studentId are required to link.");
+  }
+  return setDoc(
+    doc(db, "users", parentUid),
+    {
+      childStudentIds: arrayUnion(studentId),
+      updatedAt: new Date().toISOString(),
+    },
+    { merge: true }
+  );
+}
+
+/**
+ * Unlinks a student from a parent's childStudentIds list.
+ *
+ * @param {string} parentUid
+ * @param {string} studentId
+ */
+export function unlinkChildFromParent(parentUid, studentId) {
+  if (!parentUid || !studentId) {
+    throw new Error("Both parentUid and studentId are required to unlink.");
+  }
+  return setDoc(
+    doc(db, "users", parentUid),
+    {
+      childStudentIds: arrayRemove(studentId),
+      updatedAt: new Date().toISOString(),
+    },
+    { merge: true }
+  );
+}
+
+/**
+ * Retrieves the list of student IDs linked to a parent.
+ *
+ * @param {string} parentUid
+ * @returns {Promise<string[]>}
+ */
+export async function getParentLinkedStudents(parentUid) {
+  if (!parentUid) return [];
+  const snap = await getDoc(doc(db, "users", parentUid));
+  if (!snap.exists()) return [];
+  const data = snap.data();
+  return Array.isArray(data?.childStudentIds) ? data.childStudentIds : [];
+}
+
+/**
+ * Queries parent user documents linked to a specific student ID.
+ *
+ * @param {string} studentId
+ * @returns {Promise<Array<{ id: string, [key: string]: any }>>}
+ */
+export async function findParentsForStudent(studentId) {
+  if (!studentId) return [];
+  const q = query(
+    collection(db, "users"),
+    where("role", "==", "parent"),
+    where("childStudentIds", "array-contains", studentId)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }

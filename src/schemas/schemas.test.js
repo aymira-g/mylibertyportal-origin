@@ -8,6 +8,9 @@ import {
   corporateEventSchema,
   schoolMasterSchema,
   schoolVisitSchema,
+  parentUserSchema,
+  createParentPayloadSchema,
+  parentChildLinkSchema,
 } from "./index.js";
 
 describe("inviteSchema", () => {
@@ -416,5 +419,92 @@ describe("schoolVisitSchema", () => {
         flyersHandedOut: -1,
       })
     ).toThrow(/Flyers count cannot be negative/);
+  });
+});
+
+describe("parentUserSchema", () => {
+  it("validates and normalizes a valid parent profile", () => {
+    const parent = parentUserSchema.parse({
+      displayName: "  Budi Santoso  ",
+      email: "  BUDI@Example.COM  ",
+      phone: "08123456789",
+      branch: "Kota Gorontalo",
+      childStudentIds: ["student1", "student2"],
+    });
+    expect(parent.displayName).toBe("Budi Santoso");
+    expect(parent.email).toBe("budi@example.com");
+    expect(parent.role).toBe("parent");
+    expect(parent.childStudentIds).toEqual(["student1", "student2"]);
+    expect(parent.branchId).toBe("kota_gorontalo");
+    expect(parent.status).toBe("active");
+  });
+
+  it("defaults childStudentIds to empty array when missing or null", () => {
+    const parent = parentUserSchema.parse({
+      displayName: "Siti Rahma",
+      email: "siti@example.com",
+    });
+    expect(parent.childStudentIds).toEqual([]);
+    expect(parent.role).toBe("parent");
+  });
+
+  it("rejects invalid email or empty display name", () => {
+    expect(() =>
+      parentUserSchema.parse({
+        displayName: "",
+        email: "valid@example.com",
+      })
+    ).toThrow(/Parent display name is required/);
+
+    expect(() =>
+      parentUserSchema.parse({
+        displayName: "Valid Name",
+        email: "not-an-email",
+      })
+    ).toThrow(/A valid email address is required/);
+  });
+});
+
+describe("createParentPayloadSchema", () => {
+  it("validates staff creation payload for a parent account", () => {
+    const payload = createParentPayloadSchema.parse({
+      displayName: "Pak Joko",
+      email: "JOKO@gmail.com",
+      password: "secretpassword123",
+      initialChildStudentId: "studentABC",
+    });
+    expect(payload.displayName).toBe("Pak Joko");
+    expect(payload.email).toBe("joko@gmail.com");
+    expect(payload.initialChildStudentId).toBe("studentABC");
+  });
+
+  it("rejects short password", () => {
+    expect(() =>
+      createParentPayloadSchema.parse({
+        displayName: "Pak Joko",
+        email: "joko@gmail.com",
+        password: "123",
+      })
+    ).toThrow(/Password must be at least 6 characters/);
+  });
+});
+
+describe("parentChildLinkSchema", () => {
+  it("validates parentUid and studentId", () => {
+    const link = parentChildLinkSchema.parse({
+      parentUid: "p123",
+      studentId: "s456",
+    });
+    expect(link.parentUid).toBe("p123");
+    expect(link.studentId).toBe("s456");
+  });
+
+  it("rejects empty IDs", () => {
+    expect(() =>
+      parentChildLinkSchema.parse({ parentUid: "", studentId: "s1" })
+    ).toThrow(/Parent UID is required/);
+    expect(() =>
+      parentChildLinkSchema.parse({ parentUid: "p1", studentId: "" })
+    ).toThrow(/Student ID is required/);
   });
 });

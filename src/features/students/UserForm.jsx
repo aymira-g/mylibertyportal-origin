@@ -111,7 +111,7 @@ export default function UserForm({
           <hr className="border-slate-100" />
           <StudentTuitionFields formData={formData} field={field} />
           <hr className="border-slate-100" />
-          <StudentFamilyFields formData={formData} field={field} />
+          <StudentFamilyFields formData={formData} field={field} editId={editId} />
         </div>
       ) : (
         <StaffProfileFields

@@ -128,6 +128,7 @@ export const PREVIEW_ROLES = [
   { label: "Ops Lead", role: "opslead", supportsDivision: true },
   { label: "Marketing", role: "marketing", supportsDivision: false },
   { label: "Office Boy", role: "officeboy", supportsDivision: false },
+  { label: "Parent", role: "parent", supportsDivision: false },
 ];
 
 export {

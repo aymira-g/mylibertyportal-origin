@@ -7,6 +7,8 @@ import {
   isFrontOfficeRole,
   isInstructorRole,
   isManagerRole,
+  isParentRole,
+  isStudentRole,
 } from "./roles";
 
 describe("roles.js - Centralized Role Normalization", () => {
@@ -19,6 +21,8 @@ describe("roles.js - Centralized Role Normalization", () => {
     expect(CANONICAL_ROLES.OPS_LEAD).toBe("opslead");
     expect(CANONICAL_ROLES.MARKETING).toBe("marketing");
     expect(CANONICAL_ROLES.OFFICE_BOY).toBe("officeboy");
+    expect(CANONICAL_ROLES.STUDENT).toBe("student");
+    expect(CANONICAL_ROLES.PARENT).toBe("parent");
   });
 
   it("normalizes all legacy front office lead aliases to opslead", () => {
@@ -96,6 +100,26 @@ describe("roles.js - Centralized Role Normalization", () => {
       expect(isManagerRole("admin")).toBe(true);
       expect(isManagerRole("instructor")).toBe(false);
       expect(isManagerRole("opslead")).toBe(false);
+    });
+
+    it("identifies parent roles correctly", () => {
+      expect(isParentRole("parent")).toBe(true);
+      expect(isParentRole("PARENT")).toBe(true);
+      expect(isParentRole("  parent  ")).toBe(true);
+      expect(isParentRole("student")).toBe(false);
+      expect(isParentRole("admin")).toBe(false);
+      expect(isParentRole(null)).toBe(false);
+      expect(isParentRole(undefined)).toBe(false);
+    });
+
+    it("identifies student roles correctly", () => {
+      expect(isStudentRole("student")).toBe(true);
+      expect(isStudentRole("STUDENT")).toBe(true);
+      expect(isStudentRole("  student ")).toBe(true);
+      expect(isStudentRole("parent")).toBe(false);
+      expect(isStudentRole("instructor")).toBe(false);
+      expect(isStudentRole(null)).toBe(false);
+      expect(isStudentRole(undefined)).toBe(false);
     });
   });
 });

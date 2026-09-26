@@ -377,6 +377,34 @@ The implementation agent must verify:
 - exact Firestore Rules syntax;
 - query/list behavior.
 
+## Cost note: Firestore Rules `get()` overhead
+
+The `isParentOf()` function performs a `get()` call inside Firestore Rules on every parent read request. This is an additional billed read that does not appear in client-side query counts.
+
+```text
+Per parent read request:
+  1 application read (the actual document/query)
++ 1 rules get() read (to verify childStudentIds)
+= 2 billed reads per request
+
+At current scale (estimated):
+  100 daily active parents × 5 reads/session
+  = 500 parent reads/day
+  = 500 extra rules get() reads/day
+  = 1,000 total billed reads/day
+
+Firestore free tier: 50,000 reads/day
+Impact: negligible at current scale.
+```
+
+At 1,000+ daily active parents this overhead becomes meaningful. If parent portal usage grows significantly, consider:
+
+- Caching the parent document in Firestore Rules using `getAfter()` where applicable.
+- Moving the authorization check to a Cloud Function that returns a custom token with claims.
+- Using Firebase Auth custom claims (`parentOf: [studentId1, ...]`) to avoid the `get()` entirely.
+
+For Phase 1, the `get()` approach is correct and cost-effective. Document this as a known scaling consideration.
+
 ---
 
 # 11. Important: parent queries must remain scoped
@@ -1174,3 +1202,375 @@ The two specifications should be implemented together but should not be merged i
 **Attendance belongs to the student + class relationship, not to the parent.**
 
 **Parents only receive read access to the attendance of their explicitly linked children.**
+
+---
+
+# 25. Implementation recommendation: parent account creation workflow
+
+The data model defines the parent entity but does not specify how parent accounts are created or linked.
+
+There are three realistic approaches. The implementation agent should select one (or a phased combination) based on MyLiberty's operational reality.
+
+## Option A: Staff-created accounts (recommended for Phase 1)
+
+```text
+Front Office / Admin
+    ↓
+creates parent user in Firebase Auth
+    ↓
+sets role = "parent"
+    ↓
+links childStudentIds[]
+    ↓
+provides credentials to parent
+```
+
+Why this is recommended first:
+
+- Staff already manages student enrollment and class assignment.
+- The existing staff invitation pattern (`/join/` route) provides a reference implementation.
+- Keeps control of the parent-child linkage entirely on the staff side.
+- No risk of orphaned or unlinked parent accounts.
+
+The implementation can reuse the existing pattern:
+
+```text
+Admin/FO dashboard
+    ↓
+"Link Parent Account" action on student profile
+    ↓
+creates or finds parent user
+    ↓
+adds studentId to parent's childStudentIds[]
+```
+
+## Option B: Invitation link
+
+```text
+Staff generates a parent invitation link
+    ↓
+parent opens link in browser
+    ↓
+parent registers (email + password)
+    ↓
+account is created with role = "parent"
+    ↓
+childStudentIds[] is pre-populated from the invitation
+```
+
+This is similar to the existing `/join/:token` staff signup flow.
+
+It requires:
+
+- A secure invitation token mechanism.
+- Token expiry.
+- One-time use or limited use.
+- Verification that the token maps to a valid student.
+
+This is a good Phase 2 approach once the basic parent model is working.
+
+## Option C: Self-registration with staff approval
+
+```text
+Parent visits /register-parent
+    ↓
+submits name + email + child information
+    ↓
+account created with role = "parent" and status = "pending"
+    ↓
+childStudentIds[] is EMPTY until staff approves
+    ↓
+staff reviews and links children
+    ↓
+status → "active"
+```
+
+This is the most flexible but requires:
+
+- A staff approval queue.
+- A "pending parent" state that has no data access.
+- UI for staff to match parent requests to existing students.
+
+Recommended only as a Phase 3 enhancement.
+
+## Decision for the implementation agent
+
+Unless Kifry specifies otherwise, **start with Option A** (staff-created).
+
+The minimum viable parent account flow is:
+
+```text
+1. Admin/FO opens a student's profile.
+2. Clicks "Add Parent Account."
+3. Enters parent email (and optionally name/phone).
+4. System creates the Firebase Auth user and Firestore user doc.
+5. System adds the student's ID to childStudentIds[].
+6. Staff shares login credentials with the parent.
+```
+
+---
+
+# 26. Implementation recommendation: childStudentIds management UI
+
+The `childStudentIds[]` field on the parent document requires a management interface for staff.
+
+## Required capabilities
+
+```text
+VIEW    which students are linked to a parent
+ADD     link an existing student to a parent
+REMOVE  unlink a student from a parent
+```
+
+## Where this UI should live
+
+Two recommended locations:
+
+### 1. Student profile (primary)
+
+On the existing student detail/profile view:
+
+```text
+Student: Ayu
+    ↓
+Linked Parents: [Mrs. Smith (parent456)]  [+ Add Parent]
+```
+
+This is the natural workflow: staff is looking at the student and wants to link or verify the parent.
+
+### 2. Parent profile (secondary)
+
+If a parent user profile view exists or is created:
+
+```text
+Parent: Mrs. Smith
+    ↓
+Linked Children: [Ayu (student123)]  [Rina (student789)]  [+ Link Child]
+```
+
+## Authorization
+
+Only these roles should be able to modify `childStudentIds`:
+
+```text
+admin
+manager
+frontoffice
+opslead
+```
+
+Firestore Rules must enforce this. The parent must never be able to modify their own `childStudentIds`.
+
+Conceptual rule:
+
+```rules
+allow update: if isStaffOrAdmin()
+              && request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['childStudentIds', 'updatedAt']);
+```
+
+The exact rule shape depends on the existing rules patterns in the repository.
+
+## Unlinking considerations
+
+When unlinking a student from a parent:
+
+```text
+✓ remove studentId from childStudentIds[]
+✗ do NOT delete the parent account
+✗ do NOT delete the student account
+✗ do NOT modify attendance records
+```
+
+The relationship is a link, not ownership.
+
+---
+
+# 27. Implementation recommendation: query patterns and Firestore indexes
+
+The parent portal requires specific query patterns. These should be designed before implementation to avoid runtime errors from missing indexes.
+
+## Query 1: Load parent's linked children
+
+```js
+// After authenticating parent, read their user doc
+const parentDoc = await getDoc(doc(db, "users", parentUid));
+const childStudentIds = parentDoc.data().childStudentIds || [];
+```
+
+```text
+Collection: users
+Operation: single document get
+Index: none required (document read by ID)
+Reads: 1
+```
+
+## Query 2: Load child student profiles
+
+```js
+// For each linked child, fetch their user doc
+for (const studentId of childStudentIds) {
+  const studentDoc = await getDoc(doc(db, "users", studentId));
+}
+```
+
+```text
+Collection: users
+Operation: document get per child
+Index: none required (document reads by ID)
+Reads: 1 per child (typically 1–3)
+```
+
+Note: If a parent has many children (unlikely but possible), this could be batched. For MyLiberty's scale (1–3 children per parent), individual reads are fine.
+
+## Query 3: Load child's enrolled classes
+
+```js
+const classesQuery = query(
+  collection(db, "classes"),
+  where("studentIds", "array-contains", studentId),
+  where("status", "==", "open"),
+  limit(20)
+);
+```
+
+```text
+Collection: classes
+Operation: query
+Index: composite index required
+  - studentIds (array-contains) + status (==)
+Reads: 1–10 per child (number of enrolled classes)
+```
+
+## Query 4: Load child's attendance for a specific class
+
+```js
+const attendanceQuery = query(
+  collection(db, "classAttendance"),
+  where("classId", "==", classId),
+  where("studentId", "==", studentId),
+  orderBy("attendanceDate", "desc"),
+  limit(50)
+);
+```
+
+```text
+Collection: classAttendance
+Operation: query
+Index: composite index required
+  - classId (==) + studentId (==) + attendanceDate (desc)
+Reads: bounded by limit (max 50)
+```
+
+## Query 5: Load child's recent attendance across all classes
+
+```js
+const recentAttendanceQuery = query(
+  collection(db, "classAttendance"),
+  where("studentId", "==", studentId),
+  orderBy("attendanceDate", "desc"),
+  limit(30)
+);
+```
+
+```text
+Collection: classAttendance
+Operation: query
+Index: composite index required
+  - studentId (==) + attendanceDate (desc)
+Reads: bounded by limit (max 30)
+```
+
+## Total reads per parent session (estimated)
+
+```text
+Parent login + view one child + recent attendance:
+
+  1  parent doc
+  1  child student doc
+  5  enrolled classes (typical)
+  30 recent attendance records
+  ──
+  ~37 reads
+
+At 100 daily active parents:
+  ~3,700 reads/day
+
+Firestore free tier: 50,000 reads/day
+Comfortable headroom at current scale.
+```
+
+## Required composite indexes
+
+The implementation agent should add to `firestore.indexes.json`:
+
+```json
+{
+  "collectionGroup": "classAttendance",
+  "queryScope": "COLLECTION",
+  "fields": [
+    { "fieldPath": "classId", "order": "ASCENDING" },
+    { "fieldPath": "studentId", "order": "ASCENDING" },
+    { "fieldPath": "attendanceDate", "order": "DESCENDING" }
+  ]
+},
+{
+  "collectionGroup": "classAttendance",
+  "queryScope": "COLLECTION",
+  "fields": [
+    { "fieldPath": "studentId", "order": "ASCENDING" },
+    { "fieldPath": "attendanceDate", "order": "DESCENDING" }
+  ]
+},
+{
+  "collectionGroup": "classes",
+  "queryScope": "COLLECTION",
+  "fields": [
+    { "fieldPath": "studentIds", "arrayConfig": "CONTAINS" },
+    { "fieldPath": "status", "order": "ASCENDING" }
+  ]
+}
+```
+
+The implementation agent must verify these against the existing `firestore.indexes.json` to avoid duplicates or conflicts.
+
+---
+
+# 28. Implementation recommendation: parentPhone field transition
+
+The existing student model contains a `parentPhone` field used by the current public parent portal for lookup:
+
+```js
+// parentPortalRepository.js
+const qPhone = query(usersRef, where("parentPhone", "==", term), limit(5));
+```
+
+This field is currently used as a pseudo-authentication mechanism: the parent enters a phone number, and the portal finds the matching student.
+
+## Transition strategy
+
+```text
+PHASE 1: Keep parentPhone
+  - Existing public portal continues to use parentPhone for lookup.
+  - New authenticated parent portal uses childStudentIds for authorization.
+  - Both coexist.
+
+PHASE 2: Deprecate parentPhone as an auth mechanism
+  - Public portal remains for non-sensitive info (schedule, general status).
+  - Sensitive records (attendance, payments, progress) require authenticated parent.
+  - parentPhone field remains on student docs for contact/display purposes only.
+
+PHASE 3 (optional): Remove public portal student lookup
+  - Once all active parents have authenticated accounts.
+  - parentPhone becomes a contact field, not a lookup key.
+```
+
+Do not remove `parentPhone` from student documents. It is still useful as a contact information field even after the authenticated parent model is fully implemented.
+
+The key distinction is:
+
+```text
+parentPhone = contact information (keep)
+parentPhone as lookup key = pseudo-authentication (deprecate)
+childStudentIds = real authorization (implement)
+```

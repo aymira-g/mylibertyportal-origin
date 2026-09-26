@@ -98,6 +98,7 @@ describe("DevPresets configuration", () => {
     expect(roleKeys).toContain("opslead");
     expect(roleKeys).toContain("marketing");
     expect(roleKeys).toContain("officeboy");
+    expect(roleKeys).toContain("parent");
   });
 });
 

@@ -161,22 +161,32 @@ service cloud.firestore {
         && data.markedBy == request.auth.uid;
     }
 
+    function isParent() {
+      return signedIn() && userProfile().role == 'parent';
+    }
+
+    function isParentOf(studentId) {
+      return isParent()
+        && ('childStudentIds' in userProfile())
+        && userProfile().childStudentIds.hasAny([studentId]);
+    }
+
     match /users/{userId} {
       allow get: if resource.data.role == 'student'
         || isAdmin()
         || (isManager() && isSameBranch(resource.data))
-        || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader'] && isSameBranch(resource.data))
+        || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranch(resource.data))
         || (signedIn() && userId == request.auth.uid);
       allow list: if isAdmin()
         || (isManager() && isSameBranch(resource.data))
-        || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader'] && isSameBranch(resource.data));
+        || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranch(resource.data));
       allow create: if isAdmin() 
-        || (isFrontOffice() && request.resource.data.role == 'student' && isSameBranch(request.resource.data))
+        || (isFrontOffice() && request.resource.data.role in ['student', 'parent'] && isSameBranch(request.resource.data))
         || (signedIn()
             && userId == request.auth.uid
             && request.resource.data.inviteId is string
             && isInviteValid(request.resource.data.inviteId));
-      allow delete: if isAdmin() || (isFrontOffice() && resource.data.role == 'student' && isSameBranch(resource.data));
+      allow delete: if isAdmin() || (isFrontOffice() && resource.data.role in ['student', 'parent'] && isSameBranch(resource.data));
       allow update: if isAdmin()
         || (isFrontOffice()
           && resource.data.role == 'student'
@@ -197,6 +207,14 @@ service cloud.firestore {
               'rating', 'paymentPlan', 'paymentStatus', 'lastPaymentPeriod', 'lastPaymentDate',
               'lastPaymentAmount', 'lastPaymentMethod', 'paidUntil', 'branch'
             ]))
+        || (isFrontOffice()
+          && resource.data.role == 'parent'
+          && request.resource.data.role == 'parent'
+          && isSameBranch(resource.data)
+          && isSameBranch(request.resource.data)
+          && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['displayName', 'phone', 'childStudentIds', 'updatedAt', 'status', 'branch']))
         || (signedIn()
           && userId == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys()
@@ -227,7 +245,8 @@ service cloud.firestore {
 
     match /classes/{classId} {
       allow read: if isStaff()
-        || (signedIn() && resource.data.studentIds.hasAny([request.auth.uid]));
+        || (signedIn() && resource.data.studentIds.hasAny([request.auth.uid]))
+        || (isParent() && ('childStudentIds' in userProfile()) && resource.data.studentIds.hasAny(userProfile().childStudentIds));
       allow create, delete: if isAdmin();
       allow update: if isAdmin()
         || (isFrontOffice()
@@ -283,6 +302,10 @@ service cloud.firestore {
         || (
           signedIn()
           && resource.data.studentId == request.auth.uid
+        )
+        || (
+          signedIn()
+          && isParentOf(resource.data.studentId)
         );
 
       // First attendance creation only.

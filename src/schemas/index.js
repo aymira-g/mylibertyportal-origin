@@ -6,3 +6,4 @@ export * from "./corporateEventSchema.js";
 export * from "./schoolOutreachSchema.js";
 export * from "./deskInquirySchema.js";
 export * from "./classAttendanceSchema.js";
+export * from "./parentSchema.js";

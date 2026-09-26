@@ -11,6 +11,7 @@ import {
   DevQuickSwitcher,
   PreviewModeProvider,
 } from "./features/shared";
+import { normalizeRole } from "./features/shared/roles";
 import { InstallButton } from "./features/pwa";
 import { AlertTriangle } from "lucide-react";
 import schoolLogo from "./assets/school-logo.webp";
@@ -39,6 +40,7 @@ const KidsManagerDashboard = lazy(() => import("./features/dashboard/kids/KidsMa
 const KidsInstructorDashboard = lazy(() =>
   import("./features/dashboard/kids/KidsInstructorDashboard")
 );
+const ParentDashboard = lazy(() => import("./features/dashboard/ParentDashboard"));
 
 import { normalizeDivision, DEFAULT_DIVISION } from "./constants/divisions";
 
@@ -81,7 +83,11 @@ function App() {
   const [idleWarning, setIdleWarning] = useState(false);
   const [profileError, setProfileError] = useState("");
 
-  const canUseDevSwitcher = Boolean(isDevSwitcherEnabled || role === "admin");
+  const isPreviewAllowed = Boolean(isDevSwitcherEnabled);
+  const canUseDevSwitcher = Boolean(isDevSwitcherEnabled || normalizeRole(role) === "admin");
+
+  const effectiveRole = (isPreviewAllowed && previewRole) || role;
+  const effectiveDivision = (isPreviewAllowed && previewDivision) || division;
 
   const handleClearPreview = useCallback(() => {
     setPreviewRole(null);
@@ -432,13 +438,13 @@ function App() {
         </div>
 
         {/* Mode 2 Preview Sticky Warning Banner */}
-        {canUseDevSwitcher && previewRole && (
+        {isPreviewAllowed && previewRole && (
           <div className="bg-amber-500 text-white px-3.5 py-2 text-xs font-semibold flex items-center justify-between shadow-xs sticky top-0 z-40 border-b border-amber-600 animate-in fade-in duration-150">
             <div className="flex items-center gap-2 min-w-0 pr-2">
               <AlertTriangle className="w-4 h-4 shrink-0 text-amber-100" />
               <span className="truncate">
                 <strong>UI Preview Mode:</strong> [{previewRole.toUpperCase()} ·{" "}
-                {(previewDivision || division) === "kindergarten" ? "Kindergarten" : "English Studio"}] — Layout only. Data &amp; writes belong to your real session ({user?.email || "user"}).
+                {effectiveDivision === "kindergarten" ? "Kindergarten" : "English Studio"}] — Layout only. Data &amp; writes belong to your real session ({user?.email || "user"}).
               </span>
             </div>
             <button
@@ -454,57 +460,62 @@ function App() {
         <div className="p-3 sm:p-4 md:p-6 w-full">
           {/* Dynamic Role Router Switcher — wrapped in PreviewModeProvider for write protection */}
           <PreviewModeProvider
-            isPreviewMode={Boolean(canUseDevSwitcher && previewRole)}
-            previewRole={previewRole}
-            previewDivision={previewDivision || division}
+            isPreviewMode={Boolean(isPreviewAllowed && previewRole)}
+            previewRole={isPreviewAllowed ? previewRole : null}
+            previewDivision={effectiveDivision}
             exitPreview={handleClearPreview}
           >
             <Suspense fallback={<LoadingFallback />}>
-              {(previewRole || role) === "admin" && (
+              {effectiveRole === "admin" && (
                 <ErrorBoundary label="Admin dashboard">
                   <AdminDashboard />
                 </ErrorBoundary>
               )}
-              {(previewRole || role) === "manager" && (
+              {effectiveRole === "manager" && (
                 <ErrorBoundary label="Manager dashboard">
-                  {(previewDivision || division) === "kindergarten" ? (
+                  {effectiveDivision === "kindergarten" ? (
                     <KidsManagerDashboard />
                   ) : (
                     <ManagerDashboard />
                   )}
                 </ErrorBoundary>
               )}
-              {((previewRole || role) === "instructor" ||
-                (previewRole || role) === "instructorleader" ||
-                (previewRole || role) === "instructor_leader") && (
+              {(effectiveRole === "instructor" ||
+                effectiveRole === "instructorleader" ||
+                effectiveRole === "instructor_leader") && (
                 <ErrorBoundary label="Instructor dashboard">
-                  {(previewDivision || division) === "kindergarten" ? (
+                  {effectiveDivision === "kindergarten" ? (
                     <KidsInstructorDashboard />
                   ) : (
-                    <InstructorDashboard role={previewRole || role} />
+                    <InstructorDashboard role={effectiveRole} />
                   )}
                 </ErrorBoundary>
               )}
-              {((previewRole || role) === "frontoffice" ||
-                (previewRole || role) === "opslead" ||
-                (previewRole || role) === "ops_lead" ||
-                (previewRole || role) === "frontofficelead") && (
+              {(effectiveRole === "frontoffice" ||
+                effectiveRole === "opslead" ||
+                effectiveRole === "ops_lead" ||
+                effectiveRole === "frontofficelead") && (
                 <ErrorBoundary label="Front Office dashboard">
-                  {(previewDivision || division) === "kindergarten" ? (
+                  {effectiveDivision === "kindergarten" ? (
                     <KidsFrontOfficeDashboard />
                   ) : (
-                    <FrontOfficeDashboard role={previewRole || role} />
+                    <FrontOfficeDashboard role={effectiveRole} />
                   )}
                 </ErrorBoundary>
               )}
-              {(previewRole || role) === "marketing" && (
+              {effectiveRole === "marketing" && (
                 <ErrorBoundary label="Marketing dashboard">
                   <MarketingDashboard />
                 </ErrorBoundary>
               )}
-              {(previewRole || role) === "officeboy" && (
+              {effectiveRole === "officeboy" && (
                 <ErrorBoundary label="Office Boy dashboard">
                   <OfficeBoyDashboard />
+                </ErrorBoundary>
+              )}
+              {effectiveRole === "parent" && (
+                <ErrorBoundary label="Parent dashboard">
+                  <ParentDashboard user={user} />
                 </ErrorBoundary>
               )}
               {![
@@ -519,7 +530,8 @@ function App() {
                 "ops_lead",
                 "frontofficelead",
                 "officeboy",
-              ].includes(previewRole || role) && (
+                "parent",
+              ].includes(effectiveRole) && (
                 <div className="bg-white p-6 rounded-xl border text-center text-gray-500 text-sm max-w-md mx-auto">
                   This account doesn't have dashboard access. Please contact your administrator.
                 </div>

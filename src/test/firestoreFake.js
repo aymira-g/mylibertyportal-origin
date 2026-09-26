@@ -152,6 +152,7 @@ export const firestoreModule = {
   updateDoc: vi.fn((ref, data) => record("update", ref, data, null, "direct")),
   deleteDoc: vi.fn((ref) => record("delete", ref, null, null, "direct")),
   arrayUnion: vi.fn((...items) => ({ __op: "arrayUnion", items })),
+  arrayRemove: vi.fn((...items) => ({ __op: "arrayRemove", items })),
   deleteField: vi.fn(() => ({ __op: "deleteField" })),
   serverTimestamp: vi.fn(() => ({ __op: "serverTimestamp" })),
   writeBatch: vi.fn(() => {

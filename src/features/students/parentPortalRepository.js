@@ -1,5 +1,5 @@
 import { db } from "../../firebase";
-import { collection, query, where, getDocs, limit, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, limit, doc, getDoc, orderBy } from "firebase/firestore";
 
 /**
  * Normalizes phone string to clean digit format for matching.
@@ -130,4 +130,76 @@ export async function getStudentParentPortalBundle(studentId) {
     paymentSummary: buildPaymentSummary(student),
     batchInfo,
   };
+}
+
+/**
+ * Loads authenticated parent user doc and all linked student profile documents.
+ * Query 1 & 2 from Parent+Student Roster Model v2 Section 27.
+ *
+ * @param {string} parentUid
+ * @returns {Promise<{ parent: any, children: any[] }>}
+ */
+export async function getAuthenticatedParentBundle(parentUid) {
+  if (!parentUid) return { parent: null, children: [] };
+
+  const parentDoc = await getDoc(doc(db, "users", parentUid));
+  if (!parentDoc.exists()) {
+    return { parent: null, children: [] };
+  }
+  const parent = { id: parentDoc.id, ...parentDoc.data() };
+  const childStudentIds = Array.isArray(parent.childStudentIds) ? parent.childStudentIds : [];
+
+  const children = [];
+  for (const childId of childStudentIds) {
+    try {
+      const childDoc = await getDoc(doc(db, "users", childId));
+      if (childDoc.exists()) {
+        children.push({ id: childDoc.id, ...childDoc.data() });
+      }
+    } catch (err) {
+      console.warn(`Failed to read linked child ${childId}:`, err);
+    }
+  }
+
+  return { parent, children };
+}
+
+/**
+ * Loads enrolled classes and attendance history for a linked child.
+ * Query 3 & 5 from Parent+Student Roster Model v2 Section 27.
+ *
+ * @param {string} childId
+ * @returns {Promise<{ classes: any[], attendance: any[] }>}
+ */
+export async function getChildAttendanceAndClasses(childId) {
+  if (!childId) return { classes: [], attendance: [] };
+
+  let classes = [];
+  try {
+    const qClasses = query(
+      collection(db, "classes"),
+      where("studentIds", "array-contains", childId),
+      limit(20)
+    );
+    const snapClasses = await getDocs(qClasses);
+    classes = snapClasses.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (err) {
+    console.warn("Failed fetching enrolled classes for child:", err);
+  }
+
+  let attendance = [];
+  try {
+    const qAtt = query(
+      collection(db, "classAttendance"),
+      where("studentId", "==", childId),
+      orderBy("attendanceDate", "desc"),
+      limit(30)
+    );
+    const snapAtt = await getDocs(qAtt);
+    attendance = snapAtt.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (err) {
+    console.warn("Failed fetching attendance history for child:", err);
+  }
+
+  return { classes, attendance };
 }

@@ -13,6 +13,8 @@ export const CANONICAL_ROLES = {
   OPS_LEAD: "opslead",
   MARKETING: "marketing",
   OFFICE_BOY: "officeboy",
+  STUDENT: "student",
+  PARENT: "parent",
 };
 
 /**
@@ -92,3 +94,24 @@ export function isManagerRole(role) {
     normalized === CANONICAL_ROLES.ADMIN
   );
 }
+
+/**
+ * Checks whether a role represents an authenticated parent.
+ *
+ * @param {string | any} role
+ * @returns {boolean}
+ */
+export function isParentRole(role) {
+  return normalizeRole(role) === CANONICAL_ROLES.PARENT;
+}
+
+/**
+ * Checks whether a role represents an enrolled student.
+ *
+ * @param {string | any} role
+ * @returns {boolean}
+ */
+export function isStudentRole(role) {
+  return normalizeRole(role) === CANONICAL_ROLES.STUDENT;
+}
+

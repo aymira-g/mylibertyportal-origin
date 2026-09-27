@@ -8,12 +8,13 @@ import {
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
 export const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCut-lqqGwpwZ9FjaifrBObi8Kr76tawIU",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "mylibertyies-f2f38.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "mylibertyies-f2f38",
+  storageBucket:
+    import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "mylibertyies-f2f38.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "1072836543676",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:1072836543676:web:713dc5f12930e89ce5fcb9",
 };
 
 const CONFIG_ENV_MAP = {

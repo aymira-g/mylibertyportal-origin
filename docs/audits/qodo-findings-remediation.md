@@ -315,9 +315,12 @@ All three now fail closed (deny) when the class document doesn't exist, instead 
 **Risk:** Removing hardcoded fallbacks from Firebase configuration without strict validation or environment documentation causes cryptic runtime crashes or blank screens in local development and CI pipelines when `VITE_FIREBASE_*` variables are absent.
 
 **Fix:**
-- In [`src/firebase.js`](file:///E:/myliberty-portal/src/firebase.js#L20-L45):
+- In [`src/firebase.js`](file:///E:/myliberty-portal/src/firebase.js#L8-L45):
+  - Preserved standard public Firebase client config fallbacks (`apiKey`, `authDomain`, `projectId`, `storageBucket`, `messagingSenderId`, `appId`) so automated CI pipelines (like GitHub Actions `build_and_deploy`) without injected repository secrets can build and run tests reliably.
   - Updated `validateFirebaseConfig()` to strictly check all mandatory parameters (`apiKey`, `authDomain`, `projectId`, `appId`).
-  - Formats a clear, fail-fast error message enumerating the exact missing `VITE_FIREBASE_*` variable names and referencing `.env.example`.
+  - Formats a clear, fail-fast error message enumerating any missing configuration and referencing `.env.example`.
+- In [`vitest.config.js`](file:///E:/myliberty-portal/vitest.config.js#L15-L25):
+  - Injected test environment variables so unit tests executing in headless CI environments run cleanly without requiring a committed `.env` file.
 - In [`.env.example`](file:///E:/myliberty-portal/.env.example):
   - Created a comprehensive, self-documenting template categorized into Firebase Client SDK, App Check / reCAPTCHA v3, Cloudflare AI Worker, and Cloudinary variables.
 - In [`README.md`](file:///E:/myliberty-portal/README.md#L45-L65):

@@ -14,6 +14,10 @@ dist-ssr/
 .env.*.local
 !.env.example
 .gitconfig
+*serviceAccount*.json
+*serviceaccount*.json
+serviceAccountKey.json
+serviceaccountkey.json
 
 # Firebase Tooling & Emulator Cache
 .firebase/

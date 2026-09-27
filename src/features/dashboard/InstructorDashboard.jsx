@@ -65,6 +65,14 @@ export default function InstructorDashboard({ role = "", branch = "" }) {
   const classes = useMemo(() => uniqueClasses(rawClasses), [rawClasses]);
   const [allClasses, setAllClasses] = useState([]);
 
+  // Merge branch classes with any assigned primary/substitute classes (guarantees cross-branch classes are visible)
+  const combinedAllClasses = useMemo(() => {
+    const map = new Map();
+    allClasses.forEach((c) => map.set(c.id, c));
+    classes.forEach((c) => map.set(c.id, c));
+    return Array.from(map.values());
+  }, [allClasses, classes]);
+
   const {
     activeDirectives,
     completedDirectives,
@@ -100,7 +108,7 @@ export default function InstructorDashboard({ role = "", branch = "" }) {
           onNavigate={setActiveTab}
           onOpenKiosk={() => setKioskOpen(true)}
           onSelectClass={(classId) => setSelectedClassFilter(classId)}
-          allClasses={allClasses}
+          allClasses={combinedAllClasses}
         />
       ),
     },
@@ -143,7 +151,7 @@ export default function InstructorDashboard({ role = "", branch = "" }) {
           error={error}
           selectedClassFilter={selectedClassFilter}
           setSelectedClassFilter={setSelectedClassFilter}
-          allClasses={allClasses}
+          allClasses={combinedAllClasses}
         />
       ),
     },

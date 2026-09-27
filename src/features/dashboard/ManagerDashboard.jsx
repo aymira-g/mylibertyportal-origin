@@ -60,8 +60,11 @@ export default function ManagerDashboard() {
   }, []);
 
   const managerBranchId = useMemo(() => {
-    return managerProfile?.branchId || branchToId(managerProfile?.branch || DEFAULT_BRANCH);
+    if (!managerProfile) return null;
+    return managerProfile.branchId || branchToId(managerProfile.branch || DEFAULT_BRANCH);
   }, [managerProfile]);
+
+  const isDashboardLoading = loading || !managerBranchId;
 
   const outreachLoading = schoolsLoading || visitsLoading || weekVisitsLoading;
 
@@ -74,6 +77,10 @@ export default function ManagerDashboard() {
   };
 
   useEffect(() => {
+    if (!managerBranchId || typeof managerBranchId !== "string" || !managerBranchId.trim()) {
+      return;
+    }
+
     const unsubUsers = onSnapshot(
       query(collection(db, "users"), where("branchId", "==", managerBranchId)),
       (snap) => {
@@ -422,7 +429,7 @@ export default function ManagerDashboard() {
       component: (
         <ManagerOverview
           stats={stats}
-          loading={loading}
+          loading={isDashboardLoading}
           pendingApplications={pendingApplications}
           unenrolledStudents={unenrolledStudents}
           classesWithIssues={classesWithIssues}

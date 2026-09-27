@@ -1036,5 +1036,164 @@ describe("Security Rules Matrix & Branch Isolation", () => {
       expect(canListUsers(adminUser)).toBe(true);
     });
   });
+
+  describe("Corporate Events Authorization & Branch Isolation", () => {
+    function canReadCorporateEvent(doc, user) {
+      if (!user) return false;
+      if (isAdmin(user)) return true;
+      if (!isStaff(user)) return false;
+
+      const audienceType = doc && doc.audienceType;
+      if (audienceType === "all") return true;
+      if (audienceType === "branch") {
+        const uBranch = userBranch(user);
+        const aVal = doc.audienceValue;
+        return (
+          aVal === uBranch ||
+          (aVal === "Kota Gorontalo" && uBranch === "kota_gorontalo") ||
+          (aVal === "Bone Bolango" && uBranch === "bone_bolango") ||
+          (aVal === "Pohuwato" && uBranch === "pohuwato") ||
+          (aVal === "Limboto" && uBranch === "limboto")
+        );
+      }
+      if (["role", "division"].includes(audienceType)) return true;
+      return false;
+    }
+
+    function canCreateCorporateEvent(incoming, user) {
+      if (!user) return false;
+      const roleAllowed = isAdmin(user) || isManager(user) || isFrontOffice(user);
+      if (!roleAllowed) return false;
+      if (typeof incoming?.name !== "string" || typeof incoming?.eventDate !== "string") return false;
+      if (!["all", "branch", "role", "division"].includes(incoming?.audienceType)) return false;
+      if (isAdmin(user)) return true;
+
+      if (incoming.audienceType !== "branch") return true;
+      const uBranch = userBranch(user);
+      const aVal = incoming.audienceValue;
+      return (
+        aVal === uBranch ||
+        (aVal === "Kota Gorontalo" && uBranch === "kota_gorontalo") ||
+        (aVal === "Bone Bolango" && uBranch === "bone_bolango") ||
+        (aVal === "Pohuwato" && uBranch === "pohuwato") ||
+        (aVal === "Limboto" && uBranch === "limboto")
+      );
+    }
+
+    it("restricts corporate events reading by branch without legacy broadcast loophole", () => {
+      const allEvt = { name: "Academy Townhall", audienceType: "all" };
+      const gtoEvt = { name: "Gorontalo Meeting", audienceType: "branch", audienceValue: "kota_gorontalo" };
+      const bobaEvt = { name: "Bone Bolango Meeting", audienceType: "branch", audienceValue: "bone_bolango" };
+      const roleEvt = { name: "Instructors Sync", audienceType: "role", audienceValue: "instructor" };
+
+      // Admin has cross-branch access
+      expect(canReadCorporateEvent(allEvt, adminUser)).toBe(true);
+      expect(canReadCorporateEvent(gtoEvt, adminUser)).toBe(true);
+      expect(canReadCorporateEvent(bobaEvt, adminUser)).toBe(true);
+
+      // Staff can read academy-wide and role-scoped events
+      expect(canReadCorporateEvent(allEvt, foGorontalo)).toBe(true);
+      expect(canReadCorporateEvent(roleEvt, foGorontalo)).toBe(true);
+
+      // Staff can read their own branch event
+      expect(canReadCorporateEvent(gtoEvt, foGorontalo)).toBe(true);
+      expect(canReadCorporateEvent(bobaEvt, foBoneBolango)).toBe(true);
+
+      // Staff cannot read other branch's event (ensures legacy 'allow read: if isStaff();' is gone)
+      expect(canReadCorporateEvent(bobaEvt, foGorontalo)).toBe(false);
+      expect(canReadCorporateEvent(gtoEvt, foBoneBolango)).toBe(false);
+
+      // Students and unauthenticated visitors cannot read corporate events
+      expect(canReadCorporateEvent(allEvt, { role: "student" })).toBe(false);
+      expect(canReadCorporateEvent(allEvt, null)).toBe(false);
+    });
+
+    it("allows Manager and Front Office to create events only for their branch or academy-wide", () => {
+      const gtoPayload = { name: "Briefing", eventDate: "2026-09-27", audienceType: "branch", audienceValue: "kota_gorontalo" };
+      const bobaPayload = { name: "Briefing", eventDate: "2026-09-27", audienceType: "branch", audienceValue: "bone_bolango" };
+
+      expect(canCreateCorporateEvent(gtoPayload, foGorontalo)).toBe(true);
+      expect(canCreateCorporateEvent(bobaPayload, foGorontalo)).toBe(false);
+      expect(canCreateCorporateEvent(bobaPayload, foBoneBolango)).toBe(true);
+      expect(canCreateCorporateEvent(bobaPayload, adminUser)).toBe(true);
+    });
+  });
+
+  describe("Todos Directives Update & Legacy Document Safety", () => {
+    function canUpdateTodo(existingDoc, incomingDoc, user) {
+      if (!user) return false;
+      if (isAdmin(user)) return true;
+
+      // Manager or Front Office same branch
+      if (
+        (isManager(user) || isFrontOffice(user)) &&
+        isSameBranch(existingDoc, user) &&
+        isSameBranch(incomingDoc, user)
+      ) {
+        return true;
+      }
+
+      // Staff completion toggle
+      if (isStaff(user)) {
+        const isAllDirective =
+          (existingDoc && "branch" in existingDoc && (existingDoc.branch === "all" || existingDoc.branch === "All")) ||
+          (existingDoc && "branchId" in existingDoc && existingDoc.branchId === "all");
+
+        const branchEligible = isSameBranch(existingDoc, user) || isAllDirective;
+        if (!branchEligible) return false;
+
+        const affectedKeys = Object.keys(incomingDoc).filter((k) => incomingDoc[k] !== existingDoc[k]);
+        const allowedKeys = ["completed", "completedAt", "completedBy", "completedByName", "updatedAt"];
+        return affectedKeys.every((k) => allowedKeys.includes(k));
+      }
+
+      return false;
+    }
+
+    it("handles legacy todo documents missing branch fields without evaluation error", () => {
+      const legacyDoc = {
+        title: "Clean reception counter",
+        completed: false,
+      };
+
+      const completedUpdate = {
+        ...legacyDoc,
+        completed: true,
+        completedAt: "2026-09-27T10:00:00Z",
+        completedBy: instructorGorontalo.uid,
+      };
+
+      expect(canUpdateTodo(legacyDoc, completedUpdate, instructorGorontalo)).toBe(true);
+
+      const maliciousUpdate = {
+        ...legacyDoc,
+        title: "Hacked title",
+        completed: true,
+      };
+      // Regular staff cannot modify unapproved fields like title
+      expect(canUpdateTodo(legacyDoc, maliciousUpdate, instructorGorontalo)).toBe(false);
+
+      // Front Office of same branch CAN update directive fields like title
+      expect(canUpdateTodo(legacyDoc, maliciousUpdate, foGorontalo)).toBe(true);
+    });
+
+    it("allows staff from any branch to toggle academy-wide directives", () => {
+      const academyDoc = {
+        title: "Submit Monthly Safety Checklist",
+        branch: "all",
+        completed: false,
+      };
+
+      const completedUpdate = {
+        ...academyDoc,
+        completed: true,
+        completedAt: "2026-09-27T10:00:00Z",
+        completedBy: foBoneBolango.uid,
+      };
+
+      expect(canUpdateTodo(academyDoc, completedUpdate, foBoneBolango)).toBe(true);
+      expect(canUpdateTodo(academyDoc, completedUpdate, foGorontalo)).toBe(true);
+    });
+  });
 });
 

@@ -258,15 +258,15 @@ export function useDashboardData({
           branch: formData.branch,
           branchId: formData.branchId || branchToId(formData.branch),
           status: formData.status || "active",
-          email: formData.email,
         };
 
         if (editId) {
           await updateParentRecord(editId, parentData);
           savedRecord = { id: editId, ...parentData, role: "parent" };
         } else {
-          const newParentUid = await createParentAccount(formData.email, formData.password, parentData);
-          savedRecord = { id: newParentUid, ...parentData, role: "parent" };
+          const createData = { ...parentData, email: formData.email };
+          const newParentUid = await createParentAccount(formData.email, formData.password, createData);
+          savedRecord = { id: newParentUid, ...createData, role: "parent" };
         }
       } else {
         const staffDisplayName =

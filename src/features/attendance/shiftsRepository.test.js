@@ -173,6 +173,24 @@ describe("recordStudentAttendance", () => {
       method: "KIOSK",
     });
   });
+
+  it("always includes branchId and branch in attendance payload, defaulting to DEFAULT_BRANCH", async () => {
+    await recordStudentAttendance({ uid: "s4", displayName: "Dewi" });
+    const op = fake.opsOf("add")[0];
+    expect(op.data.branchId).toBe("kota_gorontalo");
+    expect(op.data.branch).toBe("Kota Gorontalo");
+  });
+
+  it("canonicalizes provided branch and branchId in attendance payload", async () => {
+    await recordStudentAttendance({
+      uid: "s5",
+      displayName: "Eko",
+      branch: "Bone Bolango",
+    });
+    const op = fake.opsOf("add")[0];
+    expect(op.data.branchId).toBe("bone_bolango");
+    expect(op.data.branch).toBe("Bone Bolango");
+  });
 });
 
 describe("clockOutShift / switchClassAtomic", () => {

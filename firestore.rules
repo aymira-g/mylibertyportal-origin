@@ -278,7 +278,12 @@ service cloud.firestore {
       // other staff can only toggle completion status and attribution
       allow update: if isAdmin()
         || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isSameBranch(request.resource.data))
-        || (isStaff() && (isSameBranch(resource.data) || resource.data.branch == 'all' || resource.data.branchId == 'all')
+        || (isStaff()
+            && (
+              isSameBranch(resource.data)
+              || (('branch' in resource.data) && (resource.data.branch == 'all' || resource.data.branch == 'All'))
+              || (('branchId' in resource.data) && resource.data.branchId == 'all')
+            )
             && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['completed', 'completedAt', 'completedBy', 'completedByName', 'updatedAt']));
     }
@@ -315,8 +320,11 @@ service cloud.firestore {
           ))
           || resource.data.audienceType in ['role', 'division']
         ));
-      allow create, update, delete: if isAdmin()
-        || (isManager() && (
+      allow create: if (isAdmin() || isManager() || isFrontOffice())
+        && request.resource.data.name is string
+        && request.resource.data.eventDate is string
+        && request.resource.data.audienceType in ['all', 'branch', 'role', 'division']
+        && (isAdmin() || (
           request.resource.data.audienceType != 'branch'
           || request.resource.data.audienceValue == userBranch()
           || (request.resource.data.audienceValue == 'Kota Gorontalo' && userBranch() == 'kota_gorontalo')
@@ -324,6 +332,16 @@ service cloud.firestore {
           || (request.resource.data.audienceValue == 'Pohuwato' && userBranch() == 'pohuwato')
           || (request.resource.data.audienceValue == 'Limboto' && userBranch() == 'limboto')
         ));
+      allow update: if isAdmin()
+        || ((isManager() || isFrontOffice()) && (
+          request.resource.data.audienceType != 'branch'
+          || request.resource.data.audienceValue == userBranch()
+          || (request.resource.data.audienceValue == 'Kota Gorontalo' && userBranch() == 'kota_gorontalo')
+          || (request.resource.data.audienceValue == 'Bone Bolango' && userBranch() == 'bone_bolango')
+          || (request.resource.data.audienceValue == 'Pohuwato' && userBranch() == 'pohuwato')
+          || (request.resource.data.audienceValue == 'Limboto' && userBranch() == 'limboto')
+        ));
+      allow delete: if isAdmin();
     }
 
     match /classAttendance/{attendanceId} {
@@ -474,20 +492,6 @@ service cloud.firestore {
           && request.resource.data.appliedFromApproval is string
           && isApprovedShiftCorrection(request.resource.data.shiftId, request.resource.data.appliedFromApproval));
       allow update, delete: if false; // append-only immutable audit trail
-    }
-
-    match /corporateEvents/{eventId} {
-      allow read: if isStaff();
-      allow create: if (isAdmin() || isFrontOffice())
-        && request.resource.data.createdBy == request.auth.uid
-        && request.resource.data.status == 'active'
-        && request.resource.data.name is string
-        && request.resource.data.eventDate is string
-        && request.resource.data.audienceType in ['all', 'branch', 'role', 'division'];
-      allow update: if (isAdmin() || isFrontOffice())
-        && request.resource.data.createdBy == resource.data.createdBy
-        && request.resource.data.createdAt == resource.data.createdAt;
-      allow delete: if false; // soft-cancel only
     }
 
     match /staffLeave/{leaveId} {

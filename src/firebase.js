@@ -16,15 +16,27 @@ export const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Startup validation: ensure essential Firebase client config is present and valid
+const CONFIG_ENV_MAP = {
+  apiKey: "VITE_FIREBASE_API_KEY",
+  authDomain: "VITE_FIREBASE_AUTH_DOMAIN",
+  projectId: "VITE_FIREBASE_PROJECT_ID",
+  storageBucket: "VITE_FIREBASE_STORAGE_BUCKET",
+  messagingSenderId: "VITE_FIREBASE_MESSAGING_SENDER_ID",
+  appId: "VITE_FIREBASE_APP_ID",
+};
+
+// Startup validation: ensure essential Firebase client config is present and valid before initialization
 function validateFirebaseConfig(config) {
-  const required = ["apiKey", "projectId", "appId"];
-  const missing = required.filter(
-    (key) => !config[key] || typeof config[key] !== "string" || !config[key].trim()
-  );
+  const required = ["apiKey", "authDomain", "projectId", "appId"];
+  const missing = required
+    .filter((key) => !config[key] || typeof config[key] !== "string" || !config[key].trim())
+    .map((key) => CONFIG_ENV_MAP[key] || key);
+
   if (missing.length > 0) {
     throw new Error(
-      `[Firebase Config Error] Missing required configuration keys: ${missing.join(", ")}. Please check your environment or configuration settings.`
+      `[Firebase Config Error] Missing required Firebase client environment variable(s):\n  - ${missing.join(
+        "\n  - "
+      )}\nPlease ensure your .env or .env.local file is configured. Refer to .env.example for required keys.`
     );
   }
 }

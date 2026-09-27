@@ -378,16 +378,25 @@ export function recordStudentAttendance({
   branchId = null,
   branch = null,
 }) {
+  const canonicalBranchId = branchId
+    ? branchToId(branchId)
+    : branch
+    ? branchToId(branch)
+    : DEFAULT_BRANCH_ID;
+  const canonicalBranch = branch
+    ? branch
+    : idToBranch(canonicalBranchId);
+
   const payload = {
     userId: uid,
     displayName: displayName || "",
     role: "student",
     timestamp: new Date().toISOString(),
     method: "KIOSK",
+    branchId: canonicalBranchId,
+    branch: canonicalBranch,
     ...(eventId ? { eventId } : {}),
     ...(eventName ? { eventName } : {}),
-    ...(branchId ? { branchId } : {}),
-    ...(branch ? { branch } : {}),
   };
 
   if (dateKey) {

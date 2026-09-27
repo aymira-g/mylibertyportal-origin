@@ -86,7 +86,25 @@ Always verify the current versions and available scripts in `package.json` befor
 
 ## Development
 
-Install dependencies:
+### 1. Environment Configuration
+
+Copy `.env.example` to `.env` and provide your Firebase credentials:
+
+```bash
+cp .env.example .env
+```
+
+Essential client environment variables:
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_APP_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+
+Refer to [`.env.example`](./.env.example) for optional App Check, Cloudflare Worker, and Cloudinary settings.
+
+### 2. Install dependencies:
 
 ```bash
 npm install

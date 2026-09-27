@@ -79,4 +79,5 @@ export {
   isStudentRole,
   isStaffRole,
 } from "./roles";
+export { useUserProfile } from "./useUserProfile";
 

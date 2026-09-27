@@ -138,7 +138,11 @@ export default function StudentRosterTable({
             return (
               <tr key={s.id} className="hover:bg-slate-50/60 transition group">
                 <td className="p-3.5 font-bold text-slate-900">
-                  <div className="flex items-center gap-2.5">
+                  <div
+                    className={`flex items-center gap-2.5 ${!readOnly && onEdit ? "cursor-pointer group" : ""}`}
+                    onClick={() => !readOnly && onEdit && onEdit(s)}
+                    title={!readOnly && onEdit ? "Click to view/edit student profile" : undefined}
+                  >
                     {s.photoURL ? (
                       <img
                         src={s.photoURL}

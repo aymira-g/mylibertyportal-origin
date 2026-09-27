@@ -100,16 +100,14 @@ export default function StudentFamilyFields({ formData, field, editId, readOnly 
         </div>
 
         {/* Authenticated Parent Accounts Linkage */}
-        {(editId || formData.id) && (
-          <div className="pt-2">
-            <StudentParentLinkage
-              studentId={editId || formData.id}
-              studentName={formData.displayName || "Student"}
-              studentBranch={formData.branchId || formData.branch}
-              readOnly={readOnly}
-            />
-          </div>
-        )}
+        <div className="pt-2">
+          <StudentParentLinkage
+            studentId={editId || formData.id}
+            studentName={formData.displayName || "Student"}
+            studentBranch={formData.branchId || formData.branch}
+            readOnly={readOnly}
+          />
+        </div>
       </div>
 
       <hr className="border-slate-100" />

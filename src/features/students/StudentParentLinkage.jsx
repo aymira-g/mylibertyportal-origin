@@ -120,14 +120,20 @@ export default function StudentParentLinkage({
 
   if (!studentId) {
     return (
-      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500">
-        Parent accounts can be linked once the student profile has been created and saved.
+      <div className="p-4 bg-slate-50/80 rounded-2xl border border-dashed border-slate-300 text-xs text-slate-500 space-y-1">
+        <div className="flex items-center gap-1.5 font-bold text-slate-700 uppercase text-[11px]">
+          <Users className="w-3.5 h-3.5 text-[#1a3a8f]" />
+          <span>Authenticated Parent Accounts</span>
+        </div>
+        <p className="text-[11px] text-slate-500">
+          Parent accounts can be linked once the student profile has been created and saved.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/90 space-y-3">
       <div className="flex items-center justify-between">
         <h5 className="text-xs font-bold text-slate-700 uppercase flex items-center gap-1.5">
           <Users className="w-3.5 h-3.5 text-[#1a3a8f]" />

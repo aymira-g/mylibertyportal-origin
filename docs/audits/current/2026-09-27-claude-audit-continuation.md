@@ -1,3 +1,13 @@
+---
+title: MyLiberty Portal — Audit Continuation
+type: audit
+status: current
+created: 2026-09-27
+last_verified: 2026-09-27
+supersedes: null
+superseded_by: null
+---
+
 # MyLiberty Portal — Audit Continuation (Claude)
 
 **Date:** 2026-09-27 (continues `2026-09-27-claude-audit-broader-findings.md`)

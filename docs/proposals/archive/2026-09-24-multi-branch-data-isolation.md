@@ -1,3 +1,13 @@
+---
+title: Multi-Branch Data Isolation Proposal
+type: proposal
+status: archived
+created: 2026-09-24
+last_verified: 2026-09-28
+supersedes: null
+superseded_by: docs/decisions/2026-09-24-multi-branch-data-isolation.md
+---
+
 # Architecture Proposal: Multi-Branch Data Isolation (`branchId` Scoping)
 
 > **Date:** 2026-09-24  

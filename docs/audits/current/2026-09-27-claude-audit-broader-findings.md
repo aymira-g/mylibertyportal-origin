@@ -1,3 +1,13 @@
+---
+title: MyLiberty Portal — Broader Audit Findings
+type: audit
+status: current
+created: 2026-09-27
+last_verified: 2026-09-27
+supersedes: null
+superseded_by: null
+---
+
 # MyLiberty Portal — Broader Audit Findings (Claude, addendum)
 
 **Date:** 2026-09-27 (follow-up to `2026-09-27-claude-audit-verification-pass.md`)

@@ -177,19 +177,30 @@ The documentation is intentionally split by purpose:
 docs/
 ├── ARCHITECTURE.md
 ├── README.md
+├── decisions/
+├── specs/
+├── plans/
+│   ├── active/
+│   └── completed/
 ├── audits/
+│   ├── current/
+│   └── archive/
+├── audit-prompts/
 ├── proposals/
-└── plans/
+└── archive/
 ```
 
 ### Documentation rules
 
 - `README.md` — project entry point.
-- `docs/README.md` — documentation index.
+- `docs/README.md` — central documentation index and authority guide.
 - `docs/ARCHITECTURE.md` — current architectural source of truth.
-- `docs/audits/` — audit procedures and completed audit reports.
-- `docs/proposals/` — proposed architectural changes.
-- `docs/plans/` — implementation plans that remain relevant.
+- `docs/decisions/` — accepted architectural and business decisions.
+- `docs/specs/` — intended subsystem behavior and behavioral contracts.
+- `docs/plans/` — active and completed implementation/remediation plans.
+- `docs/audits/` — current verification baselines and historical audits.
+- `docs/audit-prompts/` — reusable audit instructions and prompts.
+- `docs/proposals/` — proposed changes under consideration.
 
 Do not create a new Markdown file when an existing document can be updated cleanly.
 

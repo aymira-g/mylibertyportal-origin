@@ -1,3 +1,13 @@
+---
+title: Attendance Module v4 — MyLiberty Integration Specification
+type: spec
+status: active
+created: 2026-09-26
+last_verified: 2026-09-28
+supersedes: null
+superseded_by: null
+---
+
 # Attendance Module v4 — MyLiberty Integration Specification
 
 **Target repository:** `aymira-git/mylibertyportal-origin`  

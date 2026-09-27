@@ -1,3 +1,13 @@
+---
+title: Hybrid Quick Switch User & Role Tester Specification
+type: spec
+status: active
+created: 2026-09-27
+last_verified: 2026-09-28
+supersedes: null
+superseded_by: null
+---
+
 # Specification: Hybrid Quick Switch User & Role Tester
 
 **Document Status:** Proposal / Plan for Review  

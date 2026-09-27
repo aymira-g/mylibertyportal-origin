@@ -1,3 +1,13 @@
+---
+title: Parent, Student, and Class Roster Data Model Specification
+type: spec
+status: active
+created: 2026-09-26
+last_verified: 2026-09-28
+supersedes: null
+superseded_by: null
+---
+
 # MyLiberty Parent + Student + Class Roster Data Model
 ## Agent Handoff Specification v2
 

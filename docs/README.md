@@ -2,91 +2,154 @@
 
 Welcome to the central documentation directory for **MyLiberty Portal**.
 
-This directory is organized by document purpose in accordance with the guidelines in [`README.md`](../README.md) and [`AGENTS.md`](../AGENTS.md):
+## Start Here
+
+When working on this codebase as an engineer or AI coding assistant, orient yourself in this sequence:
+
+1. **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** — Canonical system architecture and structure.
+2. **[`decisions/`](./decisions/README.md)** — Accepted business and architectural policies.
+3. **[`specs/`](./specs/README.md)** — Intended behavior and technical contracts for subsystems.
+4. **[`plans/active/`](./plans/README.md)** — Active implementation and remediation plans.
+5. **[`audits/current/`](./audits/current/README.md)** — Reconciled audit findings and current verification baselines.
+
+---
+
+## Documentation Authority
 
 ```text
-docs/
-├── ARCHITECTURE.md    # Protected canonical architecture guide
-├── README.md          # Central documentation index (this file)
-├── audits/            # Audit procedures, security reviews, and verification logs
-├── proposals/         # Architectural proposals, option analyses, and roadmaps
-└── plans/             # Feature, modernization, and operational implementation plans
+DOCUMENT AUTHORITY
+
+ARCHITECTURE.md
+    Describes the current system architecture.
+
+decisions/
+    Contains accepted business and architectural decisions.
+
+specs/
+    Describes intended subsystem behavior and contracts.
+
+plans/
+    Describes work that is planned or being executed.
+
+audits/current/
+    Contains current audit findings and verification baselines.
+
+audits/archive/
+    Contains historical audit results.
+
+audit-prompts/
+    Contains instructions used to perform audits.
+
+proposals/
+    Contains ideas and designs that have not yet been accepted.
+
+Historical documents do not override current source code, Firestore rules,
+tests, or verified runtime behavior.
 ```
 
 ---
 
-## 📚 Table of Contents
+## Folder Guide
 
-### 1. Architecture & Core Guidelines
-* **[`ARCHITECTURE.md`](./ARCHITECTURE.md)**
-  * Protected, canonical application architecture specification.
-  * Domain boundaries under `src/features/` (`auth`, `students`, `attendance`, `classes`, `finance`, `staff`, `reports`, `shared`, `dashboard`).
-  * Public barrel rules (`src/features/*/index.js`) and repository patterns (`*Repository.js`).
-  * Firestore data growth classes (Class A unbounded, Class B slowly growing, Class C bounded).
-  * Protected infrastructure rules and safe refactoring protocol.
-
----
-
-### 2. Audits & Scalability Assessments (`docs/audits/`)
-Procedures, diagnostic checklists, and historical system review findings:
-
-* **[`audits/FULL_ARCHITECTURE_AUDIT.md`](./audits/FULL_ARCHITECTURE_AUDIT.md)** — Canonical full-system architecture and scalability audit procedure (protected).
-* **[`audits/2026-09-25-full-architecture-audit.md`](./audits/2026-09-25-full-architecture-audit.md)** — Comprehensive architecture, security, and scalability audit report (Sept 25, 2026).
-* **[`audits/2026-09-25-audit-implementation-walkthrough.md`](./audits/2026-09-25-audit-implementation-walkthrough.md)** — Walkthrough and verification of implemented audit remediations.
-* **[`audits/2026-09-25-kiosk-security-audit-revision.md`](./audits/2026-09-25-kiosk-security-audit-revision.md)** — Audit revision and security corrections for kiosk clock-in and device anchoring.
-* **[`audits/2026-09-24-front-office-local-audit.md`](./audits/2026-09-24-front-office-local-audit.md)** — Front Office operational audit report (cashier, walk-in inquiries, tuition tracking).
-* **[`audits/2026-09-24-maker-checker-operational-audit.md`](./audits/2026-09-24-maker-checker-operational-audit.md)** — Maker-Checker governance and dual-control approval audit report.
-* **[`audits/2026-09-24-system-audit-safety-net.md`](./audits/2026-09-24-system-audit-safety-net.md)** — System audit, safety nets, and error handling verification.
-* **[`audits/2026-09-24-audit-revision-v2.md`](./audits/2026-09-24-audit-revision-v2.md)** — Multi-branch and shift audit revision report.
-* **[`audits/architecture-and-performance-audit.md`](./audits/architecture-and-performance-audit.md)** — Architectural health, query boundaries, and performance baseline audit.
-* **[`audits/qodo-findings-remediation.md`](./audits/qodo-findings-remediation.md)** — Automated code quality and security findings remediation review.
-
----
-
-### 3. Proposals & Roadmaps (`docs/proposals/`)
-Forward-looking architecture proposals, option analyses, and strategic roadmaps:
-
-* **[`proposals/2026-09-23-front-office-operations-enhancement.md`](./proposals/2026-09-23-front-office-operations-enhancement.md)** — Front office operations enhancement proposal (cashier, reconciliation, walk-ins).
-* **[`proposals/2026-09-24-multi-branch-data-isolation.md`](./proposals/2026-09-24-multi-branch-data-isolation.md)** — Multi-branch data isolation and maker-checker dual-control governance proposal.
-* **[`proposals/2026-09-25-kiosk-clock-in-audit-comparison.md`](./proposals/2026-09-25-kiosk-clock-in-audit-comparison.md)** — Decision options analysis for instructor kiosk clock-in security hardening.
-* **[`proposals/2026-09-25-kiosk-clock-in-security-hardening.md`](./proposals/2026-09-25-kiosk-clock-in-security-hardening.md)** — Canonical executor specification for action-bound kiosk clock-in security hardening (v1.2).
-* **[`proposals/myliberty-available-batches-roadmap.md`](./proposals/myliberty-available-batches-roadmap.md)** — Strategic product roadmap for available batches, scheduling, and capacity planning.
-
----
-
-### 4. Implementation Plans (`docs/plans/`)
-Detailed execution specs for features, workflows, data models, and modernizations:
-
-#### Attendance, Shifts & Kiosk Operations
-* **[`plans/attendance-module-v4-myliberty-integration-spec.md`](./plans/attendance-module-v4-myliberty-integration-spec.md)** — Comprehensive attendance domain integration spec (shifts, classes, kiosk, offline sync).
-* **[`plans/corporate-event-attendance-plan.md`](./plans/corporate-event-attendance-plan.md)** — Implementation plan for corporate event attendance tracking and staff presence logging.
-* **[`plans/private-toefl-vs-corporate-event-clock-in-plan.md`](./plans/private-toefl-vs-corporate-event-clock-in-plan.md)** — Plan for resolving private batch / TOEFL instructor vs corporate event kiosk clock-in options.
-
-#### Students, Parents & Rosters
-* **[`plans/myliberty-parent-student-roster-data-model.md`](./plans/myliberty-parent-student-roster-data-model.md)** — Canonical data model spec for parent accounts, student entities, class roster, and UI separation.
-
-#### Marketing & School Outreach
-* **[`plans/gorontalo-school-outreach-plan.md`](./plans/gorontalo-school-outreach-plan.md)** — Canonical audited implementation plan for Kota Gorontalo school visits map & outreach tracking.
-* **[`plans/outreach-manager-marketing-remediation-plan.md`](./plans/outreach-manager-marketing-remediation-plan.md)** — Repo-verified remediation plan for manager & marketing outreach module (branch isolation, collection groups).
-
-#### Scalability, Governance & Platform Engineering
-* **[`plans/spark-scale-and-log-retention-plan.md`](./plans/spark-scale-and-log-retention-plan.md)** — Plan for Spark free tier optimization (1,000 students / 200 staff) and 38-day log retention.
-* **[`plans/large-file-splitting-plan.md`](./plans/large-file-splitting-plan.md)** — Safe modularization and file-splitting plan for oversized dashboard and reporting components.
-* **[`plans/operational-audit-execution-plan.md`](./plans/operational-audit-execution-plan.md)** — Operational audit execution plan and status matrix.
-* **[`plans/myliberty-audit-log.md`](./plans/myliberty-audit-log.md)** — Operational audit logging specifications and system event tracking.
-* **[`plans/myliberty-revision-brief.md`](./plans/myliberty-revision-brief.md)** — Consolidated execution brief and revision requirements.
-* **[`plans/hybrid-quick-switch-user-spec.md`](./plans/hybrid-quick-switch-user-spec.md)** — Dev quick switcher user spec and multi-mode authentication testing.
+```text
+docs/
+├── ARCHITECTURE.md          # Protected canonical architecture guide
+├── README.md                # Documentation index and authority guide (this file)
+│
+├── decisions/               # Formally accepted architectural and business policies
+│   ├── README.md
+│   └── 2026-09-24-multi-branch-data-isolation.md
+│
+├── specs/                   # Behavioral contracts and subsystem specifications
+│   ├── README.md
+│   ├── attendance/          # Attendance module contracts
+│   ├── parent/              # Parent & student roster contracts
+│   └── dev-tools/           # Developer tooling specifications
+│
+├── plans/                   # Implementation and remediation plans
+│   ├── README.md
+│   ├── active/              # Active, actionable implementation and remediation work
+│   └── completed/           # Finished execution plans
+│
+├── audits/                  # System audits, procedures, and findings
+│   ├── README.md
+│   ├── FULL_ARCHITECTURE_AUDIT.md  # Deep audit procedure (governed by AGENTS.md)
+│   ├── audit-log.md                 # Running operational items log
+│   ├── current/                     # Latest reconciled findings & verification baselines
+│   └── archive/                     # Historical audit reports
+│
+├── audit-prompts/           # Reusable audit instructions and evaluation criteria
+│   ├── README.md
+│   └── cross-feature-integration-audit.md
+│
+├── proposals/               # Forward-looking designs and RFCs under consideration
+│   ├── README.md
+│   └── archive/             # Archived proposals (e.g. converted to decisions)
+│
+└── archive/                 # General documentation archive
+    └── README.md
+```
 
 ---
 
-## 🤖 Guide for Developers & AI Agents
+## Current Audit Baseline
 
-When working on this codebase:
-1. **Start with [`README.md`](../README.md) and [`AGENTS.md`](../AGENTS.md)** for developer instructions, safety rules, and coding standards.
-2. **Consult [`ARCHITECTURE.md`](./ARCHITECTURE.md)** before modifying architecture, directory structures, data models, or cross-domain boundaries.
-3. **Follow the Documentation Schema**:
-   - Audit findings and checklists belong in `docs/audits/`.
-   - Architectural proposals belong in `docs/proposals/`.
-   - Implementation plans belong in `docs/plans/`.
-   - Keep `docs/` root clean (containing only `ARCHITECTURE.md` and this `README.md`).
-4. **Update documentation**: When an approved change alters implementation plans or architecture, update the corresponding document and reflect changes in this index.
+The authoritative, reconciled verification baseline describing current findings in the codebase:
+
+* **Consolidated Baseline:** [`audits/current/2026-09-27-reconciled-full-audit.md`](./audits/current/2026-09-27-reconciled-full-audit.md)
+* **Broader Findings:** [`audits/current/2026-09-27-claude-audit-broader-findings.md`](./audits/current/2026-09-27-claude-audit-broader-findings.md)
+* **Continuation Evidence:** [`audits/current/2026-09-27-claude-audit-continuation.md`](./audits/current/2026-09-27-claude-audit-continuation.md)
+* **Permanent Deep Audit Procedure:** [`audits/FULL_ARCHITECTURE_AUDIT.md`](./audits/FULL_ARCHITECTURE_AUDIT.md)
+
+---
+
+## Current Decisions
+
+Formally accepted policies that govern ongoing implementation and security rules:
+
+* **[`decisions/2026-09-24-multi-branch-data-isolation.md`](./decisions/2026-09-24-multi-branch-data-isolation.md)**  
+  Multi-branch data isolation policy (`branchId` scoping across Firestore collections, repository normalizers, and Maker-Checker dual-control routing).
+
+---
+
+## Subsystem Specifications
+
+Intended technical contracts and behavioral rules:
+
+* **Attendance Subsystem:** [`specs/attendance/attendance-module-v4-myliberty-integration-spec.md`](./specs/attendance/attendance-module-v4-myliberty-integration-spec.md)
+* **Parent & Student Subsystem:** [`specs/parent/myliberty-parent-student-roster-data-model.md`](./specs/parent/myliberty-parent-student-roster-data-model.md)
+* **Developer Tools:** [`specs/dev-tools/hybrid-quick-switch-user-spec.md`](./specs/dev-tools/hybrid-quick-switch-user-spec.md)
+
+---
+
+## Active Plans
+
+Actionable implementation and remediation sequences currently in progress:
+
+* **School Outreach Remediation:** [`plans/active/outreach-manager-marketing-remediation-plan.md`](./plans/active/outreach-manager-marketing-remediation-plan.md)
+* **Operational Audit Execution Plan:** [`plans/active/operational-audit-execution-plan.md`](./plans/active/operational-audit-execution-plan.md)
+* **File Splitting Plan (>1000 lines):** [`plans/active/large-file-splitting-plan.md`](./plans/active/large-file-splitting-plan.md)
+* **Operational Execution Brief:** [`plans/active/myliberty-revision-brief.md`](./plans/active/myliberty-revision-brief.md)
+* **Corporate Event Attendance:** [`plans/active/corporate-event-attendance-plan.md`](./plans/active/corporate-event-attendance-plan.md)
+* **Private/TOEFL vs Event Clock-in Fix:** [`plans/active/private-toefl-vs-corporate-event-clock-in-plan.md`](./plans/active/private-toefl-vs-corporate-event-clock-in-plan.md)
+* **Gorontalo School Outreach Map:** [`plans/active/gorontalo-school-outreach-plan.md`](./plans/active/gorontalo-school-outreach-plan.md)
+* **Scale & Log Retention:** [`plans/active/spark-scale-and-log-retention-plan.md`](./plans/active/spark-scale-and-log-retention-plan.md)
+
+---
+
+## Proposals Under Consideration
+
+Design proposals that have not yet been formally accepted as binding policy:
+
+* **Front Office Operations Enhancement:** [`proposals/2026-09-23-front-office-operations-enhancement.md`](./proposals/2026-09-23-front-office-operations-enhancement.md)
+* **Kiosk Clock-in Options Comparison:** [`proposals/2026-09-25-kiosk-clock-in-audit-comparison.md`](./proposals/2026-09-25-kiosk-clock-in-audit-comparison.md)
+* **Kiosk Security Hardening:** [`proposals/2026-09-25-kiosk-clock-in-security-hardening.md`](./proposals/2026-09-25-kiosk-clock-in-security-hardening.md)
+* **Available Batches Roadmap:** [`proposals/myliberty-available-batches-roadmap.md`](./proposals/myliberty-available-batches-roadmap.md)
+
+---
+
+## Historical Material & Archives
+
+* **Historical Audits:** Retained under [`audits/archive/`](./audits/archive/README.md) for verification provenance and audit trail.
+* **Completed Implementation Plans:** Moved to [`plans/completed/`](./plans/README.md) upon full verification.
+* **Archived Proposals:** Preserved in [`proposals/archive/`](./proposals/README.md).

@@ -1,3 +1,14 @@
+---
+title: MyLiberty Portal — Reconciled Full Audit
+type: audit
+status: current
+created: 2026-09-27
+last_verified: 2026-09-27
+verified_against_commit: 3593165ff6b7360a7309c91128547f0f8734e211
+supersedes: docs/audits/archive/2026-09-27-myliberty-full-audit.md
+superseded_by: null
+---
+
 # MyLiberty Portal — Reconciled Full Audit
 ## Current GitHub HEAD + Claude Sonnet 5 Extra Audit Review
 ### Date: 2026-09-27

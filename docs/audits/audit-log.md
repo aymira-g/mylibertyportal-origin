@@ -1,3 +1,13 @@
+---
+title: MyLiberty Portal — Operational Audit Log
+type: audit
+status: active
+created: 2026-09-24
+last_verified: 2026-09-28
+supersedes: null
+superseded_by: null
+---
+
 # MyLiberty Portal — Audit Log
 
 Purpose: a running record of product/ops audit items. Upload this file at the

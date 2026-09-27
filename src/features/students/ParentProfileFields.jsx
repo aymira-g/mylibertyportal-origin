@@ -96,7 +96,10 @@ export default function ParentProfileFields({ formData, field, editId }) {
               field("branch", e.target.value);
               field("branchId", e.target.value.toLowerCase().replace(/\s+/g, "_"));
             }}
-            className="w-full p-2.5 border rounded-xl bg-white font-bold"
+            disabled={Boolean(editId)}
+            className={`w-full p-2.5 border rounded-xl font-bold ${
+              editId ? "bg-slate-100 text-slate-500 cursor-not-allowed" : "bg-white"
+            }`}
             required
           >
             {STANDARD_BRANCHES.map((b) => (
@@ -105,6 +108,11 @@ export default function ParentProfileFields({ formData, field, editId }) {
               </option>
             ))}
           </select>
+          {editId && (
+            <span className="text-[10px] text-slate-400 mt-0.5 block">
+              Branch cannot be changed for an existing parent account.
+            </span>
+          )}
         </div>
 
         {/* Account Status */}

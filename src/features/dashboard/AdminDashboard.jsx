@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { auth } from "../../firebase";
 import { useDashboardData } from "./useDashboardData";
-import { AIAssistant, DashboardShell, WelcomeBanner, ApprovalInbox } from "../shared";
+import { AIAssistant, DashboardShell, WelcomeBanner, ApprovalInbox, isStaffRole } from "../shared";
 import { UserPlus, GraduationCap, BookOpen, AlertCircle, ArrowRight } from "lucide-react";
 import { ReportsDashboard } from "../reports";
 import { StudentApplications, UserForm, StudentRoster, BadgeModal } from "../students";
@@ -135,7 +135,7 @@ export default function AdminDashboard() {
           <p className="text-xs text-slate-500 mt-2 font-medium">
             {
               users.filter(
-                (user) => user.role !== "student" && (user.status || "active") === "active"
+                (user) => isStaffRole(user.role) && (user.status || "active") === "active"
               ).length
             }{" "}
             active staff · {instructors.filter((i) => (i.status || "active") === "active").length}{" "}

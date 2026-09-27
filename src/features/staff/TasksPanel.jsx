@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Pin, Search, Plus } from "lucide-react";
-import { useConfirm, useToast } from "../shared";
+import { useConfirm, useToast, isStaffRole } from "../shared";
 import { ROLE_OPTIONS } from "./tasksUtils";
 import { DirectiveCard, CorkboardCard } from "./DirectiveCards";
 
@@ -40,7 +40,7 @@ export default function TasksPanel({
   // Staff members eligible for individual assignment
   const staffMembers = useMemo(() => {
     return users
-      .filter((u) => u.role && u.role !== "student" && (u.status || "active") === "active")
+      .filter((u) => isStaffRole(u.role) && (u.status || "active") === "active")
       .sort((a, b) =>
         (a.displayName || a.email || "").localeCompare(b.displayName || b.email || "")
       );

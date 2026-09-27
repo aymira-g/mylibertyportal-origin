@@ -9,6 +9,8 @@ import {
   updateStaffRecord,
   createStaffAccount,
   deleteUserProfile,
+  createParentAccount,
+  updateParentRecord,
 } from "./usersRepository";
 import { markInquiryConverted } from "./frontoffice/deskInquiriesRepository";
 import { DEFAULT_BRANCH, normalizeBranch, matchesBranchFilter, branchToId } from "../../constants/branches";
@@ -129,8 +131,16 @@ export function useDashboardData({
       (snap) => setUsers(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
       handleListenerError("users")
     );
+    const classConstraints = [];
+    if (branch && branch !== "all") {
+      classConstraints.push(where("branchId", "==", branchToId(branch)));
+    }
+    const classesQuery = classConstraints.length
+      ? query(collection(db, "classes"), ...classConstraints)
+      : collection(db, "classes");
+
     const unsubClasses = onSnapshot(
-      collection(db, "classes"),
+      classesQuery,
       (snap) => setClasses(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
       handleListenerError("classes")
     );
@@ -148,8 +158,17 @@ export function useDashboardData({
       (snap) => setApplications(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
       handleListenerError("applications")
     );
+
+    const todoConstraints = [];
+    if (branch && branch !== "all") {
+      todoConstraints.push(where("branchId", "==", branchToId(branch)));
+    }
+    const todosQuery = todoConstraints.length
+      ? query(collection(db, "todos"), ...todoConstraints)
+      : collection(db, "todos");
+
     const unsubTodos = onSnapshot(
-      collection(db, "todos"),
+      todosQuery,
       (snap) => setTodos(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
       handleListenerError("todos")
     );
@@ -228,6 +247,27 @@ export function useDashboardData({
           await markInquiryConverted(formData.inquiryId, studentId);
         }
         savedRecord = { id: studentId, ...studentData };
+      } else if (formData.role === "parent") {
+        const parentDisplayName =
+          formData.displayName?.trim() ||
+          `${formData.firstName || ""} ${formData.lastName || ""}`.trim() ||
+          "";
+        const parentData = {
+          displayName: parentDisplayName,
+          phone: formData.phone || "",
+          branch: formData.branch,
+          branchId: formData.branchId || branchToId(formData.branch),
+          status: formData.status || "active",
+          email: formData.email,
+        };
+
+        if (editId) {
+          await updateParentRecord(editId, parentData);
+          savedRecord = { id: editId, ...parentData, role: "parent" };
+        } else {
+          const newParentUid = await createParentAccount(formData.email, formData.password, parentData);
+          savedRecord = { id: newParentUid, ...parentData, role: "parent" };
+        }
       } else {
         const staffDisplayName =
           `${formData.firstName} ${formData.lastName}`.trim() || formData.displayName?.trim() || "";
@@ -262,7 +302,9 @@ export function useDashboardData({
           ? "Profile updated!"
           : formData.role === "student"
             ? "Student added to roster!"
-            : "Account created!"
+            : formData.role === "parent"
+              ? "Parent account created!"
+              : "Account created!"
       );
       setEditId(null);
       setFormData(emptyFormData);

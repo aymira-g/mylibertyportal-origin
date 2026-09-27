@@ -1,6 +1,7 @@
 import { auth, db } from "../../firebase";
 import { collection, getDocs, getDoc, doc, query, where } from "firebase/firestore";
 import { normalizeBranch } from "../../constants/branches.js";
+import { isStaffRole } from "../shared/roles.js";
 
 /**
  * All direct Firestore reads for the Reports domain live here.
@@ -65,7 +66,7 @@ export async function fetchStaffShifts(isAdminView, since = null, branchId = nul
     .sort((a, b) => (b.clockIn || "").localeCompare(a.clockIn || ""));
 
   const staffMembers = Array.from(existingUsersMap.values()).filter(
-    (u) => u.role && u.role !== "student"
+    (u) => isStaffRole(u.role)
   );
 
   return { shifts: raw, staffMembers, leaves };

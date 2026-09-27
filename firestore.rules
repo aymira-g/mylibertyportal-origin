@@ -244,9 +244,14 @@ service cloud.firestore {
     }
 
     match /classes/{classId} {
-      allow read: if isStaff()
-        || (signedIn() && resource.data.studentIds.hasAny([request.auth.uid]))
-        || (isParent() && ('childStudentIds' in userProfile()) && resource.data.studentIds.hasAny(userProfile().childStudentIds));
+      allow read: if isAdmin()
+        || (isStaff() && isSameBranch(resource.data))
+        || (isStaff() && (
+            resource.data.instructorId == request.auth.uid
+            || ('substituteInstructorId' in resource.data && resource.data.substituteInstructorId == request.auth.uid)
+          ))
+        || (signedIn() && ('studentIds' in resource.data) && resource.data.studentIds.hasAny([request.auth.uid]))
+        || (isParent() && ('childStudentIds' in userProfile()) && ('studentIds' in resource.data) && resource.data.studentIds.hasAny(userProfile().childStudentIds));
       allow create, delete: if isAdmin();
       allow update: if isAdmin()
         || (isFrontOffice()
@@ -258,19 +263,30 @@ service cloud.firestore {
     }
 
     match /todos/{todoId} {
-      // All active staff can read directives to receive their assignments
-      allow read: if isStaff();
-      // Admins and Managers issue directives; Front Office can manage desk directives
-      allow create, delete: if isAdmin() || isManager() || isFrontOffice();
+      // Branch-lock directives by default. Admin has cross-branch access.
+      // Explicitly academy-wide directives (branch == 'all' or branchId == 'all') are readable by all staff.
+      allow read: if isAdmin()
+        || (isStaff() && (
+          isSameBranch(resource.data)
+          || (('branch' in resource.data) && (resource.data.branch == 'all' || resource.data.branch == 'All'))
+          || (('branchId' in resource.data) && resource.data.branchId == 'all')
+        ));
+      // Admins and Managers issue directives; Front Office can manage desk directives in their branch
+      allow create, delete: if isAdmin()
+        || ((isManager() || isFrontOffice()) && isSameBranch(request.resource.data));
       // Admins, Managers, and Front Office can update any directive field;
       // other staff can only toggle completion status and attribution
-      allow update: if isAdmin() || isManager() || isFrontOffice()
-        || (isStaff() && request.resource.data.diff(resource.data).affectedKeys()
+      allow update: if isAdmin()
+        || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isSameBranch(request.resource.data))
+        || (isStaff() && (isSameBranch(resource.data) || resource.data.branch == 'all' || resource.data.branchId == 'all')
+            && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['completed', 'completedAt', 'completedBy', 'completedByName', 'updatedAt']));
     }
 
     match /attendance/{attendanceId} {
-      allow read: if isStaff();
+      // Branch-lock attendance by default. Admin has cross-branch access.
+      allow read: if isAdmin()
+        || (isStaff() && isSameBranch(resource.data));
       // Student scans: Admin (reception station), Front Office, Instructor, and Instructor Leader; scanned person must be a student
       allow create: if (isAdmin() || isFrontOffice() || hasRole('instructor') || hasRole('instructorleader') || hasRole('instructor_leader'))
         && request.resource.data.userId is string
@@ -282,6 +298,32 @@ service cloud.firestore {
           && request.resource.data.userId == resource.data.userId
           && request.resource.data.role == resource.data.role);
       allow delete: if isAdmin();
+    }
+
+    match /corporateEvents/{eventId} {
+      // Branch-lock corporate events by default. Admin has cross-branch access.
+      // Explicitly academy-wide events (audienceType == 'all' or role/division) are readable by staff.
+      allow read: if isAdmin()
+        || (isStaff() && (
+          resource.data.audienceType == 'all'
+          || (resource.data.audienceType == 'branch' && (
+            resource.data.audienceValue == userBranch()
+            || (resource.data.audienceValue == 'Kota Gorontalo' && userBranch() == 'kota_gorontalo')
+            || (resource.data.audienceValue == 'Bone Bolango' && userBranch() == 'bone_bolango')
+            || (resource.data.audienceValue == 'Pohuwato' && userBranch() == 'pohuwato')
+            || (resource.data.audienceValue == 'Limboto' && userBranch() == 'limboto')
+          ))
+          || resource.data.audienceType in ['role', 'division']
+        ));
+      allow create, update, delete: if isAdmin()
+        || (isManager() && (
+          request.resource.data.audienceType != 'branch'
+          || request.resource.data.audienceValue == userBranch()
+          || (request.resource.data.audienceValue == 'Kota Gorontalo' && userBranch() == 'kota_gorontalo')
+          || (request.resource.data.audienceValue == 'Bone Bolango' && userBranch() == 'bone_bolango')
+          || (request.resource.data.audienceValue == 'Pohuwato' && userBranch() == 'pohuwato')
+          || (request.resource.data.audienceValue == 'Limboto' && userBranch() == 'limboto')
+        ));
     }
 
     match /classAttendance/{attendanceId} {
@@ -308,9 +350,10 @@ service cloud.firestore {
           && isParentOf(resource.data.studentId)
         );
 
-      // First attendance creation only.
+      // First attendance creation only. Enforce deterministic document ID {classId}_{studentId}_{attendanceDate}.
       allow create: if
-        canManageClassAttendance(request.resource.data.classId)
+        attendanceId == request.resource.data.classId + '_' + request.resource.data.studentId + '_' + request.resource.data.attendanceDate
+        && canManageClassAttendance(request.resource.data.classId)
         && validClassAttendanceIdentity(request.resource.data)
         && studentIsEnrolled(
           request.resource.data.classId,

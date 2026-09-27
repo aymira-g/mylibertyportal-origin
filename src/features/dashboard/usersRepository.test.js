@@ -5,6 +5,7 @@ import {
   checkStudentHasHistory,
   createStaffAccount,
   createParentAccount,
+  updateParentRecord,
   linkChildToParent,
   unlinkChildFromParent,
   getParentLinkedStudents,
@@ -286,5 +287,37 @@ describe("getParentLinkedStudents and findParentsForStudent", () => {
 
     const gorontalo = await fetchAllParents("kota_gorontalo");
     expect(gorontalo.map((p) => p.id)).toEqual(["p1"]);
+  });
+
+  it("finds parents linked to student filtered by branchId", async () => {
+    fake.seed("users", [
+      { id: "parent1", role: "parent", branchId: "kota_gorontalo", childStudentIds: ["s1"] },
+      { id: "parent2", role: "parent", branchId: "bone_bolango", childStudentIds: ["s1"] },
+    ]);
+
+    const gto = await findParentsForStudent("s1", "kota_gorontalo");
+    expect(gto.map((p) => p.id)).toEqual(["parent1"]);
+  });
+});
+
+describe("updateParentRecord", () => {
+  it("updates an existing parent profile with restricted field set and merge", async () => {
+    await updateParentRecord("parent_123", {
+      displayName: "Ibu Rahma Updated",
+      phone: "08123456789",
+      branch: "Kota Gorontalo",
+      status: "active",
+    });
+
+    const op = fake.find("users/parent_123");
+    expect(op.opts).toEqual({ merge: true });
+    expect(op.data).toMatchObject({
+      displayName: "Ibu Rahma Updated",
+      phone: "08123456789",
+      branchId: "kota_gorontalo",
+      branch: "Kota Gorontalo",
+      status: "active",
+    });
+    expect(op.data.updatedAt).toBeTruthy();
   });
 });

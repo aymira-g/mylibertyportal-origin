@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { auth, db } from "../../firebase";
 import { collection, onSnapshot, query, where, doc } from "firebase/firestore";
-import { AIAssistant, DashboardShell, useToast, ApprovalInbox } from "../shared";
+import { AIAssistant, DashboardShell, useToast, ApprovalInbox, isStaffRole } from "../shared";
 import { ReportsDashboard } from "../reports";
 import { createTodo, deleteTodo, toggleTodoComplete } from "../staff";
 import { getShiftStatus } from "../attendance";
@@ -87,7 +87,7 @@ export default function ManagerDashboard() {
     );
 
     const unsubClasses = onSnapshot(
-      collection(db, "classes"),
+      query(collection(db, "classes"), where("branchId", "==", managerBranchId)),
       (snap) => setClasses(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
       (err) => console.warn("classes listener:", err)
     );
@@ -110,7 +110,7 @@ export default function ManagerDashboard() {
     );
 
     const unsubTodos = onSnapshot(
-      collection(db, "todos"),
+      query(collection(db, "todos"), where("branchId", "==", managerBranchId)),
       (snap) => {
         setTodos(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
         setTodosPermission(true);
@@ -362,7 +362,7 @@ export default function ManagerDashboard() {
     [students]
   );
   const staff = useMemo(
-    () => scopedUsers.filter((u) => u.role !== "student" && u.role !== "admin"),
+    () => scopedUsers.filter((u) => isStaffRole(u.role) && u.role !== "admin"),
     [scopedUsers]
   );
   const activeStaff = useMemo(

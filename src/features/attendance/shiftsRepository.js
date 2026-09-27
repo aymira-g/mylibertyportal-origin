@@ -375,6 +375,8 @@ export function recordStudentAttendance({
   dateKey = null,
   eventId = null,
   eventName = null,
+  branchId = null,
+  branch = null,
 }) {
   const payload = {
     userId: uid,
@@ -384,6 +386,8 @@ export function recordStudentAttendance({
     method: "KIOSK",
     ...(eventId ? { eventId } : {}),
     ...(eventName ? { eventName } : {}),
+    ...(branchId ? { branchId } : {}),
+    ...(branch ? { branch } : {}),
   };
 
   if (dateKey) {

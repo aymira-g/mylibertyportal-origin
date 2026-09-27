@@ -402,7 +402,7 @@ export default function StaffDirectory({
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             }`}
           >
-            All Roles ({users.filter((u) => u.role !== "student").length})
+            All Roles ({users.filter((u) => isStaffRole(u.role)).length})
           </button>
 
           {STAFF_ROLES.map((r) => {

@@ -13,6 +13,7 @@ import { fetchActiveCorporateEventsForDate } from "./corporateEventsRepository";
 import { findMatchingCorporateEvents } from "./corporateEvents";
 import { recordClassAttendanceScan } from "./classAttendanceRepository";
 import { resolveStudentClass } from "./classResolution";
+import { DEFAULT_BRANCH, branchToId } from "../../constants/branches.js";
 
 /**
  * Core business resolution for QR badge scan at the kiosk station or class session.
@@ -222,12 +223,15 @@ export async function handleKioskScan(
       todayDate
     );
 
+    const rawBranch = userData.branchId || userData.branch || DEFAULT_BRANCH;
     await recordStudentAttendance({
       uid,
       displayName: userData.displayName,
       dateKey: todayDate,
       eventId: matchedEvent ? matchedEvent.id : null,
       eventName: matchedEvent ? matchedEvent.name : null,
+      branchId: branchToId(rawBranch),
+      branch: userData.branch || DEFAULT_BRANCH,
     });
 
     const isLeave = studentStatus === "on_leave";

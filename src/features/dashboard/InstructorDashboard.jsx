@@ -13,6 +13,7 @@ import {
   InstructorProgress,
   uniqueClasses,
 } from "./instructor";
+import { branchToId } from "../../constants/branches.js";
 
 export default function InstructorDashboard({ role = "", branch = "" }) {
   const [activeTab, setActiveTab] = useState(() => {
@@ -73,14 +74,19 @@ export default function InstructorDashboard({ role = "", branch = "" }) {
   } = useStaffDirectives("instructor");
 
   useEffect(() => {
+    const branchId = branchToId(effectiveBranch);
     const unsub = onSnapshot(
-      query(collection(db, "classes"), where("status", "==", "active")),
+      query(
+        collection(db, "classes"),
+        where("branchId", "==", branchId),
+        where("status", "==", "active")
+      ),
       (snap) => {
         setAllClasses(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       }
     );
     return () => unsub();
-  }, []);
+  }, [effectiveBranch]);
 
   const tabs = [
     {

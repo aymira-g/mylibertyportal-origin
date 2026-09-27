@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { auth, db } from "../../../firebase";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
-import { AIAssistant, DashboardShell, useToast } from "../../shared";
+import { collection, onSnapshot, query, where, doc } from "firebase/firestore";
+import { AIAssistant, DashboardShell, useToast, isStaffRole } from "../../shared";
 import { ReportsDashboard } from "../../reports";
 import { createTodo, deleteTodo, toggleTodoComplete } from "../../staff";
 import { getShiftStatus } from "../../attendance";
 import { ManagerOverview, ClassesAndCoverageTab, StaffDirectivesTab } from "../manager";
 import { matchesDivisionFilter, divisionOfProgram } from "../../../constants/divisions";
+import { DEFAULT_BRANCH, branchToId } from "../../../constants/branches";
 
 export default function KidsManagerDashboard() {
   const toast = useToast();
@@ -19,10 +20,30 @@ export default function KidsManagerDashboard() {
   const [todos, setTodos] = useState([]);
   const [todosPermission, setTodosPermission] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [managerProfile, setManagerProfile] = useState(null);
+
+  // Directly subscribe to logged in manager's own user doc to discover their branchId
+  useEffect(() => {
+    if (!auth.currentUser?.uid) return;
+    const unsubSelf = onSnapshot(
+      doc(db, "users", auth.currentUser.uid),
+      (snap) => {
+        if (snap.exists()) {
+          setManagerProfile({ id: snap.id, ...snap.data() });
+        }
+      },
+      (err) => console.warn("kids manager self profile listener:", err)
+    );
+    return () => unsubSelf();
+  }, []);
+
+  const managerBranchId = useMemo(() => {
+    return managerProfile?.branchId || branchToId(managerProfile?.branch || DEFAULT_BRANCH);
+  }, [managerProfile]);
 
   useEffect(() => {
     const unsubUsers = onSnapshot(
-      collection(db, "users"),
+      query(collection(db, "users"), where("branchId", "==", managerBranchId)),
       (snap) => {
         setRawUsers(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
         setLoading(false);
@@ -34,25 +55,29 @@ export default function KidsManagerDashboard() {
     );
 
     const unsubClasses = onSnapshot(
-      collection(db, "classes"),
+      query(collection(db, "classes"), where("branchId", "==", managerBranchId)),
       (snap) => setRawClasses(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
       (err) => console.warn("classes listener:", err)
     );
 
     const unsubApplications = onSnapshot(
-      collection(db, "applications"),
+      query(collection(db, "applications"), where("branchId", "==", managerBranchId)),
       (snap) => setRawApplications(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
       (err) => console.warn("applications listener:", err)
     );
 
     const unsubShifts = onSnapshot(
-      query(collection(db, "shifts"), where("clockOut", "==", null)),
+      query(
+        collection(db, "shifts"),
+        where("branchId", "==", managerBranchId),
+        where("clockOut", "==", null)
+      ),
       (snap) => setShifts(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
       (err) => console.warn("shifts listener:", err)
     );
 
     const unsubTodos = onSnapshot(
-      collection(db, "todos"),
+      query(collection(db, "todos"), where("branchId", "==", managerBranchId)),
       (snap) => {
         setTodos(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
         setTodosPermission(true);
@@ -76,11 +101,14 @@ export default function KidsManagerDashboard() {
       unsubShifts();
       unsubTodos();
     };
-  }, []);
+  }, [managerBranchId]);
 
   const handleAddTodo = async (todoData) => {
     try {
-      await createTodo(todoData);
+      await createTodo({
+        ...todoData,
+        branch: managerProfile?.branch || DEFAULT_BRANCH,
+      });
       toast("Staff directive issued successfully.", "success");
     } catch (err) {
       if (err?.code === "permission-denied" || err?.message?.includes("insufficient permissions")) {
@@ -173,7 +201,7 @@ export default function KidsManagerDashboard() {
     () =>
       rawUsers.filter(
         (u) =>
-          u.role !== "student" &&
+          isStaffRole(u.role) &&
           u.role !== "admin" &&
           matchesDivisionFilter(u.division, "kindergarten")
       ),

@@ -70,7 +70,8 @@ export default function StudentParentLinkage({
     let active = true;
     if (!studentId) return;
 
-    findParentsForStudent(studentId)
+    const branchId = branchToId(studentBranch);
+    findParentsForStudent(studentId, branchId)
       .then((data) => {
         if (active) {
           setParents(data || []);
@@ -88,14 +89,15 @@ export default function StudentParentLinkage({
     return () => {
       active = false;
     };
-  }, [studentId, refreshIndex]);
+  }, [studentId, studentBranch, refreshIndex]);
 
   // Load all parents when modal is opened to support linking existing accounts
   useEffect(() => {
     let active = true;
     if (!showModal) return;
 
-    fetchAllParents()
+    const branchId = branchToId(studentBranch);
+    fetchAllParents(branchId)
       .then((data) => {
         if (active) {
           setAllParents(data || []);
@@ -112,7 +114,7 @@ export default function StudentParentLinkage({
     return () => {
       active = false;
     };
-  }, [showModal]);
+  }, [showModal, studentBranch]);
 
   const handleLinkExisting = async (parent) => {
     setSubmitting(true);

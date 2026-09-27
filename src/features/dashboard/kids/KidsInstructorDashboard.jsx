@@ -13,6 +13,7 @@ import {
   InstructorProgress,
 } from "../instructor";
 import { matchesDivisionFilter, divisionOfProgram } from "../../../constants/divisions";
+import { DEFAULT_BRANCH, branchToId } from "../../../constants/branches";
 
 export default function KidsInstructorDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -40,9 +41,12 @@ export default function KidsInstructorDashboard() {
     classes: rawClasses,
     students: rawStudents,
     instructorName,
+    instructorBranch,
     loading,
     error,
   } = useInstructorRoster();
+
+  const effectiveBranch = instructorBranch || DEFAULT_BRANCH;
 
   // Kindergarten instructors only see kindergarten learners and classes
   const classes = useMemo(
@@ -61,7 +65,7 @@ export default function KidsInstructorDashboard() {
     [rawStudents]
   );
 
-  // All kindergarten classes for coverage & reference
+  // All kindergarten classes for coverage & reference in this branch
   const [allClasses, setAllClasses] = useState([]);
 
   const {
@@ -73,8 +77,13 @@ export default function KidsInstructorDashboard() {
   } = useStaffDirectives("instructor");
 
   useEffect(() => {
+    const branchId = branchToId(effectiveBranch);
     const unsub = onSnapshot(
-      query(collection(db, "classes"), where("status", "==", "active")),
+      query(
+        collection(db, "classes"),
+        where("branchId", "==", branchId),
+        where("status", "==", "active")
+      ),
       (snap) => {
         /** @type {any[]} */
         const all = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -86,7 +95,7 @@ export default function KidsInstructorDashboard() {
       }
     );
     return () => unsub();
-  }, []);
+  }, [effectiveBranch]);
 
   const tabs = [
     {

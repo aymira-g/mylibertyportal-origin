@@ -257,6 +257,30 @@ export async function createParentAccount(email, password, parentData) {
 }
 
 /**
+ * Updates an existing parent profile with a restricted field set.
+ * Uses merge to preserve any fields not included in the update payload.
+ *
+ * @param {string} uid
+ * @param {Record<string, any>} parentData
+ */
+export function updateParentRecord(uid, parentData) {
+  const rawBranch = parentData.branchId || parentData.branch || DEFAULT_BRANCH_ID;
+  const canonicalBranchId = branchToId(rawBranch);
+  const canonicalBranch = idToBranch(canonicalBranchId);
+
+  const payload = {
+    displayName: (parentData.displayName || "").trim(),
+    phone: (parentData.phone || "").trim(),
+    status: parentData.status || "active",
+    branchId: canonicalBranchId,
+    branch: canonicalBranch,
+    updatedAt: new Date().toISOString(),
+  };
+
+  return setDoc(doc(db, "users", uid), payload, { merge: true });
+}
+
+/**
  * Links a student to a parent's childStudentIds list.
  *
  * @param {string} parentUid
@@ -307,18 +331,22 @@ export async function getParentLinkedStudents(parentUid) {
 }
 
 /**
- * Queries parent user documents linked to a specific student ID.
+ * Queries parent user documents linked to a specific student ID, optionally constrained by branch.
  *
  * @param {string} studentId
+ * @param {string} [branchId]
  * @returns {Promise<Array<{ id: string, [key: string]: any }>>}
  */
-export async function findParentsForStudent(studentId) {
+export async function findParentsForStudent(studentId, branchId = null) {
   if (!studentId) return [];
-  const q = query(
-    collection(db, "users"),
+  const constraints = [
     where("role", "==", "parent"),
-    where("childStudentIds", "array-contains", studentId)
-  );
+    where("childStudentIds", "array-contains", studentId),
+  ];
+  if (branchId) {
+    constraints.push(where("branchId", "==", branchId));
+  }
+  const q = query(collection(db, "users"), ...constraints);
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }

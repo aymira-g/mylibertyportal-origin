@@ -1,6 +1,6 @@
 import { db } from "../../firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
-import { DEFAULT_BRANCH, normalizeBranch } from "../../constants/branches.js";
+import { DEFAULT_BRANCH, normalizeBranch, branchToId } from "../../constants/branches.js";
 
 /**
  * All direct Firestore writes for todos/directives live here.
@@ -19,6 +19,7 @@ export function createTodo({
   createdByName = null,
   branch = DEFAULT_BRANCH,
 }) {
+  const normalizedBranch = normalizeBranch(branch);
   return addDoc(collection(db, "todos"), {
     text: (text || "").trim(),
     type,
@@ -35,7 +36,8 @@ export function createTodo({
     createdAt: new Date().toISOString(),
     createdBy: createdBy || null,
     createdByName: createdByName || null,
-    branch: normalizeBranch(branch),
+    branch: normalizedBranch,
+    branchId: branchToId(normalizedBranch),
   });
 }
 

@@ -6,7 +6,7 @@
  */
 
 import { useState, useMemo } from "react";
-import { useToast, useConfirm, Pagination, usePagination } from "../shared";
+import { useToast, useConfirm, Pagination, usePagination, isStaffRole } from "../shared";
 import { updateStaffStatus, checkStaffHasAttendanceHistory } from "../dashboard/usersRepository";
 import { copyText } from "../../utils/copyText";
 import {
@@ -53,7 +53,7 @@ export default function StaffDirectory({
 
   // Overall KPIs (Counting active staff to prevent metric inflation)
   const totalStaffCount = useMemo(
-    () => users.filter((u) => u.role !== "student" && (u.status || "active") === "active").length,
+    () => users.filter((u) => isStaffRole(u.role) && (u.status || "active") === "active").length,
     [users]
   );
   const instructorCount = useMemo(

@@ -13,6 +13,7 @@ import StudentAcademicFields from "./StudentAcademicFields";
 import StudentTuitionFields from "./StudentTuitionFields";
 import StudentFamilyFields from "./StudentFamilyFields";
 import StaffProfileFields from "./StaffProfileFields";
+import ParentProfileFields from "./ParentProfileFields";
 import { CreditCard } from "lucide-react";
 
 export default function UserForm({
@@ -20,11 +21,12 @@ export default function UserForm({
   setFormData,
   editId,
   onSubmit,
-  onSaveAndCollectPayment,
+  onSaveAndCollectPayment = null,
 }) {
   const isSelf = Boolean(editId && auth.currentUser && editId === auth.currentUser.uid);
   const field = (key, value) => setFormData((prev) => ({ ...prev, [key]: value }));
   const isStudent = formData.role === "student";
+  const isParent = formData.role === "parent";
 
   const setAcademicLevel = (level) => {
     field("currentLevel", level);
@@ -63,25 +65,37 @@ export default function UserForm({
               ? editId
                 ? "Edit Student Profile"
                 : "Student Registration"
-              : editId
-                ? "Edit Staff Profile"
-                : "Automated Staff Account Creation"}
+              : isParent
+                ? editId
+                  ? "Edit Parent Account"
+                  : "Create Parent Account"
+                : editId
+                  ? "Edit Staff Profile"
+                  : "Automated Staff Account Creation"}
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
             {isStudent
               ? "Update student registration, academic details, and tuition plan."
-              : "Create credentials and set permissions for staff."}
+              : isParent
+                ? "Manage parent contact details, branch affiliation, and linked students."
+                : "Create credentials and set permissions for staff."}
           </p>
         </div>
 
         {/* Role & Division badges or edit indicators */}
         <div>
-          {editId || isStudent ? (
+          {editId || isStudent || isParent ? (
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="px-3 py-1 bg-indigo-50 text-indigo-700 font-bold text-xs rounded-full uppercase">
+              <span
+                className={`px-3 py-1 font-bold text-xs rounded-full uppercase ${
+                  isParent
+                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                    : "bg-indigo-50 text-indigo-700"
+                }`}
+              >
                 Role: {formData.role}
               </span>
-              {!isStudent && (
+              {!isStudent && !isParent && (
                 <span className="px-3 py-1 bg-cyan-50 text-cyan-700 font-bold text-xs rounded-full uppercase">
                   Division:{" "}
                   {normalizeDivision(formData.division) === "kindergarten"
@@ -113,6 +127,8 @@ export default function UserForm({
           <hr className="border-slate-100" />
           <StudentFamilyFields formData={formData} field={field} editId={editId} />
         </div>
+      ) : isParent ? (
+        <ParentProfileFields formData={formData} field={field} editId={editId} />
       ) : (
         <StaffProfileFields
           formData={formData}

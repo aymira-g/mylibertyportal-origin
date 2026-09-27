@@ -68,4 +68,15 @@ export {
   previewDisabledProps,
   PreviewModeContext,
 } from "./usePreviewMode";
+export {
+  CANONICAL_ROLES,
+  LEGACY_ROLE_ALIASES,
+  normalizeRole,
+  isFrontOfficeRole,
+  isInstructorRole,
+  isManagerRole,
+  isParentRole,
+  isStudentRole,
+  isStaffRole,
+} from "./roles";
 

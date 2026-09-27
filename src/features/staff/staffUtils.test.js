@@ -101,10 +101,11 @@ describe("filterStaffMembers", () => {
     },
     { id: "3", role: "student", displayName: "Budi" },
     { id: "4", role: "instructor", displayName: "Citra", phone: "0812", status: "resigned" },
+    { id: "5", role: "parent", displayName: "Ibu Linda" },
   ];
   const names = (list) => list.map((u) => u.displayName);
 
-  it("excludes students and sorts by name", () => {
+  it("excludes students and parents and sorts by name", () => {
     expect(names(filterStaffMembers({ users }))).toEqual(["Andi", "Citra", "Rina"]);
   });
 
@@ -124,6 +125,7 @@ describe("filterStaffMembers", () => {
       { id: "1", role: "instructor", displayName: "Course Teacher", division: "courses" },
       { id: "2", role: "instructor", displayName: "TK Teacher", division: "kindergarten" },
       { id: "3", role: "manager", displayName: "Legacy Staff" }, // legacy defaults to courses
+      { id: "4", role: "parent", displayName: "Parent in TK", division: "kindergarten" },
     ];
     expect(names(filterStaffMembers({ users: mixed, divisionFilter: "kindergarten" }))).toEqual([
       "TK Teacher",
@@ -151,10 +153,11 @@ describe("filterStaffMembers", () => {
 });
 
 describe("getDistinctStaffBranches", () => {
-  it("always includes all 4 canonical branches and adds staff branches, ignoring students", () => {
+  it("always includes all 4 canonical branches and adds staff branches, ignoring students and parents", () => {
     const users = [
       { role: "instructor", branch: " Cabang Timur " },
       { role: "student", branch: "Cabang Barat" },
+      { role: "parent", branch: "Cabang Selatan" },
       { role: "manager" },
     ];
     expect(getDistinctStaffBranches(users)).toEqual([

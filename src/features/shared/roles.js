@@ -115,3 +115,29 @@ export function isStudentRole(role) {
   return normalizeRole(role) === CANONICAL_ROLES.STUDENT;
 }
 
+/**
+ * List of all operational staff roles.
+ */
+export const STAFF_ROLES = [
+  CANONICAL_ROLES.ADMIN,
+  CANONICAL_ROLES.MANAGER,
+  CANONICAL_ROLES.INSTRUCTOR,
+  CANONICAL_ROLES.INSTRUCTOR_LEADER,
+  CANONICAL_ROLES.FRONT_OFFICE,
+  CANONICAL_ROLES.OPS_LEAD,
+  CANONICAL_ROLES.MARKETING,
+  CANONICAL_ROLES.OFFICE_BOY,
+];
+
+/**
+ * Checks whether a role represents a staff member or administrator.
+ * Strictly returns false for parents and students.
+ *
+ * @param {string | any} role
+ * @returns {boolean}
+ */
+export function isStaffRole(role) {
+  const normalized = normalizeRole(role);
+  return STAFF_ROLES.includes(normalized);
+}
+

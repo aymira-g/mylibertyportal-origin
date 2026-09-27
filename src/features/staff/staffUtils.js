@@ -6,6 +6,7 @@
 
 import { BRANCHES, normalizeBranch, matchesBranchFilter } from "../../constants/branches.js";
 import { matchesDivisionFilter } from "../../constants/divisions.js";
+import { isStaffRole } from "../shared/roles.js";
 
 export const STAFF_ROLES = [
   "instructor",
@@ -148,7 +149,7 @@ export function filterStaffMembers({
   branchFilter = "all",
   divisionFilter = "all",
 }) {
-  let list = users.filter((u) => u.role !== "student");
+  let list = users.filter((u) => isStaffRole(u.role));
 
   if (divisionFilter !== "all") {
     list = list.filter((u) => matchesDivisionFilter(u.division, divisionFilter));
@@ -187,7 +188,7 @@ export function filterStaffMembers({
 export function getDistinctStaffBranches(users = []) {
   const set = new Set(STANDARD_BRANCHES);
   users.forEach((u) => {
-    if (u.role !== "student" && u.branch) {
+    if (isStaffRole(u.role) && u.branch) {
       set.add(normalizeBranch(u.branch));
     }
   });

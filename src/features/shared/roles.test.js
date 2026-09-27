@@ -9,6 +9,8 @@ import {
   isManagerRole,
   isParentRole,
   isStudentRole,
+  isStaffRole,
+  STAFF_ROLES,
 } from "./roles";
 
 describe("roles.js - Centralized Role Normalization", () => {
@@ -120,6 +122,31 @@ describe("roles.js - Centralized Role Normalization", () => {
       expect(isStudentRole("instructor")).toBe(false);
       expect(isStudentRole(null)).toBe(false);
       expect(isStudentRole(undefined)).toBe(false);
+    });
+
+    it("identifies staff roles correctly and excludes parents and students", () => {
+      expect(STAFF_ROLES).toContain("admin");
+      expect(STAFF_ROLES).toContain("instructor");
+      expect(STAFF_ROLES).not.toContain("parent");
+      expect(STAFF_ROLES).not.toContain("student");
+
+      expect(isStaffRole("admin")).toBe(true);
+      expect(isStaffRole("manager")).toBe(true);
+      expect(isStaffRole("branch_manager")).toBe(true);
+      expect(isStaffRole("instructor")).toBe(true);
+      expect(isStaffRole("instructorleader")).toBe(true);
+      expect(isStaffRole("instructor_leader")).toBe(true);
+      expect(isStaffRole("frontoffice")).toBe(true);
+      expect(isStaffRole("opslead")).toBe(true);
+      expect(isStaffRole("ops_lead")).toBe(true);
+      expect(isStaffRole("marketing")).toBe(true);
+      expect(isStaffRole("officeboy")).toBe(true);
+
+      // Must strictly exclude parents and students
+      expect(isStaffRole("parent")).toBe(false);
+      expect(isStaffRole("student")).toBe(false);
+      expect(isStaffRole(null)).toBe(false);
+      expect(isStaffRole(undefined)).toBe(false);
     });
   });
 });

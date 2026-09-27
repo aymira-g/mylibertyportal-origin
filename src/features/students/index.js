@@ -11,6 +11,7 @@ export { default as UserForm } from "./UserForm";
 export { default as BadgeModal } from "./BadgeModal";
 export { default as StudentPhotoCapture } from "./StudentPhotoCapture";
 export { default as StudentParentLinkage } from "./StudentParentLinkage";
+export { default as ParentProfileFields } from "./ParentProfileFields";
 export {
   buildStudentRecord,
   isActiveStudent,

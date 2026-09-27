@@ -9,6 +9,7 @@ import {
   unlinkChildFromParent,
   getParentLinkedStudents,
   findParentsForStudent,
+  fetchAllParents,
   deleteUserProfile,
   updateStaffStatus,
 } from "./usersRepository.js";
@@ -271,5 +272,19 @@ describe("getParentLinkedStudents and findParentsForStudent", () => {
 
     const parents = await findParentsForStudent("s1");
     expect(parents.map((p) => p.id)).toEqual(["parent1", "parent2"]);
+  });
+
+  it("fetches all parent records optionally filtered by branch", async () => {
+    fake.seed("users", [
+      { id: "p1", role: "parent", branchId: "kota_gorontalo" },
+      { id: "p2", role: "parent", branchId: "limboto" },
+      { id: "s1", role: "student", branchId: "kota_gorontalo" },
+    ]);
+
+    const all = await fetchAllParents();
+    expect(all.map((p) => p.id)).toEqual(["p1", "p2"]);
+
+    const gorontalo = await fetchAllParents("kota_gorontalo");
+    expect(gorontalo.map((p) => p.id)).toEqual(["p1"]);
   });
 });

@@ -40,6 +40,8 @@ export default function StudentRosterTable({
   onBadgeClick = null,
   onEdit = null,
   onDeleteStudent = null,
+  onOpenParentProfile = null,
+  onLinkParent = null,
 }) {
   return (
     <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200/90 shadow-2xs">
@@ -201,12 +203,35 @@ export default function StudentRosterTable({
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <p className="font-semibold text-slate-800">{s.parentName || "—"}</p>
                     {linkedParentsMap[s.id]?.length > 0 ? (
-                      <span
-                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
-                        title={`Linked App Account: ${linkedParentsMap[s.id].map((p) => p.displayName || p.email).join(", ")}`}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const parent = linkedParentsMap[s.id][0];
+                          if (onOpenParentProfile) {
+                            onOpenParentProfile(parent);
+                          } else if (onEdit) {
+                            onEdit(parent);
+                          }
+                        }}
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 transition cursor-pointer shadow-2xs"
+                        title={`Linked: ${linkedParentsMap[s.id].map((p) => p.displayName || p.email).join(", ")}. Click to view/edit parent profile.`}
                       >
                         <Shield className="w-2.5 h-2.5" /> Linked
-                      </span>
+                      </button>
+                    ) : !readOnly && onLinkParent ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onLinkParent(s);
+                        }}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-600 border border-slate-200 hover:bg-indigo-50 hover:text-[#1a3a8f] hover:border-indigo-200 transition cursor-pointer shadow-2xs"
+                        title="No authenticated app account. Click to link or create parent account."
+                      >
+                        <span>App: N/A</span>
+                        <span className="text-[8px] font-extrabold text-indigo-600">+ Link</span>
+                      </button>
                     ) : (
                       <span
                         className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-500 border border-slate-200"

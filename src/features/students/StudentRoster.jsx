@@ -23,6 +23,7 @@ import { getStudentPlanLabel } from "./studentRosterBadges";
 import StudentRosterFilters from "./StudentRosterFilters";
 import StudentRosterMobileList from "./StudentRosterMobileList";
 import StudentRosterTable from "./StudentRosterTable";
+import StudentParentLinkage from "./StudentParentLinkage";
 import { exportStudentRosterCSV } from "./studentRosterExport";
 import { Users, FileSpreadsheet, UserPlus } from "lucide-react";
 
@@ -50,6 +51,7 @@ export default function StudentRoster({
   const [statusFilter, setStatusFilter] = useState("active"); // "active" | "on_leave" | "inactive_graduated" | "all"
   const [actionFilter, setActionFilter] = useState("all"); // "all" | "unassigned" | "due_or_expired" | "beginner" | "intermediate" | "fluent"
   const [updatingStatusId, setUpdatingStatusId] = useState(null);
+  const [linkModalStudent, setLinkModalStudent] = useState(null);
 
   const linkedParentsMap = useMemo(() => {
     const map = {};
@@ -437,6 +439,8 @@ export default function StudentRoster({
         onBadgeClick={setSelectedStudent}
         onEdit={handleEdit}
         onDeleteStudent={handleDeleteStudent}
+        onOpenParentProfile={(parent) => handleEdit && handleEdit(parent)}
+        onLinkParent={(s) => setLinkModalStudent(s)}
       />
 
       {/* Desktop Full Table View */}
@@ -459,6 +463,8 @@ export default function StudentRoster({
         onBadgeClick={setSelectedStudent}
         onEdit={handleEdit}
         onDeleteStudent={handleDeleteStudent}
+        onOpenParentProfile={(parent) => handleEdit && handleEdit(parent)}
+        onLinkParent={(s) => setLinkModalStudent(s)}
       />
 
       {/* Pagination Footer */}
@@ -471,6 +477,17 @@ export default function StudentRoster({
         total={total}
         label="students"
       />
+
+      {/* Fast Parent Link / Create Modal */}
+      {linkModalStudent && (
+        <StudentParentLinkage
+          studentId={linkModalStudent.id}
+          studentName={linkModalStudent.displayName || "Student"}
+          studentBranch={linkModalStudent.branchId || linkModalStudent.branch}
+          initialModalOpen={true}
+          onCloseModal={() => setLinkModalStudent(null)}
+        />
+      )}
 
       {/* Payment Modal */}
       {!readOnly && paymentStudent && (

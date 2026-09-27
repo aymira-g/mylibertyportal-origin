@@ -11,6 +11,16 @@ vi.mock("../../firebase", () => ({
 
 vi.mock("../dashboard/usersRepository", () => ({
   findParentsForStudent: vi.fn().mockResolvedValue([]),
+  fetchAllParents: vi.fn().mockResolvedValue([
+    {
+      id: "parent_999",
+      role: "parent",
+      displayName: "Ibu Rahma",
+      email: "rahma@example.com",
+      childStudentIds: [],
+    },
+  ]),
+  linkChildToParent: vi.fn().mockResolvedValue(undefined),
   createParentAccount: vi.fn().mockResolvedValue("new_parent_id"),
   unlinkChildFromParent: vi.fn().mockResolvedValue(undefined),
 }));
@@ -54,5 +64,18 @@ describe("StudentParentLinkage Component", () => {
     );
     expect(html).toContain("Authenticated Parent Accounts");
     expect(html).not.toContain("Add Parent Account");
+  });
+
+  it("renders modal with 'Link Existing Account' and 'Create New Account' tabs when opened", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(StudentParentLinkage, {
+        studentId: "student_123",
+        studentName: "Ayu",
+        initialModalOpen: true,
+      })
+    );
+    expect(html).toContain("Link Existing Account");
+    expect(html).toContain("Create New Account");
+    expect(html).toContain("Search existing parent by name, email, or phone...");
   });
 });

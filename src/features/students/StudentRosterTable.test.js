@@ -34,12 +34,25 @@ describe("StudentRosterTable Parent Contact & App Account Badges", () => {
     expect(html).toContain("Pak Hendra");
     expect(html).toContain("081234567890");
 
-    // Shows App: N/A badge
+    // Shows App: N/A badge and link action when onLinkParent is present
     expect(html).toContain("App: N/A");
     expect(html).not.toContain("Linked");
   });
 
-  it("renders 'Linked' badge when student has an authenticated parent account in linkedParentsMap", () => {
+  it("renders interactive '+ Link' button when onLinkParent is provided", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(StudentRosterTable, {
+        pageItems: [dummyStudentWithContact],
+        linkedParentsMap: {},
+        onLinkParent: () => {},
+      })
+    );
+
+    expect(html).toContain("+ Link");
+    expect(html).toContain("No authenticated app account. Click to link or create parent account.");
+  });
+
+  it("renders interactive 'Linked' button when student has an authenticated parent account", () => {
     const linkedParentsMap = {
       "stu-1": [
         {
@@ -55,6 +68,7 @@ describe("StudentRosterTable Parent Contact & App Account Badges", () => {
       React.createElement(StudentRosterTable, {
         pageItems: [dummyStudentWithContact],
         linkedParentsMap,
+        onOpenParentProfile: () => {},
       })
     );
 
@@ -62,9 +76,9 @@ describe("StudentRosterTable Parent Contact & App Account Badges", () => {
     expect(html).toContain("Pak Hendra");
     expect(html).toContain("081234567890");
 
-    // Shows Linked badge with title
+    // Shows Linked button with tooltip
     expect(html).toContain("Linked");
-    expect(html).toContain("Linked App Account: Hendra (App)");
+    expect(html).toContain("Linked: Hendra (App). Click to view/edit parent profile.");
     expect(html).not.toContain("App: N/A");
   });
 

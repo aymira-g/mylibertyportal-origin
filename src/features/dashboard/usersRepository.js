@@ -322,3 +322,20 @@ export async function findParentsForStudent(studentId) {
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
+
+/**
+ * Queries parent user documents, optionally filtered by branch.
+ *
+ * @param {string} [branchId]
+ * @returns {Promise<Array<{ id: string, [key: string]: any }>>}
+ */
+export async function fetchAllParents(branchId = null) {
+  const constraints = [where("role", "==", "parent")];
+  if (branchId) {
+    constraints.push(where("branchId", "==", branchId));
+  }
+  const q = query(collection(db, "users"), ...constraints);
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+

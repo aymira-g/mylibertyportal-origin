@@ -51,6 +51,19 @@ export default function StudentRoster({
   const [actionFilter, setActionFilter] = useState("all"); // "all" | "unassigned" | "due_or_expired" | "beginner" | "intermediate" | "fluent"
   const [updatingStatusId, setUpdatingStatusId] = useState(null);
 
+  const linkedParentsMap = useMemo(() => {
+    const map = {};
+    (users || []).forEach((u) => {
+      if (u.role === "parent" && Array.isArray(u.childStudentIds)) {
+        u.childStudentIds.forEach((childId) => {
+          if (!map[childId]) map[childId] = [];
+          map[childId].push(u);
+        });
+      }
+    });
+    return map;
+  }, [users]);
+
   const handleStatusChange = async (student, newStatus) => {
     const currentStatus = student.status || "active";
     if (currentStatus === newStatus) return;
@@ -414,6 +427,7 @@ export default function StudentRoster({
         canEditStatus={canEditStatus}
         updatingStatusId={updatingStatusId}
         pendingPromotionsMap={pendingPromotionsMap}
+        linkedParentsMap={linkedParentsMap}
         onStatusChange={handleStatusChange}
         onPaymentClick={(s) => setPaymentStudent(s)}
         onSendRenewalReminder={handleSendRenewalReminder}
@@ -435,6 +449,7 @@ export default function StudentRoster({
         canEditStatus={canEditStatus}
         updatingStatusId={updatingStatusId}
         pendingPromotionsMap={pendingPromotionsMap}
+        linkedParentsMap={linkedParentsMap}
         onStatusChange={handleStatusChange}
         onPaymentClick={(s) => setPaymentStudent(s)}
         onSendRenewalReminder={handleSendRenewalReminder}

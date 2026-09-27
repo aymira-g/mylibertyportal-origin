@@ -8,6 +8,7 @@ import {
   QrCode,
   Edit2,
   Trash2,
+  Shield,
 } from "lucide-react";
 import { getNextLevel } from "../shared";
 import { isActiveStudent, STUDENT_STATUS_OPTIONS } from "./studentRecord";
@@ -22,22 +23,23 @@ import {
 
 export default function StudentRosterTable({
   pageItems = [],
-  studentSortField,
-  studentSortAsc,
-  onSort,
+  studentSortField = "displayName",
+  studentSortAsc = true,
+  onSort = null,
   readOnly = false,
   canEditStatus = true,
   updatingStatusId = null,
   pendingPromotionsMap = {},
-  onStatusChange,
-  onPaymentClick,
-  onSendRenewalReminder,
-  onPromote,
-  onAssignBatch,
-  onTransferBatch,
-  onBadgeClick,
-  onEdit,
-  onDeleteStudent,
+  linkedParentsMap = {},
+  onStatusChange = null,
+  onPaymentClick = null,
+  onSendRenewalReminder = null,
+  onPromote = null,
+  onAssignBatch = null,
+  onTransferBatch = null,
+  onBadgeClick = null,
+  onEdit = null,
+  onDeleteStudent = null,
 }) {
   return (
     <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200/90 shadow-2xs">
@@ -125,7 +127,7 @@ export default function StudentRosterTable({
           {pageItems.map((s) => {
             const studentClasses = s.studentClasses || [];
             const statusBadge = getStatusBadge(s.effectiveStatus);
-            const health = s.paymentHealth;
+            const health = s.paymentHealth || { status: "unknown", tone: "slate", label: "Unknown" };
             const planLabel = getStudentPlanLabel(s);
             const canRemind =
               !readOnly &&
@@ -196,8 +198,25 @@ export default function StudentRosterTable({
                   )}
                 </td>
                 <td className="p-3.5 text-slate-600">
-                  <p className="font-semibold text-slate-800">{s.parentName || "—"}</p>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="font-semibold text-slate-800">{s.parentName || "—"}</p>
+                    {linkedParentsMap[s.id]?.length > 0 ? (
+                      <span
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        title={`Linked App Account: ${linkedParentsMap[s.id].map((p) => p.displayName || p.email).join(", ")}`}
+                      >
+                        <Shield className="w-2.5 h-2.5" /> Linked
+                      </span>
+                    ) : (
+                      <span
+                        className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-500 border border-slate-200"
+                        title="No authenticated parent app account created yet"
+                      >
+                        App: N/A
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-0.5">
                     <p className="text-[11px] text-slate-400">{s.parentPhone || "No contact"}</p>
                     {s.parentPhone && (
                       <button

@@ -2,13 +2,13 @@
 
 Welcome to the central documentation directory for **MyLiberty Portal**.
 
-This directory is organized by document purpose in accordance with the guidelines in [`README.md`](../README.md):
+This directory is organized by document purpose in accordance with the guidelines in [`README.md`](../README.md) and [`AGENTS.md`](../AGENTS.md):
 
 ```text
 docs/
-├── ARCHITECTURE.md    # Protected authoritative architecture guide
-├── README.md          # Documentation index (this file)
-├── audits/            # Audit procedures and completed audit findings
+├── ARCHITECTURE.md    # Protected canonical architecture guide
+├── README.md          # Central documentation index (this file)
+├── audits/            # Audit procedures, security reviews, and verification logs
 ├── proposals/         # Architectural proposals, option analyses, and roadmaps
 └── plans/             # Feature, modernization, and operational implementation plans
 ```
@@ -30,61 +30,52 @@ docs/
 ### 2. Audits & Scalability Assessments (`docs/audits/`)
 Procedures, diagnostic checklists, and historical system review findings:
 
-* **[`audits/FULL_ARCHITECTURE_AUDIT.md`](./audits/FULL_ARCHITECTURE_AUDIT.md)** — Canonical full-system architecture and scalability audit procedure.
-* **[`audits/Architecture_and_Performance_Audit_and_Plan.md`](./audits/Architecture_and_Performance_Audit_and_Plan.md)** — Architectural health and performance baseline audit.
-* **[`audits/Test_Coverage_Audit_and_Plan.md`](./audits/Test_Coverage_Audit_and_Plan.md)** — Test coverage audit across critical business modules.
-* **[`audits/audit-findings-2026-09-22-spark-scale-1000-students.md`](./audits/audit-findings-2026-09-22-spark-scale-1000-students.md)** — Scalability analysis for 1,000+ student milestone on free/Spark tiers.
-* **[`audits/audit-findings-2026-09-22-log-retention.md`](./audits/audit-findings-2026-09-22-log-retention.md)** — Diagnostic findings on Firestore log growth and retention limits.
-* **[`audits/audit-findings-2026-09-22.md`](./audits/audit-findings-2026-09-22.md)** — Comprehensive security and architectural audit findings.
-* **[`audits/audit-2026-09-21-multi-campus-branch.md`](./audits/audit-2026-09-21-multi-campus-branch.md)** — Multi-campus branch architecture audit.
-* **[`audits/Cloudflare Pages build failing (2026-09-21).md`](./audits/Cloudflare%20Pages%20build%20failing%20%282026-09-21%29.md)** — Investigation into Cloudflare Pages deployment configuration vs Firebase Hosting.
-* **[`audits/implementation_plan audit findings 2026 09 22.md`](./audits/implementation_plan%20audit%20findings%202026%2009%2022.md)** — Implementation plan derived from September 22 audit findings.
+* **[`audits/FULL_ARCHITECTURE_AUDIT.md`](./audits/FULL_ARCHITECTURE_AUDIT.md)** — Canonical full-system architecture and scalability audit procedure (protected).
+* **[`audits/2026-09-25-full-architecture-audit.md`](./audits/2026-09-25-full-architecture-audit.md)** — Comprehensive architecture, security, and scalability audit report (Sept 25, 2026).
+* **[`audits/2026-09-25-audit-implementation-walkthrough.md`](./audits/2026-09-25-audit-implementation-walkthrough.md)** — Walkthrough and verification of implemented audit remediations.
+* **[`audits/2026-09-25-kiosk-security-audit-revision.md`](./audits/2026-09-25-kiosk-security-audit-revision.md)** — Audit revision and security corrections for kiosk clock-in and device anchoring.
+* **[`audits/2026-09-24-front-office-local-audit.md`](./audits/2026-09-24-front-office-local-audit.md)** — Front Office operational audit report (cashier, walk-in inquiries, tuition tracking).
+* **[`audits/2026-09-24-maker-checker-operational-audit.md`](./audits/2026-09-24-maker-checker-operational-audit.md)** — Maker-Checker governance and dual-control approval audit report.
+* **[`audits/2026-09-24-system-audit-safety-net.md`](./audits/2026-09-24-system-audit-safety-net.md)** — System audit, safety nets, and error handling verification.
+* **[`audits/2026-09-24-audit-revision-v2.md`](./audits/2026-09-24-audit-revision-v2.md)** — Multi-branch and shift audit revision report.
+* **[`audits/architecture-and-performance-audit.md`](./audits/architecture-and-performance-audit.md)** — Architectural health, query boundaries, and performance baseline audit.
+* **[`audits/qodo-findings-remediation.md`](./audits/qodo-findings-remediation.md)** — Automated code quality and security findings remediation review.
 
 ---
 
 ### 3. Proposals & Roadmaps (`docs/proposals/`)
-Forward-looking architecture proposals and option analyses:
+Forward-looking architecture proposals, option analyses, and strategic roadmaps:
 
-* **[`proposals/myliberty_available_batches_roadmap.md`](./proposals/myliberty_available_batches_roadmap.md)** — Strategic product roadmap for available batches, scheduling, and capacity planning.
-* **[`proposals/Private-TOEFL vs Corporate Event Clock-in — Plan.md`](./proposals/Private-TOEFL%20vs%20Corporate%20Event%20Clock-in%20%E2%80%94%20Plan.md)** — Architectural options analysis for resolving instructor kiosk clock-in conflicts between private batches and corporate events.
+* **[`proposals/2026-09-23-front-office-operations-enhancement.md`](./proposals/2026-09-23-front-office-operations-enhancement.md)** — Front office operations enhancement proposal (cashier, reconciliation, walk-ins).
+* **[`proposals/2026-09-24-multi-branch-data-isolation.md`](./proposals/2026-09-24-multi-branch-data-isolation.md)** — Multi-branch data isolation and maker-checker dual-control governance proposal.
+* **[`proposals/2026-09-25-kiosk-clock-in-audit-comparison.md`](./proposals/2026-09-25-kiosk-clock-in-audit-comparison.md)** — Decision options analysis for instructor kiosk clock-in security hardening.
+* **[`proposals/2026-09-25-kiosk-clock-in-security-hardening.md`](./proposals/2026-09-25-kiosk-clock-in-security-hardening.md)** — Canonical executor specification for action-bound kiosk clock-in security hardening (v1.2).
+* **[`proposals/myliberty-available-batches-roadmap.md`](./proposals/myliberty-available-batches-roadmap.md)** — Strategic product roadmap for available batches, scheduling, and capacity planning.
 
 ---
 
 ### 4. Implementation Plans (`docs/plans/`)
-Detailed execution specs for features, workflows, and modernizations:
+Detailed execution specs for features, workflows, data models, and modernizations:
 
-#### Academic, Classes & Batches
-* **[`plans/Academic Model, Batches & RBAC Implementation Plan.md`](./plans/Academic%20Model%2C%20Batches%20%26%20RBAC%20Implementation%20Plan.md)**
-* **[`plans/Admin Classes & Real-World Operations Implementation Plan.md`](./plans/Admin%20Classes%20%26%20Real-World%20Operations%20Implementation%20Plan.md)**
-* **[`plans/Batch_Types_Implementation_Plan_Revised.md`](./plans/Batch_Types_Implementation_Plan_Revised.md)** *(Original: [`plans/Batch_Types_Implementation_Plan.md`](./plans/Batch_Types_Implementation_Plan.md))*
-* **[`plans/Kindergarten_Division_Implementation_Plan.md`](./plans/Kindergarten_Division_Implementation_Plan.md)**
-* **[`plans/Multi-Program & Academic Scheduling Implementation Plan.md`](./plans/Multi-Program%20%26%20Academic%20Scheduling%20Implementation%20Plan.md)**
+#### Attendance, Shifts & Kiosk Operations
+* **[`plans/attendance-module-v4-myliberty-integration-spec.md`](./plans/attendance-module-v4-myliberty-integration-spec.md)** — Comprehensive attendance domain integration spec (shifts, classes, kiosk, offline sync).
+* **[`plans/corporate-event-attendance-plan.md`](./plans/corporate-event-attendance-plan.md)** — Implementation plan for corporate event attendance tracking and staff presence logging.
+* **[`plans/private-toefl-vs-corporate-event-clock-in-plan.md`](./plans/private-toefl-vs-corporate-event-clock-in-plan.md)** — Plan for resolving private batch / TOEFL instructor vs corporate event kiosk clock-in options.
 
-#### Attendance & Kiosk Operations
-* **[`plans/Admin Attendance & Staff Kiosk Implementation Plan.md`](./plans/Admin%20Attendance%20%26%20Staff%20Kiosk%20Implementation%20Plan.md)**
-* **[`plans/Corporate Event Attendance — Implementation Plan (Audited).md`](./plans/Corporate%20Event%20Attendance%20%E2%80%94%20Implementation%20Plan%20%28Audited%29.md)** *(Revisions: [`Revised`](./plans/Corporate%20Event%20Attendance%20%E2%80%94%20Implementation%20Plan%20%28Revised%29.md), [`Initial`](./plans/Corporate%20Event%20Attendance%20%E2%80%94%20Implementation%20Plan.md))*
-
-#### Admissions, Students & Payments
-* **[`plans/Payment Plans Implementation Plan.md`](./plans/Payment%20Plans%20Implementation%20Plan.md)**
-* **[`plans/Student Applications & Admissions Implementation Plan.md`](./plans/Student%20Applications%20%26%20Admissions%20Implementation%20Plan.md)**
-* **[`plans/Student Roster & Real-World Operations Implementation Plan.md`](./plans/Student%20Roster%20%26%20Real-World%20Operations%20Implementation%20Plan.md)**
+#### Students, Parents & Rosters
+* **[`plans/myliberty-parent-student-roster-data-model.md`](./plans/myliberty-parent-student-roster-data-model.md)** — Canonical data model spec for parent accounts, student entities, class roster, and UI separation.
 
 #### Marketing & School Outreach
-* **[`plans/Gorontalo City School Outreach Map — Implementation Plan (Revised, Audited).md`](./plans/Gorontalo%20City%20School%20Outreach%20Map%20%E2%80%94%20Implementation%20Plan%20%28Revised%2C%20Audited%29.md)** *(Revisions: [`Revised`](./plans/Gorontalo%20City%20School%20Outreach%20Map%20%E2%80%94%20Implementation%20Plan%20%28Revised%29.md), [`Audited`](./plans/Gorontalo%20City%20School%20Outreach%20Map%20%E2%80%94%20Implementation%20Plan%20%28Audited%29.md), [`Initial`](./plans/Gorontalo%20School%20Outreach%20Map%20%26%20Progression%20Tracker.md))*
+* **[`plans/gorontalo-school-outreach-plan.md`](./plans/gorontalo-school-outreach-plan.md)** — Canonical audited implementation plan for Kota Gorontalo school visits map & outreach tracking.
+* **[`plans/outreach-manager-marketing-remediation-plan.md`](./plans/outreach-manager-marketing-remediation-plan.md)** — Repo-verified remediation plan for manager & marketing outreach module (branch isolation, collection groups).
 
-#### Staff Operations & Directives
-* **[`plans/Staff_Directives_and_Task_Modernization_Implementation_Plan.md`](./plans/Staff_Directives_and_Task_Modernization_Implementation_Plan.md)** *(Summary: [`plans/Staff Directives & Task System Modernization.md`](./plans/Staff%20Directives%20%26%20Task%20System%20Modernization.md))*
-* **[`plans/Staff_Directory_Real-World_Operations_Implementation_Plan.md`](./plans/Staff_Directory_Real-World_Operations_Implementation_Plan.md)** *(Summary: [`plans/Staff Directory & Real-World Operations Implementation Plan.md`](./plans/Staff%20Directory%20%26%20Real-World%20Operations%20Implementation%20Plan.md))*
-* **[`plans/Staff Invitation System Modernization - Implementation Plan.md`](./plans/Staff%20Invitation%20System%20Modernization%20-%20Implementation%20Plan.md)**
-
-#### Governance, Reliability & Platform Engineering
-* **[`plans/Manager Badge Policy — Revised Implementation Plan.md`](./plans/Manager%20Badge%20Policy%20%E2%80%94%20Revised%20Implementation%20Plan.md)** *(Revisions: [`Audited`](./plans/Manager%20Badge%20Policy%20%E2%80%94%20Implementation%20Plan%20%28Audited%29.md), [`Initial`](./plans/Manager%20Badge%20Policy%20%E2%80%94%20Implementation%20Plan.md))*
-* **[`plans/Modern Native PWA — Implementation Plan.md`](./plans/Modern%20Native%20PWA%20%E2%80%94%20Implementation%20Plan.md)**
-* **[`plans/Implementation Plan — Spark Scale & Log Retention — Revised.md`](./plans/Implementation%20Plan%20%E2%80%94%20Spark%20Scale%20%26%20Log%20Retention%20%E2%80%94%20Revised.md)** *(Initial: [`plans/Implementation Plan — Spark Scale & Log Retention.md`](./plans/Implementation%20Plan%20%E2%80%94%20Spark%20Scale%20%26%20Log%20Retention.md))*
-* **[`plans/Reports & Attendance System Modernization.md`](./plans/Reports%20%26%20Attendance%20System%20Modernization.md)**
-* **[`plans/Reliability_and_Config_Hardening_Implementation_Plan.md`](./plans/Reliability_and_Config_Hardening_Implementation_Plan.md)**
-* **[`plans/Large_File_Splitting_Implementation_Plan.md`](./plans/Large_File_Splitting_Implementation_Plan.md)**
-* **[`plans/Walkthrough 4-Branch Multi-Campus Support.md`](./plans/Walkthrough%204-Branch%20Multi-Campus%20Support.md)**
+#### Scalability, Governance & Platform Engineering
+* **[`plans/spark-scale-and-log-retention-plan.md`](./plans/spark-scale-and-log-retention-plan.md)** — Plan for Spark free tier optimization (1,000 students / 200 staff) and 38-day log retention.
+* **[`plans/large-file-splitting-plan.md`](./plans/large-file-splitting-plan.md)** — Safe modularization and file-splitting plan for oversized dashboard and reporting components.
+* **[`plans/operational-audit-execution-plan.md`](./plans/operational-audit-execution-plan.md)** — Operational audit execution plan and status matrix.
+* **[`plans/myliberty-audit-log.md`](./plans/myliberty-audit-log.md)** — Operational audit logging specifications and system event tracking.
+* **[`plans/myliberty-revision-brief.md`](./plans/myliberty-revision-brief.md)** — Consolidated execution brief and revision requirements.
+* **[`plans/hybrid-quick-switch-user-spec.md`](./plans/hybrid-quick-switch-user-spec.md)** — Dev quick switcher user spec and multi-mode authentication testing.
 
 ---
 

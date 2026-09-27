@@ -15,6 +15,7 @@ export const paymentRecordSchema = z.object({
   notes: z.string().optional(),
   referenceNumber: z.string().optional(),
   approvalStatus: z.string().optional(),
+  idempotencyKey: z.string().optional(),
 });
 
 export const studentIdSchema = z.string().trim().min(1, "Valid student ID is required.");

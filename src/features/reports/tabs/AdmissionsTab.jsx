@@ -4,7 +4,7 @@ import { getTodayWitaString, rangeToSince } from "../reportsUtils";
 import { getBatchAvailability } from "../../classes";
 import { exportTableCSV } from "../../shared";
 import { TrendingUp, School, RefreshCw, Search, Users } from "lucide-react";
-import { normalizeBranch, matchesBranchFilter } from "../../../constants/branches";
+import { normalizeBranch, matchesBranchFilter, branchToId } from "../../../constants/branches";
 import { getProgram, getStudentProgram } from "../../../constants/programs";
 
 const AdmissionsTab = forwardRef(
@@ -20,14 +20,15 @@ const AdmissionsTab = forwardRef(
     const fetchAdmissions = useCallback(async () => {
       setAdmissionsLoading(true);
       try {
-        const data = await fetchAdmissionsReportData(rangeToSince(rangeDays));
+        const branchId = branchFilter && branchFilter !== "all" ? branchToId(branchFilter) : null;
+        const data = await fetchAdmissionsReportData(rangeToSince(rangeDays), branchId);
         setAdmissionsData(data);
       } catch (err) {
         console.error(err);
       } finally {
         setAdmissionsLoading(false);
       }
-    }, [rangeDays]);
+    }, [rangeDays, branchFilter]);
 
     useEffect(() => {
       fetchAdmissions();

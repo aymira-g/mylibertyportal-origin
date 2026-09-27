@@ -5,7 +5,7 @@ import { computeMonthlyPunctuality } from "../../attendance";
 import { uniqueClasses } from "../reportsUtils";
 import { exportTableCSV } from "../../shared";
 import { UserCheck, RefreshCw, CheckCircle2, AlertTriangle } from "lucide-react";
-import { matchesBranchFilter, normalizeBranch } from "../../../constants/branches";
+import { matchesBranchFilter, normalizeBranch, branchToId } from "../../../constants/branches";
 
 const InstructorPunctualityTab = forwardRef(
   /**
@@ -23,11 +23,12 @@ const InstructorPunctualityTab = forwardRef(
       setAnalyticsLoading(true);
       try {
         const uid = auth.currentUser?.uid;
+        const branchId = branchFilter && branchFilter !== "all" ? branchToId(branchFilter) : null;
         const {
           classes: rawClasses,
           shifts: rawShifts,
           instructors,
-        } = await fetchInstructorAnalyticsData(isAdminView, uid);
+        } = await fetchInstructorAnalyticsData(isAdminView, uid, branchId);
 
         const fetchedClasses = uniqueClasses(rawClasses);
         const fetchedShifts = rawShifts;
@@ -52,7 +53,7 @@ const InstructorPunctualityTab = forwardRef(
       } finally {
         setAnalyticsLoading(false);
       }
-    }, [isAdminView, selectedYear, selectedMonth]);
+    }, [isAdminView, selectedYear, selectedMonth, branchFilter]);
 
     useEffect(() => {
       fetchInstructorAnalytics();

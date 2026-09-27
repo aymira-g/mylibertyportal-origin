@@ -321,10 +321,11 @@ export default function KidsManagerDashboard() {
       label: "Reports & Analytics",
       component: (
         <ReportsDashboard
-          isAdminView={true}
+          isAdminView={false}
           isFrontOffice={false}
           canEdit={false}
           division="kindergarten"
+          userBranch={managerProfile?.branch || DEFAULT_BRANCH}
         />
       ),
     },

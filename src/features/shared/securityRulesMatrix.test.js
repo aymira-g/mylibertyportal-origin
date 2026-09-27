@@ -158,6 +158,7 @@ function isApprovedShiftCorrection(approval, shiftId) {
     approval &&
     approval.actionId === "STAFF_SHIFT_SELF_CORRECTION" &&
     approval.status === "approved" &&
+    (!("applied" in approval) || approval.applied !== true) &&
     approval.payload != null &&
     approval.payload.shiftId === shiftId
   );
@@ -469,6 +470,9 @@ describe("Security Rules Matrix & Branch Isolation", () => {
         )
       ).toBe(false);
       expect(isApprovedShiftCorrection({ ...approvedCorrection, payload: null }, "sh_42")).toBe(
+        false
+      );
+      expect(isApprovedShiftCorrection({ ...approvedCorrection, applied: true }, "sh_42")).toBe(
         false
       );
     });

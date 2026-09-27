@@ -7,6 +7,7 @@ import {
   deleteDoc,
   doc,
   query,
+  where,
   orderBy,
   limit,
 } from "firebase/firestore";
@@ -23,10 +24,17 @@ import {
  * Repository for Front Office walk-in visitor & prospect inquiries (/deskInquiries).
  */
 
-export async function fetchRecentDeskInquiries(limitCount = 50) {
+export async function fetchRecentDeskInquiries(limitCount = 50, branchId = null) {
+  const normalizedBranchId = branchId ? branchToId(branchId) : null;
+  const constraints = [];
+  if (normalizedBranchId) {
+    constraints.push(where("branchId", "==", normalizedBranchId));
+  }
+
   try {
     const q = query(
       collection(db, "deskInquiries"),
+      ...constraints,
       orderBy("createdAt", "desc"),
       limit(limitCount)
     );
@@ -37,7 +45,12 @@ export async function fetchRecentDeskInquiries(limitCount = 50) {
       throw err;
     }
     console.warn("fetchRecentDeskInquiries fallback without orderBy:", err?.message);
-    const q = query(collection(db, "deskInquiries"), limit(limitCount));
+    const fallbackConstraints = [];
+    if (normalizedBranchId) {
+      fallbackConstraints.push(where("branchId", "==", normalizedBranchId));
+    }
+    fallbackConstraints.push(limit(limitCount));
+    const q = query(collection(db, "deskInquiries"), ...fallbackConstraints);
     const snap = await getDocs(q);
     const list = snap.docs.map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }));
     list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());

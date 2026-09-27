@@ -52,6 +52,7 @@ export const LOCAL_INQUIRIES_STORAGE_KEY = "myliberty_desk_inquiries_local_v1";
  * @property {string} [notes]
  * @property {string} [division]
  * @property {string} [branch]
+ * @property {string} [branchId]
  * @property {string} [status]
  * @property {string} [leadSource]
  * @property {Array<Object>} [placementTests]

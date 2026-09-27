@@ -159,7 +159,7 @@ export default function WalkInInquiryTab({
   const loadInquiries = useCallback(async () => {
     setLoading(true);
     try {
-      const list = await fetchRecentDeskInquiries(50);
+      const list = await fetchRecentDeskInquiries(50, branchLabel);
       setInquiries(list);
       setHasPermission(true);
     } catch (err) {
@@ -177,11 +177,11 @@ export default function WalkInInquiryTab({
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [branchLabel, toast]);
 
   useEffect(() => {
     let active = true;
-    fetchRecentDeskInquiries(50)
+    fetchRecentDeskInquiries(50, branchLabel)
       .then((list) => {
         if (!active) return;
         setInquiries(list);
@@ -207,7 +207,7 @@ export default function WalkInInquiryTab({
     return () => {
       active = false;
     };
-  }, [toast]);
+  }, [branchLabel, toast]);
 
   const filteredInquiries = useMemo(() => {
     return inquiries.filter((inq) => {

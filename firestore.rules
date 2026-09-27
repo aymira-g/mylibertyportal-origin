@@ -109,6 +109,7 @@ service cloud.firestore {
       let approval = get(/databases/$(database)/documents/approvals/$(approvalId)).data;
       return approval.actionId == 'STAFF_SHIFT_SELF_CORRECTION'
         && approval.status == 'approved'
+        && (!('applied' in approval) || approval.applied != true)
         && 'payload' in approval
         && approval.payload != null
         && approval.payload.shiftId == shiftId;
@@ -402,7 +403,8 @@ service cloud.firestore {
     }
 
     match /deskInquiries/{inquiryId} {
-      allow read: if isAdmin() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(resource.data));
+      allow get: if isAdmin() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(resource.data));
+      allow list: if isAdmin() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranchStrict(resource.data));
       allow create: if isAdmin() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(request.resource.data));
       allow update: if isAdmin() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(resource.data) && isSameBranch(request.resource.data) && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId));
       allow delete: if isAdmin() || ((isManager() || isFrontOffice()) && isSameBranch(resource.data));
@@ -419,10 +421,18 @@ service cloud.firestore {
         || (isApproverForDoc(resource.data)
           && request.auth.uid != resource.data.requestedByUid
           && request.resource.data.requestedByUid == resource.data.requestedByUid
-          && request.resource.data.status in ['approved', 'rejected']
-          && request.resource.data.decidedByUid == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['status', 'decidedBy', 'decidedByUid', 'decidedAt', 'decisionNotes', 'rejectionReason', 'updatedAt']));
+          && (
+            (request.resource.data.status in ['approved', 'rejected']
+              && request.resource.data.decidedByUid == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['status', 'decidedBy', 'decidedByUid', 'decidedAt', 'decisionNotes', 'rejectionReason', 'updatedAt']))
+            ||
+            (resource.data.status == 'approved'
+              && request.resource.data.status == resource.data.status
+              && request.resource.data.applied == true
+              && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['applied', 'appliedAt', 'appliedByUid', 'updatedAt']))
+          ));
       allow delete: if isAdmin();
     }
 

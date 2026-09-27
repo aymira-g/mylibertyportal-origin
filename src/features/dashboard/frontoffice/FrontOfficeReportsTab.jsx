@@ -43,7 +43,7 @@ export default function FrontOfficeReportsTab({
   useEffect(() => {
     let isMounted = true;
 
-    fetchRecentDeskInquiries(100)
+    fetchRecentDeskInquiries(100, myBranch)
       .then((allInquiries) => {
         if (!isMounted) return;
         const filtered = allInquiries.filter((inq) => {

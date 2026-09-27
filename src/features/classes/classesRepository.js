@@ -6,7 +6,6 @@ import {
   doc,
   updateDoc,
   arrayUnion,
-  writeBatch,
   runTransaction,
 } from "firebase/firestore";
 import { getBatchAvailability } from "./batchAvailability";
@@ -85,10 +84,24 @@ export function addStudentToClass(classId, { studentId, dateJoined, level }) {
 }
 
 export function removeStudentFromClass(cls, studentId) {
-  return updateDoc(doc(db, "classes", cls.id), {
-    studentIds: (cls.studentIds || []).filter((id) => id !== studentId),
-    enrollments: (cls.enrollments || []).filter((e) => e.studentId !== studentId),
-    updatedAt: new Date().toISOString(),
+  const classId = typeof cls === "string" ? cls : cls?.id;
+  if (!classId) throw new Error("Class ID is required to remove student.");
+
+  return runTransaction(db, async (tx) => {
+    const classRef = doc(db, "classes", classId);
+    const snap = await tx.get(classRef);
+    const liveClass = snap.exists() ? snap.data() : (typeof cls === "object" ? cls : {});
+
+    const updatedStudentIds = (liveClass.studentIds || []).filter((id) => id !== studentId);
+    const updatedEnrollments = (liveClass.enrollments || []).filter(
+      (e) => e.studentId !== studentId
+    );
+
+    tx.update(classRef, {
+      studentIds: updatedStudentIds,
+      enrollments: updatedEnrollments,
+      updatedAt: new Date().toISOString(),
+    });
   });
 }
 
@@ -105,8 +118,8 @@ export function setClassGroupLevel(classItems, level) {
 
 /**
  * Atomically transfers a student from a source class to a target class.
- * Updates both class documents in a single writeBatch, updating studentIds,
- * enrollments, and updatedAt so it adheres strictly to Firestore security rules.
+ * Uses runTransaction to re-read both live class documents and guarantee concurrency safety,
+ * updating studentIds, enrollments, and updatedAt atomically.
  */
 export async function transferStudentBetweenClasses({
   sourceClass,
@@ -117,61 +130,76 @@ export async function transferStudentBetweenClasses({
   newLevel = null,
   transferReason = "",
 }) {
-  if (sourceClass && sourceClass.id === targetClassId) {
+  const sourceClassId = typeof sourceClass === "string" ? sourceClass : sourceClass?.id;
+  if (!sourceClassId) {
+    throw new Error("Source class is required for transfer.");
+  }
+  if (sourceClassId === targetClassId) {
     throw new Error("Cannot transfer a student to the same class.");
   }
 
-  if (
-    sourceClass &&
-    Array.isArray(sourceClass.studentIds) &&
-    !sourceClass.studentIds.includes(studentId)
-  ) {
-    throw new Error("Student is not enrolled in the source class.");
-  }
+  let finalTargetLevel = newLevel;
 
-  if (targetClass && !getBatchAvailability(targetClass).canEnroll) {
-    throw new Error("Target class is full or unavailable for enrollment.");
-  }
+  await runTransaction(db, async (tx) => {
+    const sourceRef = doc(db, "classes", sourceClassId);
+    const targetRef = doc(db, "classes", targetClassId);
 
-  const batch = writeBatch(db);
-  const now = new Date().toISOString();
+    const [sourceSnap, targetSnap] = await Promise.all([
+      tx.get(sourceRef),
+      tx.get(targetRef),
+    ]);
 
-  // 1. Remove student from source class
-  const sourceRef = doc(db, "classes", sourceClass.id);
-  const updatedSourceStudentIds = (sourceClass.studentIds || []).filter((id) => id !== studentId);
-  const updatedSourceEnrollments = (sourceClass.enrollments || []).filter(
-    (e) => e.studentId !== studentId
-  );
-  batch.update(sourceRef, {
-    studentIds: updatedSourceStudentIds,
-    enrollments: updatedSourceEnrollments,
-    updatedAt: now,
+    const liveSource = sourceSnap.exists()
+      ? sourceSnap.data()
+      : (typeof sourceClass === "object" ? sourceClass : {});
+    const liveTarget = targetSnap.exists()
+      ? targetSnap.data()
+      : (typeof targetClass === "object" ? targetClass : {});
+
+    const sourceStudentIds = liveSource.studentIds || [];
+    if (!sourceStudentIds.includes(studentId)) {
+      throw new Error("Student is not enrolled in the source class.");
+    }
+
+    if (!getBatchAvailability(liveTarget).canEnroll) {
+      throw new Error("Target class is full or unavailable for enrollment.");
+    }
+
+    const now = new Date().toISOString();
+
+    // 1. Remove student from source class
+    const updatedSourceStudentIds = sourceStudentIds.filter((id) => id !== studentId);
+    const updatedSourceEnrollments = (liveSource.enrollments || []).filter(
+      (e) => e.studentId !== studentId
+    );
+    tx.update(sourceRef, {
+      studentIds: updatedSourceStudentIds,
+      enrollments: updatedSourceEnrollments,
+      updatedAt: now,
+    });
+
+    // 2. Add student to target class
+    const targetLevel = newLevel || liveTarget.classLevel || liveSource.classLevel || "warrior";
+    finalTargetLevel = targetLevel;
+    const enrollmentRecord = {
+      studentId,
+      dateJoined: dateTransferred,
+      level: targetLevel,
+      transferredFrom: liveSource.className || sourceClass?.className || sourceClassId,
+    };
+    if (transferReason && transferReason.trim()) {
+      enrollmentRecord.transferReason = transferReason.trim();
+    }
+
+    tx.update(targetRef, {
+      studentIds: arrayUnion(studentId),
+      enrollments: arrayUnion(enrollmentRecord),
+      updatedAt: now,
+    });
   });
-
-  // 2. Add student to target class
-  const targetRef = doc(db, "classes", targetClassId);
-  const targetLevel = newLevel || targetClass?.classLevel || sourceClass?.classLevel || "warrior";
-  const enrollmentRecord = {
-    studentId,
-    dateJoined: dateTransferred,
-    level: targetLevel,
-    transferredFrom: sourceClass.className || sourceClass.id,
-  };
-  if (transferReason && transferReason.trim()) {
-    enrollmentRecord.transferReason = transferReason.trim();
-  }
-
-  batch.update(targetRef, {
-    studentIds: arrayUnion(studentId),
-    enrollments: arrayUnion(enrollmentRecord),
-    updatedAt: now,
-  });
-
-  // Commit atomic transfer
-  await batch.commit();
 
   // 3. Sync student user currentLevel if target class level is defined
-  if (targetLevel) {
-    syncStudentsCurrentLevel([studentId], targetLevel).catch(() => {});
+  if (finalTargetLevel) {
+    syncStudentsCurrentLevel([studentId], finalTargetLevel).catch(() => {});
   }
 }

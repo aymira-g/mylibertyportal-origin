@@ -31,7 +31,7 @@ const source = {
 const target = { id: "B", classLevel: "elite" };
 
 describe("transferStudentBetweenClasses", () => {
-  it("removes the student from the source and adds them to the target in one batch", async () => {
+  it("removes the student from the source and adds them to the target in one transaction", async () => {
     await transferStudentBetweenClasses({
       sourceClass: source,
       targetClassId: "B",
@@ -43,8 +43,8 @@ describe("transferStudentBetweenClasses", () => {
 
     const src = fake.find("classes/A");
     const tgt = fake.find("classes/B");
-    expect(src.via).toBe("batch");
-    expect(tgt.via).toBe("batch");
+    expect(src.via).toBe("transaction");
+    expect(tgt.via).toBe("transaction");
     expect(src.data.studentIds).toEqual(["s2"]);
     expect(src.data.enrollments).toEqual([{ studentId: "s2", level: "warrior" }]);
     expect(tgt.data.studentIds).toEqual({ __op: "arrayUnion", items: ["s1"] });
@@ -128,6 +128,51 @@ describe("transferStudentBetweenClasses", () => {
         studentId: "s1",
       })
     ).resolves.toBeUndefined();
+  });
+
+  it("reads live source class so concurrent changes are preserved during transfer", async () => {
+    fake.seed("classes", [
+      {
+        id: "SRC-LIVE",
+        className: "Source Live",
+        classLevel: "warrior",
+        studentIds: ["s1", "s3"],
+        enrollments: [
+          { studentId: "s1", level: "warrior" },
+          { studentId: "s3", level: "warrior" },
+        ],
+      },
+      {
+        id: "TGT-LIVE",
+        className: "Target Live",
+        classLevel: "elite",
+        maxCapacity: 10,
+        studentIds: ["s9"],
+        enrollments: [{ studentId: "s9", level: "elite" }],
+      },
+    ]);
+
+    const staleSource = {
+      id: "SRC-LIVE",
+      className: "Source Live",
+      studentIds: ["s1", "s2", "s3"],
+      enrollments: [
+        { studentId: "s1", level: "warrior" },
+        { studentId: "s2", level: "warrior" },
+        { studentId: "s3", level: "warrior" },
+      ],
+    };
+
+    await transferStudentBetweenClasses({
+      sourceClass: staleSource,
+      targetClassId: "TGT-LIVE",
+      targetClass: { id: "TGT-LIVE" },
+      studentId: "s1",
+    });
+
+    const src = fake.find("classes/SRC-LIVE");
+    expect(src.data.studentIds).toEqual(["s3"]);
+    expect(src.data.enrollments).toEqual([{ studentId: "s3", level: "warrior" }]);
   });
 
   // Proposed extra safety at the database layer (the UI in TransferModal already
@@ -215,6 +260,35 @@ describe("addStudentToClass / removeStudentFromClass", () => {
   it("copes with a class that has no lists yet", async () => {
     await removeStudentFromClass({ id: "Z" }, "s1");
     expect(fake.find("classes/Z").data).toMatchObject({ studentIds: [], enrollments: [] });
+  });
+
+  it("reads live class document so concurrent student removals are preserved", async () => {
+    fake.seed("classes", [
+      {
+        id: "LIVE-1",
+        studentIds: ["s1", "s3"],
+        enrollments: [
+          { studentId: "s1", level: "warrior" },
+          { studentId: "s3", level: "warrior" },
+        ],
+      },
+    ]);
+
+    const staleCallerSnapshot = {
+      id: "LIVE-1",
+      studentIds: ["s1", "s2", "s3"],
+      enrollments: [
+        { studentId: "s1", level: "warrior" },
+        { studentId: "s2", level: "warrior" },
+        { studentId: "s3", level: "warrior" },
+      ],
+    };
+
+    await removeStudentFromClass(staleCallerSnapshot, "s1");
+
+    const op = fake.find("classes/LIVE-1");
+    expect(op.data.studentIds).toEqual(["s3"]);
+    expect(op.data.enrollments).toEqual([{ studentId: "s3", level: "warrior" }]);
   });
 });
 

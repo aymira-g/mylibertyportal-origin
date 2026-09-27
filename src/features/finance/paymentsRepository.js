@@ -2,6 +2,7 @@ import { db } from "../../firebase";
 import {
   collection,
   getDocs,
+  getDoc,
   query,
   where,
   orderBy,
@@ -119,21 +120,38 @@ export async function getPaymentsForRecordedDay(witaDate = new Date(), branchId 
 /**
  * Writes the payment record and updates the student's payment status
  * together, atomically — either both land or neither does.
+ *
+ * Supports an optional idempotencyKey (or paymentRecord.idempotencyKey)
+ * to ensure that network retries or rapid double-submissions return the
+ * existing record without creating duplicate payment documents or double-charging.
  */
-export async function recordPayment(studentId, paymentRecord) {
+export async function recordPayment(studentId, paymentRecord, idempotencyKey = null) {
   const validStudentId = studentIdSchema.parse(studentId);
   const rawBranch = paymentRecord.branch || paymentRecord.branchId || DEFAULT_BRANCH_ID;
   const branchId = branchToId(rawBranch);
   const branch = idToBranch(branchId);
 
+  const effectiveIdempotencyKey = idempotencyKey || paymentRecord.idempotencyKey || null;
+
   const enrichedRecord = {
     ...paymentRecord,
     branch,
     branchId,
+    ...(effectiveIdempotencyKey ? { idempotencyKey: effectiveIdempotencyKey } : {}),
   };
 
   const validatedRecord = paymentRecordSchema.parse(enrichedRecord);
-  const paymentRef = doc(collection(db, "payments"));
+  const paymentRef = effectiveIdempotencyKey
+    ? doc(db, "payments", effectiveIdempotencyKey)
+    : doc(collection(db, "payments"));
+
+  if (effectiveIdempotencyKey) {
+    const existingSnap = await getDoc(paymentRef);
+    if (existingSnap.exists()) {
+      return { id: existingSnap.id, ...existingSnap.data(), _idempotentReplay: true };
+    }
+  }
+
   const batch = writeBatch(db);
 
   const recordedDate = paymentRecord.recordedAt ? new Date(paymentRecord.recordedAt) : new Date();

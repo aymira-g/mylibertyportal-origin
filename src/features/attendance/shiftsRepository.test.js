@@ -499,6 +499,16 @@ describe("applyApprovedShiftCorrection", () => {
       before: { autoClosed: true },
       after: { clockOut: "2026-09-20T17:30:00.000Z" },
     });
+
+    const approvalUpdate = fake.find("approvals/appr-9");
+    expect(approvalUpdate).toMatchObject({
+      kind: "update",
+      via: "batch",
+      data: {
+        applied: true,
+        appliedByUid: "fo-1",
+      },
+    });
   });
 
   it("rejects an approval envelope missing its shift payload", async () => {
@@ -508,6 +518,22 @@ describe("applyApprovedShiftCorrection", () => {
         actor: { uid: "fo-1", displayName: "Budi FO" },
       })
     ).rejects.toThrow("missing its shift payload");
+
+    expect(fake.ops).toHaveLength(0);
+  });
+
+  it("rejects an approval envelope that has already been applied", async () => {
+    await expect(
+      applyApprovedShiftCorrection({
+        approval: {
+          id: "appr-11",
+          actionId: "STAFF_SHIFT_SELF_CORRECTION",
+          applied: true,
+          payload: { shiftId: "shift-11", afterData: { clockIn: "2026-09-20T08:00:00Z" } },
+        },
+        actor: { uid: "fo-1", displayName: "Budi FO" },
+      })
+    ).rejects.toThrow("already been applied");
 
     expect(fake.ops).toHaveLength(0);
   });

@@ -187,6 +187,7 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
         method,
         notes: notes.trim(),
         receiptNumber: receiptNo,
+        idempotencyKey: `idem_${student.id}_${receiptNo}`,
         recordedAt: nowISO,
         recordedBy: auth.currentUser?.email || "Staff",
       };

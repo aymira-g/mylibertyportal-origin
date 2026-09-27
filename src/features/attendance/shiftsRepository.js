@@ -456,20 +456,33 @@ export async function adjustShiftWithAudit({
     createdAt: serverTimestamp(),
   });
 
+  if (appliedFromApproval) {
+    const approvalRef = doc(db, "approvals", appliedFromApproval);
+    batch.update(approvalRef, {
+      applied: true,
+      appliedAt: serverTimestamp(),
+      appliedByUid: actorId,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
   await batch.commit();
 }
 
 /**
  * Applies an already-approved STAFF_SHIFT_SELF_CORRECTION approval envelope
  * to its target shift, recording an immutable audit event. Firestore rules
- * reject the write unless the referenced approval doc is approved, so this
- * can safely be invoked by Front Office / Manager approvers.
+ * reject the write unless the referenced approval doc is approved and not already
+ * applied, so this can safely be invoked by Front Office / Manager approvers.
  */
 export async function applyApprovedShiftCorrection({ approval, actor = null }) {
   const shiftId = approval?.payload?.shiftId || approval?.payload?.beforeShift?.id;
   const afterData = approval?.payload?.afterData;
   if (!approval?.id || !shiftId || !afterData?.clockIn) {
     throw new Error("Approved correction is missing its shift payload.");
+  }
+  if (approval.applied || approval.status === "applied") {
+    throw new Error("Approved correction has already been applied.");
   }
   const currentUser = actor || auth.currentUser;
   await adjustShiftWithAudit({

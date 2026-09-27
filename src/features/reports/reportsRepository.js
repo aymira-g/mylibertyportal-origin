@@ -1,6 +1,6 @@
 import { auth, db } from "../../firebase";
 import { collection, getDocs, getDoc, doc, query, where } from "firebase/firestore";
-import { normalizeBranch } from "../../constants/branches.js";
+import { normalizeBranch, branchToId } from "../../constants/branches.js";
 import { isStaffRole } from "../shared/roles.js";
 
 /**
@@ -8,15 +8,16 @@ import { isStaffRole } from "../shared/roles.js";
  */
 
 export async function fetchStaffShifts(isAdminView, since = null, branchId = null) {
+  const normalizedBranchId = branchId ? branchToId(branchId) : null;
   const shiftsRef = collection(db, "shifts");
   const filters = [];
   if (!isAdminView) filters.push(where("userId", "==", auth.currentUser?.uid));
-  if (branchId) filters.push(where("branchId", "==", branchId));
+  if (normalizedBranchId) filters.push(where("branchId", "==", normalizedBranchId));
   if (since) filters.push(where("clockIn", ">=", since));
 
   const openFilters = [where("clockOut", "==", null)];
   if (!isAdminView) openFilters.push(where("userId", "==", auth.currentUser?.uid));
-  if (branchId) openFilters.push(where("branchId", "==", branchId));
+  if (normalizedBranchId) openFilters.push(where("branchId", "==", normalizedBranchId));
 
   const [shiftsSnap, openSnap] = await Promise.all([
     getDocs(filters.length ? query(shiftsRef, ...filters) : shiftsRef),
@@ -30,8 +31,8 @@ export async function fetchStaffShifts(isAdminView, since = null, branchId = nul
   const existingUsersMap = new Map();
 
   if (isAdminView) {
-    const usersQuery = branchId
-      ? query(collection(db, "users"), where("branchId", "==", branchId))
+    const usersQuery = normalizedBranchId
+      ? query(collection(db, "users"), where("branchId", "==", normalizedBranchId))
       : collection(db, "users");
     const usersSnap = await getDocs(usersQuery);
     usersSnap.docs.forEach((u) => existingUsersMap.set(u.id, { id: u.id, ...u.data() }));
@@ -44,7 +45,7 @@ export async function fetchStaffShifts(isAdminView, since = null, branchId = nul
   let leaves = [];
   try {
     const leaveQuery = isAdminView
-      ? (branchId ? query(collection(db, "staffLeave"), where("branchId", "==", branchId)) : collection(db, "staffLeave"))
+      ? (normalizedBranchId ? query(collection(db, "staffLeave"), where("branchId", "==", normalizedBranchId)) : collection(db, "staffLeave"))
       : query(collection(db, "staffLeave"), where("userId", "==", auth.currentUser?.uid));
     const leaveSnap = await getDocs(leaveQuery);
     leaves = leaveSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -75,23 +76,34 @@ export async function fetchStaffShifts(isAdminView, since = null, branchId = nul
 /**
  * @returns {Promise<{ scans: any[], classes: any[], students: any[] }>}
  */
-export async function fetchTodayScansData(sinceWitaIso, isAdminView, isFrontOffice) {
-  const attendanceQuery = query(
-    collection(db, "attendance"),
-    where("timestamp", ">=", sinceWitaIso)
-  );
+export async function fetchTodayScansData(sinceWitaIso, isAdminView, isFrontOffice, branchId = null) {
+  const normalizedBranchId = branchId ? branchToId(branchId) : null;
 
-  const classesQuery =
-    isAdminView || isFrontOffice
-      ? collection(db, "classes")
-      : query(collection(db, "classes"), where("instructorId", "==", auth.currentUser?.uid));
+  const attendanceFilters = [where("timestamp", ">=", sinceWitaIso)];
+  if (normalizedBranchId) attendanceFilters.push(where("branchId", "==", normalizedBranchId));
+  const attendanceQuery = query(collection(db, "attendance"), ...attendanceFilters);
 
-  const usersQuery = isAdminView
-    ? collection(db, "users")
-    : query(
-        collection(db, "users"),
-        where("role", "in", isFrontOffice ? ["student", "instructor"] : ["student"])
-      );
+  const classesFilters = [];
+  if (!isAdminView && !isFrontOffice) {
+    classesFilters.push(where("instructorId", "==", auth.currentUser?.uid));
+  }
+  if (normalizedBranchId) {
+    classesFilters.push(where("branchId", "==", normalizedBranchId));
+  }
+  const classesQuery = classesFilters.length
+    ? query(collection(db, "classes"), ...classesFilters)
+    : collection(db, "classes");
+
+  const usersFilters = [];
+  if (!isAdminView) {
+    usersFilters.push(where("role", "in", isFrontOffice ? ["student", "instructor"] : ["student"]));
+  }
+  if (normalizedBranchId) {
+    usersFilters.push(where("branchId", "==", normalizedBranchId));
+  }
+  const usersQuery = usersFilters.length
+    ? query(collection(db, "users"), ...usersFilters)
+    : collection(db, "users");
 
   const [attendanceSnap, classesSnap, usersSnap] = await Promise.all([
     getDocs(attendanceQuery),
@@ -111,33 +123,54 @@ export async function fetchTodayScansData(sinceWitaIso, isAdminView, isFrontOffi
 /**
  * @returns {Promise<{ users: any[], classes: any[], attendance: any[], progress: any[] }>}
  */
-export async function fetchStudentProgressData(isAdminView, isFrontOffice, since = null) {
-  const classesQuery =
-    isAdminView || isFrontOffice
-      ? collection(db, "classes")
-      : query(collection(db, "classes"), where("instructorId", "==", auth.currentUser?.uid));
-  const progressQuery =
-    isAdminView || isFrontOffice
-      ? collection(db, "progressReports")
-      : query(
-          collection(db, "progressReports"),
-          where("instructorId", "==", auth.currentUser?.uid)
-        );
-  const usersQuery = isAdminView
-    ? collection(db, "users")
-    : query(
-        collection(db, "users"),
-        where("role", "in", isFrontOffice ? ["student", "instructor"] : ["student"])
-      );
+export async function fetchStudentProgressData(isAdminView, isFrontOffice, since = null, branchId = null) {
+  const normalizedBranchId = branchId ? branchToId(branchId) : null;
+
+  const classesFilters = [];
+  if (!isAdminView && !isFrontOffice) {
+    classesFilters.push(where("instructorId", "==", auth.currentUser?.uid));
+  }
+  if (normalizedBranchId) {
+    classesFilters.push(where("branchId", "==", normalizedBranchId));
+  }
+  const classesQuery = classesFilters.length
+    ? query(collection(db, "classes"), ...classesFilters)
+    : collection(db, "classes");
+
+  const progressFilters = [];
+  if (!isAdminView && !isFrontOffice) {
+    progressFilters.push(where("instructorId", "==", auth.currentUser?.uid));
+  }
+  const progressQuery = progressFilters.length
+    ? query(collection(db, "progressReports"), ...progressFilters)
+    : collection(db, "progressReports");
+
+  const usersFilters = [];
+  if (!isAdminView) {
+    usersFilters.push(where("role", "in", isFrontOffice ? ["student", "instructor"] : ["student"]));
+  }
+  if (normalizedBranchId) {
+    usersFilters.push(where("branchId", "==", normalizedBranchId));
+  }
+  const usersQuery = usersFilters.length
+    ? query(collection(db, "users"), ...usersFilters)
+    : collection(db, "users");
+
+  const attendanceFilters = [];
+  if (since) {
+    attendanceFilters.push(where("timestamp", ">=", since));
+  }
+  if (normalizedBranchId) {
+    attendanceFilters.push(where("branchId", "==", normalizedBranchId));
+  }
+  const attendanceQuery = attendanceFilters.length
+    ? query(collection(db, "attendance"), ...attendanceFilters)
+    : collection(db, "attendance");
 
   const [usersSnap, classesSnap, attendanceSnap, progressSnap] = await Promise.all([
     getDocs(usersQuery),
     getDocs(classesQuery),
-    getDocs(
-      since
-        ? query(collection(db, "attendance"), where("timestamp", ">=", since))
-        : collection(db, "attendance")
-    ),
+    getDocs(attendanceQuery),
     getDocs(progressQuery),
   ]);
 
@@ -149,14 +182,31 @@ export async function fetchStudentProgressData(isAdminView, isFrontOffice, since
   };
 }
 
-export async function fetchAdmissionsReportData(since = null) {
-  const appQuery = since
-    ? query(collection(db, "applications"), where("submittedAt", ">=", since))
+export async function fetchAdmissionsReportData(since = null, branchId = null) {
+  const normalizedBranchId = branchId ? branchToId(branchId) : null;
+
+  const appFilters = [];
+  if (since) {
+    appFilters.push(where("submittedAt", ">=", since));
+  }
+  if (normalizedBranchId) {
+    appFilters.push(where("branchId", "==", normalizedBranchId));
+  }
+  const appQuery = appFilters.length
+    ? query(collection(db, "applications"), ...appFilters)
     : collection(db, "applications");
+
+  const classFilters = [];
+  if (normalizedBranchId) {
+    classFilters.push(where("branchId", "==", normalizedBranchId));
+  }
+  const classesQuery = classFilters.length
+    ? query(collection(db, "classes"), ...classFilters)
+    : collection(db, "classes");
 
   const [appsSnap, classesSnap] = await Promise.all([
     getDocs(appQuery),
-    getDocs(collection(db, "classes")),
+    getDocs(classesQuery),
   ]);
 
   return {
@@ -165,13 +215,30 @@ export async function fetchAdmissionsReportData(since = null) {
   };
 }
 
-export async function fetchInstructorAnalyticsData(isAdminView, uid) {
-  const classesQuery = isAdminView
-    ? collection(db, "classes")
-    : query(collection(db, "classes"), where("instructorId", "==", uid));
-  const shiftsQuery = isAdminView
-    ? collection(db, "shifts")
-    : query(collection(db, "shifts"), where("userId", "==", uid));
+export async function fetchInstructorAnalyticsData(isAdminView, uid, branchId = null) {
+  const normalizedBranchId = branchId ? branchToId(branchId) : null;
+
+  const classesFilters = [];
+  if (!isAdminView) {
+    classesFilters.push(where("instructorId", "==", uid));
+  }
+  if (normalizedBranchId) {
+    classesFilters.push(where("branchId", "==", normalizedBranchId));
+  }
+  const classesQuery = classesFilters.length
+    ? query(collection(db, "classes"), ...classesFilters)
+    : collection(db, "classes");
+
+  const shiftsFilters = [];
+  if (!isAdminView) {
+    shiftsFilters.push(where("userId", "==", uid));
+  }
+  if (normalizedBranchId) {
+    shiftsFilters.push(where("branchId", "==", normalizedBranchId));
+  }
+  const shiftsQuery = shiftsFilters.length
+    ? query(collection(db, "shifts"), ...shiftsFilters)
+    : collection(db, "shifts");
 
   const [classesSnap, shiftsSnap] = await Promise.all([
     getDocs(classesQuery),
@@ -180,8 +247,12 @@ export async function fetchInstructorAnalyticsData(isAdminView, uid) {
 
   let instructors;
   if (isAdminView) {
+    const userFilters = [where("role", "==", "instructor")];
+    if (normalizedBranchId) {
+      userFilters.push(where("branchId", "==", normalizedBranchId));
+    }
     const usersSnap = await getDocs(
-      query(collection(db, "users"), where("role", "==", "instructor"))
+      query(collection(db, "users"), ...userFilters)
     );
     instructors = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
   } else {

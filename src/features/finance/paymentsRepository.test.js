@@ -81,6 +81,47 @@ describe("recordPayment", () => {
     await recordPayment("s1", { ...record, recordedAt: "2026-09-21T20:00:00.000Z" }); // 04:00 on 22 Sep WITA
     expect(fake.find("users/s1").data.lastPaymentDate).toBe("2026-09-22");
   });
+
+  it("writes with deterministic document ID when idempotencyKey is supplied", async () => {
+    const result = await recordPayment("s1", {
+      ...record,
+      idempotencyKey: "idem_ML-998877",
+    });
+
+    expect(result.id).toBe("idem_ML-998877");
+    const payment = fake.find("payments/idem_ML-998877");
+    expect(payment).toBeDefined();
+    expect(payment.data.idempotencyKey).toBe("idem_ML-998877");
+  });
+
+  it("returns existing payment on duplicate/retry submission without creating duplicate docs", async () => {
+    fake.seed("payments", [
+      {
+        id: "idem_ML-112233",
+        studentId: "s1",
+        amount: 500000,
+        period: "September 2026",
+        method: "QRIS",
+        idempotencyKey: "idem_ML-112233",
+      },
+    ]);
+
+    const result = await recordPayment(
+      "s1",
+      {
+        studentId: "s1",
+        amount: 500000,
+        period: "September 2026",
+        method: "QRIS",
+      },
+      "idem_ML-112233"
+    );
+
+    expect(result.id).toBe("idem_ML-112233");
+    expect(result._idempotentReplay).toBe(true);
+    // Should NOT have committed a new payment to fake.ops
+    expect(fake.find("payments/idem_ML-112233")).toBeUndefined();
+  });
 });
 
 describe("markPaymentPending", () => {

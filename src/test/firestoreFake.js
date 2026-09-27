@@ -145,9 +145,10 @@ export const firestoreModule = {
     runQuery(q)
   ),
   getDoc: vi.fn(async (ref) => snapshotOf(ref.path)),
-  addDoc: vi.fn((col, data) =>
-    record("add", refOf(`${col.path}/${newId()}`), data, null, "direct")
-  ),
+  addDoc: vi.fn((col, data) => {
+    const ref = refOf(`${col.path}/${newId()}`);
+    return record("add", ref, data, null, "direct").then(() => ref);
+  }),
   setDoc: vi.fn((ref, data, opts) => record("set", ref, data, opts, "direct")),
   updateDoc: vi.fn((ref, data) => record("update", ref, data, null, "direct")),
   deleteDoc: vi.fn((ref) => record("delete", ref, null, null, "direct")),
@@ -190,6 +191,11 @@ export const firestoreModule = {
         void pending.push({ kind: "update", path: ref.path, data, opts: null, via: "transaction" }),
     };
     const result = await fn(tx); // if fn throws, nothing below runs -> nothing is written
+    if (fake.failCommit) {
+      const e = fake.failCommit;
+      fake.failCommit = null;
+      throw e;
+    }
     fake.ops.push(...pending);
     return result;
   }),

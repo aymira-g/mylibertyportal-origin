@@ -5,7 +5,7 @@ import { getTodayWitaWeekday } from "../../../utils/dateWita";
 import { getTodaysClasses } from "../../attendance";
 import { exportTableCSV, useToast } from "../../shared";
 import { Clock, CheckCircle2, XCircle, Search, RefreshCw, Calendar } from "lucide-react";
-import { normalizeBranch, matchesBranchFilter } from "../../../constants/branches";
+import { normalizeBranch, matchesBranchFilter, branchToId } from "../../../constants/branches";
 import { matchesDivisionFilter, divisionOfProgram } from "../../../constants/divisions";
 
 const TodayTab = forwardRef(
@@ -26,7 +26,8 @@ const TodayTab = forwardRef(
       setTodayLoading(true);
       try {
         const startIso = getStartOfTodayWitaIso();
-        const data = await fetchTodayScansData(startIso, isAdminView, isFrontOffice);
+        const branchId = branchFilter && branchFilter !== "all" ? branchToId(branchFilter) : null;
+        const data = await fetchTodayScansData(startIso, isAdminView, isFrontOffice, branchId);
         setTodayScans(data.scans || []);
         setTodayClasses(uniqueClasses(data.classes || []));
         setAllStudentsList(data.students || []);
@@ -36,7 +37,7 @@ const TodayTab = forwardRef(
       } finally {
         setTodayLoading(false);
       }
-    }, [isAdminView, isFrontOffice, toast]);
+    }, [isAdminView, isFrontOffice, branchFilter, toast]);
 
     useEffect(() => {
       fetchTodayScans();

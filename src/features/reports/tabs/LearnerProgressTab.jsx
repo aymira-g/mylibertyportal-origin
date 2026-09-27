@@ -3,7 +3,7 @@ import { fetchStudentProgressData } from "../reportsRepository";
 import { getTodayWitaString, rangeToSince, uniqueClasses } from "../reportsUtils";
 import { isStudentAtRisk, AT_RISK_LABEL } from "../atRisk";
 import { exportTableCSV } from "../../shared";
-import { normalizeBranch, matchesBranchFilter } from "../../../constants/branches";
+import { normalizeBranch, matchesBranchFilter, branchToId } from "../../../constants/branches";
 import {
   GraduationCap,
   Search,
@@ -32,12 +32,18 @@ const LearnerProgressTab = forwardRef(
     const fetchStudentProgress = useCallback(async () => {
       setStudentsLoading(true);
       try {
+        const branchId = branchFilter && branchFilter !== "all" ? branchToId(branchFilter) : null;
         const {
           users,
           classes: rawClasses,
           attendance,
           progress,
-        } = await fetchStudentProgressData(isAdminView, isFrontOffice, rangeToSince(rangeDays));
+        } = await fetchStudentProgressData(
+          isAdminView,
+          isFrontOffice,
+          rangeToSince(rangeDays),
+          branchId
+        );
 
         const usersById = {};
         users.forEach((u) => {
@@ -133,7 +139,7 @@ const LearnerProgressTab = forwardRef(
       } finally {
         setStudentsLoading(false);
       }
-    }, [isAdminView, isFrontOffice, selectedClassId, rangeDays]);
+    }, [isAdminView, isFrontOffice, selectedClassId, rangeDays, branchFilter]);
 
     useEffect(() => {
       fetchStudentProgress();

@@ -11,9 +11,9 @@ export const DEFAULT_WHATSAPP_NUMBER =
 
 export const BRANCH_WHATSAPP_NUMBERS = Object.freeze({
   kota_gorontalo: "628114382345",
-  bone_bolango: "628114382345",
-  pohuwato: "628114382345",
-  limboto: "628114382345",
+  bone_bolango: "6281244445556",
+  pohuwato: "6281244445557",
+  limboto: "6281244445558",
 });
 
 /**

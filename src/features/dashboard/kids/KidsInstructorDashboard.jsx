@@ -14,26 +14,22 @@ import {
 } from "../instructor";
 import { matchesDivisionFilter, divisionOfProgram } from "../../../constants/divisions";
 import { DEFAULT_BRANCH, branchToId } from "../../../constants/branches";
+import { getUrlAction, clearUrlAction } from "../../../utils/urlAction.js";
 
 export default function KidsInstructorDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const isClassPhotoAction = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return new URLSearchParams(window.location.search).get("action") === "class-photo";
-    } catch {
-      return false;
-    }
+    return getUrlAction() === "class-photo";
   }, []);
   const [kioskOpen, setKioskOpen] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      const action = new URLSearchParams(window.location.search).get("action");
-      return action === "attendance" || action === "class-photo";
-    } catch {
-      return false;
-    }
+    const action = getUrlAction();
+    return action === "attendance" || action === "class-photo";
   });
+
+  useEffect(() => {
+    clearUrlAction();
+  }, []);
+
   const [selectedClassFilter, setSelectedClassFilter] = useState("all");
 
   const {

@@ -5,6 +5,7 @@ import {
   clockOutShiftWithCashReconciliation,
 } from "../../attendance/shiftsRepository";
 import { useToast } from "../../shared";
+import { checkNetworkReachability } from "../../../utils/networkReachability";
 import {
   Wallet,
   AlertTriangle,
@@ -68,6 +69,15 @@ export default function ShiftReconciliationModal({
 
     if (exceedsThreshold && !notes.trim()) {
       toast("Please provide an explanatory note for the discrepancy.", "warning");
+      return;
+    }
+
+    const isReachable = await checkNetworkReachability();
+    if (!isReachable) {
+      toast(
+        "Cannot close shift: connection is offline or unstable. Please check your internet connection.",
+        "error"
+      );
       return;
     }
 

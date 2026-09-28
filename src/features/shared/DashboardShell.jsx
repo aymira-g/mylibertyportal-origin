@@ -20,6 +20,7 @@ export default function DashboardShell({
   onTabChange = null,
   title = null,
   extraSidebarContent = null,
+  primaryTabIds = null,
 }) {
   const [internalActiveTab, setInternalActiveTab] = useState(defaultTab || tabs[0]?.id);
   const isControlled = controlledActiveTab !== undefined;
@@ -38,6 +39,7 @@ export default function DashboardShell({
         onTabChange={setActiveTab}
         title={title}
         extraSidebarContent={extraSidebarContent}
+        primaryTabIds={primaryTabIds}
       />
 
       {/* Desktop & Tablet: Grouped Sidebar with Refined Lucide Icons & Active Brand Pill */}
@@ -52,7 +54,7 @@ export default function DashboardShell({
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   <h2 className="text-base font-black text-white tracking-tight">{title}</h2>
                 </div>
-                <p className="text-[10px] font-bold text-indigo-200/80 uppercase tracking-wider mt-0.5 pl-4">
+                <p className="text-[11px] font-bold text-indigo-200/90 uppercase tracking-wider mt-0.5 pl-4">
                   Workspace
                 </p>
               </div>
@@ -68,7 +70,7 @@ export default function DashboardShell({
               <div key={sectionName} className="space-y-1">
                 {sectionName !== "Main" && (
                   <div className="px-2.5 pt-2 pb-1">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-indigo-300/80">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-200/90">
                       {sectionName}
                     </span>
                   </div>
@@ -84,7 +86,7 @@ export default function DashboardShell({
                         key={tab.id}
                         type="button"
                         onClick={() => setActiveTab(tab.id)}
-                        className={`group relative flex items-center justify-between w-full px-2.5 py-2 rounded-xl text-left font-bold text-xs transition-all duration-150 cursor-pointer select-none ${
+                        className={`group relative flex items-center justify-between w-full px-3 py-2.5 rounded-xl text-left font-bold text-xs transition-all duration-150 cursor-pointer select-none ${
                           isActive
                             ? "bg-white/15 text-white shadow-xs ring-1 ring-white/25 backdrop-blur-xs font-black"
                             : "text-indigo-100/80 hover:text-white hover:bg-white/10"
@@ -100,13 +102,13 @@ export default function DashboardShell({
                           >
                             <Icon className="w-4 h-4" />
                           </div>
-                          <span className="truncate">{label}</span>
+                          <span className="truncate text-xs font-bold leading-normal">{label}</span>
                         </div>
 
                         {/* Attention Badge or Status Dot */}
                         {tab.badge !== undefined && tab.badge !== null && (
                           <span
-                            className={`px-1.5 py-0.5 text-[10px] font-black rounded-full transition-colors shrink-0 ml-1.5 ${
+                            className={`px-1.5 py-0.5 text-[10px] font-extrabold rounded-full transition-colors shrink-0 ml-1.5 ${
                               isActive
                                 ? "bg-white text-[#1a3a8f]"
                                 : "bg-white/15 text-indigo-100 border border-white/20"

@@ -2,6 +2,7 @@ import { db, auth } from "../../../firebase";
 import {
   collection,
   getDocs,
+  getDoc,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -18,6 +19,7 @@ import {
   saveLocalInquiry,
   updateLocalInquiry,
   deleteLocalInquiry,
+  getLocalInquiries,
 } from "./walkInUtils";
 
 /**
@@ -154,7 +156,7 @@ export async function addPlacementTestToInquiry(inquiryId, testData) {
   }
 
   if (inquiryId.startsWith("local-")) {
-    const localInquiries = (await import("./walkInUtils")).getLocalInquiries();
+    const localInquiries = getLocalInquiries();
     const existing = localInquiries.find((i) => i.id === inquiryId);
     const existingTests = Array.isArray(existing?.placementTests) ? existing.placementTests : [];
     updateData.placementTests = [...existingTests, testRecord];
@@ -164,7 +166,7 @@ export async function addPlacementTestToInquiry(inquiryId, testData) {
 
   try {
     const inqRef = doc(db, "deskInquiries", inquiryId);
-    const inqSnap = await (await import("firebase/firestore")).getDoc(inqRef);
+    const inqSnap = await getDoc(inqRef);
     const existingData = inqSnap.exists() ? inqSnap.data() : {};
     const existingTests = Array.isArray(existingData.placementTests) ? existingData.placementTests : [];
     const mergedTests = [...existingTests, testRecord];
@@ -178,7 +180,7 @@ export async function addPlacementTestToInquiry(inquiryId, testData) {
     return { id: inquiryId, ...finalUpdate };
   } catch (err) {
     if (isPermissionError(err)) {
-      const localInquiries = (await import("./walkInUtils")).getLocalInquiries();
+      const localInquiries = getLocalInquiries();
       const existing = localInquiries.find((i) => i.id === inquiryId);
       const existingTests = Array.isArray(existing?.placementTests) ? existing.placementTests : [];
       updateData.placementTests = [...existingTests, testRecord];

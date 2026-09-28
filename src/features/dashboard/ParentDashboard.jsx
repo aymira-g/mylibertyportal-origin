@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useContext } from "react";
 import { auth } from "../../firebase";
 import {
   getAuthenticatedParentBundle,
@@ -7,7 +7,9 @@ import {
 } from "../students/parentPortalRepository";
 import LevelBadge from "../shared/LevelBadge";
 import Badge from "../shared/Badge";
+import { ToastContext } from "../shared/useToast";
 import { buildFrontDeskWhatsAppUrl } from "../../constants/contact";
+import { getUrlAction, clearUrlAction } from "../../utils/urlAction";
 import {
   Users,
   Calendar,
@@ -21,7 +23,18 @@ import {
 } from "lucide-react";
 
 export default function ParentDashboard({ user = null }) {
+  const toast = useContext(ToastContext);
   const currentUid = user?.uid || auth.currentUser?.uid;
+
+  useEffect(() => {
+    const action = getUrlAction();
+    if (action) {
+      if (toast) {
+        toast(`Action shortcut "${action}" is not supported in Parent Portal.`, "info");
+      }
+      clearUrlAction();
+    }
+  }, [toast]);
 
   const [parentProfile, setParentProfile] = useState(null);
   const [children, setChildren] = useState([]);

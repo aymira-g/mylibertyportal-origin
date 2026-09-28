@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { auth } from "../../../firebase";
 import { useDashboardData } from "../useDashboardData";
 import { AIAssistant, DashboardShell, WelcomeBanner, useToast } from "../../shared";
@@ -33,19 +33,19 @@ import {
   CreditCard,
   UserCheck,
 } from "lucide-react";
+import { getUrlAction, clearUrlAction } from "../../../utils/urlAction.js";
 
 export default function KidsFrontOfficeDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [waPhone, setWaPhone] = useState("");
   const [paymentModalStudent, setPaymentModalStudent] = useState(null);
   const [kioskOpen, setKioskOpen] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return new URLSearchParams(window.location.search).get("action") === "attendance";
-    } catch {
-      return false;
-    }
+    return getUrlAction() === "attendance";
   });
+
+  useEffect(() => {
+    clearUrlAction();
+  }, []);
   const toast = useToast();
 
   const {

@@ -9,6 +9,7 @@ import {
 import { soundEffects } from "./soundEffects";
 import { triggerHaptic } from "../shared";
 import { handleKioskScan } from "./kioskScanProcessor";
+import { checkNetworkReachability } from "../../utils/networkReachability";
 
 export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}) {
   const [kioskScanning, setKioskScanning] = useState(false);
@@ -64,11 +65,12 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
 
     if (!isEvent && !selectedClass) return;
 
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
+    const isReachable = await checkNetworkReachability();
+    if (!isReachable) {
       showStatus(
         "Kiosk Offline",
         "error",
-        "Cannot clock in while offline. Please reconnect to branch Wi-Fi.",
+        "Cannot clock in: connection is offline or unstable. Please reconnect to branch Wi-Fi.",
         pendingClockIn?.userData?.displayName || ""
       );
       return;
@@ -212,7 +214,8 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
       async (uid) => {
         scanner.clear();
         setKioskScanning(false);
-        if (typeof navigator !== "undefined" && !navigator.onLine) {
+        const isReachable = await checkNetworkReachability();
+        if (!isReachable) {
           showStatus(
             "Kiosk Offline",
             "error",

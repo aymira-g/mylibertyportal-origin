@@ -8,6 +8,7 @@ import { applyApprovedShiftCorrection } from "../attendance/shiftsRepository";
 import { useToast } from "./useToast";
 import { useConfirm } from "./useConfirm";
 import { idToBranch } from "../../constants/branches";
+import { checkNetworkReachability } from "../../utils/networkReachability";
 import {
   CheckCircle2,
   XCircle,
@@ -59,6 +60,15 @@ export function ApprovalInbox({
 
     if (!isConfirmed) return;
 
+    const isReachable = await checkNetworkReachability();
+    if (!isReachable) {
+      toast(
+        "Cannot authorize action: connection is offline or unstable. Please check your internet connection.",
+        "error"
+      );
+      return;
+    }
+
     setProcessingId(approval.id);
     try {
       await approveApprovalRequest(approval.id);
@@ -93,6 +103,15 @@ export function ApprovalInbox({
     });
 
     if (!isConfirmed) return;
+
+    const isReachable = await checkNetworkReachability();
+    if (!isReachable) {
+      toast(
+        "Cannot reject request: connection is offline or unstable. Please check your internet connection.",
+        "error"
+      );
+      return;
+    }
 
     setProcessingId(approval.id);
     try {

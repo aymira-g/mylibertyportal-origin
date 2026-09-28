@@ -17,10 +17,25 @@ import { reportError } from "../../utils/reportError";
 import { WalkInInquiryTab } from "./frontoffice";
 import { DEFAULT_BRANCH, normalizeBranch, branchToId, matchesBranchFilter } from "../../constants/branches";
 import { getPaymentsForRecordedDay } from "../finance/paymentsRepository";
+import { getUrlAction, clearUrlAction } from "../../utils/urlAction";
 
 export default function ManagerDashboard() {
   const toast = useToast();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() => {
+    const action = getUrlAction();
+    if (action === "attendance") return "classes";
+    return "overview";
+  });
+
+  useEffect(() => {
+    const action = getUrlAction();
+    if (action === "attendance") {
+      toast("Navigated to Classes & Coverage for attendance monitoring.", "info");
+    } else if (action && action !== "overview") {
+      toast(`Action shortcut "${action}" is not supported for Manager view.`, "info");
+    }
+    clearUrlAction();
+  }, [toast]);
 
   const [users, setUsers] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -544,6 +559,7 @@ export default function ManagerDashboard() {
       activeTab={activeTab}
       onTabChange={setActiveTab}
       title="Manager Portal"
+      primaryTabIds={["overview", "approvals", "classes", "reports"]}
     />
   );
 }

@@ -1,3 +1,4 @@
+/* global process */
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -84,7 +85,7 @@ export default defineConfig({
         ],
       },
       devOptions: {
-        enabled: true,
+        enabled: process.env.VITE_SW_DEV === "true",
         type: "module",
         suppressWarnings: true,
       },

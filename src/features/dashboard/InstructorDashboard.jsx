@@ -14,35 +14,26 @@ import {
   uniqueClasses,
 } from "./instructor";
 import { branchToId } from "../../constants/branches.js";
+import { getUrlAction, clearUrlAction } from "../../utils/urlAction.js";
 
 export default function InstructorDashboard({ role = "", branch = "" }) {
   const [activeTab, setActiveTab] = useState(() => {
-    if (typeof window === "undefined") return "overview";
-    try {
-      const action = new URLSearchParams(window.location.search).get("action");
-      if (action === "attendance") return "attendance";
-      return "overview";
-    } catch {
-      return "overview";
-    }
+    const action = getUrlAction();
+    if (action === "attendance") return "attendance";
+    return "overview";
   });
   const isClassPhotoAction = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return new URLSearchParams(window.location.search).get("action") === "class-photo";
-    } catch {
-      return false;
-    }
+    return getUrlAction() === "class-photo";
   }, []);
   const [kioskOpen, setKioskOpen] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      const action = new URLSearchParams(window.location.search).get("action");
-      return action === "kiosk" || action === "class-photo";
-    } catch {
-      return false;
-    }
+    const action = getUrlAction();
+    return action === "kiosk" || action === "class-photo" || action === "attendance";
   });
+
+  useEffect(() => {
+    clearUrlAction();
+  }, []);
+
   const [selectedClassFilter, setSelectedClassFilter] = useState("all");
 
   const {
@@ -196,6 +187,7 @@ export default function InstructorDashboard({ role = "", branch = "" }) {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         title="Instructor Portal"
+        primaryTabIds={["overview", "attendance", "classes", "progress"]}
         extraSidebarContent={
           <KioskSidebarButton onClick={() => setKioskOpen(true)} label="Attendance & Kiosk" />
         }

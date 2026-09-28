@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast, WelcomeBanner } from "../shared";
 import {
   CheckSquare,
@@ -10,6 +10,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { useStaffDirectives } from "../staff";
+import { getUrlAction, clearUrlAction } from "../../utils/urlAction";
 
 function formatDueDate(dueDate) {
   if (!dueDate) return null;
@@ -37,6 +38,14 @@ export default function OfficeBoyDashboard() {
   const toast = useToast();
   const [showCompleted, setShowCompleted] = useState(false);
   const [processingId, setProcessingId] = useState(null);
+
+  useEffect(() => {
+    const action = getUrlAction();
+    if (action) {
+      toast(`Action shortcut "${action}" is not supported for General Affairs view.`, "info");
+      clearUrlAction();
+    }
+  }, [toast]);
 
   const {
     activeDirectives: tasks,

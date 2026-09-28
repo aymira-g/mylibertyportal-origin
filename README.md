@@ -146,6 +146,17 @@ Run end-to-end tests when configured:
 npm run test:e2e
 ```
 
+### Testing the PWA Locally
+
+The Service Worker is disabled during `npm run dev` to avoid stale caching during development. To test Service Worker caching, offline shell, and PWA install behavior locally:
+
+```bash
+npm run build
+npm run preview
+```
+
+Open `http://localhost:4173` (or the port Vite provides) in Chromium, inspect **DevTools → Application → Service Workers & Manifest**, and toggle Network Offline to verify cached behaviors.
+
 Check `package.json` before running a command because the available scripts may change over time.
 
 ## Firebase / Firestore

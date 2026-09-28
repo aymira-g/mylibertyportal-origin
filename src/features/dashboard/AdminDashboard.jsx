@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { auth } from "../../firebase";
 import { useDashboardData } from "./useDashboardData";
 import { AIAssistant, DashboardShell, WelcomeBanner, ApprovalInbox, isStaffRole } from "../shared";
@@ -10,17 +10,17 @@ import { ClassManager, AvailableBatches } from "../classes";
 import { StaffDirectory, InvitesPanel, TasksPanel } from "../staff";
 import LogRetentionCard from "./LogRetentionCard";
 import { TuitionDueWidget } from "./frontoffice";
+import { getUrlAction, clearUrlAction } from "../../utils/urlAction.js";
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [kioskOpen, setKioskOpen] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return new URLSearchParams(window.location.search).get("action") === "attendance";
-    } catch {
-      return false;
-    }
+    return getUrlAction() === "attendance";
   });
+
+  useEffect(() => {
+    clearUrlAction();
+  }, []);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -339,6 +339,7 @@ export default function AdminDashboard() {
         activeTab={activeTab}
         onTabChange={handleTabChange}
         title="Admin Panel"
+        primaryTabIds={["overview", "users", "classes", "approvals"]}
         extraSidebarContent={
           <KioskSidebarButton onClick={() => setKioskOpen(true)} label="Attendance Kiosk" />
         }

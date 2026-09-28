@@ -19,6 +19,7 @@ import { branchToId } from "../../constants/branches";
 import RecordPaymentTab from "./RecordPaymentTab";
 import PaymentHistoryTab from "./PaymentHistoryTab";
 import DigitalReceiptTab from "./DigitalReceiptTab";
+import { checkNetworkReachability } from "../../utils/networkReachability";
 
 function getDefaultPeriod() {
   const date = new Date();
@@ -134,9 +135,10 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
 
   const handleRecordPayment = async (e) => {
     e.preventDefault();
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
+    const isReachable = await checkNetworkReachability();
+    if (!isReachable) {
       toast(
-        "Cannot record payment while offline. Please connect to the internet to prevent database discrepancies.",
+        "Cannot record payment: connection is offline or unstable. Please check your internet connection.",
         "error"
       );
       return;
@@ -256,8 +258,9 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
   };
 
   const handleMarkPending = async () => {
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      toast("Cannot update payment status while offline. Please connect to the internet.", "error");
+    const isReachable = await checkNetworkReachability();
+    if (!isReachable) {
+      toast("Cannot update payment status: connection is offline or unstable. Please check your internet connection.", "error");
       return;
     }
     if (

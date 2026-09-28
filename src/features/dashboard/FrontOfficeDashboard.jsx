@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { auth } from "../../firebase";
 import { useDashboardData } from "./useDashboardData";
-import { AIAssistant, DashboardShell, WelcomeBanner, useToast, ApprovalInbox } from "../shared";
+import { AIAssistant, DashboardShell, WelcomeBanner, useToast, ApprovalInbox, PrimaryActionButton } from "../shared";
 import {
   StudentApplications,
   StudentRoster,
@@ -23,6 +23,7 @@ import {
 import { getProgram } from "../../constants/programs";
 import { normalizeBranch } from "../../constants/branches";
 import { normalizeDivision } from "../../constants/divisions";
+import { getUrlAction, clearUrlAction } from "../../utils/urlAction.js";
 import {
   ScanLine,
   FileText,
@@ -41,13 +42,12 @@ export default function FrontOfficeDashboard({ role = "frontoffice" }) {
   const [waPhone, setWaPhone] = useState("");
   const [paymentModalStudent, setPaymentModalStudent] = useState(null);
   const [kioskOpen, setKioskOpen] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return new URLSearchParams(window.location.search).get("action") === "attendance";
-    } catch {
-      return false;
-    }
+    return getUrlAction() === "attendance";
   });
+
+  useEffect(() => {
+    clearUrlAction();
+  }, []);
   const toast = useToast();
 
   const {
@@ -228,46 +228,47 @@ export default function FrontOfficeDashboard({ role = "frontoffice" }) {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="font-extrabold text-slate-800 text-sm">Quick Actions</h4>
+            <h4 className="font-extrabold text-slate-800 text-sm">Priority Desk Actions</h4>
             <button
               onClick={handleAddStudent}
-              className="text-[11px] font-bold text-[#1a3a8f] hover:underline inline-flex items-center gap-1"
+              className="text-xs font-bold text-[#1a3a8f] hover:underline inline-flex items-center gap-1 cursor-pointer"
             >
               <UserPlus className="w-3.5 h-3.5" />
               <span>+ Add Walk-in</span>
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-2 pt-1">
-            <button
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+            <PrimaryActionButton
+              icon={CreditCard}
+              label="Desk Cashier"
+              description="Record payment & receipt"
               onClick={() => setActiveTab("cashier")}
-              className="p-2.5 rounded-xl bg-indigo-50/80 border border-indigo-200/80 text-xs font-bold text-[#1a3a8f] hover:bg-indigo-100 transition flex items-center gap-2"
-            >
-              <CreditCard className="w-4 h-4 text-[#1a3a8f] shrink-0" />
-              <span className="truncate">Desk Cashier</span>
-            </button>
-            <button
-              onClick={() => setActiveTab("inquiries")}
-              className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-bold text-slate-700 hover:bg-slate-100 transition flex items-center gap-2"
-            >
-              <UserCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span className="truncate">Guest Log</span>
-            </button>
-            <button
-              onClick={() => setActiveTab("applications")}
-              className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-bold text-slate-700 hover:bg-slate-100 transition flex items-center gap-2"
-            >
-              <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
-              <span className="truncate">Applications</span>
-            </button>
-            <button
+              variant="primary"
+            />
+            <PrimaryActionButton
+              icon={ScanLine}
+              label="Check-in Kiosk"
+              description="Open badge QR scanner"
               onClick={() => setKioskOpen(true)}
-              className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-bold text-slate-700 hover:bg-slate-100 transition flex items-center gap-2"
-            >
-              <ScanLine className="w-4 h-4 text-[#1a3a8f] shrink-0" />
-              <span className="truncate">Reception Mode</span>
-            </button>
+              variant="emerald"
+            />
+            <PrimaryActionButton
+              icon={UserCheck}
+              label="Guest Inquiries"
+              description="Visitor & prospect log"
+              onClick={() => setActiveTab("inquiries")}
+              variant="secondary"
+            />
+            <PrimaryActionButton
+              icon={FileText}
+              label="Applications"
+              description="Pending admissions"
+              onClick={() => setActiveTab("applications")}
+              variant="secondary"
+              badge={pendingApplications > 0 ? pendingApplications : null}
+            />
           </div>
         </div>
       </div>
@@ -435,6 +436,7 @@ export default function FrontOfficeDashboard({ role = "frontoffice" }) {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         title="Front Office"
+        primaryTabIds={["overview", "cashier", "inquiries", "applications"]}
         extraSidebarContent={
           <KioskSidebarButton onClick={() => setKioskOpen(true)} label="Reception Kiosk" />
         }

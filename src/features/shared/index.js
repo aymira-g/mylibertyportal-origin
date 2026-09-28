@@ -4,6 +4,7 @@ export { default as ErrorBoundary } from "./ErrorBoundary";
 export { default as DashboardShell } from "./DashboardShell";
 export { default as MobileDashboardShell } from "./MobileDashboardShell";
 export { default as Badge } from "./Badge";
+export { default as PrimaryActionButton } from "./PrimaryActionButton";
 export { default as StatCard } from "./StatCard";
 export { default as Card } from "./Card";
 export { default as ConfirmProvider } from "./ConfirmProvider";

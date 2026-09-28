@@ -15,11 +15,51 @@ export default function MobileDashboardShell({
   onTabChange,
   title,
   extraSidebarContent,
+  primaryTabIds = null,
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const visibleTabs = tabs.filter((tab) => !tab.hidden);
-  const primaryTabs = visibleTabs.slice(0, 4);
-  const moreTabs = visibleTabs.slice(4);
+
+  let primaryTabs;
+  let moreTabs;
+
+  if (Array.isArray(primaryTabIds) && primaryTabIds.length > 0) {
+    const primarySet = new Set(primaryTabIds);
+    primaryTabs = visibleTabs.filter((t) => primarySet.has(t.id)).slice(0, 4);
+    const selectedPrimaryIds = new Set(primaryTabs.map((t) => t.id));
+    moreTabs = visibleTabs.filter((t) => !selectedPrimaryIds.has(t.id));
+  } else {
+    // Smart role-based defaults according to actual operational task frequency
+    const availableIds = new Set(visibleTabs.map((t) => t.id));
+    let matchedPriorities = null;
+
+    if (availableIds.has("cashier") && availableIds.has("walkins")) {
+      // Front Office
+      matchedPriorities = ["overview", "cashier", "walkins", "applications"];
+    } else if (availableIds.has("attendance") && (availableIds.has("progress") || availableIds.has("classes"))) {
+      // Instructor
+      matchedPriorities = ["overview", "attendance", "classes", "progress"];
+    } else if (availableIds.has("approvals") && availableIds.has("reports") && availableIds.has("classes")) {
+      // Manager
+      matchedPriorities = ["overview", "approvals", "classes", "reports"];
+    } else if (availableIds.has("users") && availableIds.has("applications")) {
+      // Admin
+      matchedPriorities = ["overview", "users", "classes", "approvals"];
+    }
+
+    if (matchedPriorities) {
+      primaryTabs = matchedPriorities
+        .map((id) => visibleTabs.find((t) => t.id === id))
+        .filter(Boolean)
+        .slice(0, 4);
+      const selectedPrimaryIds = new Set(primaryTabs.map((t) => t.id));
+      moreTabs = visibleTabs.filter((t) => !selectedPrimaryIds.has(t.id));
+    } else {
+      primaryTabs = visibleTabs.slice(0, 4);
+      moreTabs = visibleTabs.slice(4);
+    }
+  }
+
   const active = tabs.find((tab) => tab.id === activeTab);
   const activeIsInMore = moreTabs.some((tab) => tab.id === activeTab);
 
@@ -117,7 +157,7 @@ export default function MobileDashboardShell({
             <button
               key={tab.id}
               onClick={() => selectTab(tab.id)}
-              className={`relative min-h-14 min-w-0 flex-1 rounded-xl px-1 flex flex-col items-center justify-center text-[10px] font-extrabold leading-tight transition cursor-pointer ${
+              className={`relative min-h-14 min-w-0 flex-1 rounded-xl px-1 flex flex-col items-center justify-center text-[11px] font-bold tracking-tight leading-tight transition cursor-pointer select-none ${
                 isActive ? "bg-white text-[#1a3a8f] shadow-xs" : "text-white/80 active:bg-white/10"
               }`}
             >
@@ -126,7 +166,7 @@ export default function MobileDashboardShell({
               />
               <span className="block truncate max-w-full">{label}</span>
               {tab.badge !== undefined && tab.badge !== null && (
-                <span className="absolute top-1 right-2 px-1 py-0.2 text-[9px] font-black rounded-full bg-amber-400 text-slate-900 shadow-xs">
+                <span className="absolute top-1 right-1.5 px-1 py-0.2 text-[9px] font-extrabold rounded-full bg-amber-400 text-slate-900 shadow-xs">
                   {tab.badge}
                 </span>
               )}
@@ -136,7 +176,7 @@ export default function MobileDashboardShell({
         {moreTabs.length > 0 && (
           <button
             onClick={() => setMoreOpen(true)}
-            className={`min-h-14 min-w-0 flex-1 rounded-xl px-1 text-center text-[10px] font-extrabold transition cursor-pointer ${
+            className={`min-h-14 min-w-0 flex-1 rounded-xl px-1 text-center text-[11px] font-bold tracking-tight transition cursor-pointer select-none ${
               activeIsInMore || moreOpen
                 ? "bg-white text-[#1a3a8f] shadow-sm"
                 : "text-white/80 active:bg-white/10"

@@ -3,6 +3,7 @@ import { X, Calendar, Check, AlertCircle } from "lucide-react";
 import { logStaffLeave } from "./shiftsRepository";
 import { useToast } from "../shared";
 import { todayWita } from "../../utils/dateWita.js";
+import { checkNetworkReachability } from "../../utils/networkReachability";
 
 const LEAVE_TYPES = [
   { id: "sakit", label: "Sakit (Sick Leave)", desc: "Requires medical/doctor note" },
@@ -35,6 +36,15 @@ export default function StaffLeaveModal({ staff = [], actor, onClose, onSuccess 
     }
     if (startDate > endDate) {
       toast("End date cannot be earlier than start date.", "error");
+      return;
+    }
+
+    const isReachable = await checkNetworkReachability();
+    if (!isReachable) {
+      toast(
+        "Cannot log leave: connection is offline or unstable. Please check your internet connection.",
+        "error"
+      );
       return;
     }
 

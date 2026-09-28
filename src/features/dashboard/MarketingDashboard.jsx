@@ -15,6 +15,7 @@ import {
   listenToSchools,
 } from "./marketing";
 import { WalkInInquiryTab } from "./frontoffice";
+import { getUrlAction, clearUrlAction } from "../../utils/urlAction";
 
 function MarketingOverview({ leadCount, loading, classes, openSeats, schools, onNavigate }) {
   const toast = useToast();
@@ -143,7 +144,16 @@ function MarketingOverview({ leadCount, loading, classes, openSeats, schools, on
 }
 
 export default function MarketingDashboard() {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState("overview");
+
+  useEffect(() => {
+    const action = getUrlAction();
+    if (action) {
+      toast(`Action shortcut "${action}" is not supported for Marketing view.`, "info");
+      clearUrlAction();
+    }
+  }, [toast]);
   const [leadCount, setLeadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState([]);

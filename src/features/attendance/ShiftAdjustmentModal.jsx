@@ -3,6 +3,7 @@ import { X, ShieldAlert, Check } from "lucide-react";
 import { adjustShiftWithAudit } from "./shiftsRepository";
 import { useToast, createApprovalEnvelope, submitApprovalRequest } from "../shared";
 import { formatWitaForInput, parseWitaInputToUtcIso } from "../../utils/dateWita";
+import { checkNetworkReachability } from "../../utils/networkReachability";
 
 const REASON_CODES = [
   { id: "forgot_clock_out", label: "Forgot to Clock Out" },
@@ -28,6 +29,15 @@ export default function ShiftAdjustmentModal({ shift, actor, onClose, onSuccess 
     e.preventDefault();
     if (!clockIn) {
       toast("Clock-in time is required.", "error");
+      return;
+    }
+
+    const isReachable = await checkNetworkReachability();
+    if (!isReachable) {
+      toast(
+        "Cannot adjust shift: connection is offline or unstable. Please check your internet connection.",
+        "error"
+      );
       return;
     }
 

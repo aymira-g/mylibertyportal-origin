@@ -3,6 +3,7 @@ import {
   PAYMENT_PLAN_KEYS,
   calculateExpiryDate,
   calculateCoveragePeriod,
+  useNetworkStatus,
 } from "../shared";
 import { formatIDR } from "./receiptMessages";
 
@@ -34,6 +35,8 @@ export default function RecordPaymentTab({
   onSubmit,
   onMarkPending,
 }) {
+  const { isOnline } = useNetworkStatus();
+
   return (
     <form onSubmit={onSubmit} className="space-y-4 text-xs">
       {/* Current Status Banner */}
@@ -368,7 +371,7 @@ export default function RecordPaymentTab({
       </div>
 
       {/* Offline Warning */}
-      {typeof navigator !== "undefined" && !navigator.onLine && (
+      {!isOnline && (
         <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs font-semibold flex items-center gap-2">
           <span>⚠️</span>
           <span>
@@ -381,7 +384,7 @@ export default function RecordPaymentTab({
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={saving || (typeof navigator !== "undefined" && !navigator.onLine)}
+        disabled={saving || !isOnline}
         className="w-full bg-[#1a3a8f] hover:bg-[#122b6e] text-white p-3 rounded-xl font-bold text-sm shadow-md transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
       >
         {saving ? "Saving Payment..." : "💾 Save Payment & Generate Receipt"}

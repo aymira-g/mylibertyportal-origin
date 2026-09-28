@@ -286,43 +286,54 @@ export default function DevQuickSwitcher({
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 font-sans print:hidden select-none">
-      {/* ── Collapsed Trigger Button ── */}
-      {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-bold shadow-lg transition-all transform active:scale-95 cursor-pointer border ${
-            isPreviewActive
-              ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-600 ring-2 ring-amber-300 animate-pulse"
-              : "bg-slate-900/90 hover:bg-slate-900 text-white border-slate-700/80 backdrop-blur-md"
-          }`}
-          title="Open Dev Quick Switcher"
-        >
-          <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-          <span>
-            {isPreviewActive ? (
-              <>Preview: {previewRole.toUpperCase()}</>
-            ) : (
-              <>Dev Switcher</>
-            )}
-          </span>
-          {currentUser && (
-            <span className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded-full border border-slate-700">
-              {realRole || "user"}
-            </span>
-          )}
-        </button>
-      )}
-
-      {/* ── Expanded Drawer / Popover ── */}
+    <>
+      {/* ── Mobile Backdrop overlay when expanded ── */}
       {isOpen && (
         <div
-          className={`${
-            activeTab === "audit"
-              ? "w-[96vw] sm:w-[620px] md:w-[740px] max-w-4xl"
-              : "w-[340px] sm:w-[380px]"
-          } max-h-[88vh] flex flex-col bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden text-slate-800 animate-in zoom-in-95 duration-150 transition-all`}
-        >
+          onClick={() => setIsOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-xs sm:hidden animate-in fade-in duration-150 cursor-pointer"
+          aria-hidden="true"
+        />
+      )}
+
+      {/* ── Widget Positioner: floats safely above mobile bottom navbar (bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))]) and at bottom-4 on desktop ── */}
+      <div className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] right-3 sm:bottom-4 sm:right-4 z-50 font-sans print:hidden">
+        {/* ── Collapsed Trigger Button ── */}
+        {!isOpen && (
+          <button
+            onClick={() => setIsOpen(true)}
+            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-full text-[11px] sm:text-xs font-bold shadow-lg transition-all transform active:scale-95 cursor-pointer border select-none ${
+              isPreviewActive
+                ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-600 ring-2 ring-amber-300 animate-pulse"
+                : "bg-slate-900/90 hover:bg-slate-900 text-white border-slate-700/80 backdrop-blur-md"
+            }`}
+            title="Open Dev Quick Switcher"
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
+            <span>
+              {isPreviewActive ? (
+                <>Preview: {previewRole.toUpperCase()}</>
+              ) : (
+                <>Dev Switcher</>
+              )}
+            </span>
+            {currentUser && (
+              <span className="hidden sm:inline-block text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded-full border border-slate-700">
+                {realRole || "user"}
+              </span>
+            )}
+          </button>
+        )}
+
+        {/* ── Expanded Drawer / Popover ── */}
+        {isOpen && (
+          <div
+            className={`${
+              activeTab === "audit"
+                ? "w-[94vw] sm:w-[620px] md:w-[740px] max-w-4xl"
+                : "w-[92vw] sm:w-[380px] max-w-sm"
+            } max-h-[75vh] sm:max-h-[88vh] flex flex-col bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden text-slate-800 animate-in zoom-in-95 duration-150 transition-all`}
+          >
           {/* Header */}
           <div className="px-4 py-3 bg-slate-900 text-white flex items-center justify-between select-none">
             <div className="flex items-center gap-2">
@@ -762,6 +773,7 @@ export default function DevQuickSwitcher({
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

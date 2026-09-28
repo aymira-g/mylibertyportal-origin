@@ -322,20 +322,11 @@ service cloud.firestore {
     }
 
     match /corporateEvents/{eventId} {
-      // Branch-lock corporate events by default. Admin has cross-branch access.
-      // Explicitly academy-wide events (audienceType == 'all' or role/division) are readable by staff.
-      allow read: if isAdmin()
-        || (isStaff() && (
-          resource.data.audienceType == 'all'
-          || (resource.data.audienceType == 'branch' && (
-            resource.data.audienceValue == userBranch()
-            || (resource.data.audienceValue == 'Kota Gorontalo' && userBranch() == 'kota_gorontalo')
-            || (resource.data.audienceValue == 'Bone Bolango' && userBranch() == 'bone_bolango')
-            || (resource.data.audienceValue == 'Pohuwato' && userBranch() == 'pohuwato')
-            || (resource.data.audienceValue == 'Limboto' && userBranch() == 'limboto')
-          ))
-          || resource.data.audienceType in ['role', 'division']
-        ));
+      // Corporate events represent internal school calendar items (meetings, trainings, closures).
+      // All authenticated staff need read access so Kiosk and Front Office dashboards can query
+      // upcoming events without Firestore rejecting collection queries.
+      // Students and parents cannot read corporate events.
+      allow read: if isStaff();
       allow create: if (isAdmin() || isManager() || isFrontOffice())
         && request.resource.data.name is string
         && request.resource.data.eventDate is string

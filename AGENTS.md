@@ -6,8 +6,10 @@
 > The current application architecture is documented separately in
 > [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 >
-> The deep architecture/scalability audit procedure is documented separately in
-> [`docs/audits/FULL_ARCHITECTURE_AUDIT.md`](./docs/audits/FULL_ARCHITECTURE_AUDIT.md).
+> The audit procedures, failure strategies, and regression playbooks are documented separately under `docs/audits/`:
+> - [`docs/audits/Light Regression Check Playbook/`](./docs/audits/Light%20Regression%20Check%20Playbook/00-README.md) (Level 1: Targeted post-change regression)
+> - [`docs/audits/Comprehensive Hidden-Bug Audit Strategy/`](./docs/audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md) (Level 2: Section deep dives & failure matrix)
+> - [`docs/audits/Full System Architecture & Scalability Audit Procedure/`](./docs/audits/Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md) (Level 3: Architecture drift & scalability)
 
 ## About the person you are helping
 
@@ -19,10 +21,10 @@
 
 ## Authority Chain
 
-MYLIBERTY uses three related documents:
+MYLIBERTY uses three related tiers of governance:
 
 ```text
-CLAUDE.md
+CLAUDE.md / GEMINI.md
   ↓
 How the coding assistant should behave
 
@@ -30,9 +32,12 @@ docs/ARCHITECTURE.md
   ↓
 What the current application architecture is
 
-docs/audits/FULL_ARCHITECTURE_AUDIT.md
+docs/audits/
+  ├── Light Regression Check Playbook/                        (Level 1: Post-change targeted regression)
+  ├── Comprehensive Hidden-Bug Audit Strategy/                (Level 2: Section deep dives & failure matrix)
+  └── Full System Architecture & Scalability Audit Procedure/  (Level 3: Architecture drift & scalability)
   ↓
-How to challenge and verify that architecture
+How to challenge, verify, and stress-test the system
 ```
 
 These documents have different responsibilities and should not be merged.
@@ -155,11 +160,17 @@ switch from feature-development mode to **audit mode**.
 In audit mode:
 
 - do not modify production code unless explicitly instructed;
-- read `docs/audits/FULL_ARCHITECTURE_AUDIT.md`;
+- read [`docs/audits/Full System Architecture & Scalability Audit Procedure/00-README.md`](./docs/audits/Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md);
 - read `docs/ARCHITECTURE.md`;
 - inspect the whole repository;
 - compare declared architecture with actual implementation;
 - produce an evidence-based report before proposing implementation changes.
+
+For section deep dives, workflow tracing, and edge-case attack audits:
+- follow [`docs/audits/Comprehensive Hidden-Bug Audit Strategy/00-README.md`](./docs/audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md).
+
+After any code change, bug fix, or rule edit:
+- execute a Level 1 Light Regression Check per [`docs/audits/Light Regression Check Playbook/00-README.md`](./docs/audits/Light%20Regression%20Check%20Playbook/00-README.md).
 
 ## Actual Tech Stack
 

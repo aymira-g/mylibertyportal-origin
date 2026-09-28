@@ -8,9 +8,9 @@
 A plan defines:
 > *"What are the step-by-step actions required to implement, refactor, or remediate this capability?"*
 
-Plans do not override canonical architecture or current code. They guide implementation work and move through an explicit lifecycle:
-- `plans/active/`: Currently actionable or ongoing implementation plans.
-- `plans/completed/`: Fully executed and completed plans kept for historical auditability.
+Plans do not override canonical architecture or current code. They govern the two-phase development lifecycle:
+- **Pre-Execution (`plans/active/`):** Actionable plans defining scope, affected files, free-tier/quota checks, and verification strategy before code is touched.
+- **Post-Execution (`plans/completed/`):** Fully executed plans and formal Post-Execution Reports recording exact diffs, test outputs, and verification evidence.
 
 ---
 
@@ -26,6 +26,9 @@ Plans do not override canonical architecture or current code. They guide impleme
 | [`private-toefl-vs-corporate-event-clock-in-plan.md`](./active/private-toefl-vs-corporate-event-clock-in-plan.md) | Kiosk instructor clock-in branch fix for private/TOEFL vs events | Active |
 | [`gorontalo-school-outreach-plan.md`](./active/gorontalo-school-outreach-plan.md) | Kota Gorontalo school outreach interactive map and visit logger | Active |
 | [`spark-scale-and-log-retention-plan.md`](./active/spark-scale-and-log-retention-plan.md) | Free-tier scale optimization, Firestore listener throttling, and log retention | Active |
+| [`MyLiberty_Portal_SPA_vs_MPA_Architecture_Brief_revised.md`](./active/MyLiberty_Portal_SPA_vs_MPA_Architecture_Brief_revised.md) | Architectural evaluation and hybrid routing plan (SPA dashboard vs MPA landing) | Active Brief |
+| [`MyLiberty_Portal_UX_Usability_Remediation_Plan.md`](./active/MyLiberty_Portal_UX_Usability_Remediation_Plan.md) | Usability, button hierarchy, and mobile viewport remediation plan | Active Plan |
+| [`myliberty-pwa-system-review-round2.md`](./active/myliberty-pwa-system-review-round2.md) | PWA Round 2 follow-up review, mobile navigation, update UX, and tablet kiosk | Active Review |
 
 ---
 
@@ -34,3 +37,5 @@ Plans do not override canonical architecture or current code. They guide impleme
 | Plan | Completed Date | Focus Area |
 |---|---|---|
 | [`myliberty-docs-reorganization-plan.md`](./completed/myliberty-docs-reorganization-plan.md) | 2026-09-28 | Structural reorganization of documentation tree and authority rules |
+| [`MyLiberty_Portal_SPA_vs_MPA_Architecture_Decision_Brief.md`](./completed/MyLiberty_Portal_SPA_vs_MPA_Architecture_Decision_Brief.md) | 2026-09-28 | Initial draft brief on SPA vs MPA architecture (superseded by revised brief) |
+| [`myliberty-pwa-system-review-round1.md`](./completed/myliberty-pwa-system-review-round1.md) | 2026-09-28 | Initial PWA system review and core fixes (superseded by Round 2 review) |

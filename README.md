@@ -27,7 +27,10 @@ Read these in order:
 1. **[`AGENTS.md`](./AGENTS.md)** — how agents should work on this repository.
 2. **[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)** — the current architecture and protected boundaries.
 3. **[`docs/README.md`](./docs/README.md)** — the documentation index.
-4. **[`docs/audits/FULL_ARCHITECTURE_AUDIT.md`](./docs/audits/FULL_ARCHITECTURE_AUDIT.md)** — use this when performing a full architecture/scalability audit.
+4. **Audit & Verification Suites (`docs/audits/`)**:
+   - **[`Light Regression Check Playbook`](./docs/audits/Light%20Regression%20Check%20Playbook/00-README.md)** — fast post-change checks after any modification (Level 1).
+   - **[`Comprehensive Hidden-Bug Audit Strategy`](./docs/audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md)** — section deep dives, 5-pass workflow tracing, and failure matrix (Level 2).
+   - **[`Full System Architecture & Scalability Audit Procedure`](./docs/audits/Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md)** — architecture drift, database growth, and scalability audit (Level 3).
 
 Claude Code may also use **[`CLAUDE.md`](./CLAUDE.md)** as its project-specific adapter.
 
@@ -201,21 +204,36 @@ docs/
 └── archive/
 ```
 
-### Documentation rules
+### Documentation & Development Lifecycle
 
-- `README.md` — project entry point.
-- `docs/README.md` — central documentation index and authority guide.
-- `docs/ARCHITECTURE.md` — current architectural source of truth.
-- `docs/decisions/` — accepted architectural and business decisions.
-- `docs/specs/` — intended subsystem behavior and behavioral contracts.
-- `docs/plans/` — active and completed implementation/remediation plans.
-- `docs/audits/` — current verification baselines and historical audits.
-- `docs/audit-prompts/` — reusable audit instructions and prompts.
-- `docs/proposals/` — proposed changes under consideration.
+Documentation is structured around two clear domains: **Permanent System Knowledge** and the **Work Lifecycle (Pre-Execution & Post-Execution)**.
 
-Do not create a new Markdown file when an existing document can be updated cleanly.
+#### 1. Permanent System Knowledge (The System)
+- `docs/ARCHITECTURE.md` — Canonical architectural source of truth (protected).
+- `docs/decisions/` — Formally accepted business and architectural policies.
+- `docs/specs/` — Intended subsystem behaviors, schemas, and technical contracts.
 
-Retire or archive obsolete plans instead of allowing `docs/` to become a historical dump.
+#### 2. Work Lifecycle: Pre-Execution & Post-Execution
+
+Every meaningful development task follows a strict two-phase contract:
+
+##### Phase 1: Pre-Execution (The Plan)
+Before modifying any code, the agent or developer must establish or review a **Pre-Execution Plan** under `docs/plans/active/`:
+- **Scope & Problem:** Exactly what is being built, fixed, or investigated.
+- **Affected Files:** Specific modules, repositories, or schemas involved.
+- **Risk & Cost Check:** Zero-budget / free-tier check (guard against unbounded queries, leaking listeners, or write loops).
+- **Verification Strategy:** How the change will be proven before completion.
+
+##### Phase 2: Post-Execution (The Report & Verification)
+After implementing code, the agent or developer must execute verification (Level 1 Light Regression) and commit a formal **Post-Execution Report**:
+- **For completed plans & refactors:** Save as `docs/plans/completed/YYYY-MM-DD-<task-name>-execution-report.md` (or append the report directly to the completed plan file under `docs/plans/completed/`).
+- **For audits and investigation passes:** Save as `docs/audits/current/YYYY-MM-DD-<task-name>-report.md` and append a brief dated entry into `docs/audits/audit-log.md`.
+
+**Mandatory Post-Execution Report Structure:**
+1. **Summary of Work:** Clear description of what changed, which problem was resolved, and the list of modified files.
+2. **Verification Evidence:** Exact verification commands run (`npm test`, `npm run lint`, manual check sequences) with exit status/output. Never declare work completed without verifiable evidence.
+3. **Architecture & Data Impact:** Explicit statement of any changes to Firestore schemas, security rules, indexes, or domain boundaries (or state "None").
+4. **Follow-ups & Needs from Kifry:** Concrete list of manual physical tests (e.g. tablet hardware checks) or actions required by Kifry.
 
 ## Security and architecture
 

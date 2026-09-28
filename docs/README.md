@@ -14,34 +14,23 @@ When working on this codebase as an engineer or AI coding assistant, orient your
 
 ---
 
-## Documentation Authority
+## Documentation Authority & Work Lifecycle
 
 ```text
-DOCUMENT AUTHORITY
+1. PERMANENT SYSTEM KNOWLEDGE (The System)
+   ├── ARCHITECTURE.md    Describes current canonical system architecture (protected).
+   ├── decisions/         Contains accepted business and architectural policies.
+   └── specs/             Contains intended subsystem behaviors, contracts, and schemas.
 
-ARCHITECTURE.md
-    Describes the current system architecture.
-
-decisions/
-    Contains accepted business and architectural decisions.
-
-specs/
-    Describes intended subsystem behavior and contracts.
-
-plans/
-    Describes work that is planned or being executed.
-
-audits/current/
-    Contains current audit findings and verification baselines.
-
-audits/archive/
-    Contains historical audit results.
-
-audit-prompts/
-    Contains instructions used to perform audits.
-
-proposals/
-    Contains ideas and designs that have not yet been accepted.
+2. WORK LIFECYCLE (Pre-Execution & Post-Execution)
+   ├── PRE-EXECUTION (The Plans)
+   │     ├── plans/active/     Active plans: scope, affected files, cost/risk check, verification plan.
+   │     └── proposals/        Ideas and designs under consideration awaiting decision.
+   │
+   └── POST-EXECUTION (The Reports & Proof)
+         ├── plans/completed/  Completed execution reports and verified implementation history.
+         ├── audits/current/   Active verified audit baselines and investigation findings.
+         └── audits/archive/   Historical audit logs and past verification passes.
 
 Historical documents do not override current source code, Firestore rules,
 tests, or verified runtime behavior.
@@ -73,10 +62,12 @@ docs/
 │
 ├── audits/                  # System audits, procedures, and findings
 │   ├── README.md
-│   ├── FULL_ARCHITECTURE_AUDIT.md  # Deep audit procedure (governed by AGENTS.md)
-│   ├── audit-log.md                 # Running operational items log
-│   ├── current/                     # Latest reconciled findings & verification baselines
-│   └── archive/                     # Historical audit reports
+│   ├── Light Regression Check Playbook/                        # Level 1: Post-change checks
+│   ├── Comprehensive Hidden-Bug Audit Strategy/                # Level 2: Section deep dives
+│   ├── Full System Architecture & Scalability Audit Procedure/  # Level 3: Architecture drift
+│   ├── audit-log.md                                            # Running operational items log
+│   ├── current/                                                # Latest reconciled findings & verification baselines
+│   └── archive/                                                # Historical audit reports
 │
 ├── audit-prompts/           # Reusable audit instructions and evaluation criteria
 │   ├── README.md
@@ -92,14 +83,18 @@ docs/
 
 ---
 
-## Current Audit Baseline
+## Current Audit Baseline & Procedures
 
-The authoritative, reconciled verification baseline describing current findings in the codebase:
+The authoritative audit suites and verification baselines:
 
-* **Consolidated Baseline:** [`audits/current/2026-09-27-reconciled-full-audit.md`](./audits/current/2026-09-27-reconciled-full-audit.md)
-* **Broader Findings:** [`audits/current/2026-09-27-claude-audit-broader-findings.md`](./audits/current/2026-09-27-claude-audit-broader-findings.md)
-* **Continuation Evidence:** [`audits/current/2026-09-27-claude-audit-continuation.md`](./audits/current/2026-09-27-claude-audit-continuation.md)
-* **Permanent Deep Audit Procedure:** [`audits/FULL_ARCHITECTURE_AUDIT.md`](./audits/FULL_ARCHITECTURE_AUDIT.md)
+* **Level 1 (Targeted Regression):** [`audits/Light Regression Check Playbook/`](./audits/Light%20Regression%20Check%20Playbook/00-README.md)
+* **Level 2 (Section Deep Audits):** [`audits/Comprehensive Hidden-Bug Audit Strategy/`](./audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md)
+* **Level 3 (Architecture & Scalability):** [`audits/Full System Architecture & Scalability Audit Procedure/`](./audits/Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md)
+* **Consolidated Reconciled Baseline:** [`audits/current/2026-09-27-reconciled-full-audit.md`](./audits/current/2026-09-27-reconciled-full-audit.md)
+* **Cross-Feature Handoff Baseline:** [`audits/current/cross-feature-integration-audit-revised.md`](./audits/current/cross-feature-integration-audit-revised.md)
+* **Attendance & Kiosk Deep Audit:** [`audits/current/MyLiberty_Portal_Attendance_Kiosk_Deep_Audit_and_Trigger_Map.md`](./audits/current/MyLiberty_Portal_Attendance_Kiosk_Deep_Audit_and_Trigger_Map.md)
+* **Corporate Events Kiosk Report:** [`audits/current/2026-09-28-corporate-events-kiosk-investigation-report.md`](./audits/current/2026-09-28-corporate-events-kiosk-investigation-report.md)
+* **Broader Findings & Continuation:** [`audits/current/2026-09-27-claude-audit-broader-findings.md`](./audits/current/2026-09-27-claude-audit-broader-findings.md) & [`audits/current/2026-09-27-claude-audit-continuation.md`](./audits/current/2026-09-27-claude-audit-continuation.md)
 
 ---
 
@@ -117,8 +112,9 @@ Formally accepted policies that govern ongoing implementation and security rules
 Intended technical contracts and behavioral rules:
 
 * **Attendance Subsystem:** [`specs/attendance/attendance-module-v4-myliberty-integration-spec.md`](./specs/attendance/attendance-module-v4-myliberty-integration-spec.md)
-* **Parent & Student Subsystem:** [`specs/parent/myliberty-parent-student-roster-data-model.md`](./specs/parent/myliberty-parent-student-roster-data-model.md)
+* **Parent & Student Subsystem:** [`specs/parent/myliberty-parent-student-roster-data-model.md`](./specs/parent/myliberty-parent-student-roster-data-model.md) & [`specs/parent/myliberty-parent-student-link-fix.md`](./specs/parent/myliberty-parent-student-link-fix.md)
 * **Developer Tools:** [`specs/dev-tools/hybrid-quick-switch-user-spec.md`](./specs/dev-tools/hybrid-quick-switch-user-spec.md)
+* **UI & Design System:** [`specs/shared-design-language.md`](./specs/shared-design-language.md)
 
 ---
 
@@ -129,6 +125,9 @@ Actionable implementation and remediation sequences currently in progress:
 * **School Outreach Remediation:** [`plans/active/outreach-manager-marketing-remediation-plan.md`](./plans/active/outreach-manager-marketing-remediation-plan.md)
 * **Operational Audit Execution Plan:** [`plans/active/operational-audit-execution-plan.md`](./plans/active/operational-audit-execution-plan.md)
 * **File Splitting Plan (>1000 lines):** [`plans/active/large-file-splitting-plan.md`](./plans/active/large-file-splitting-plan.md)
+* **SPA vs MPA Architecture Brief:** [`plans/active/MyLiberty_Portal_SPA_vs_MPA_Architecture_Brief_revised.md`](./plans/active/MyLiberty_Portal_SPA_vs_MPA_Architecture_Brief_revised.md)
+* **UX Usability Remediation Plan:** [`plans/active/MyLiberty_Portal_UX_Usability_Remediation_Plan.md`](./plans/active/MyLiberty_Portal_UX_Usability_Remediation_Plan.md)
+* **PWA Round 2 Review & Plan:** [`plans/active/myliberty-pwa-system-review-round2.md`](./plans/active/myliberty-pwa-system-review-round2.md)
 * **Operational Execution Brief:** [`plans/active/myliberty-revision-brief.md`](./plans/active/myliberty-revision-brief.md)
 * **Corporate Event Attendance:** [`plans/active/corporate-event-attendance-plan.md`](./plans/active/corporate-event-attendance-plan.md)
 * **Private/TOEFL vs Event Clock-in Fix:** [`plans/active/private-toefl-vs-corporate-event-clock-in-plan.md`](./plans/active/private-toefl-vs-corporate-event-clock-in-plan.md)

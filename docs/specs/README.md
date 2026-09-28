@@ -17,6 +17,10 @@ Unlike general proposals or transient plans, specifications represent stable beh
 
 ### 2. Parent & Student (`specs/parent/`)
 - [`myliberty-parent-student-roster-data-model.md`](./parent/myliberty-parent-student-roster-data-model.md) — Data model, schema contracts, and relationships between parents, students, classes, and roster entries.
+- [`myliberty-parent-student-link-fix.md`](./parent/myliberty-parent-student-link-fix.md) — Specification and data migration contract for parent-to-student account linking and verification.
 
 ### 3. Developer Tools (`specs/dev-tools/`)
 - [`hybrid-quick-switch-user-spec.md`](./dev-tools/hybrid-quick-switch-user-spec.md) — Dual-mode user and role switcher specification (Live Firebase Auth switch vs instant in-memory UI preview).
+
+### 4. UI & Design System (`specs/`)
+- [`shared-design-language.md`](./shared-design-language.md) — Shared visual standards, color tokens, button hierarchies, and responsive layout guidelines.

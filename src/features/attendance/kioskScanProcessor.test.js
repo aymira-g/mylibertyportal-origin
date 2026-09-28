@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { handleKioskScan } from "./kioskScanProcessor.js";
 import * as shiftsRepo from "./shiftsRepository.js";
 import * as classAttRepo from "./classAttendanceRepository.js";
@@ -212,12 +212,19 @@ describe("kioskScanProcessor in STATION mode for instructors & corporate events"
   let showStatus;
   let setLastScanned;
   let setPendingClockIn;
+  const MOCK_TIME = new Date("2026-09-28T12:00:00.000Z"); // 20:00 WITA on Monday 2026-09-28
 
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(MOCK_TIME);
     vi.clearAllMocks();
     showStatus = vi.fn();
     setLastScanned = vi.fn();
     setPendingClockIn = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   const instructorLeaderUser = {

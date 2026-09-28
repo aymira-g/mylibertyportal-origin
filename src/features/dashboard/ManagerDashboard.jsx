@@ -3,6 +3,7 @@ import { auth, db } from "../../firebase";
 import { collection, onSnapshot, query, where, doc } from "firebase/firestore";
 import { AIAssistant, DashboardShell, useToast, ApprovalInbox, isStaffRole, isInstructorRole } from "../shared";
 import { ReportsDashboard } from "../reports";
+import { StudentRoster } from "../students";
 import { createTodo, deleteTodo, toggleTodoComplete } from "../staff";
 import { getShiftStatus } from "../attendance";
 import {
@@ -437,6 +438,13 @@ export default function ManagerDashboard() {
     return getFollowUpSchools(schools).length;
   }, [schools]);
 
+  const getStudentClasses = useCallback(
+    (studentId) => {
+      return (scopedClasses || []).filter((c) => (c.studentIds || []).includes(studentId));
+    },
+    [scopedClasses]
+  );
+
   const tabs = [
     {
       id: "overview",
@@ -465,6 +473,23 @@ export default function ManagerDashboard() {
           onRefreshPayments={fetchTodayPayments}
           isScopedToBranch={isScopedToBranch}
           onToggleBranchScope={() => setIsScopedToBranch((prev) => !prev)}
+        />
+      ),
+    },
+    {
+      id: "students",
+      label: "Learners & Parents",
+      component: (
+        <StudentRoster
+          students={students}
+          classes={scopedClasses}
+          users={scopedUsers}
+          getStudentClasses={getStudentClasses}
+          readOnly={true}
+          canEditStatus={false}
+          userRole="manager"
+          branchId={managerBranchId || myBranch}
+          canViewParents={true}
         />
       ),
     },
@@ -559,7 +584,7 @@ export default function ManagerDashboard() {
       activeTab={activeTab}
       onTabChange={setActiveTab}
       title="Manager Portal"
-      primaryTabIds={["overview", "approvals", "classes", "reports"]}
+      primaryTabIds={["overview", "students", "approvals", "classes", "reports"]}
     />
   );
 }

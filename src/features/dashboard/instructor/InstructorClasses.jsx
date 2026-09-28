@@ -278,6 +278,8 @@ export default function InstructorClasses({
         students={displayedStudents}
         getStudentClasses={getStudentClasses}
         setSelectedStudent={setSelectedStudent}
+        userRole="instructor"
+        canViewParents={false}
       />
       <BadgeModal person={selectedStudent} onClose={() => setSelectedStudent(null)} />
     </div>

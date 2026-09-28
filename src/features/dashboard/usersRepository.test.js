@@ -301,23 +301,41 @@ describe("getParentLinkedStudents and findParentsForStudent", () => {
 });
 
 describe("updateParentRecord", () => {
-  it("updates an existing parent profile with restricted field set and merge", async () => {
+  it("writes only provided allowed keys (displayName, phone, status, updatedAt) and never writes branch or branchId", async () => {
     await updateParentRecord("parent_123", {
       displayName: "Ibu Rahma Updated",
       phone: "08123456789",
       branch: "Kota Gorontalo",
+      branchId: "kota_gorontalo",
       status: "active",
+      extraForbiddenField: "should_not_be_written",
     });
 
     const op = fake.find("users/parent_123");
     expect(op.opts).toEqual({ merge: true });
-    expect(op.data).toMatchObject({
-      displayName: "Ibu Rahma Updated",
-      phone: "08123456789",
-      branchId: "kota_gorontalo",
-      branch: "Kota Gorontalo",
-      status: "active",
-    });
+    expect(Object.keys(op.data).sort()).toEqual([
+      "displayName",
+      "phone",
+      "status",
+      "updatedAt",
+    ]);
+    expect(op.data.displayName).toBe("Ibu Rahma Updated");
+    expect(op.data.phone).toBe("08123456789");
+    expect(op.data.status).toBe("active");
+    expect(op.data.branch).toBeUndefined();
+    expect(op.data.branchId).toBeUndefined();
     expect(op.data.updatedAt).toBeTruthy();
+  });
+
+  it("writes only fields actually provided plus updatedAt", async () => {
+    await updateParentRecord("parent_456", {
+      phone: "08999999999",
+    });
+
+    const op = fake.find("users/parent_456");
+    expect(Object.keys(op.data).sort()).toEqual(["phone", "updatedAt"]);
+    expect(op.data.phone).toBe("08999999999");
+    expect(op.data.displayName).toBeUndefined();
+    expect(op.data.status).toBeUndefined();
   });
 });

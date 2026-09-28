@@ -274,6 +274,8 @@ export default function AdminDashboard() {
           handleDelete={handleDelete}
           handleAddStudent={handleAddStudent}
           isAdmin={true}
+          userRole="admin"
+          canViewParents={true}
         />
       ),
     },

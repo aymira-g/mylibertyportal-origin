@@ -25,7 +25,8 @@ import StudentRosterMobileList from "./StudentRosterMobileList";
 import StudentRosterTable from "./StudentRosterTable";
 import StudentParentLinkage from "./StudentParentLinkage";
 import { exportStudentRosterCSV } from "./studentRosterExport";
-import { Users, FileSpreadsheet, UserPlus } from "lucide-react";
+import { Users, FileSpreadsheet, UserPlus, Shield } from "lucide-react";
+import ParentsList from "./ParentsList";
 
 export default function StudentRoster({
   students = [],
@@ -39,6 +40,9 @@ export default function StudentRoster({
   readOnly = false,
   canEditStatus = true,
   isAdmin = false,
+  userRole = null,
+  branchId = null,
+  canViewParents = false,
 }) {
   const toast = useToast();
   const confirm = useConfirm();
@@ -52,6 +56,12 @@ export default function StudentRoster({
   const [actionFilter, setActionFilter] = useState("all"); // "all" | "unassigned" | "due_or_expired" | "beginner" | "intermediate" | "fluent"
   const [updatingStatusId, setUpdatingStatusId] = useState(null);
   const [linkModalStudent, setLinkModalStudent] = useState(null);
+
+  const effectiveCanViewParents =
+    canViewParents ||
+    isAdmin ||
+    ["admin", "manager", "frontoffice", "opslead", "frontofficelead"].includes(userRole);
+  const [rosterView, setRosterView] = useState("students"); // "students" | "parents"
 
   const linkedParentsMap = useMemo(() => {
     const map = {};
@@ -367,116 +377,160 @@ export default function StudentRoster({
       {/* Header Panel */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 pb-4 border-b border-slate-100">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 text-[#1a3a8f] flex items-center justify-center">
-            <Users className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 text-[#1a3a8f] flex items-center justify-center shrink-0">
+            {rosterView === "parents" ? <Shield className="w-5 h-5 text-emerald-600" /> : <Users className="w-5 h-5" />}
           </div>
           <div>
-            <h3 className="font-extrabold text-slate-900 text-base">Student Roster</h3>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h3 className="font-extrabold text-slate-900 text-base">
+                {rosterView === "parents" ? "Parent Directory" : "Student Roster"}
+              </h3>
+              {effectiveCanViewParents && (
+                <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200 text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setRosterView("students")}
+                    className={`px-3 py-1 rounded-lg transition cursor-pointer ${
+                      rosterView === "students"
+                        ? "bg-white text-[#1a3a8f] font-bold shadow-2xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Students
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRosterView("parents")}
+                    className={`px-3 py-1 rounded-lg transition cursor-pointer ${
+                      rosterView === "parents"
+                        ? "bg-white text-[#1a3a8f] font-bold shadow-2xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Parents
+                  </button>
+                </div>
+              )}
+            </div>
             <p className="text-xs text-slate-500 font-medium">
-              Manage student dossiers, enrollments, and ID badges
+              {rosterView === "parents"
+                ? "View parent accounts, contact details, and linked learners"
+                : "Manage student dossiers, enrollments, and ID badges"}
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          {handleAddStudent && !readOnly && (
+        {rosterView === "students" && (
+          <div className="flex flex-wrap items-center gap-2.5">
+            {handleAddStudent && !readOnly && (
+              <button
+                onClick={handleAddStudent}
+                className="inline-flex items-center gap-1.5 bg-[#1a3a8f] hover:bg-[#122b6e] text-white px-3.5 py-2 rounded-xl font-bold text-xs transition shadow-xs cursor-pointer"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Add Student</span>
+              </button>
+            )}
             <button
-              onClick={handleAddStudent}
-              className="inline-flex items-center gap-1.5 bg-[#1a3a8f] hover:bg-[#122b6e] text-white px-3.5 py-2 rounded-xl font-bold text-xs transition shadow-xs cursor-pointer"
+              onClick={() => exportStudentRosterCSV(sortedStudents)}
+              className="inline-flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 px-3.5 py-2 rounded-xl font-bold text-xs transition shadow-2xs cursor-pointer"
             >
-              <UserPlus className="w-4 h-4" />
-              <span>Add Student</span>
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span>Export CSV</span>
             </button>
-          )}
-          <button
-            onClick={() => exportStudentRosterCSV(sortedStudents)}
-            className="inline-flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 px-3.5 py-2 rounded-xl font-bold text-xs transition shadow-2xs cursor-pointer"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-            <span>Export CSV</span>
-          </button>
-          <span className="bg-[#1a3a8f]/10 text-[#1a3a8f] px-3 py-1.5 rounded-full font-bold text-xs uppercase tracking-wider">
-            {statusCounts.active} Active Students
-          </span>
-        </div>
+            <span className="bg-[#1a3a8f]/10 text-[#1a3a8f] px-3 py-1.5 rounded-full font-bold text-xs uppercase tracking-wider">
+              {statusCounts.active} Active Students
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Operational Quick Filters Bar */}
-      <StudentRosterFilters
-        searchQuery={searchQuery}
-        onSearchChange={(val) => {
-          setSearchQuery(val);
-          setPage(1);
-        }}
-        statusFilter={statusFilter}
-        onStatusFilterChange={(val) => {
-          setStatusFilter(val);
-          setPage(1);
-        }}
-        actionFilter={actionFilter}
-        onActionFilterChange={(val) => {
-          setActionFilter(val);
-          setPage(1);
-        }}
-        statusCounts={statusCounts}
-        actionCounts={actionCounts}
-      />
+      {rosterView === "parents" ? (
+        <ParentsList
+          branchId={branchId}
+          isAdmin={isAdmin}
+          canView={effectiveCanViewParents}
+        />
+      ) : (
+        <>
+          {/* Operational Quick Filters Bar */}
+          <StudentRosterFilters
+            searchQuery={searchQuery}
+            onSearchChange={(val) => {
+              setSearchQuery(val);
+              setPage(1);
+            }}
+            statusFilter={statusFilter}
+            onStatusFilterChange={(val) => {
+              setStatusFilter(val);
+              setPage(1);
+            }}
+            actionFilter={actionFilter}
+            onActionFilterChange={(val) => {
+              setActionFilter(val);
+              setPage(1);
+            }}
+            statusCounts={statusCounts}
+            actionCounts={actionCounts}
+          />
 
-      {/* Mobile Card List View */}
-      <StudentRosterMobileList
-        pageItems={pageItems}
-        readOnly={readOnly}
-        canEditStatus={canEditStatus}
-        updatingStatusId={updatingStatusId}
-        pendingPromotionsMap={pendingPromotionsMap}
-        linkedParentsMap={linkedParentsMap}
-        onStatusChange={handleStatusChange}
-        onPaymentClick={(s) => setPaymentStudent(s)}
-        onSendRenewalReminder={handleSendRenewalReminder}
-        onPromote={handlePromote}
-        onAssignBatch={(s) => setSelectedTransferStudent({ student: s, sourceClass: null })}
-        onTransferBatch={(s, c) => setSelectedTransferStudent({ student: s, sourceClass: c })}
-        onBadgeClick={setSelectedStudent}
-        onEdit={handleEdit}
-        onDeleteStudent={handleDeleteStudent}
-        onOpenParentProfile={(parent) => handleEdit && handleEdit(parent)}
-        onLinkParent={(s) => setLinkModalStudent(s)}
-      />
+          {/* Mobile Card List View */}
+          <StudentRosterMobileList
+            pageItems={pageItems}
+            readOnly={readOnly}
+            canEditStatus={canEditStatus}
+            updatingStatusId={updatingStatusId}
+            pendingPromotionsMap={pendingPromotionsMap}
+            linkedParentsMap={linkedParentsMap}
+            onStatusChange={handleStatusChange}
+            onPaymentClick={(s) => setPaymentStudent(s)}
+            onSendRenewalReminder={handleSendRenewalReminder}
+            onPromote={handlePromote}
+            onAssignBatch={(s) => setSelectedTransferStudent({ student: s, sourceClass: null })}
+            onTransferBatch={(s, c) => setSelectedTransferStudent({ student: s, sourceClass: c })}
+            onBadgeClick={setSelectedStudent}
+            onEdit={handleEdit}
+            onDeleteStudent={handleDeleteStudent}
+            onOpenParentProfile={(parent) => handleEdit && handleEdit(parent)}
+            onLinkParent={(s) => setLinkModalStudent(s)}
+          />
 
-      {/* Desktop Full Table View */}
-      <StudentRosterTable
-        pageItems={pageItems}
-        studentSortField={studentSortField}
-        studentSortAsc={studentSortAsc}
-        onSort={handleStudentSort}
-        readOnly={readOnly}
-        canEditStatus={canEditStatus}
-        updatingStatusId={updatingStatusId}
-        pendingPromotionsMap={pendingPromotionsMap}
-        linkedParentsMap={linkedParentsMap}
-        onStatusChange={handleStatusChange}
-        onPaymentClick={(s) => setPaymentStudent(s)}
-        onSendRenewalReminder={handleSendRenewalReminder}
-        onPromote={handlePromote}
-        onAssignBatch={(s) => setSelectedTransferStudent({ student: s, sourceClass: null })}
-        onTransferBatch={(s, c) => setSelectedTransferStudent({ student: s, sourceClass: c })}
-        onBadgeClick={setSelectedStudent}
-        onEdit={handleEdit}
-        onDeleteStudent={handleDeleteStudent}
-        onOpenParentProfile={(parent) => handleEdit && handleEdit(parent)}
-        onLinkParent={(s) => setLinkModalStudent(s)}
-      />
+          {/* Desktop Full Table View */}
+          <StudentRosterTable
+            pageItems={pageItems}
+            studentSortField={studentSortField}
+            studentSortAsc={studentSortAsc}
+            onSort={handleStudentSort}
+            readOnly={readOnly}
+            canEditStatus={canEditStatus}
+            updatingStatusId={updatingStatusId}
+            pendingPromotionsMap={pendingPromotionsMap}
+            linkedParentsMap={linkedParentsMap}
+            onStatusChange={handleStatusChange}
+            onPaymentClick={(s) => setPaymentStudent(s)}
+            onSendRenewalReminder={handleSendRenewalReminder}
+            onPromote={handlePromote}
+            onAssignBatch={(s) => setSelectedTransferStudent({ student: s, sourceClass: null })}
+            onTransferBatch={(s, c) => setSelectedTransferStudent({ student: s, sourceClass: c })}
+            onBadgeClick={setSelectedStudent}
+            onEdit={handleEdit}
+            onDeleteStudent={handleDeleteStudent}
+            onOpenParentProfile={(parent) => handleEdit && handleEdit(parent)}
+            onLinkParent={(s) => setLinkModalStudent(s)}
+          />
 
-      {/* Pagination Footer */}
-      <Pagination
-        page={page}
-        totalPages={totalPages}
-        setPage={setPage}
-        from={from}
-        to={to}
-        total={total}
-        label="students"
-      />
+          {/* Pagination Footer */}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            setPage={setPage}
+            from={from}
+            to={to}
+            total={total}
+            label="students"
+          />
+        </>
+      )}
 
       {/* Fast Parent Link / Create Modal */}
       {linkModalStudent && (

@@ -398,6 +398,9 @@ export default function FrontOfficeDashboard({ role = "frontoffice" }) {
           handleDelete={handleDelete}
           handleAddStudent={handleAddStudent}
           canEditStatus={false}
+          userRole={role || "frontoffice"}
+          branchId={myBranch}
+          canViewParents={true}
         />
       ),
     },

@@ -308,24 +308,26 @@ export async function createParentAccount(email, password, parentData) {
 
 /**
  * Updates an existing parent profile with a restricted field set.
+ * Writes only displayName, phone, status, and updatedAt (and only fields actually provided).
  * Uses merge to preserve any fields not included in the update payload.
  *
  * @param {string} uid
  * @param {Record<string, any>} parentData
  */
-export function updateParentRecord(uid, parentData) {
-  const rawBranch = parentData.branchId || parentData.branch || DEFAULT_BRANCH_ID;
-  const canonicalBranchId = branchToId(rawBranch);
-  const canonicalBranch = idToBranch(canonicalBranchId);
-
+export function updateParentRecord(uid, parentData = {}) {
   const payload = {
-    displayName: (parentData.displayName || "").trim(),
-    phone: (parentData.phone || "").trim(),
-    status: parentData.status || "active",
-    branchId: canonicalBranchId,
-    branch: canonicalBranch,
     updatedAt: new Date().toISOString(),
   };
+
+  if (parentData.displayName !== undefined) {
+    payload.displayName = (parentData.displayName || "").trim();
+  }
+  if (parentData.phone !== undefined) {
+    payload.phone = (parentData.phone || "").trim();
+  }
+  if (parentData.status !== undefined) {
+    payload.status = parentData.status;
+  }
 
   return setDoc(doc(db, "users", uid), payload, { merge: true });
 }

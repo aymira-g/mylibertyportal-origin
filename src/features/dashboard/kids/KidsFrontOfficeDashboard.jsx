@@ -71,6 +71,7 @@ export default function KidsFrontOfficeDashboard() {
     students,
     unenrolledStudents,
     pendingApplications,
+    myBranch,
   } = useDashboardData({
     restrictedRead: true,
     setActiveTab,
@@ -328,6 +329,9 @@ export default function KidsFrontOfficeDashboard() {
           handleDelete={handleDelete}
           handleAddStudent={handleAddStudent}
           canEditStatus={false}
+          userRole="frontoffice"
+          branchId={myBranch}
+          canViewParents={true}
         />
       ),
     },

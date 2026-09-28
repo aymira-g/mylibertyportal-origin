@@ -12,6 +12,7 @@ export { default as BadgeModal } from "./BadgeModal";
 export { default as StudentPhotoCapture } from "./StudentPhotoCapture";
 export { default as StudentParentLinkage } from "./StudentParentLinkage";
 export { default as ParentProfileFields } from "./ParentProfileFields";
+export { default as ParentsList } from "./ParentsList";
 export {
   buildStudentRecord,
   isActiveStudent,

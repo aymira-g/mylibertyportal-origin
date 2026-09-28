@@ -3,6 +3,7 @@ import { auth, db } from "./firebase";
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { ProfilePanel, LoginPage } from "./features/auth";
+import { loginWithGoogle } from "./features/auth/authRepository";
 import { isDevSwitcherEnabled } from "./features/auth/devPresets";
 import {
   useToast,
@@ -170,6 +171,13 @@ function App() {
         setPhotoURL(data.photoURL || "");
         return true;
       }
+      // If no Firestore profile document exists yet for this auth user, populate display info from auth token if available
+      const currentAuth = auth.currentUser;
+      if (currentAuth) {
+        setDisplayName(currentAuth.displayName || "");
+        setNickname(currentAuth.displayName || "");
+        setPhotoURL(currentAuth.photoURL || "");
+      }
       return true;
     },
     [toast, handleLogout]
@@ -280,6 +288,27 @@ function App() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      await loginWithGoogle();
+    } catch (err) {
+      if (err?.code === "auth/popup-closed-by-user" || err?.code === "auth/cancelled-popup-request") {
+        return;
+      }
+      if (err?.code === "auth/unauthorized-domain") {
+        toast(
+          "Domain not authorized in Firebase Console > Authentication > Settings > Authorized domains.",
+          "error"
+        );
+        return;
+      }
+      toast("Google Sign-In Error: " + (err?.message || "Failed to sign in"), "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (checkingAuth) {
     return <LoadingFallback />;
   }
@@ -331,7 +360,11 @@ function App() {
       <>
         <ConnectivityBanner />
         <PwaUpdateBanner />
-        <LoginPage onLogin={handleLogin} loading={loading} />
+        <LoginPage
+          onLogin={handleLogin}
+          onGoogleLogin={handleGoogleLogin}
+          loading={loading}
+        />
       </>
     );
   }
@@ -534,8 +567,23 @@ function App() {
                 "officeboy",
                 "parent",
               ].includes(effectiveRole) && (
-                <div className="bg-white p-6 rounded-xl border text-center text-gray-500 text-sm max-w-md mx-auto">
-                  This account doesn't have dashboard access. Please contact your administrator.
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center text-slate-600 text-sm max-w-md mx-auto space-y-3 shadow-xs">
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto text-lg font-bold">
+                    🔒
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-sm">Account Pending Role Assignment</h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Signed in as <strong className="text-slate-700">{user?.email}</strong>. This account does not have a staff or parent role assigned yet. Please contact your academy administrator.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
+                  >
+                    Sign Out
+                  </button>
                 </div>
               )}
             </Suspense>

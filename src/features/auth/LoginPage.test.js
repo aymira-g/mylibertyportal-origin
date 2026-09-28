@@ -49,4 +49,17 @@ describe("LoginPage - Production Security & Mode 1 Gating", () => {
     expect(typeof devPresets.isDevSwitcherEnabled).toBe("boolean");
     expect(devPresets.isDevSwitcherEnabled).toBe(Boolean(import.meta.env.DEV));
   });
+
+  it("renders Google Sign In button when onGoogleLogin is provided", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(LoginPage, {
+        onLogin: vi.fn(),
+        onGoogleLogin: vi.fn(),
+        loading: false,
+      })
+    );
+
+    expect(html).toContain("Sign in with Google");
+    expect(html).toContain("Or sign in with email");
+  });
 });

@@ -1,5 +1,15 @@
-import { db } from "../../firebase";
+import { auth, db } from "../../firebase";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { doc, getDoc, updateDoc, writeBatch } from "firebase/firestore";
+
+/**
+ * Signs in a user using Firebase Google Auth provider with a popup window.
+ */
+export async function loginWithGoogle() {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  return signInWithPopup(auth, provider);
+}
 
 /**
  * All direct Firestore reads/writes for the auth domain (a user's own

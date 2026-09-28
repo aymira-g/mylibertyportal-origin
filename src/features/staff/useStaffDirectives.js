@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { auth, db } from "../../firebase";
-import { collection, onSnapshot } from "firebase/firestore";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { toggleTodoComplete } from "./todosRepository";
+import { useUserProfile } from "../shared/useUserProfile";
+import { branchToId } from "../../constants/branches.js";
 
 /**
  * Real-time hook for any staff dashboard to subscribe to their operational directives.
@@ -10,15 +12,36 @@ import { toggleTodoComplete } from "./todosRepository";
  * 1. "all" (All Academy Staff)
  * 2. The specific role (e.g. "instructor", "marketing", "frontoffice", "officeboy")
  * 3. The signed-in user's UID (individual 1-on-1 assignments)
+ *
+ * Scopes queries to the user's branch + academy-wide directives to maintain branch isolation.
  */
-export function useStaffDirectives(role) {
+export function useStaffDirectives(role, explicitBranch = null) {
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const currentUser = auth.currentUser;
+  const { branchId: profileBranchId, branch: profileBranch, loading: profileLoading } = useUserProfile();
+
+  const effectiveBranchId = explicitBranch
+    ? branchToId(explicitBranch)
+    : profileBranchId || (profileBranch ? branchToId(profileBranch) : null);
 
   useEffect(() => {
+    if (!currentUser) {
+      return () => {};
+    }
+
+    if (!effectiveBranchId && profileLoading) {
+      return () => {};
+    }
+
+    const branchConstraint = effectiveBranchId
+      ? where("branchId", "in", [effectiveBranchId, "all"])
+      : where("branchId", "==", "all");
+
+    const q = query(collection(db, "todos"), branchConstraint);
+
     const unsub = onSnapshot(
-      collection(db, "todos"),
+      q,
       (snap) => {
         const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         setTodos(list);
@@ -31,7 +54,7 @@ export function useStaffDirectives(role) {
     );
 
     return () => unsub();
-  }, []);
+  }, [currentUser, effectiveBranchId, profileLoading]);
 
   const directives = useMemo(() => {
     const uid = currentUser?.uid;

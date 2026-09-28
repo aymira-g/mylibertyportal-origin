@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X, Calendar, Check, AlertCircle } from "lucide-react";
 import { logStaffLeave } from "./shiftsRepository";
 import { useToast } from "../shared";
+import { todayWita } from "../../utils/dateWita.js";
 
 const LEAVE_TYPES = [
   { id: "sakit", label: "Sakit (Sick Leave)", desc: "Requires medical/doctor note" },
@@ -16,7 +17,7 @@ const LEAVE_TYPES = [
 
 export default function StaffLeaveModal({ staff = [], actor, onClose, onSuccess }) {
   const toast = useToast();
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todayWita();
 
   const [userId, setUserId] = useState("");
   const [type, setType] = useState("sakit");

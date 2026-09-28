@@ -6,6 +6,7 @@ import {
   syncStudentsCurrentLevel,
   transferStudentBetweenClasses,
 } from "./classesRepository";
+import { todayWita } from "../../utils/dateWita.js";
 
 export default function EnrollModal({
   batch,
@@ -19,7 +20,7 @@ export default function EnrollModal({
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [selectedTransferKey, setSelectedTransferKey] = useState("");
   const [dateJoined, setDateJoined] = useState(
-    batch?.classStartDate || new Date().toISOString().slice(0, 10)
+    batch?.classStartDate || todayWita()
   );
   const [enrolling, setEnrolling] = useState(false);
 
@@ -83,7 +84,7 @@ export default function EnrollModal({
 
     setEnrolling(true);
     const targetLevel = batch.classLevel || "warrior";
-    const effectiveDate = dateJoined || new Date().toISOString().slice(0, 10);
+    const effectiveDate = dateJoined || todayWita();
 
     try {
       if (enrollMode === "transfer") {

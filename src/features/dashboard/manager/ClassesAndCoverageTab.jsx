@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { LevelBadge } from "../../shared";
 import { AvailableBatches } from "../../classes";
 import { MyTeachingCohortsView } from "./MyTeachingCohortsView";
+import { isInstructorRole } from "../../shared/roles";
 
 export function ClassesAndCoverageTab({ classes, users, currentUserId }) {
   const [viewMode, setViewMode] = useState("batches");
@@ -11,7 +12,7 @@ export function ClassesAndCoverageTab({ classes, users, currentUserId }) {
   const instructorMap = useMemo(() => {
     const map = new Map();
     users.forEach((u) => {
-      if (u.role === "instructor" || u.role === "admin") {
+      if (isInstructorRole(u.role) || u.role === "admin") {
         map.set(
           u.id,
           u.displayName || `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email

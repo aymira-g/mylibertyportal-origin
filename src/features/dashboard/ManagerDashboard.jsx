@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { auth, db } from "../../firebase";
 import { collection, onSnapshot, query, where, doc } from "firebase/firestore";
-import { AIAssistant, DashboardShell, useToast, ApprovalInbox, isStaffRole } from "../shared";
+import { AIAssistant, DashboardShell, useToast, ApprovalInbox, isStaffRole, isInstructorRole } from "../shared";
 import { ReportsDashboard } from "../reports";
 import { createTodo, deleteTodo, toggleTodoComplete } from "../staff";
 import { getShiftStatus } from "../attendance";
@@ -390,7 +390,7 @@ export default function ManagerDashboard() {
       users
         .filter(
           (u) =>
-            (u.role === "instructor" || u.role === "admin") && (u.status || "active") === "active"
+            (isInstructorRole(u.role) || u.role === "admin") && (u.status || "active") === "active"
         )
         .map((u) => u.id)
     );

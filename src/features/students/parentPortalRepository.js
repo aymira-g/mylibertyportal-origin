@@ -14,24 +14,11 @@ export function normalizePhoneDigits(phoneStr = "") {
 }
 
 /**
- * Deprecated: Anonymous student lookup has been decommissioned for data isolation and privacy.
- * The operational parent portal requires authentication via getAuthenticatedParentBundle.
- * Returns empty array.
- *
- * @param {string} [searchTerm]
- * @returns {Promise<any[]>}
- */
-export async function lookupStudentForParent(searchTerm = "") {
-  void searchTerm;
-  return [];
-}
-
-/**
- * Builds the tuition summary shown on the public Parent Portal from the
+ * Builds the tuition summary shown on the authenticated Parent Portal from the
  * denormalized payment fields on the student document (written by the
  * finance flow in paymentsRepository.recordPayment). The payments
- * collection itself is staff-only in Firestore rules, so the portal —
- * which is anonymous — reads this summary instead of the raw history.
+ * collection itself is staff-only in Firestore rules, so parent views
+ * read this summary directly from the linked student document.
  */
 export function buildPaymentSummary(student) {
   if (!student || typeof student !== "object") return null;
@@ -43,40 +30,6 @@ export function buildPaymentSummary(student) {
     lastPaymentAmount: typeof student.lastPaymentAmount === "number" ? student.lastPaymentAmount : null,
     lastPaymentMethod: student.lastPaymentMethod || null,
     paidUntil: student.paidUntil || null,
-  };
-}
-
-/**
- * Loads complete parent dashboard data bundle for a specific student.
- */
-export async function getStudentParentPortalBundle(studentId) {
-  if (!studentId) return null;
-
-  // 1. Fetch student document
-  const studentDoc = await getDoc(doc(db, "users", studentId));
-  if (!studentDoc.exists()) {
-    throw new Error("Student not found.");
-  }
-  /** @type {any} */
-  const student = { id: studentDoc.id, ...studentDoc.data() };
-
-  // 2. Fetch enrolled batch/class info if present
-  let batchInfo = null;
-  if (student.batchId) {
-    try {
-      const bDoc = await getDoc(doc(db, "batches", student.batchId));
-      if (bDoc.exists()) {
-        batchInfo = { id: bDoc.id, ...bDoc.data() };
-      }
-    } catch (err) {
-      console.warn("Could not fetch batch for student:", err);
-    }
-  }
-
-  return {
-    student,
-    paymentSummary: buildPaymentSummary(student),
-    batchInfo,
   };
 }
 

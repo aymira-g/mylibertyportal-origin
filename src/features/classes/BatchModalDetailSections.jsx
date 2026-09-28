@@ -95,7 +95,11 @@ export function BatchInstructorFields({
             return (
               <option key={inst.id} value={inst.id}>
                 {inst.displayName || inst.name || inst.email}
-                {isInactive ? " (Inactive / Assigned)" : ` (${inst.role || "Instructor"})`}
+                {isInactive
+                  ? inst.status === "on_leave"
+                    ? " (On Leave)"
+                    : " (Inactive / Assigned)"
+                  : ` (${inst.role || "Instructor"})`}
               </option>
             );
           })}

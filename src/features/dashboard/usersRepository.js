@@ -167,20 +167,70 @@ export async function createStaffAccount(email, password, staffData) {
 
 /**
  * Deletes a user profile and scrubs any active enrollment references from
- * the /classes collection in an atomic batch to avoid leaving orphaned
- * student IDs in class rosters.
+ * the /classes collection and linked student references from /users (parents)
+ * in an atomic batch to avoid leaving orphaned student IDs.
  */
 export async function deleteUserProfile(uid) {
   if (!uid) return;
 
-  // Find all classes where this student is currently enrolled
+  // 1. Find all classes where this student is currently enrolled
   const classesQuery = query(collection(db, "classes"), where("studentIds", "array-contains", uid));
-  const classesSnap = await getDocs(classesQuery);
+  // 2. Find any parents who have this student linked
+  const parentsQuery = query(collection(db, "users"), where("childStudentIds", "array-contains", uid));
+
+  const [classesSnap, parentsSnap] = await Promise.all([
+    getDocs(classesQuery),
+    getDocs(parentsQuery),
+  ]);
 
   const batch = writeBatch(db);
   batch.delete(doc(db, "users", uid));
 
   const now = new Date().toISOString();
+  for (const classDoc of classesSnap.docs) {
+    const classData = classDoc.data();
+    const updatedStudentIds = (classData.studentIds || []).filter((id) => id !== uid);
+    const updatedEnrollments = (classData.enrollments || []).filter((e) => e.studentId !== uid);
+    batch.update(classDoc.ref, {
+      studentIds: updatedStudentIds,
+      enrollments: updatedEnrollments,
+      updatedAt: now,
+    });
+  }
+
+  for (const parentDoc of parentsSnap.docs) {
+    const parentData = parentDoc.data();
+    const updatedChildren = (parentData.childStudentIds || []).filter((id) => id !== uid);
+    batch.update(parentDoc.ref, {
+      childStudentIds: updatedChildren,
+      updatedAt: now,
+    });
+  }
+
+  return batch.commit();
+}
+
+/**
+ * Archives a student profile instead of hard deleting it.
+ * Preserves financial payment logs, attendance records, and progress reports
+ * while removing active roster enrollment and marking status as 'archived'.
+ */
+export async function archiveStudentProfile(uid, actor = null) {
+  if (!uid) return;
+
+  const classesQuery = query(collection(db, "classes"), where("studentIds", "array-contains", uid));
+  const classesSnap = await getDocs(classesQuery);
+
+  const batch = writeBatch(db);
+  const now = new Date().toISOString();
+
+  batch.update(doc(db, "users", uid), {
+    status: "archived",
+    statusUpdatedAt: now,
+    statusUpdatedBy: actor?.displayName || actor?.email || "Staff",
+    updatedAt: now,
+  });
+
   for (const classDoc of classesSnap.docs) {
     const classData = classDoc.data();
     const updatedStudentIds = (classData.studentIds || []).filter((id) => id !== uid);

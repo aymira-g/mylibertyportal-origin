@@ -1,7 +1,12 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import { fake } from "../../../test/firestoreFake.js";
 import { INQUIRY_STATUSES } from "../../../schemas/deskInquirySchema";
-import { createDeskInquiry, fetchRecentDeskInquiries } from "./deskInquiriesRepository";
+import {
+  createDeskInquiry,
+  fetchRecentDeskInquiries,
+  markInquiryConverted,
+  updateDeskInquiryStatus,
+} from "./deskInquiriesRepository";
 
 vi.mock(
   "firebase/firestore",
@@ -87,6 +92,28 @@ describe("deskInquiriesRepository statuses", () => {
 
     const allResults = await fetchRecentDeskInquiries(50);
     expect(allResults.length).toBe(2);
+  });
+
+  it("rejects updateDeskInquiryStatus to enrolled directly", async () => {
+    await expect(updateDeskInquiryStatus("inq-1", "enrolled")).rejects.toThrow(
+      "Cannot set inquiry status to 'enrolled' directly"
+    );
+  });
+
+  it("requires a valid studentId when marking inquiry as converted", async () => {
+    await expect(markInquiryConverted("inq-1", "")).rejects.toThrow(
+      "Cannot mark inquiry as converted without a valid student ID"
+    );
+    await expect(markInquiryConverted("inq-1", null)).rejects.toThrow(
+      "Cannot mark inquiry as converted without a valid student ID"
+    );
+  });
+
+  it("successfully marks inquiry converted with valid studentId", async () => {
+    fake.seed("deskInquiries", [{ id: "inq-1", status: "inquired" }]);
+    const res = await markInquiryConverted("inq-1", "student-123");
+    expect(res.status).toBe("enrolled");
+    expect(res.convertedStudentId).toBe("student-123");
   });
 });
 

@@ -18,6 +18,7 @@ import {
 } from "./staffUtils";
 import { DIVISION_BADGES, normalizeDivision } from "../../constants/divisions.js";
 import { normalizeWhatsAppNumber } from "../finance/receiptMessages";
+import { isInstructorRole } from "../shared/roles";
 
 export function StaffMemberCard({
   u,
@@ -33,7 +34,7 @@ export function StaffMemberCard({
 }) {
   const statusConfig = STAFF_STATUS_MAP[u.status || "active"] || STAFF_STATUS_MAP.active;
   const isAdminRole = u.role === "admin";
-  const isInstructor = u.role === "instructor" || u.role === "instructorleader";
+  const isInstructor = isInstructorRole(u.role);
   const isSelf = currentUserId && u.id === currentUserId;
 
   const rawPhone = u.phone || "";
@@ -218,7 +219,7 @@ export function StaffMemberCard({
         </div>
       </div>
 
-      {(roleFilter === "instructor" || roleFilter === "instructorleader") && isInstructor && workload && (
+      {isInstructorRole(roleFilter) && isInstructor && workload && (
         <div className="pt-2.5 pb-1 border-t border-slate-100 text-xs">
           <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-3">

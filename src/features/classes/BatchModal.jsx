@@ -23,6 +23,7 @@ import {
   getProgramLevels,
   normalizeProgram,
 } from "../../constants/programs";
+import { todayWita } from "../../utils/dateWita.js";
 import {
   normalizeBatchType,
   getBatchTypeDefaults,
@@ -73,7 +74,7 @@ function BatchForm({ batch, instructors, existingClasses = [], onClose, onSucces
   );
   const [classDay, setClassDay] = useState(batch?.classDay || currentProgram.defaultDay || "Mon/Wed");
   const [classStartDate, setClassStartDate] = useState(
-    batch?.classStartDate || new Date().toISOString().slice(0, 10)
+    batch?.classStartDate || todayWita()
   );
   const [startTime, setStartTime] = useState(batch?.startTime || currentProgram.defaultStartTime || "17:00");
   const [endTime, setEndTime] = useState(batch?.endTime || currentProgram.defaultEndTime || "18:30");

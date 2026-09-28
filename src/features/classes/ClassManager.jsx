@@ -13,6 +13,8 @@ import BatchOutreachPanel from "./BatchOutreachPanel";
 import CohortRosterTable from "./CohortRosterTable";
 import { findScheduleConflicts } from "./scheduleConflict";
 import { Plus, LayoutGrid, Table as TableIcon } from "lucide-react";
+import { isFrontOfficeRole } from "../shared/roles";
+import { todayWita } from "../../utils/dateWita.js";
 
 export default function ClassManager({
   classes = [],
@@ -34,7 +36,7 @@ export default function ClassManager({
   const [outreachBatch, setOutreachBatch] = useState(null);
   const [transferringStudent, setTransferringStudent] = useState(null);
 
-  const canEnroll = isAdmin || role === "frontoffice";
+  const canEnroll = isAdmin || isFrontOfficeRole(role);
 
   // ── Global Conflict Detection ──────────────────────────────────────────
   const { teacherConflicts, roomConflicts } = useMemo(() => {
@@ -117,7 +119,7 @@ export default function ClassManager({
     try {
       await addStudentToClass(classId, {
         studentId,
-        dateJoined: dateJoined || new Date().toISOString().slice(0, 10),
+        dateJoined: dateJoined || todayWita(),
         level: targetLevel,
       });
       await syncStudentsCurrentLevel([studentId], targetLevel);

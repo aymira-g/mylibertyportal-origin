@@ -16,7 +16,7 @@ import {
   assertSucceeds,
   assertFails,
 } from "@firebase/rules-unit-testing";
-import { doc, setDoc, getDoc, updateDoc, collection, addDoc, writeBatch, deleteField } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, collection, addDoc, writeBatch, deleteField, query, where, getDocs } from "firebase/firestore";
 
 const RULES_PATH = join(dirname(fileURLToPath(import.meta.url)), "../../../firestore.rules");
 const HAS_EMULATOR = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
@@ -30,6 +30,8 @@ const USERS = {
   foGto: { role: "frontoffice", branchId: "kota_gorontalo" },
   foBoba: { role: "frontoffice", branchId: "bone_bolango" },
   insGto: { role: "instructor", branchId: "kota_gorontalo" },
+  cleanerGto: { role: "cleaner", branchId: "kota_gorontalo" },
+  parent1: { role: "parent", branchId: "kota_gorontalo", childStudentIds: ["student1"] },
   student1: { role: "student", branchId: "kota_gorontalo" },
   student2: { role: "student", branchId: "bone_bolango" },
 };
@@ -451,6 +453,14 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       );
     });
 
+    it("blocks corrections if target values do not match approved afterData (INT-019)", async () => {
+      const tampered = {
+        ...applied("corr1"),
+        clockIn: "2026-09-21T00:00:00.000Z", // does not match approved 00:30:00
+      };
+      await assertFails(updateDoc(doc(authed("foGto"), "shifts", "shift1"), tampered));
+    });
+
     it("blocks instructors and other branches from applying corrections", async () => {
       await assertFails(updateDoc(doc(authed("insGto"), "shifts", "shift1"), applied("corr1")));
       await assertFails(updateDoc(doc(authed("mgrBoba"), "shifts", "shift1"), applied("corr1")));
@@ -530,7 +540,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
 
     it("allows assigned instructor to create attendance for enrolled student", async () => {
       await assertSucceeds(
-        setDoc(doc(authed("insGto"), "classAttendance", "att1"), {
+        setDoc(doc(authed("insGto"), "classAttendance", "class1_student1_2026-09-27"), {
           classId: "class1",
           studentId: "student1",
           attendanceDate: "2026-09-27",
@@ -543,7 +553,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
 
     it("denies unassigned instructor or unenrolled student", async () => {
       await assertFails(
-        setDoc(doc(authed("insSub"), "classAttendance", "att2"), {
+        setDoc(doc(authed("insSub"), "classAttendance", "class1_student2_2026-09-27"), {
           classId: "class1",
           studentId: "student2",
           attendanceDate: "2026-09-27",
@@ -555,7 +565,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
     });
 
     it("blocks updates via scan method and enforces method == MANUAL", async () => {
-      await seedDoc(["classAttendance", "att1"], {
+      await seedDoc(["classAttendance", "class1_student1_2026-09-27"], {
         classId: "class1",
         studentId: "student1",
         attendanceDate: "2026-09-27",
@@ -566,7 +576,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
 
       // Attempt update with SCAN method -> fails
       await assertFails(
-        setDoc(doc(authed("insGto"), "classAttendance", "att1"), {
+        setDoc(doc(authed("insGto"), "classAttendance", "class1_student1_2026-09-27"), {
           classId: "class1",
           studentId: "student1",
           attendanceDate: "2026-09-27",
@@ -578,7 +588,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
 
       // Attempt update with MANUAL method -> succeeds
       await assertSucceeds(
-        setDoc(doc(authed("insGto"), "classAttendance", "att1"), {
+        setDoc(doc(authed("insGto"), "classAttendance", "class1_student1_2026-09-27"), {
           classId: "class1",
           studentId: "student1",
           attendanceDate: "2026-09-27",
@@ -607,4 +617,158 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       await assertFails(getDoc(doc(authed("admin"), "mysteryCollection", "doc1")));
     });
   });
+
+  describe("integration audit verification & remediation (Phase 2)", () => {
+    beforeEach(async () => {
+      await seedUsers();
+    });
+
+    it("INT-004: Front Office can read same-branch staff user doc and shifts, but cross-branch is blocked", async () => {
+      // 1. Same-branch staff profile getDoc succeeds
+      await assertSucceeds(getDoc(doc(authed("foGto"), "users", "cleanerGto")));
+
+      // 2. Cross-branch staff profile getDoc fails
+      await assertFails(getDoc(doc(authed("foBoba"), "users", "cleanerGto")));
+
+      // 3. Same-branch staff open shift query succeeds
+      await seedDoc(["shifts", "shift_insGto"], {
+        userId: "insGto",
+        role: "instructor",
+        branchId: "kota_gorontalo",
+        clockIn: "2026-09-21T01:00:00.000Z",
+        clockOut: null,
+      });
+
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(authed("foGto"), "shifts"),
+            where("userId", "==", "insGto"),
+            where("clockOut", "==", null),
+            where("branchId", "==", "kota_gorontalo")
+          )
+        )
+      );
+
+      // 4. Cross-branch staff shift query fails
+      await assertFails(
+        getDocs(
+          query(
+            collection(authed("foBoba"), "shifts"),
+            where("userId", "==", "insGto"),
+            where("clockOut", "==", null),
+            where("branchId", "==", "kota_gorontalo")
+          )
+        )
+      );
+    });
+
+    it("INT-002: scoped directives queries succeed and maintain branch isolation; unfiltered queries are blocked", async () => {
+      await seedDoc(["todos", "todoKota"], {
+        title: "Kota todo",
+        branchId: "kota_gorontalo",
+        completed: false,
+      });
+      await seedDoc(["todos", "todoBoba"], {
+        title: "Boba todo",
+        branchId: "bone_bolango",
+        completed: false,
+      });
+      await seedDoc(["todos", "todoAll"], {
+        title: "Academy All todo",
+        branchId: "all",
+        completed: false,
+      });
+
+      // 1. Unfiltered query is now blocked for all staff branches (no more leakage!)
+      await assertFails(getDocs(collection(authed("foGto"), "todos")));
+      await assertFails(getDocs(collection(authed("foBoba"), "todos")));
+
+      // 2. Branch-scoped query succeeds for Kota Gorontalo and receives Kota + All
+      const snapKota = await assertSucceeds(
+        getDocs(query(collection(authed("foGto"), "todos"), where("branchId", "in", ["kota_gorontalo", "all"])))
+      );
+      const kotaIds = snapKota.docs.map((d) => d.id);
+      if (!kotaIds.includes("todoKota") || !kotaIds.includes("todoAll") || kotaIds.includes("todoBoba")) {
+        throw new Error("Kota query returned incorrect directives: " + JSON.stringify(kotaIds));
+      }
+
+      // 3. Branch-scoped query succeeds for Bone Bolango and receives Boba + All
+      const snapBoba = await assertSucceeds(
+        getDocs(query(collection(authed("foBoba"), "todos"), where("branchId", "in", ["bone_bolango", "all"])))
+      );
+      const bobaIds = snapBoba.docs.map((d) => d.id);
+      if (!bobaIds.includes("todoBoba") || !bobaIds.includes("todoAll") || bobaIds.includes("todoKota")) {
+        throw new Error("Boba query returned incorrect directives: " + JSON.stringify(bobaIds));
+      }
+    });
+
+    it("INT-009: prevents Kota manager from modifying a Bone Bolango corporate event", async () => {
+      await seedDoc(["corporateEvents", "bobaEvent"], {
+        name: "Bone Bolango Gathering",
+        branchId: "bone_bolango",
+        audienceType: "branch",
+        audienceValue: "Bone Bolango",
+        eventDate: "2026-09-30",
+      });
+
+      // 1. Cross-branch modification is now BLOCKED by isSameBranch(resource.data)
+      await assertFails(
+        updateDoc(doc(authed("mgrGto"), "corporateEvents", "bobaEvent"), {
+          audienceType: "branch",
+          audienceValue: "Kota Gorontalo",
+        })
+      );
+
+      // 2. Same-branch manager can update their event
+      await assertSucceeds(
+        updateDoc(doc(authed("mgrBoba"), "corporateEvents", "bobaEvent"), {
+          name: "Updated Bone Bolango Gathering",
+        })
+      );
+    });
+
+    it("INT-013: progress reports are branch-isolated for staff and parent-ready", async () => {
+      await seedDoc(["progressReports", "bobaReport"], {
+        instructorId: "insBoba",
+        studentId: "student2",
+        classId: "classBoba",
+        branchId: "bone_bolango",
+      });
+      await seedDoc(["progressReports", "kotaReport"], {
+        instructorId: "insGto",
+        studentId: "student1",
+        classId: "class1",
+        branchId: "kota_gorontalo",
+      });
+
+      // 1. Front office in Kota is BLOCKED from reading Bone Bolango progress report
+      await assertFails(getDoc(doc(authed("foGto"), "progressReports", "bobaReport")));
+
+      // 2. Front office in Kota can read Kota progress report
+      await assertSucceeds(getDoc(doc(authed("foGto"), "progressReports", "kotaReport")));
+
+      // 3. Parent ready: parent1 can read report for their linked child (student1)
+      await assertSucceeds(getDoc(doc(authed("parent1"), "progressReports", "kotaReport")));
+
+      // 4. Parent ready: parent1 CANNOT read report for another child (student2)
+      await assertFails(getDoc(doc(authed("parent1"), "progressReports", "bobaReport")));
+    });
+
+    it("INT-017: verifies parent class query shape under parent rules", async () => {
+      await seedDoc(["classes", "class1"], {
+        instructorId: "insGto",
+        studentIds: ["student1"],
+        branchId: "kota_gorontalo",
+        status: "open",
+      });
+
+      // Parent1 has childStudentIds: ["student1"]. Query where studentIds array-contains student1:
+      await assertSucceeds(
+        getDocs(query(collection(authed("parent1"), "classes"), where("studentIds", "array-contains", "student1")))
+      );
+    });
+  });
 });
+
+

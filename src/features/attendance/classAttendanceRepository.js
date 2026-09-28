@@ -256,7 +256,7 @@ export async function updateClassAttendanceManual({
  * @param {string} params.classId
  * @param {string} params.attendanceDate
  * @param {Array<string>} params.rosterStudentIds
- * @param {Record<string, { displayName?: string, name?: string }>} [params.studentsMap]
+ * @param {Record<string, { displayName?: string, name?: string, status?: string }>} [params.studentsMap]
  * @param {string} params.markedBy
  * @param {string} [params.markedByName]
  * @param {string} [params.className]
@@ -280,7 +280,15 @@ export async function closeOutClassAttendance({
   const existing = await fetchClassAttendance(classId, attendanceDate);
   const existingIds = new Set(existing.map((r) => /** @type {any} */(r).studentId));
 
-  const missingStudentIds = rosterStudentIds.filter((id) => id && !existingIds.has(id));
+  const missingStudentIds = rosterStudentIds.filter((id) => {
+    if (!id || existingIds.has(id)) return false;
+    // INT-008: Do not generate ABSENT records for inactive, graduated, or on-leave students
+    const student = studentsMap[id];
+    if (student?.status && student.status !== "active") {
+      return false;
+    }
+    return true;
+  });
 
   if (missingStudentIds.length === 0) {
     return {

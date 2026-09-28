@@ -145,7 +145,9 @@ export function WalkInTable({
                     >
                       <option value="inquired">Inquired</option>
                       <option value="follow_up_sent">Follow-Up Sent</option>
-                      <option value="enrolled">Enrolled</option>
+                      {inq.convertedStudentId ? (
+                        <option value="enrolled">Enrolled</option>
+                      ) : null}
                       <option value="closed">Closed</option>
                     </select>
                   </td>

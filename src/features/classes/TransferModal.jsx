@@ -15,6 +15,7 @@ import {
   addStudentToClass,
   syncStudentsCurrentLevel,
 } from "./classesRepository";
+import { todayWita } from "../../utils/dateWita.js";
 
 export default function TransferModal({
   isOpen = true,
@@ -28,7 +29,7 @@ export default function TransferModal({
   const toast = useToast();
 
   const [targetClassId, setTargetClassId] = useState("");
-  const [transferDate, setTransferDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [transferDate, setTransferDate] = useState(() => todayWita());
   const [reason, setReason] = useState("Schedule adjustment");
   const [customReason, setCustomReason] = useState("");
   const [search, setSearch] = useState("");
@@ -114,7 +115,7 @@ export default function TransferModal({
           targetClassId,
           targetClass: selectedTargetClass,
           studentId: student.id,
-          dateTransferred: transferDate || new Date().toISOString().slice(0, 10),
+          dateTransferred: transferDate || todayWita(),
           newLevel: selectedTargetClass?.classLevel || student.currentLevel,
           transferReason: finalReason || "Batch transfer",
         });
@@ -124,7 +125,7 @@ export default function TransferModal({
           "success"
         );
       } else {
-        const effectiveDate = transferDate || new Date().toISOString().slice(0, 10);
+        const effectiveDate = transferDate || todayWita();
         const targetLevel = selectedTargetClass?.classLevel || student.currentLevel || "warrior";
         await addStudentToClass(targetClassId, {
           studentId: student.id,

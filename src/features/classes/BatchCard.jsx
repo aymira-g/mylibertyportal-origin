@@ -15,6 +15,7 @@ import {
 import { getEnrollment, getDuration, openWhatsAppParentChat } from "./classesUtils";
 import StudentPaymentBadge from "./StudentPaymentBadge";
 import { getBatchType } from "../../constants/batchTypes";
+import { todayWita } from "../../utils/dateWita.js";
 
 export default function BatchCard({
   cls,
@@ -32,7 +33,7 @@ export default function BatchCard({
 }) {
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [addStudentId, setAddStudentId] = useState("");
-  const [addDateJoined, setAddDateJoined] = useState(new Date().toISOString().slice(0, 10));
+  const [addDateJoined, setAddDateJoined] = useState(() => todayWita());
 
   const studentCount = (cls.studentIds || []).length;
   const capacity = Number(cls.maxCapacity) || 15;
@@ -46,12 +47,12 @@ export default function BatchCard({
     if (onAddStudent) {
       const success = await onAddStudent(cls.id, {
         studentId: addStudentId,
-        dateJoined: addDateJoined || new Date().toISOString().slice(0, 10),
+        dateJoined: addDateJoined || todayWita(),
       });
       if (success) {
         setIsEnrolling(false);
         setAddStudentId("");
-        setAddDateJoined(new Date().toISOString().slice(0, 10));
+        setAddDateJoined(todayWita());
       }
     }
   };

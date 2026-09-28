@@ -16,6 +16,7 @@ import {
   getBatchType,
   matchesBatchTypeFilter,
 } from "../../constants/batchTypes";
+import { isFrontOfficeRole } from "../shared/roles";
 
 export default function AvailableBatches({
   classes = [],
@@ -47,7 +48,7 @@ export default function AvailableBatches({
 
   // Strict role boundaries
   const canAdminister = role === "admin" && canEdit;
-  const canEnroll = role === "admin" || role === "frontoffice";
+  const canEnroll = role === "admin" || isFrontOfficeRole(role);
 
   // Filter students list for direct enrollment
   const studentsList = useMemo(() => {

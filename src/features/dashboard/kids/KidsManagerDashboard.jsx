@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { auth, db } from "../../../firebase";
 import { collection, onSnapshot, query, where, doc } from "firebase/firestore";
-import { AIAssistant, DashboardShell, useToast, isStaffRole } from "../../shared";
+import { AIAssistant, DashboardShell, useToast, isStaffRole, isInstructorRole } from "../../shared";
 import { ReportsDashboard } from "../../reports";
 import { createTodo, deleteTodo, toggleTodoComplete } from "../../staff";
 import { getShiftStatus } from "../../attendance";
@@ -234,7 +234,7 @@ export default function KidsManagerDashboard() {
       rawUsers
         .filter(
           (u) =>
-            (u.role === "instructor" || u.role === "admin") &&
+            (isInstructorRole(u.role) || u.role === "admin") &&
             (u.status || "active") === "active" &&
             (u.role === "admin" || matchesDivisionFilter(u.division, "kindergarten"))
         )

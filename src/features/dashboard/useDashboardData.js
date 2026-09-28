@@ -21,6 +21,7 @@ import {
   matchesDivisionFilter,
 } from "../../constants/divisions";
 import { getProgram, normalizeProgram } from "../../constants/programs";
+import { isInstructorRole } from "../shared/roles";
 
 const emptyFormData = {
   firstName: "",
@@ -243,8 +244,13 @@ export function useDashboardData({
           (savedResult && typeof savedResult === "object" && "id" in savedResult
             ? String(savedResult.id)
             : null);
-        if (formData.inquiryId) {
-          await markInquiryConverted(formData.inquiryId, studentId);
+        if (formData.inquiryId && studentId) {
+          try {
+            await markInquiryConverted(formData.inquiryId, studentId);
+          } catch (convErr) {
+            console.error("Failed linking inquiry to new student:", convErr);
+            toast("Student registered, but linking the inquiry record failed: " + convErr.message, "warning");
+          }
         }
         savedRecord = { id: studentId, ...studentData };
       } else if (formData.role === "parent") {
@@ -548,7 +554,7 @@ export function useDashboardData({
   }, [users, division, effectiveBranch]);
 
   const instructors = useMemo(() => {
-    let list = users.filter((u) => u.role === "instructor");
+    let list = users.filter((u) => isInstructorRole(u.role));
     if (division && division !== "all") {
       list = list.filter((u) => matchesDivisionFilter(u.division, division));
     }

@@ -14,6 +14,7 @@ import { findMatchingCorporateEvents } from "./corporateEvents";
 import { recordClassAttendanceScan } from "./classAttendanceRepository";
 import { resolveStudentClass } from "./classResolution";
 import { DEFAULT_BRANCH, branchToId } from "../../constants/branches.js";
+import { isInstructorRole } from "../shared/roles.js";
 
 /**
  * Core business resolution for QR badge scan at the kiosk station or class session.
@@ -283,14 +284,15 @@ export async function handleKioskScan(
       }
     }
 
-    let openShift = await fetchOpenShiftFor(uid);
+    const staffBranchId = branchToId(userData.branchId || userData.branch || DEFAULT_BRANCH);
+    let openShift = await fetchOpenShiftFor(uid, staffBranchId);
     if (openShift && isShiftStale(openShift)) {
       await autoCloseShift(openShift);
       openShift = null;
     }
 
     if (!openShift) {
-      if (userData.role === "instructor") {
+      if (isInstructorRole(userData.role)) {
         const instructorClasses = await fetchInstructorClasses(uid);
         const todayClasses = getTodaysClasses(instructorClasses);
 
@@ -414,7 +416,7 @@ export async function handleKioskScan(
         });
       }
     } else {
-      if (userData.role === "instructor") {
+      if (isInstructorRole(userData.role)) {
         const instructorClasses = await fetchInstructorClasses(uid);
         const todayClasses = getTodaysClasses(instructorClasses);
         const remainingClasses = todayClasses.filter((cls) => cls.id !== openShift.classId);
@@ -430,7 +432,7 @@ export async function handleKioskScan(
         "success",
         openShift.shiftType === "corporate_event"
           ? `Thank you for attending ${openShift.className}!`
-          : userData.role === "instructor"
+          : isInstructorRole(userData.role)
             ? "Thank you for teaching today!"
             : "Thank you for your hard work today!",
         userData.displayName

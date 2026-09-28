@@ -10,6 +10,7 @@ import {
   getBatchTypeList,
   matchesBatchTypeFilter,
 } from "../../constants/batchTypes";
+import { todayWita } from "../../utils/dateWita.js";
 
 export default function CohortRosterTable({
   classes = [],
@@ -245,7 +246,7 @@ export default function CohortRosterTable({
               ];
             });
             exportTableCSV(
-              `cohort-rosters-${new Date().toISOString().slice(0, 10)}`,
+              `cohort-rosters-${todayWita()}`,
               headers,
               rows
             );

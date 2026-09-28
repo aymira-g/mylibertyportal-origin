@@ -238,7 +238,7 @@ export default function WalkInInquiryTab({
     setSubmitting(true);
     try {
       const ageText = calculatedAge !== null ? `${calculatedAge} yo` : formData.ageOrGrade;
-      const statusToSave = enrollImmediately ? "enrolled" : "inquired";
+      const statusToSave = "inquired";
 
       const savedInquiry = await createDeskInquiry({
         ...formData,
@@ -284,7 +284,7 @@ export default function WalkInInquiryTab({
           phone,
           division,
           branch: branchLabel || "Kota Gorontalo",
-          status: enrollImmediately ? "enrolled" : "inquired",
+          status: "inquired",
         });
         setHasPermission(false);
         setInquiries((prev) => [
@@ -310,6 +310,13 @@ export default function WalkInInquiryTab({
   };
 
   const handleStatusChange = async (inquiryId, newStatus) => {
+    if (newStatus === "enrolled") {
+      const inq = inquiries.find((i) => i.id === inquiryId);
+      if (!inq?.convertedStudentId) {
+        toast("To enroll an inquiry, please use the Enroll button to complete student registration.", "warning");
+        return;
+      }
+    }
     try {
       await updateDeskInquiryStatus(inquiryId, newStatus);
       toast(`Status updated to ${newStatus.replace("_", " ")}`, "success");
@@ -318,18 +325,12 @@ export default function WalkInInquiryTab({
       );
     } catch (err) {
       console.error("Failed to update status:", err);
-      toast("Failed to update status", "error");
+      toast("Failed to update status: " + (err.message || ""), "error");
     }
   };
 
   const handleEnrollFromList = async (inquiry) => {
     try {
-      if (inquiry.status !== "enrolled") {
-        await updateDeskInquiryStatus(inquiry.id, "enrolled");
-        setInquiries((prev) =>
-          prev.map((i) => (i.id === inquiry.id ? { ...i, status: "enrolled" } : i))
-        );
-      }
       if (onEnrollStudent) {
         toast(`Opening student registration for ${inquiry.studentName}...`, "info");
         onEnrollStudent(inquiry);

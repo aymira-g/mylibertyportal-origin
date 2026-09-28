@@ -98,6 +98,11 @@ export async function createDeskInquiry(inquiryData) {
 
 export async function updateDeskInquiryStatus(inquiryId, newStatus) {
   if (!inquiryId) throw new Error("Inquiry ID is required");
+  if (newStatus === "enrolled") {
+    throw new Error(
+      "Cannot set inquiry status to 'enrolled' directly without a registered student ID. Use markInquiryConverted."
+    );
+  }
   const currentUser = auth.currentUser;
   const updateData = {
     status: newStatus,
@@ -188,11 +193,15 @@ export async function addPlacementTestToInquiry(inquiryId, testData) {
  * Marks an inquiry as converted to student, recording convertedStudentId and timestamp.
  */
 export async function markInquiryConverted(inquiryId, studentId) {
-  if (!inquiryId) return;
+  if (!inquiryId) throw new Error("Inquiry ID is required");
+  if (!studentId || typeof studentId !== "string" || !studentId.trim()) {
+    throw new Error("Cannot mark inquiry as converted without a valid student ID.");
+  }
+  const cleanStudentId = studentId.trim();
   const currentUser = auth.currentUser;
   const updateData = {
     status: "enrolled",
-    convertedStudentId: studentId || null,
+    convertedStudentId: cleanStudentId,
     convertedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     updatedBy: currentUser?.uid || "frontoffice",
@@ -212,6 +221,7 @@ export async function markInquiryConverted(inquiryId, studentId) {
       return { id: inquiryId, ...updateData, _permissionDenied: true };
     }
     console.warn("markInquiryConverted failed:", err);
+    throw err;
   }
 }
 

@@ -1,5 +1,6 @@
 import { exportTableCSV, getPaymentHealthStatus } from "../shared";
 import { getStudentPlanLabel } from "./studentRosterBadges";
+import { todayWita } from "../../utils/dateWita.js";
 
 export function exportStudentRosterCSV(sortedStudents) {
   const headers = [
@@ -37,5 +38,5 @@ export function exportStudentRosterCSV(sortedStudents) {
         : "—",
     ];
   });
-  exportTableCSV(`student-roster-${new Date().toISOString().slice(0, 10)}`, headers, rows);
+  exportTableCSV(`student-roster-${todayWita()}`, headers, rows);
 }

@@ -18,6 +18,7 @@ import { createApprovalEnvelope } from "../shared/approvalGates";
 import { submitApprovalRequest } from "../shared/approvalsRepository";
 import { branchToId, idToBranch, DEFAULT_BRANCH_ID } from "../../constants/branches";
 import { getOrCreateKioskKey, signKioskChallenge } from "./kioskDeviceCrypto";
+import { todayWita } from "../../utils/dateWita.js";
 
 export const DEFAULT_CASH_DISCREPANCY_THRESHOLD_IDR = 25000;
 export const DEFAULT_CASH_DISCREPANCY_PERCENT = 0.01;
@@ -54,11 +55,17 @@ export async function fetchUserById(uid) {
 }
 
 /**
+ * @param {string} uid
+ * @param {string|null} [branchId]
  * @returns {Promise<any>}
  */
-export async function fetchOpenShiftFor(uid) {
+export async function fetchOpenShiftFor(uid, branchId = null) {
+  const constraints = [where("userId", "==", uid), where("clockOut", "==", null)];
+  if (branchId) {
+    constraints.push(where("branchId", "==", branchId));
+  }
   const snap = await getDocs(
-    query(collection(db, "shifts"), where("userId", "==", uid), where("clockOut", "==", null))
+    query(collection(db, "shifts"), ...constraints)
   );
   return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
 }
@@ -512,19 +519,36 @@ export async function logStaffLeave({
   createdBy,
 }) {
   const finalBranchId = branchId ? branchToId(branchId) : null;
-  return addDoc(collection(db, "staffLeave"), {
+  const leaveEndDate = endDate || startDate;
+  const leaveDoc = await addDoc(collection(db, "staffLeave"), {
     userId,
     displayNameSnapshot: displayNameSnapshot || "",
     ...(finalBranchId ? { branchId: finalBranchId } : {}),
     type,
     startDate,
-    endDate: endDate || startDate,
+    endDate: leaveEndDate,
     dayPortion,
     note,
     status: "approved",
     createdBy,
     createdAt: serverTimestamp(),
   });
+
+  const todayStr = todayWita();
+  if (startDate <= todayStr && todayStr <= leaveEndDate && userId) {
+    try {
+      await updateDoc(doc(db, "users", userId), {
+        status: "on_leave",
+        statusReason: type,
+        statusUpdatedAt: new Date().toISOString(),
+        statusUpdatedBy: createdBy || "admin",
+      });
+    } catch (err) {
+      console.warn("Could not sync user status on leave creation:", err);
+    }
+  }
+
+  return leaveDoc;
 }
 
 export async function fetchStaffLeaves(sinceDate = null) {
@@ -535,6 +559,29 @@ export async function fetchStaffLeaves(sinceDate = null) {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
-export function deleteStaffLeave(leaveId) {
-  return deleteDoc(doc(db, "staffLeave", leaveId));
+export async function deleteStaffLeave(leaveId, userId = null) {
+  let targetUid = userId;
+  if (!targetUid) {
+    try {
+      const snap = await getDoc(doc(db, "staffLeave", leaveId));
+      if (snap && typeof snap.data === "function" && snap.data()) {
+        targetUid = snap.data().userId;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  const res = await deleteDoc(doc(db, "staffLeave", leaveId));
+  if (targetUid) {
+    try {
+      await updateDoc(doc(db, "users", targetUid), {
+        status: "active",
+        statusUpdatedAt: new Date().toISOString(),
+        statusUpdatedBy: auth.currentUser?.uid || "admin",
+      });
+    } catch (err) {
+      console.warn("Could not revert user status on leave deletion:", err);
+    }
+  }
+  return res;
 }

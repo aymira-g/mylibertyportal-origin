@@ -77,6 +77,12 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [history, setHistory] = useState([]);
   const [activeReceipt, setActiveReceipt] = useState(null);
+  const [operationId] = useState(
+    () => `idem_${student?.id || "anon"}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+  );
+  const [receiptNo] = useState(
+    () => `ML-${Date.now().toString().slice(-6)}`
+  );
 
   const handleSelectPlan = (planKey) => {
     setSelectedPlan(planKey);
@@ -146,7 +152,6 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
 
     setSaving(true);
     try {
-      const receiptNo = `ML-${Date.now().toString().slice(-6)}`;
       const nowISO = new Date().toISOString();
 
       let planMonths = null;
@@ -187,7 +192,7 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
         method,
         notes: notes.trim(),
         receiptNumber: receiptNo,
-        idempotencyKey: `idem_${student.id}_${receiptNo}`,
+        idempotencyKey: operationId,
         recordedAt: nowISO,
         recordedBy: auth.currentUser?.email || "Staff",
       };

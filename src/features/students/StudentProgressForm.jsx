@@ -11,6 +11,7 @@ import {
   FileCheck2,
 } from "lucide-react";
 import { LevelBadge, LEVEL_KEYS, LEVELS } from "../shared";
+import { todayWita } from "../../utils/dateWita.js";
 const SCORE_FIELDS = [
   {
     field: "pronunciation",
@@ -33,7 +34,7 @@ const SCORE_FIELDS = [
 export default function StudentProgressForm({ classes, students, onSaved }) {
   const [classId, setClassId] = useState("");
   const [studentId, setStudentId] = useState("");
-  const [examDate, setExamDate] = useState(new Date().toISOString().slice(0, 10));
+  const [examDate, setExamDate] = useState(() => todayWita());
   const [level, setLevel] = useState("warrior");
   const [scores, setScores] = useState({
     pronunciation: "",

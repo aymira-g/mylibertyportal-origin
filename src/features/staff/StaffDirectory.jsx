@@ -6,7 +6,7 @@
  */
 
 import { useState, useMemo } from "react";
-import { useToast, useConfirm, Pagination, usePagination, isStaffRole } from "../shared";
+import { useToast, useConfirm, Pagination, usePagination, isStaffRole, isInstructorRole } from "../shared";
 import { updateStaffStatus, checkStaffHasAttendanceHistory } from "../dashboard/usersRepository";
 import { copyText } from "../../utils/copyText";
 import {
@@ -60,7 +60,7 @@ export default function StaffDirectory({
     () =>
       users.filter(
         (u) =>
-          (u.role === "instructor" || u.role === "instructorleader") &&
+          isInstructorRole(u.role) &&
           (u.status || "active") === "active"
       ).length,
     [users]
@@ -124,7 +124,7 @@ export default function StaffDirectory({
     }
 
     // Guard R8: Warning if deactivating an instructor with live active classes
-    if ((newStatus === "resigned" || newStatus === "terminated") && user.role === "instructor") {
+    if ((newStatus === "resigned" || newStatus === "terminated") && isInstructorRole(user.role)) {
       const workload = getInstructorWorkload(user.id, classes);
       if (workload.batchCount > 0) {
         const classNames = workload.assignedClasses.map((c) => c.className || "Class").join(", ");

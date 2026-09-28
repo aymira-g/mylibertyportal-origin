@@ -88,7 +88,7 @@ export default function InstructorAttendanceView({
   }, [selectedClass]);
 
   const studentsMap = useMemo(() => {
-    /** @type {Record<string, { displayName?: string; name?: string; id?: string }>} */
+    /** @type {Record<string, { displayName?: string; name?: string; id?: string; status?: string; level?: string }>} */
     const map = {};
     students.forEach((s) => {
       if (s?.id) map[s.id] = s;
@@ -121,8 +121,11 @@ export default function InstructorAttendanceView({
 
     enrolledStudentIds.forEach((sId) => {
       const rec = attendanceMap[sId];
+      const student = studentsMap[sId];
+      const isInactive = student?.status && student.status !== "active";
+
       if (!rec) {
-        unmarked++;
+        if (!isInactive) unmarked++;
       } else if (rec.status === "PRESENT") {
         present++;
       } else if (rec.status === "ABSENT") {
@@ -132,7 +135,7 @@ export default function InstructorAttendanceView({
       } else if (rec.status === "EXCUSED") {
         excused++;
       } else {
-        unmarked++;
+        if (!isInactive) unmarked++;
       }
     });
 
@@ -144,7 +147,7 @@ export default function InstructorAttendanceView({
       excused,
       unmarked,
     };
-  }, [enrolledStudentIds, attendanceMap]);
+  }, [enrolledStudentIds, attendanceMap, studentsMap]);
 
   // Manual status change handler
   const handleSetStatus = async (studentId, status) => {
@@ -466,6 +469,14 @@ export default function InstructorAttendanceView({
                           <>
                             <span>·</span>
                             <span className="font-semibold text-slate-600 uppercase">{student.level}</span>
+                          </>
+                        )}
+                        {student.status && student.status !== "active" && (
+                          <>
+                            <span>·</span>
+                            <span className="font-bold text-amber-600 uppercase">
+                              {student.status.replace("_", " ")}
+                            </span>
                           </>
                         )}
                         {markedTime && (

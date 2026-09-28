@@ -249,6 +249,37 @@ describe("classAttendanceRepository", () => {
       expect(res.alreadyClosed).toBe(true);
       expect(fake.opsOf("set")).toHaveLength(0);
     });
+
+    it("filters out inactive and graduated students from close-out absent generation (INT-008)", async () => {
+      const rosterStudentIds = ["std_active", "std_inactive", "std_graduated"];
+      const studentsMap = {
+        std_active: { displayName: "Active Student", status: "active" },
+        std_inactive: { displayName: "Inactive Student", status: "inactive" },
+        std_graduated: { displayName: "Graduated Student", status: "graduated" },
+      };
+
+      const res = await closeOutClassAttendance({
+        classId,
+        attendanceDate,
+        rosterStudentIds,
+        studentsMap,
+        markedBy,
+        className: "Class 1",
+      });
+
+      expect(res.createdCount).toBe(1);
+      expect(res.missingCount).toBe(1);
+
+      const opActive = fake.find(`classAttendance/${classId}_std_active_${attendanceDate}`);
+      expect(opActive).toBeDefined();
+      expect(opActive.data.status).toBe("ABSENT");
+
+      const opInactive = fake.find(`classAttendance/${classId}_std_inactive_${attendanceDate}`);
+      expect(opInactive).toBeUndefined();
+
+      const opGraduated = fake.find(`classAttendance/${classId}_std_graduated_${attendanceDate}`);
+      expect(opGraduated).toBeUndefined();
+    });
   });
 
   describe("fetchClassAttendance & fetchClassAttendanceForStudent", () => {

@@ -115,6 +115,15 @@ service cloud.firestore {
         && approval.payload.shiftId == shiftId;
     }
 
+    function shiftMatchesCorrectionPayload(approvalId, reqData, resData) {
+      let payload = get(/databases/$(database)/documents/approvals/$(approvalId)).data.payload;
+      return !('afterData' in payload) || payload.afterData == null
+        || (
+          (!('clockIn' in payload.afterData) ? reqData.clockIn == resData.clockIn : reqData.clockIn == payload.afterData.clockIn)
+          && (!('clockOut' in payload.afterData) ? reqData.clockOut == resData.clockOut : reqData.clockOut == payload.afterData.clockOut)
+        );
+    }
+
     function classDoc(classId) {
       return get(/databases/$(database)/documents/classes/$(classId)).data;
     }
@@ -174,7 +183,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get: if isAdmin()
-        || (isManager() && isSameBranch(resource.data))
+        || ((isManager() || isFrontOffice()) && isSameBranch(resource.data))
         || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranch(resource.data))
         || (signedIn() && userId == request.auth.uid)
         || (isParentOf(userId) && resource.data.role == 'student');
@@ -266,11 +275,17 @@ service cloud.firestore {
     match /todos/{todoId} {
       // Branch-lock directives by default. Admin has cross-branch access.
       // Explicitly academy-wide directives (branch == 'all' or branchId == 'all') are readable by all staff.
-      allow read: if isAdmin()
+      allow get: if isAdmin()
         || (isStaff() && (
           isSameBranch(resource.data)
           || (('branch' in resource.data) && (resource.data.branch == 'all' || resource.data.branch == 'All'))
           || (('branchId' in resource.data) && resource.data.branchId == 'all')
+        ));
+      allow list: if isAdmin()
+        || (isStaff() && (
+          isSameBranchStrict(resource.data)
+          || (('branchId' in resource.data) && resource.data.branchId == 'all')
+          || (('branch' in resource.data) && (resource.data.branch == 'all' || resource.data.branch == 'All'))
         ));
       // Admins and Managers issue directives; Front Office can manage desk directives in their branch
       allow create, delete: if isAdmin()
@@ -334,15 +349,17 @@ service cloud.firestore {
           || (request.resource.data.audienceValue == 'Limboto' && userBranch() == 'limboto')
         ));
       allow update: if isAdmin()
-        || ((isManager() || isFrontOffice()) && (
-          request.resource.data.audienceType != 'branch'
-          || request.resource.data.audienceValue == userBranch()
-          || (request.resource.data.audienceValue == 'Kota Gorontalo' && userBranch() == 'kota_gorontalo')
-          || (request.resource.data.audienceValue == 'Bone Bolango' && userBranch() == 'bone_bolango')
-          || (request.resource.data.audienceValue == 'Pohuwato' && userBranch() == 'pohuwato')
-          || (request.resource.data.audienceValue == 'Limboto' && userBranch() == 'limboto')
-        ));
-      allow delete: if isAdmin();
+        || ((isManager() || isFrontOffice())
+          && isSameBranch(resource.data)
+          && (
+            request.resource.data.audienceType != 'branch'
+            || request.resource.data.audienceValue == userBranch()
+            || (request.resource.data.audienceValue == 'Kota Gorontalo' && userBranch() == 'kota_gorontalo')
+            || (request.resource.data.audienceValue == 'Bone Bolango' && userBranch() == 'bone_bolango')
+            || (request.resource.data.audienceValue == 'Pohuwato' && userBranch() == 'pohuwato')
+            || (request.resource.data.audienceValue == 'Limboto' && userBranch() == 'limboto')
+          ));
+      allow delete: if isAdmin() || ((isManager() || isFrontOffice()) && isSameBranch(resource.data));
     }
 
     match /classAttendance/{attendanceId} {
@@ -437,22 +454,29 @@ service cloud.firestore {
     }
 
     match /progressReports/{reportId} {
-      allow read: if isAdmin()
-        || isManager()
-        || isFrontOffice()
-        || (signedIn() && resource.data.instructorId == request.auth.uid);
+      allow get: if isAdmin()
+        || ((isManager() || isFrontOffice()) && isSameBranch(resource.data))
+        || (signedIn() && resource.data.instructorId == request.auth.uid)
+        || (isParentOf(resource.data.studentId));
+      allow list: if isAdmin()
+        || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data))
+        || (signedIn() && resource.data.instructorId == request.auth.uid)
+        || (isParent() && ('childStudentIds' in userProfile()) && userProfile().childStudentIds.hasAny([resource.data.studentId]));
       allow create: if signedIn()
         && request.resource.data.instructorId == request.auth.uid
         && request.resource.data.studentId is string
         && request.resource.data.classId is string
         && get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.instructorId == request.auth.uid
         && get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.studentIds.hasAny([request.resource.data.studentId]);
-      allow update, delete: if isAdmin() || isFrontOffice();
+      allow update, delete: if isAdmin() || ((isManager() || isFrontOffice()) && isSameBranch(resource.data));
     }
 
     match /shifts/{shiftId} {
-      allow read: if isAdmin()
-        || (isManager() && isSameBranch(resource.data))
+      allow get: if isAdmin()
+        || ((isManager() || isFrontOffice()) && isSameBranch(resource.data))
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow list: if isAdmin()
+        || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data))
         || (signedIn() && resource.data.userId == request.auth.uid);
       // Staff scans: Admin and Front Office (reception kiosk station), for tracked roles only, new shifts start open
       allow create: if (isAdmin() || (isFrontOffice() && isSameBranch(request.resource.data)))
@@ -481,6 +505,7 @@ service cloud.firestore {
           && request.resource.data.userId == resource.data.userId
           && request.resource.data.appliedFromApproval is string
           && isApprovedShiftCorrection(shiftId, request.resource.data.appliedFromApproval)
+          && shiftMatchesCorrectionPayload(request.resource.data.appliedFromApproval, request.resource.data, resource.data)
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['clockIn', 'clockOut', 'corrected', 'reviewStatus', 'appliedFromApproval']))
         // Front Office and Manager can mark a completed/closed shift as reviewed

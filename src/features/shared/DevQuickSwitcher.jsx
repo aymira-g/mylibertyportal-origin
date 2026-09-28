@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Zap,
   X,
   Eye,
+  EyeOff,
   LogOut,
   Shield,
+  ShieldCheck,
   Building2,
   CheckCircle2,
   AlertTriangle,
@@ -21,11 +23,13 @@ import { db, getSecondaryAuth } from "../../firebase";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { normalizeRole, isParentRole } from "./roles";
+import BranchHealthAuditCard from "../dashboard/BranchHealthAuditCard";
 
 /**
  * DevQuickSwitcher: Floating widget providing:
  * 1. Mode 1: Authentic Firebase Auth Switcher (validates Firestore security rules & real data).
  * 2. Mode 2: Instant in-memory UI preview (fast layout/CSS inspection without network latency).
+ * 3. Mode 3: Branch Data Isolation & Partition Health Audit & Backfill.
  *
  * @param {Object} [props]
  * @param {any} [props.currentUser]
@@ -81,11 +85,30 @@ export default function DevQuickSwitcher({
       ? userPasswordOverride
       : (DEV_TEST_PASSWORD || "");
 
-  const handlePasswordChange = (newPassword) => {
+  // Local state for password editing to guarantee inputs never unmount while typing
+  const [passwordInput, setPasswordInput] = useState(effectivePassword);
+  const [isEditingPassword, setIsEditingPassword] = useState(!effectivePassword);
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Support opening DevQuickSwitcher from anywhere in the app (e.g. Admin Dashboard quick launcher)
+  useEffect(() => {
+    const handleOpenEvent = (e) => {
+      setIsOpen(true);
+      if (e?.detail?.tab) {
+        setActiveTab(e.detail.tab);
+      }
+    };
+    window.addEventListener("myliberty:open-dev-switcher", handleOpenEvent);
+    return () => {
+      window.removeEventListener("myliberty:open-dev-switcher", handleOpenEvent);
+    };
+  }, []);
+
+  const handleSavePassword = (newPassword) => {
     const trimmed = (newPassword || "").trim();
-    // Normalize empty string to null to allow falling back to DEV_TEST_PASSWORD
     const nextOverride = trimmed ? trimmed : null;
     setUserPasswordOverride(nextOverride);
+    setPasswordInput(trimmed);
     setMode1Error("");
     try {
       if (nextOverride) {
@@ -96,10 +119,13 @@ export default function DevQuickSwitcher({
     } catch {
       // Storage unavailable or disabled
     }
+    setIsEditingPassword(false);
   };
 
   const handleResetPassword = () => {
     setUserPasswordOverride(null);
+    setPasswordInput(DEV_TEST_PASSWORD || "");
+    setIsEditingPassword(!DEV_TEST_PASSWORD);
     setMode1Error("");
     try {
       sessionStorage.removeItem("myliberty_dev_test_password");
@@ -116,8 +142,17 @@ export default function DevQuickSwitcher({
 
   const handleMode1Switch = async (account) => {
     setMode1Error("");
-    const password = effectivePassword;
+    // Use candidate password from input if user typed but hasn't explicitly saved
+    const candidatePassword = (passwordInput || "").trim();
+    let password = effectivePassword;
+
+    if (!password && candidatePassword) {
+      handleSavePassword(candidatePassword);
+      password = candidatePassword;
+    }
+
     if (!password) {
+      setIsEditingPassword(true);
       setMode1Error(
         "Please enter the test account password below to switch."
       );
@@ -144,8 +179,15 @@ export default function DevQuickSwitcher({
     setProvisioning(true);
     setProvisionStatus(null);
     setMode1Error("");
-    const password = effectivePassword;
+    const candidatePassword = (passwordInput || "").trim();
+    let password = effectivePassword;
+    if (!password && candidatePassword) {
+      handleSavePassword(candidatePassword);
+      password = candidatePassword;
+    }
+
     if (!password) {
+      setIsEditingPassword(true);
       setProvisionStatus({
         type: "error",
         message: "Please enter a test password below to create/update accounts.",
@@ -274,18 +316,24 @@ export default function DevQuickSwitcher({
 
       {/* ── Expanded Drawer / Popover ── */}
       {isOpen && (
-        <div className="w-[340px] sm:w-[380px] max-h-[85vh] flex flex-col bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden text-slate-800 animate-in zoom-in-95 duration-150">
+        <div
+          className={`${
+            activeTab === "audit"
+              ? "w-[96vw] sm:w-[620px] md:w-[740px] max-w-4xl"
+              : "w-[340px] sm:w-[380px]"
+          } max-h-[88vh] flex flex-col bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden text-slate-800 animate-in zoom-in-95 duration-150 transition-all`}
+        >
           {/* Header */}
-          <div className="px-4 py-3 bg-slate-900 text-white flex items-center justify-between">
+          <div className="px-4 py-3 bg-slate-900 text-white flex items-center justify-between select-none">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-lg bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-400">
                 <Zap className="w-3.5 h-3.5 fill-amber-400" />
               </div>
               <div>
                 <h4 className="text-xs font-black tracking-wide uppercase text-slate-100">
-                  Dev Quick Switcher
+                  Dev Switcher & System Tools
                 </h4>
-                <p className="text-[10px] text-slate-400">Testing & Security Rules</p>
+                <p className="text-[10px] text-slate-400">Auth, Previews & Branch Health</p>
               </div>
             </div>
             <button
@@ -298,7 +346,7 @@ export default function DevQuickSwitcher({
           </div>
 
           {/* Current Session Info Banner */}
-          <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 text-xs flex items-center justify-between">
+          <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 text-xs flex items-center justify-between select-none">
             <div className="min-w-0 pr-2">
               <div className="flex items-center gap-1.5 font-bold text-slate-800 text-[11px] truncate">
                 <Shield className="w-3 h-3 text-indigo-600 shrink-0" />
@@ -327,41 +375,82 @@ export default function DevQuickSwitcher({
 
           {/* Mode Switch Tabs */}
           {isDevSwitcherEnabled ? (
-            <div className="flex border-b border-slate-200 bg-slate-100/70 p-1 gap-1 text-xs font-bold">
+            <div className="flex border-b border-slate-200 bg-slate-100/70 p-1 gap-1 text-xs font-bold select-none">
               <button
                 type="button"
                 onClick={() => setActiveTab("preview")}
-                className={`flex-1 py-1.5 rounded-lg text-center transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`flex-1 py-1.5 rounded-lg text-center transition flex items-center justify-center gap-1 cursor-pointer ${
                   activeTab === "preview"
                     ? "bg-white text-indigo-900 shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 <Eye className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Mode 2: UI Preview</span>
+                <span className="hidden sm:inline">UI</span> Preview
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab("auth")}
-                className={`flex-1 py-1.5 rounded-lg text-center transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`flex-1 py-1.5 rounded-lg text-center transition flex items-center justify-center gap-1 cursor-pointer ${
                   activeTab === "auth"
                     ? "bg-white text-amber-900 shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                <span>Mode 1: Real Auth</span>
+                <span className="hidden sm:inline">Real</span> Auth
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("audit")}
+                className={`flex-1 py-1.5 rounded-lg text-center transition flex items-center justify-center gap-1 cursor-pointer ${
+                  activeTab === "audit"
+                    ? "bg-white text-emerald-900 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Branch Audit</span>
               </button>
             </div>
           ) : (
-            <div className="border-b border-slate-200 bg-amber-50/70 px-3.5 py-2 text-xs font-bold text-amber-950 flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />
-              <span>Real Account Switcher (Live Admin Gated)</span>
+            <div className="flex border-b border-slate-200 bg-slate-100/70 p-1 gap-1 text-xs font-bold select-none">
+              <button
+                type="button"
+                onClick={() => setActiveTab("auth")}
+                className={`flex-1 py-1.5 rounded-lg text-center transition flex items-center justify-center gap-1 cursor-pointer ${
+                  activeTab === "auth"
+                    ? "bg-white text-amber-900 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                <span>Real Auth Switcher</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("audit")}
+                className={`flex-1 py-1.5 rounded-lg text-center transition flex items-center justify-center gap-1 cursor-pointer ${
+                  activeTab === "audit"
+                    ? "bg-white text-emerald-900 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Branch Health Audit</span>
+              </button>
             </div>
           )}
 
           {/* Drawer Body */}
-          <div className="p-3.5 overflow-y-auto space-y-3 max-h-[60vh]">
+          <div className="p-3.5 overflow-y-auto space-y-3 max-h-[70vh]">
+            {/* ── Mode 3: Branch Data Isolation & Health Audit Tab ── */}
+            {activeTab === "audit" && (
+              <div className="space-y-3">
+                <BranchHealthAuditCard isEmbedded={true} />
+              </div>
+            )}
+
             {/* ── Mode 2: UI Preview Tab (Strictly Development Mode) ── */}
             {isDevSwitcherEnabled && activeTab === "preview" && (
               <div className="space-y-3">
@@ -465,37 +554,94 @@ export default function DevQuickSwitcher({
                   </div>
                 )}
 
-                {/* ── Test Account Password Input (collapsed when .env.local provides it) ── */}
-                {effectivePassword ? (
+                {/* ── Test Account Password Input ── */}
+                {!isEditingPassword && effectivePassword ? (
                   <div className="px-2.5 py-1.5 rounded-xl bg-emerald-50/70 border border-emerald-200 text-[10px] text-emerald-800 font-medium flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
                       <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
                       Password ready{DEV_TEST_PASSWORD && userPasswordOverride === null ? " (from .env.local)" : " (session override)"}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("auth_settings")}
-                      className="text-[9px] text-slate-500 hover:text-indigo-600 underline cursor-pointer"
-                    >
-                      Change
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      {userPasswordOverride !== null && (
+                        <button
+                          type="button"
+                          onClick={handleResetPassword}
+                          className="text-[9px] text-slate-500 hover:text-rose-600 underline cursor-pointer"
+                          title="Clear session override"
+                        >
+                          Reset
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPasswordInput(effectivePassword);
+                          setIsEditingPassword(true);
+                        }}
+                        className="text-[9px] text-slate-500 hover:text-indigo-600 underline cursor-pointer"
+                      >
+                        Change
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs space-y-1.5">
-                    <span className="font-bold text-[10px] text-amber-900 uppercase tracking-wider">
-                      ⚠ Test Password Required
-                    </span>
-                    <input
-                      type="password"
-                      value={effectivePassword}
-                      onChange={(e) => handlePasswordChange(e.target.value)}
-                      placeholder="Enter test password (e.g. 123456)"
-                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-mono focus:outline-indigo-500"
-                    />
-                    <p className="text-[10px] text-amber-700 leading-tight">
-                      Set <code>VITE_DEV_TEST_PASSWORD</code> in <code>.env.local</code> to skip this, or type it here.
-                    </p>
-                  </div>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleSavePassword(passwordInput);
+                    }}
+                    className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-[10px] text-amber-900 uppercase tracking-wider">
+                        {effectivePassword ? "Change Test Password" : "⚠ Test Password Required"}
+                      </span>
+                      {effectivePassword && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPasswordInput(effectivePassword);
+                            setIsEditingPassword(false);
+                          }}
+                          className="text-[9px] text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={passwordInput}
+                        onChange={(e) => setPasswordInput(e.target.value)}
+                        placeholder="Enter test password (e.g. 123456)"
+                        className="w-full bg-white border border-slate-200 rounded-lg pl-2.5 pr-8 py-1.5 text-xs font-mono focus:outline-indigo-500 select-text"
+                        autoComplete="off"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[10px] text-amber-700 leading-tight">
+                        {DEV_TEST_PASSWORD
+                          ? "Type custom password or use default."
+                          : "Type password and click Save or press Enter."}
+                      </p>
+                      <button
+                        type="submit"
+                        disabled={!passwordInput.trim()}
+                        className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded text-[10px] font-bold transition cursor-pointer shrink-0"
+                      >
+                        Save Password
+                      </button>
+                    </div>
+                  </form>
                 )}
 
                 {/* ── Account Buttons (primary UI) ── */}
@@ -567,7 +713,7 @@ export default function DevQuickSwitcher({
                       </p>
                       <button
                         type="button"
-                        disabled={provisioning || !effectivePassword}
+                        disabled={provisioning || (!effectivePassword && !passwordInput.trim())}
                         onClick={handleProvisionAccounts}
                         className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 shadow-xs ${
                           accountsProvisioned
@@ -608,69 +754,10 @@ export default function DevQuickSwitcher({
                 )}
               </div>
             )}
-
-            {/* ── Mode 1 Settings: Password management (hidden sub-view) ── */}
-            {activeTab === "auth_settings" && (
-              <div className="space-y-2.5">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("auth")}
-                  className="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold cursor-pointer flex items-center gap-1"
-                >
-                  ← Back to account list
-                </button>
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-[10px] text-slate-700 uppercase tracking-wider">
-                      Test Account Password:
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      {userPasswordOverride !== null && (
-                        <button
-                          type="button"
-                          onClick={handleResetPassword}
-                          className="text-[9px] text-slate-500 hover:text-rose-600 underline font-semibold cursor-pointer"
-                          title="Clear session override and restore default"
-                        >
-                          Clear
-                        </button>
-                      )}
-                      {userPasswordOverride !== null ? (
-                        <span className="text-[9px] text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                          Session Override
-                        </span>
-                      ) : effectivePassword ? (
-                        <span className="text-[9px] text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                          Default from .env.local
-                        </span>
-                      ) : (
-                        <span className="text-[9px] text-rose-600 font-semibold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
-                          Not Set
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <input
-                    type="password"
-                    value={effectivePassword}
-                    onChange={(e) => handlePasswordChange(e.target.value)}
-                    placeholder="Enter test password (e.g. 123456)"
-                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-mono focus:outline-indigo-500"
-                  />
-                  <p className="text-[10px] text-slate-400 leading-tight">
-                    {userPasswordOverride !== null
-                      ? "Custom password saved for this browser tab session (cleared on close)."
-                      : DEV_TEST_PASSWORD
-                      ? "Using default test password from .env.local."
-                      : "Enter password to enable 1-click test account switching."}
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Footer note */}
-          <div className="px-3.5 py-2 bg-slate-50 border-t border-slate-200 text-[10px] text-slate-400 text-center">
+          <div className="px-3.5 py-2 bg-slate-50 border-t border-slate-200 text-[10px] text-slate-400 text-center select-none">
             Branch: <strong className="text-slate-600">{realBranch || "kota_gorontalo"}</strong> (Locked to user record)
           </div>
         </div>

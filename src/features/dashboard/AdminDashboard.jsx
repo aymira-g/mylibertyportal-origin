@@ -2,14 +2,13 @@ import { useState } from "react";
 import { auth } from "../../firebase";
 import { useDashboardData } from "./useDashboardData";
 import { AIAssistant, DashboardShell, WelcomeBanner, ApprovalInbox, isStaffRole } from "../shared";
-import { UserPlus, GraduationCap, BookOpen, AlertCircle, ArrowRight } from "lucide-react";
+import { UserPlus, GraduationCap, BookOpen, AlertCircle, ArrowRight, ShieldCheck, Zap } from "lucide-react";
 import { ReportsDashboard } from "../reports";
 import { StudentApplications, UserForm, StudentRoster, BadgeModal } from "../students";
 import { KioskModal, KioskSidebarButton, CorporateEventsPanel, KioskProvisioningPanel } from "../attendance";
 import { ClassManager, AvailableBatches } from "../classes";
 import { StaffDirectory, InvitesPanel, TasksPanel } from "../staff";
 import LogRetentionCard from "./LogRetentionCard";
-import BranchHealthAuditCard from "./BranchHealthAuditCard";
 import { TuitionDueWidget } from "./frontoffice";
 
 export default function AdminDashboard() {
@@ -159,8 +158,37 @@ export default function AdminDashboard() {
         onNavigateToClasses={() => handleTabChange("classes")}
       />
 
-      {/* Multi-Branch Isolation & Partition Health */}
-      <BranchHealthAuditCard />
+      {/* Multi-Branch Isolation & Developer Tools Quick Card */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h4 className="font-bold text-slate-800 text-sm">Branch Data Isolation & Health Audit</h4>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase tracking-wider">
+                Unified In Dev Tools
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 font-medium">
+              Inspect partition health, backfill legacy branch records, and switch test accounts in one place.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            window.dispatchEvent(
+              new CustomEvent("myliberty:open-dev-switcher", { detail: { tab: "audit" } })
+            );
+          }}
+          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-xs cursor-pointer shrink-0"
+        >
+          <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+          <span>Open Dev Tools & Audit</span>
+        </button>
+      </div>
 
       {/* Housekeeping & Free Tier Protection */}
       <LogRetentionCard />

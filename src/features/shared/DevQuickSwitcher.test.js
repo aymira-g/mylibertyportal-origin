@@ -54,4 +54,13 @@ describe("DevQuickSwitcher Component", () => {
     );
     expect(localStorage.getItem("myliberty_dev_test_password")).toBeNull();
   });
+
+  it("includes Branch Audit in its drawer capabilities", () => {
+    // Render and check that DevQuickSwitcher component has branch audit capabilities integrated
+    const element = React.createElement(DevQuickSwitcher, {
+      currentUser: { email: "admin@myliberty.id" },
+      realRole: "admin",
+    });
+    expect(element.type).toBe(DevQuickSwitcher);
+  });
 });

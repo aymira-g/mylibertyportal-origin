@@ -14,7 +14,7 @@ import {
   Check,
 } from "lucide-react";
 
-export default function BranchHealthAuditCard() {
+export default function BranchHealthAuditCard({ isEmbedded = false } = {}) {
   const [loading, setLoading] = useState(true);
   const [auditData, setAuditData] = useState(null);
   const [error, setError] = useState("");
@@ -93,7 +93,13 @@ export default function BranchHealthAuditCard() {
   }, []);
 
   return (
-    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-5">
+    <div
+      className={
+        isEmbedded
+          ? "bg-transparent p-0 border-0 shadow-none space-y-4"
+          : "bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-5"
+      }
+    >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">

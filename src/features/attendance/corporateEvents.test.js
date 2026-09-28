@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isEventEligible, findMatchingCorporateEvents } from "./corporateEvents.js";
+import {
+  isEventEligible,
+  findMatchingCorporateEvents,
+  isEventWithinTimeWindow,
+} from "./corporateEvents.js";
 
 describe("corporateEvents - isEventEligible", () => {
   const dateToday = "2026-09-22";
@@ -264,5 +268,45 @@ describe("corporateEvents - findMatchingCorporateEvents", () => {
     expect(result.ambiguous).toBe(true);
     expect(result.match).toBeNull();
     expect(result.matchedEvents).toHaveLength(2);
+  });
+});
+
+describe("corporateEvents - isEventWithinTimeWindow", () => {
+  it("allows all-day access when no startTime is set", () => {
+    const event = { id: "evt-1", startTime: null, endTime: null };
+    expect(isEventWithinTimeWindow(event, new Date("2026-09-28T02:00:00Z"))).toBe(true);
+    expect(isEventWithinTimeWindow(event, new Date("2026-09-28T14:00:00Z"))).toBe(true);
+  });
+
+  it("enforces 2 hours before startTime until endTime", () => {
+    // 19:00 WITA = 11:00 UTC (WITA is UTC+8)
+    // 2 hours before 19:00 is 17:00 WITA = 09:00 UTC
+    // End time 21:00 WITA = 13:00 UTC
+    const event = { id: "evt-1", startTime: "19:00", endTime: "21:00" };
+
+    // 16:59 WITA (08:59 UTC) -> 1 min before window opens
+    expect(isEventWithinTimeWindow(event, new Date("2026-09-28T08:59:00Z"))).toBe(false);
+
+    // 17:00 WITA (09:00 UTC) -> window opens (2 hours before startTime)
+    expect(isEventWithinTimeWindow(event, new Date("2026-09-28T09:00:00Z"))).toBe(true);
+
+    // 19:00 WITA (11:00 UTC) -> event start
+    expect(isEventWithinTimeWindow(event, new Date("2026-09-28T11:00:00Z"))).toBe(true);
+
+    // 21:00 WITA (13:00 UTC) -> event end
+    expect(isEventWithinTimeWindow(event, new Date("2026-09-28T13:00:00Z"))).toBe(true);
+
+    // 21:01 WITA (13:01 UTC) -> after event end
+    expect(isEventWithinTimeWindow(event, new Date("2026-09-28T13:01:00Z"))).toBe(false);
+  });
+
+  it("keeps event open until midnight WITA when no endTime is specified", () => {
+    const event = { id: "evt-1", startTime: "19:00", endTime: null };
+
+    // 17:00 WITA (09:00 UTC) -> eligible
+    expect(isEventWithinTimeWindow(event, new Date("2026-09-28T09:00:00Z"))).toBe(true);
+
+    // 23:59 WITA (15:59 UTC) -> eligible before midnight
+    expect(isEventWithinTimeWindow(event, new Date("2026-09-28T15:59:00Z"))).toBe(true);
   });
 });

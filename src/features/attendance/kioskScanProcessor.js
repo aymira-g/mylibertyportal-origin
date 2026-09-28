@@ -218,11 +218,14 @@ export async function handleKioskScan(
 
     const todayDate = todayWita();
     const activeEvents = await fetchActiveCorporateEventsForDate(todayDate);
-    const { match: matchedEvent } = findMatchingCorporateEvents(
+    const matchingResult = findMatchingCorporateEvents(
       activeEvents,
       userData,
       todayDate
     );
+    const matchedEvent = matchingResult.match;
+    const matchedEvents = matchingResult.matchedEvents || (matchedEvent ? [matchedEvent] : []);
+    const matchingEventIds = matchedEvents.map((e) => e.id);
 
     const rawBranch = userData.branchId || userData.branch || DEFAULT_BRANCH;
     await recordStudentAttendance({
@@ -231,12 +234,19 @@ export async function handleKioskScan(
       dateKey: todayDate,
       eventId: matchedEvent ? matchedEvent.id : null,
       eventName: matchedEvent ? matchedEvent.name : null,
+      matchingEventIds: matchingEventIds.length > 0 ? matchingEventIds : null,
       branchId: branchToId(rawBranch),
       branch: userData.branch || DEFAULT_BRANCH,
     });
 
     const isLeave = studentStatus === "on_leave";
-    const eventSuffix = matchedEvent ? ` · Attending: ${matchedEvent.name}` : "";
+    let eventSuffix = "";
+    if (matchedEvent) {
+      eventSuffix = ` · Attending: ${matchedEvent.name}`;
+    } else if (matchedEvents.length > 1) {
+      eventSuffix = ` · Multiple Events Scheduled (${matchedEvents.length})`;
+    }
+
     showStatus(
       isLeave ? "Attendance Recorded (On Leave)" : "Attendance Recorded",
       "success",
@@ -249,7 +259,11 @@ export async function handleKioskScan(
       name: userData.displayName,
       role: "student",
       time: new Date(),
-      type: matchedEvent ? `Check-in (${matchedEvent.name})` : "Check-in",
+      type: matchedEvent
+        ? `Check-in (${matchedEvent.name})`
+        : matchedEvents.length > 1
+        ? `Check-in (${matchedEvents.length} Events)`
+        : "Check-in",
     });
   } else {
     const staffStatus = userData.status || "active";
@@ -401,8 +415,18 @@ export async function handleKioskScan(
           time: new Date(),
           type: `Clock In (${matchedEvent.name})`,
         });
+      } else if (matchedEvents.length > 1) {
+        // Multiple corporate events match today -> prompt staff with picker (including General Duty)
+        return setPendingClockIn({
+          uid,
+          userData,
+          classes: [],
+          matchedEvent: null,
+          matchedEvents,
+          allowGeneralDuty: true,
+        });
       } else {
-        // 0 or ambiguous matches (>1) -> Fall back to General Duty
+        // 0 matches -> Clock in to General Duty
         await clockIn({
           uid,
           displayName: userData.displayName,

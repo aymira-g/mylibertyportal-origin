@@ -337,4 +337,113 @@ describe("kioskScanProcessor in STATION mode for instructors & corporate events"
       "Lead Instructor John"
     );
   });
+
+  it("records matchingEventIds without guessing when multiple events match student", async () => {
+    const studentUser = {
+      id: "std_multi",
+      displayName: "Charlie Student",
+      role: "student",
+      status: "active",
+      branchId: "kota_gorontalo",
+    };
+    vi.mocked(shiftsRepo.fetchUserById).mockResolvedValueOnce(studentUser);
+
+    const events = [
+      { id: "evt_s1", name: "Festival", eventDate: "2026-09-28", audienceType: "all", status: "active" },
+      { id: "evt_s2", name: "Open Day", eventDate: "2026-09-28", audienceType: "all", status: "active" },
+    ];
+    vi.mocked(corpEventsRepo.fetchActiveCorporateEventsForDate).mockResolvedValueOnce(events);
+
+    await handleKioskScan("std_multi", {
+      attendanceMode: "STATION",
+      showStatus,
+      setLastScanned,
+    });
+
+    expect(shiftsRepo.recordStudentAttendance).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uid: "std_multi",
+        eventId: null,
+        eventName: null,
+        matchingEventIds: ["evt_s1", "evt_s2"],
+      })
+    );
+    expect(showStatus).toHaveBeenCalledWith(
+      "Attendance Recorded",
+      "success",
+      expect.stringContaining("Multiple Events Scheduled (2)"),
+      "Charlie Student"
+    );
+  });
+
+  it("prompts non-instructor staff with picker including General Duty when multiple corporate events match", async () => {
+    const staffUser = {
+      id: "fo_user_1",
+      displayName: "Reception Sarah",
+      role: "frontoffice",
+      status: "active",
+      branchId: "kota_gorontalo",
+    };
+    vi.mocked(shiftsRepo.fetchUserById).mockResolvedValueOnce(staffUser);
+    vi.mocked(shiftsRepo.fetchOpenShiftFor).mockResolvedValueOnce(null);
+
+    const events = [
+      { id: "evt_fo1", name: "Morning Briefing", eventDate: "2026-09-28", audienceType: "all", status: "active" },
+      { id: "evt_fo2", name: "Customer Care Seminar", eventDate: "2026-09-28", audienceType: "all", status: "active" },
+    ];
+    vi.mocked(corpEventsRepo.fetchActiveCorporateEventsForDate).mockResolvedValueOnce(events);
+
+    await handleKioskScan("fo_user_1", {
+      attendanceMode: "STATION",
+      showStatus,
+      setLastScanned,
+      setPendingClockIn,
+    });
+
+    expect(shiftsRepo.clockIn).not.toHaveBeenCalled();
+    expect(setPendingClockIn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uid: "fo_user_1",
+        allowGeneralDuty: true,
+        matchedEvents: expect.arrayContaining([
+          expect.objectContaining({ id: "evt_fo1" }),
+          expect.objectContaining({ id: "evt_fo2" }),
+        ]),
+      })
+    );
+  });
+
+  it("auto-clocks in non-instructor staff on General Duty when no events match", async () => {
+    const staffUser = {
+      id: "fo_user_2",
+      displayName: "Reception Sarah",
+      role: "frontoffice",
+      status: "active",
+      branchId: "kota_gorontalo",
+    };
+    vi.mocked(shiftsRepo.fetchUserById).mockResolvedValueOnce(staffUser);
+    vi.mocked(shiftsRepo.fetchOpenShiftFor).mockResolvedValueOnce(null);
+    vi.mocked(corpEventsRepo.fetchActiveCorporateEventsForDate).mockResolvedValueOnce([]);
+
+    await handleKioskScan("fo_user_2", {
+      attendanceMode: "STATION",
+      showStatus,
+      setLastScanned,
+      setPendingClockIn,
+    });
+
+    expect(shiftsRepo.clockIn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uid: "fo_user_2",
+        classId: "general",
+        className: "General Duty",
+      })
+    );
+    expect(showStatus).toHaveBeenCalledWith(
+      "Duty Started",
+      "success",
+      expect.stringContaining("General Administrative Duty"),
+      "Reception Sarah"
+    );
+  });
 });

@@ -26,7 +26,11 @@ export default function KioskClockInModal({
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-[#1a3a8f]" />
             <h4 className="font-bold text-slate-900 text-sm">
-              {!hasClasses && hasEvents ? "Confirm Event Attendance" : "Confirm Teaching Shift"}
+              {pendingClockIn.allowGeneralDuty
+                ? "Confirm Staff Shift"
+                : !hasClasses && hasEvents
+                ? "Confirm Event Attendance"
+                : "Confirm Teaching Shift"}
             </h4>
           </div>
           <button
@@ -44,7 +48,9 @@ export default function KioskClockInModal({
               {pendingClockIn.userData.displayName}
             </span>
             !{" "}
-            {!hasClasses && hasEvents
+            {pendingClockIn.allowGeneralDuty
+              ? "Select your scheduled corporate event, or choose General Administrative Duty:"
+              : !hasClasses && hasEvents
               ? "Select the corporate event you are attending:"
               : hasClasses && hasEvents
               ? "Select your scheduled class or corporate event:"
@@ -58,7 +64,9 @@ export default function KioskClockInModal({
           className="w-full p-3 border border-slate-200 rounded-xl text-xs font-semibold bg-white text-slate-800 outline-none focus:border-[#1a3a8f] focus:ring-1 focus:ring-[#1a3a8f]"
         >
           <option value="">
-            {!hasClasses && hasEvents
+            {pendingClockIn.allowGeneralDuty
+              ? "Select event or General Duty..."
+              : !hasClasses && hasEvents
               ? "Select today's corporate event..."
               : "Select today's scheduled class or event..."}
           </option>
@@ -67,6 +75,11 @@ export default function KioskClockInModal({
               📌 Event: {evt.name}
             </option>
           ))}
+          {pendingClockIn.allowGeneralDuty && (
+            <option value="general">
+              📋 General Administrative Duty
+            </option>
+          )}
           {classes.map((cls) => (
             <option key={cls.id} value={cls.id}>
               {cls.className} ({cls.startTime || "Schedule not set"})

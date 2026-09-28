@@ -57,6 +57,7 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
   const createShift = async () => {
     if (!pendingClockIn) return;
     const isEvent = selectedClassId.startsWith("corporate_event:");
+    const isGeneralDuty = selectedClassId === "general";
     const eventId = isEvent ? selectedClassId.replace("corporate_event:", "") : null;
     const eventsList =
       pendingClockIn.matchedEvents && pendingClockIn.matchedEvents.length > 0
@@ -64,15 +65,23 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
         : pendingClockIn.matchedEvent
         ? [pendingClockIn.matchedEvent]
         : [];
-    const event = isEvent
-      ? eventsList.find((e) => e.id === eventId) || pendingClockIn.matchedEvent
-      : null;
-    const selectedClass = isEvent
-      ? null
-      : pendingClockIn.classes?.find((cls) => cls.id === selectedClassId);
+    const event = isEvent ? eventsList.find((e) => e.id === eventId) : null;
 
-    if (!isEvent && !selectedClass) return;
-    if (isEvent && !event) return;
+    if (isEvent && !event) {
+      showStatus(
+        "Event Unavailable",
+        "error",
+        "The selected corporate event is no longer available or has expired.",
+        pendingClockIn.userData?.displayName || ""
+      );
+      return;
+    }
+
+    const selectedClass = (!isEvent && !isGeneralDuty)
+      ? pendingClockIn.classes?.find((cls) => cls.id === selectedClassId)
+      : null;
+
+    if (!isEvent && !isGeneralDuty && !selectedClass) return;
 
     const isReachable = await checkNetworkReachability();
     if (!isReachable) {
@@ -120,6 +129,39 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
           role: pendingClockIn.userData.role,
           time: new Date(),
           type: `Clock In (${event.name})`,
+        });
+      }
+
+      if (isGeneralDuty) {
+        await kioskClockInWithProof({
+          badgeToken: pendingClockIn.uid,
+          role: pendingClockIn.userData.role,
+          classId: "general",
+          className: "General Duty",
+          shiftType: null,
+          eventId: null,
+          punctuality: {
+            status: "Present",
+            scheduledStart: null,
+            requiredArrival: null,
+            minutesEarlyOrLate: 0,
+          },
+        });
+
+        cancelPendingClockIn();
+        showStatus(
+          isLeave ? "Duty Started (On Leave)" : "Duty Started",
+          "success",
+          isLeave
+            ? "Clocked in on General Administrative Duty (Note: Marked on Leave)."
+            : "Clocked in on General Administrative Duty.",
+          name
+        );
+        return setLastScanned({
+          name,
+          role: pendingClockIn.userData.role,
+          time: new Date(),
+          type: "Clock In",
         });
       }
 

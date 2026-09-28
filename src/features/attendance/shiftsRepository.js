@@ -382,6 +382,7 @@ export function recordStudentAttendance({
   dateKey = null,
   eventId = null,
   eventName = null,
+  matchingEventIds = null,
   branchId = null,
   branch = null,
 }) {
@@ -404,6 +405,7 @@ export function recordStudentAttendance({
     branch: canonicalBranch,
     ...(eventId ? { eventId } : {}),
     ...(eventName ? { eventName } : {}),
+    ...(Array.isArray(matchingEventIds) && matchingEventIds.length > 0 ? { matchingEventIds } : {}),
   };
 
   if (dateKey) {

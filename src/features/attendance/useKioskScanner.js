@@ -56,14 +56,23 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
 
   const createShift = async () => {
     if (!pendingClockIn) return;
-    const isEvent =
-      pendingClockIn.matchedEvent &&
-      selectedClassId === `corporate_event:${pendingClockIn.matchedEvent.id}`;
+    const isEvent = selectedClassId.startsWith("corporate_event:");
+    const eventId = isEvent ? selectedClassId.replace("corporate_event:", "") : null;
+    const eventsList =
+      pendingClockIn.matchedEvents && pendingClockIn.matchedEvents.length > 0
+        ? pendingClockIn.matchedEvents
+        : pendingClockIn.matchedEvent
+        ? [pendingClockIn.matchedEvent]
+        : [];
+    const event = isEvent
+      ? eventsList.find((e) => e.id === eventId) || pendingClockIn.matchedEvent
+      : null;
     const selectedClass = isEvent
       ? null
-      : pendingClockIn.classes.find((cls) => cls.id === selectedClassId);
+      : pendingClockIn.classes?.find((cls) => cls.id === selectedClassId);
 
     if (!isEvent && !selectedClass) return;
+    if (isEvent && !event) return;
 
     const isReachable = await checkNetworkReachability();
     if (!isReachable) {
@@ -81,10 +90,10 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
       const isLeave = (pendingClockIn.userData.status || "active") === "on_leave";
       const name = pendingClockIn.userData.displayName;
 
-      if (isEvent) {
-        const event = pendingClockIn.matchedEvent;
+      if (isEvent && event) {
         await kioskClockInWithProof({
           badgeToken: pendingClockIn.uid,
+          role: pendingClockIn.userData.role,
           classId: `corporate_event:${event.id}`,
           className: event.name,
           shiftType: "corporate_event",

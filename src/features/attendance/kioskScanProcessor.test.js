@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { handleKioskScan } from "./kioskScanProcessor.js";
 import * as shiftsRepo from "./shiftsRepository.js";
 import * as classAttRepo from "./classAttendanceRepository.js";
+import * as corpEventsRepo from "./corporateEventsRepository.js";
 
 vi.mock("./shiftsRepository.js", () => ({
   fetchUserById: vi.fn(),
@@ -202,6 +203,138 @@ describe("kioskScanProcessor in CLASS mode", () => {
       "info",
       expect.stringContaining("manually"),
       "Alice Smith"
+    );
+  });
+});
+
+describe("kioskScanProcessor in STATION mode for instructors & corporate events", () => {
+  let showStatus;
+  let setLastScanned;
+  let setPendingClockIn;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    showStatus = vi.fn();
+    setLastScanned = vi.fn();
+    setPendingClockIn = vi.fn();
+  });
+
+  const instructorLeaderUser = {
+    id: "ins_lead_1",
+    displayName: "Lead Instructor John",
+    role: "instructorleader",
+    status: "active",
+    branchId: "kota_gorontalo",
+  };
+
+  it("clocks in instructor leader directly when an active corporate event matches and no teaching classes are scheduled", async () => {
+    vi.mocked(shiftsRepo.fetchUserById).mockResolvedValueOnce(instructorLeaderUser);
+    vi.mocked(shiftsRepo.fetchOpenShiftFor).mockResolvedValueOnce(null);
+    vi.mocked(shiftsRepo.fetchInstructorClasses).mockResolvedValueOnce([]);
+
+    const event = {
+      id: "evt_evening",
+      name: "Evening Academy Training",
+      eventDate: "2026-09-28",
+      startTime: "19:00",
+      audienceType: "role",
+      audienceValue: "instructor",
+      status: "active",
+    };
+    vi.mocked(corpEventsRepo.fetchActiveCorporateEventsForDate).mockResolvedValueOnce([event]);
+
+    await handleKioskScan("ins_lead_1", {
+      attendanceMode: "STATION",
+      showStatus,
+      setLastScanned,
+      setPendingClockIn,
+    });
+
+    expect(shiftsRepo.clockIn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uid: "ins_lead_1",
+        shiftType: "corporate_event",
+        eventId: "evt_evening",
+        className: "Evening Academy Training",
+        classId: "corporate_event:evt_evening",
+      })
+    );
+    expect(showStatus).toHaveBeenCalledWith(
+      "Event Duty Started",
+      "success",
+      expect.stringContaining("Evening Academy Training"),
+      "Lead Instructor John"
+    );
+    expect(setLastScanned).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Lead Instructor John",
+        type: "Clock In (Evening Academy Training)",
+      })
+    );
+  });
+
+  it("prompts instructor with event options when multiple corporate events match", async () => {
+    vi.mocked(shiftsRepo.fetchUserById).mockResolvedValueOnce(instructorLeaderUser);
+    vi.mocked(shiftsRepo.fetchOpenShiftFor).mockResolvedValueOnce(null);
+    vi.mocked(shiftsRepo.fetchInstructorClasses).mockResolvedValueOnce([]);
+
+    const events = [
+      {
+        id: "evt_1",
+        name: "Campus Gathering",
+        eventDate: "2026-09-28",
+        audienceType: "all",
+        status: "active",
+      },
+      {
+        id: "evt_2",
+        name: "Evening Workshop",
+        eventDate: "2026-09-28",
+        audienceType: "role",
+        audienceValue: "instructor",
+        status: "active",
+      },
+    ];
+    vi.mocked(corpEventsRepo.fetchActiveCorporateEventsForDate).mockResolvedValueOnce(events);
+
+    await handleKioskScan("ins_lead_1", {
+      attendanceMode: "STATION",
+      showStatus,
+      setLastScanned,
+      setPendingClockIn,
+    });
+
+    expect(shiftsRepo.clockIn).not.toHaveBeenCalled();
+    expect(setPendingClockIn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uid: "ins_lead_1",
+        matchedEvents: expect.arrayContaining([
+          expect.objectContaining({ id: "evt_1" }),
+          expect.objectContaining({ id: "evt_2" }),
+        ]),
+      })
+    );
+  });
+
+  it("shows 'No Class Scheduled' when no classes and no corporate events match", async () => {
+    vi.mocked(shiftsRepo.fetchUserById).mockResolvedValueOnce(instructorLeaderUser);
+    vi.mocked(shiftsRepo.fetchOpenShiftFor).mockResolvedValueOnce(null);
+    vi.mocked(shiftsRepo.fetchInstructorClasses).mockResolvedValueOnce([]);
+    vi.mocked(corpEventsRepo.fetchActiveCorporateEventsForDate).mockResolvedValueOnce([]);
+
+    await handleKioskScan("ins_lead_1", {
+      attendanceMode: "STATION",
+      showStatus,
+      setLastScanned,
+      setPendingClockIn,
+    });
+
+    expect(shiftsRepo.clockIn).not.toHaveBeenCalled();
+    expect(showStatus).toHaveBeenCalledWith(
+      "No Class Scheduled",
+      "error",
+      expect.stringContaining("no classes scheduled today"),
+      "Lead Instructor John"
     );
   });
 });

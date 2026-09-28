@@ -9,13 +9,25 @@ export default function KioskClockInModal({
 }) {
   if (!pendingClockIn) return null;
 
+  const events =
+    pendingClockIn.matchedEvents && pendingClockIn.matchedEvents.length > 0
+      ? pendingClockIn.matchedEvents
+      : pendingClockIn.matchedEvent
+      ? [pendingClockIn.matchedEvent]
+      : [];
+  const classes = pendingClockIn.classes || [];
+  const hasClasses = classes.length > 0;
+  const hasEvents = events.length > 0;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-200 text-left">
         <div className="flex items-center justify-between pb-2 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-[#1a3a8f]" />
-            <h4 className="font-bold text-slate-900 text-sm">Confirm Teaching Shift</h4>
+            <h4 className="font-bold text-slate-900 text-sm">
+              {!hasClasses && hasEvents ? "Confirm Event Attendance" : "Confirm Teaching Shift"}
+            </h4>
           </div>
           <button
             onClick={onCancel}
@@ -32,7 +44,9 @@ export default function KioskClockInModal({
               {pendingClockIn.userData.displayName}
             </span>
             !{" "}
-            {pendingClockIn.matchedEvent
+            {!hasClasses && hasEvents
+              ? "Select the corporate event you are attending:"
+              : hasClasses && hasEvents
               ? "Select your scheduled class or corporate event:"
               : "Select the class cohort you are teaching right now:"}
           </p>
@@ -43,13 +57,17 @@ export default function KioskClockInModal({
           onChange={(e) => onSelectClassId(e.target.value)}
           className="w-full p-3 border border-slate-200 rounded-xl text-xs font-semibold bg-white text-slate-800 outline-none focus:border-[#1a3a8f] focus:ring-1 focus:ring-[#1a3a8f]"
         >
-          <option value="">Select today&apos;s scheduled class or event...</option>
-          {pendingClockIn.matchedEvent && (
-            <option value={`corporate_event:${pendingClockIn.matchedEvent.id}`}>
-              📌 Event: {pendingClockIn.matchedEvent.name}
+          <option value="">
+            {!hasClasses && hasEvents
+              ? "Select today's corporate event..."
+              : "Select today's scheduled class or event..."}
+          </option>
+          {events.map((evt) => (
+            <option key={evt.id} value={`corporate_event:${evt.id}`}>
+              📌 Event: {evt.name}
             </option>
-          )}
-          {pendingClockIn.classes.map((cls) => (
+          ))}
+          {classes.map((cls) => (
             <option key={cls.id} value={cls.id}>
               {cls.className} ({cls.startTime || "Schedule not set"})
             </option>

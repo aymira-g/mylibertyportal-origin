@@ -266,15 +266,18 @@ export async function handleKioskScan(
     const todayWitaDay = getTodayWitaWeekday();
     const todayDate = todayWita();
     const activeEvents = await fetchActiveCorporateEventsForDate(todayDate);
-    const { match: matchedEvent } = findMatchingCorporateEvents(
+    const matchingResult = findMatchingCorporateEvents(
       activeEvents,
       userData,
       todayDate
     );
+    const matchedEvent = matchingResult.match;
+    const matchedEvents = matchingResult.matchedEvents || (matchedEvent ? [matchedEvent] : []);
+    const hasMatchingEvents = matchedEvents.length > 0;
 
     if (isKindergartenStaff && (todayWitaDay === 0 || todayWitaDay === 6)) {
       // Kindergarten is closed on weekends unless a matching corporate event is active today
-      if (!matchedEvent) {
+      if (!hasMatchingEvents) {
         return showStatus(
           "Weekend Off",
           "info",
@@ -297,11 +300,17 @@ export async function handleKioskScan(
         const todayClasses = getTodaysClasses(instructorClasses);
 
         if (todayClasses.length > 0) {
-          return setPendingClockIn({ uid, userData, classes: todayClasses, matchedEvent });
+          return setPendingClockIn({
+            uid,
+            userData,
+            classes: todayClasses,
+            matchedEvent,
+            matchedEvents,
+          });
         }
 
         // Instructor has no classes scheduled today.
-        // Check if an active corporate event matches.
+        // Check if exactly one active corporate event matches.
         if (matchedEvent) {
           await clockIn({
             uid,
@@ -335,6 +344,17 @@ export async function handleKioskScan(
             role: userData.role,
             time: new Date(),
             type: `Clock In (${matchedEvent.name})`,
+          });
+        }
+
+        // If multiple corporate events match today, let the instructor pick which one to clock into
+        if (matchedEvents.length > 1) {
+          return setPendingClockIn({
+            uid,
+            userData,
+            classes: [],
+            matchedEvent: null,
+            matchedEvents,
           });
         }
 

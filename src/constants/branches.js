@@ -84,6 +84,11 @@ export function normalizeBranch(raw) {
     return LEGACY_BRANCH_MAP[lower];
   }
 
+  // Check branchId slug map (e.g. kota_gorontalo -> Kota Gorontalo)
+  if (BRANCH_MAP[lower]) {
+    return BRANCH_MAP[lower];
+  }
+
   // Exact case-insensitive match against canonical branches
   const match = BRANCHES.find((b) => b.toLowerCase() === lower);
   if (match) {

@@ -142,6 +142,48 @@ describe("corporateEvents - isEventEligible", () => {
       expect(isEventEligible(managerEvt, { role: "admin" }, dateToday)).toBe(false);
     });
 
+    it("matches instructor leader for instructor audience", () => {
+      const instructorEvt = makeEvent({
+        audienceType: "role",
+        audienceValue: "instructor",
+      });
+      expect(isEventEligible(instructorEvt, { role: "instructor" }, dateToday)).toBe(true);
+      expect(isEventEligible(instructorEvt, { role: "instructorleader" }, dateToday)).toBe(true);
+      expect(isEventEligible(instructorEvt, { role: "instructor_leader" }, dateToday)).toBe(true);
+      expect(isEventEligible(instructorEvt, { role: "head_instructor" }, dateToday)).toBe(true);
+      expect(isEventEligible(instructorEvt, { role: "frontoffice" }, dateToday)).toBe(false);
+    });
+
+    it("matches instructor leader for leader-specific audience", () => {
+      const leaderEvt = makeEvent({
+        audienceType: "role",
+        audienceValue: "instructorleader",
+      });
+      expect(isEventEligible(leaderEvt, { role: "instructorleader" }, dateToday)).toBe(true);
+      expect(isEventEligible(leaderEvt, { role: "instructor_leader" }, dateToday)).toBe(true);
+      expect(isEventEligible(leaderEvt, { role: "instructor" }, dateToday)).toBe(false);
+    });
+
+    it("matches front office leader for frontoffice audience", () => {
+      const foEvt = makeEvent({
+        audienceType: "role",
+        audienceValue: "frontoffice",
+      });
+      expect(isEventEligible(foEvt, { role: "frontoffice" }, dateToday)).toBe(true);
+      expect(isEventEligible(foEvt, { role: "opslead" }, dateToday)).toBe(true);
+      expect(isEventEligible(foEvt, { role: "ops_lead" }, dateToday)).toBe(true);
+      expect(isEventEligible(foEvt, { role: "frontofficelead" }, dateToday)).toBe(true);
+    });
+
+    it("matches branch audience when user only has branchId", () => {
+      const branchEvt = makeEvent({
+        audienceType: "branch",
+        audienceValue: "Kota Gorontalo",
+      });
+      expect(isEventEligible(branchEvt, { role: "instructorleader", branchId: "kota_gorontalo" }, dateToday)).toBe(true);
+      expect(isEventEligible(branchEvt, { role: "instructorleader", branchId: "bone_bolango" }, dateToday)).toBe(false);
+    });
+
     it("never matches students on role dimension", () => {
       const studentEvt = makeEvent({
         audienceType: "role",

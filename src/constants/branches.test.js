@@ -74,11 +74,20 @@ describe("branches constants and utilities", () => {
     expect(matchesBranchFilter("Cabang Utama", "Kota Gorontalo")).toBe(true);
     expect(matchesBranchFilter("Kota Gorontalo", "cabang utama")).toBe(true);
     expect(matchesBranchFilter("bone bolango", "Bone Bolango")).toBe(true);
+    expect(matchesBranchFilter("kota_gorontalo", "Kota Gorontalo")).toBe(true);
+    expect(matchesBranchFilter("Kota Gorontalo", "kota_gorontalo")).toBe(true);
     expect(matchesBranchFilter("Limboto", "all")).toBe(true);
     expect(matchesBranchFilter("Limboto", "")).toBe(true);
     expect(matchesBranchFilter(null, "all")).toBe(true);
     expect(matchesBranchFilter(null, "Kota Gorontalo")).toBe(false);
     expect(matchesBranchFilter("   ", "Kota Gorontalo")).toBe(false);
     expect(matchesBranchFilter("Pohuwato", "Limboto")).toBe(false);
+  });
+
+  it("resolves branchId slugs to canonical display names", () => {
+    expect(normalizeBranch("kota_gorontalo")).toBe("Kota Gorontalo");
+    expect(normalizeBranch("bone_bolango")).toBe("Bone Bolango");
+    expect(normalizeBranch("pohuwato")).toBe("Pohuwato");
+    expect(normalizeBranch("limboto")).toBe("Limboto");
   });
 });

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { getCleanLabel, getTabIcon } from "./tabUtils";
+import { useOverlayHistory } from "./useOverlayHistory";
 
 /**
  * Phone-only presentation for the shared DashboardShell.
@@ -18,6 +19,8 @@ export default function MobileDashboardShell({
   primaryTabIds = null,
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const handleCloseMore = useCallback(() => setMoreOpen(false), []);
+  useOverlayHistory(moreOpen, handleCloseMore, "mobileMoreSheet");
   const visibleTabs = tabs.filter((tab) => !tab.hidden);
 
   let primaryTabs;

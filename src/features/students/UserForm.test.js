@@ -67,4 +67,31 @@ describe("UserForm Component 3-Way Role Separation", () => {
     expect(html).not.toContain("Authenticated Parent Account");
     expect(html).not.toContain("Edit Parent Account");
   });
+
+  it("renders back navigation button and cancel button when onCancel is provided", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(UserForm, {
+        formData: { role: "student", displayName: "Ayu" },
+        setFormData: () => {},
+        editId: null,
+        onSubmit: () => {},
+        onCancel: () => {},
+      })
+    );
+    expect(html).toContain("Back to dashboard");
+    expect(html).toContain("Cancel");
+  });
+
+  it("does not render cancel button when onCancel is not provided", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(UserForm, {
+        formData: { role: "student", displayName: "Ayu" },
+        setFormData: () => {},
+        editId: null,
+        onSubmit: () => {},
+      })
+    );
+    expect(html).not.toContain("Back to dashboard");
+    expect(html).not.toContain("Cancel");
+  });
 });

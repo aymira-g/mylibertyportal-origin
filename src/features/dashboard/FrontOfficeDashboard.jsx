@@ -56,6 +56,7 @@ export default function FrontOfficeDashboard({ role = "frontoffice" }) {
     applications,
     todos,
     editId,
+    setEditId,
     selectedStudent,
     setSelectedStudent,
     formData,
@@ -353,6 +354,7 @@ export default function FrontOfficeDashboard({ role = "frontoffice" }) {
         <PaymentCashierTab
           students={students}
           branchLabel={myBranch}
+          onBack={() => setActiveTab("overview")}
         />
       ),
     },
@@ -472,6 +474,10 @@ export default function FrontOfficeDashboard({ role = "frontoffice" }) {
           editId={editId}
           onSubmit={handleSave}
           onSaveAndCollectPayment={handleSaveAndCollectPayment}
+          onCancel={() => {
+            setEditId(null);
+            setActiveTab("overview");
+          }}
         />
       ),
     },

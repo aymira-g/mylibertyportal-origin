@@ -3,7 +3,7 @@ import { getRecentPayments } from "../../finance/paymentsRepository";
 import { formatIDR, buildWhatsAppReceiptMessage, normalizeWhatsAppNumber } from "../../finance/receiptMessages";
 import { PaymentModal } from "../../finance";
 import FrontDeskCashReconcile from "./FrontDeskCashReconcile";
-import { useToast } from "../../shared";
+import { useToast, useOverlayHistory } from "../../shared";
 import { branchToId } from "../../../constants/branches";
 import {
   CreditCard,
@@ -14,6 +14,7 @@ import {
   Clock,
   User,
   X,
+  ArrowLeft,
 } from "lucide-react";
 
 /**
@@ -27,6 +28,7 @@ export default function PaymentCashierTab({
   students = [],
   onPaymentRecorded = null,
   branchLabel = null,
+  onBack = null,
 }) {
   const toast = useToast();
   const [payments, setPayments] = useState([]);
@@ -38,6 +40,9 @@ export default function PaymentCashierTab({
   const [selectedStudentForPayment, setSelectedStudentForPayment] = useState(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
+
+  const handleClosePicker = useCallback(() => setPickerOpen(false), []);
+  useOverlayHistory(pickerOpen, handleClosePicker, "cashierPicker");
 
   const cashierBranchId = branchToId(branchLabel || "");
 
@@ -138,14 +143,27 @@ export default function PaymentCashierTab({
       {/* 2. Cashier Header & Actions */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-[#1a3a8f]" />
-              <span>Front Desk Cashier & Receipt Log</span>
-            </h3>
-            <p className="text-xs text-slate-500 font-medium">
-              Accept tuition & fee payments directly at the front desk and issue digital receipts.
-            </p>
+          <div className="flex items-center gap-2.5">
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="p-2 -ml-1 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition active:scale-95 cursor-pointer shrink-0"
+                aria-label="Back to overview"
+                title="Back to overview"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
+            <div>
+              <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-[#1a3a8f]" />
+                <span>Front Desk Cashier &amp; Receipt Log</span>
+              </h3>
+              <p className="text-xs text-slate-500 font-medium">
+                Accept tuition &amp; fee payments directly at the front desk and issue digital receipts.
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">

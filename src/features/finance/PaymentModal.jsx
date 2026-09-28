@@ -12,6 +12,7 @@ import {
   useConfirm,
   createApprovalEnvelope,
   submitApprovalRequest,
+  useOverlayHistory,
 } from "../shared";
 import { normalizeWhatsAppNumber, buildWhatsAppReceiptMessage } from "./receiptMessages";
 import { fetchPaymentHistory, recordPayment, markPaymentPending } from "./paymentsRepository";
@@ -29,6 +30,7 @@ function getDefaultPeriod() {
 export default function PaymentModal({ student, onClose, onPaymentUpdated = null, isAdmin = false }) {
   const toast = useToast();
   const confirm = useConfirm();
+  useOverlayHistory(Boolean(student), onClose, "paymentModal");
   const [activeTab, setActiveTab] = useState("record"); // "record" | "history" | "receipt"
 
   const todayStr = format(new Date(), "yyyy-MM-dd");

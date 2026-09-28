@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import Kiosk from "./Kiosk";
+import { useOverlayHistory } from "../shared";
 
 /**
  * Full-screen modal takeover for attendance scanning station.
@@ -15,6 +16,7 @@ export default function KioskModal({
   initialScrollToExtra = false,
 }) {
   const extraRef = useRef(null);
+  useOverlayHistory(isOpen, onClose, "kioskModal");
 
   // Close on Escape key
   useEffect(() => {

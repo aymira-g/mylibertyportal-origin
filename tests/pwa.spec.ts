@@ -16,10 +16,14 @@ test.describe('MyLiberty Portal - PWA Health & Deep Linking Suite', () => {
       }
     }
 
-    // In dev mode with devOptions.enabled: false, verify production build artifact
+    // In environments where dev server does not serve manifest directly, verify production build artifact
     const fs = await import('node:fs');
     const path = await import('node:path');
+    const { execSync } = await import('node:child_process');
     const distManifest = path.resolve(process.cwd(), 'dist/manifest.webmanifest');
+    if (!fs.existsSync(distManifest)) {
+      execSync('npm run build', { stdio: 'ignore' });
+    }
     expect(fs.existsSync(distManifest)).toBe(true);
     const manifest = JSON.parse(fs.readFileSync(distManifest, 'utf-8'));
     expect(manifest.name).toContain('MY LIBERTY');

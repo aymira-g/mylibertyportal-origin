@@ -33,6 +33,7 @@ export default function AdminDashboard() {
     invites,
     todos,
     editId,
+    setEditId,
     selectedStudent,
     setSelectedStudent,
     formData,
@@ -375,6 +376,10 @@ export default function AdminDashboard() {
           editId={editId}
           onSubmit={handleSave}
           onSaveAndCollectPayment={() => {}}
+          onCancel={() => {
+            setEditId(null);
+            setActiveTab("overview");
+          }}
         />
       ),
     },

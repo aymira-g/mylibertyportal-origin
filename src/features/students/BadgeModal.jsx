@@ -8,6 +8,7 @@ import QRCode from "qrcode";
 import schoolLogo from "../../assets/school-logo.webp";
 import { Printer, Download, X, QrCode as QrIcon, ShieldCheck } from "lucide-react";
 import LevelBadge from "../shared/LevelBadge";
+import { useOverlayHistory } from "../shared";
 
 function getInitials(name) {
   if (!name) return "?";
@@ -21,6 +22,7 @@ function getInitials(name) {
 
 export default function BadgeModal({ person, onClose }) {
   const [qrUrl, setQrUrl] = useState("");
+  useOverlayHistory(Boolean(person), onClose, "badgeModal");
 
   useEffect(() => {
     if (!person) return;

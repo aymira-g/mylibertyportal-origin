@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import MobileDashboardShell from "./MobileDashboardShell";
 import { getCleanLabel, getTabIcon, groupTabsByCategory } from "./tabUtils";
 
@@ -26,6 +26,78 @@ export default function DashboardShell({
   const isControlled = controlledActiveTab !== undefined;
   const activeTab = isControlled ? controlledActiveTab : internalActiveTab;
   const setActiveTab = isControlled ? onTabChange : setInternalActiveTab;
+
+  const isPopStateRef = useRef(false);
+  const tabsRef = useRef(tabs);
+  const setActiveTabRef = useRef(setActiveTab);
+  const defaultTabRef = useRef(defaultTab);
+
+  useEffect(() => {
+    tabsRef.current = tabs;
+    setActiveTabRef.current = setActiveTab;
+    defaultTabRef.current = defaultTab;
+  });
+
+  // Initial mount: restore active tab from URL search param (?tab=...) if present
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const tabParam = searchParams.get("tab");
+      if (tabParam && tabsRef.current.some((t) => t.id === tabParam)) {
+        if (tabParam !== activeTab) {
+          isPopStateRef.current = true;
+          setActiveTabRef.current(tabParam);
+        }
+      }
+    } catch {
+      // Ignore
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tab change: synchronize URL search param (?tab=<id>) with pushState
+  useEffect(() => {
+    if (typeof window === "undefined" || !activeTab) return;
+
+    if (isPopStateRef.current) {
+      isPopStateRef.current = false;
+      return;
+    }
+
+    try {
+      const url = new URL(window.location.href);
+      const currentParam = url.searchParams.get("tab");
+      if (currentParam !== activeTab) {
+        url.searchParams.set("tab", activeTab);
+        window.history.pushState({ tab: activeTab }, "", url.pathname + url.search + url.hash);
+      }
+    } catch {
+      // Ignore
+    }
+  }, [activeTab]);
+
+  // Popstate: navigate back / forward through tabs when hardware or browser Back is pressed
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handlePopState = () => {
+      try {
+        const searchParams = new URLSearchParams(window.location.search);
+        const tabParam = searchParams.get("tab");
+        const availableTabs = tabsRef.current;
+        const targetTab = tabParam || defaultTabRef.current || availableTabs[0]?.id;
+        if (targetTab && availableTabs.some((t) => t.id === targetTab)) {
+          isPopStateRef.current = true;
+          setActiveTabRef.current(targetTab);
+        }
+      } catch {
+        // Ignore
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   const active = tabs.find((t) => t.id === activeTab);
   const groupedSections = groupTabsByCategory(tabs);

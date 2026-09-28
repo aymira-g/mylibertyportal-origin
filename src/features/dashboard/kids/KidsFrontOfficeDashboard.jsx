@@ -54,6 +54,7 @@ export default function KidsFrontOfficeDashboard() {
     applications,
     todos,
     editId,
+    setEditId,
     selectedStudent,
     setSelectedStudent,
     formData,
@@ -379,6 +380,10 @@ export default function KidsFrontOfficeDashboard() {
           editId={editId}
           onSubmit={handleSave}
           onSaveAndCollectPayment={handleSaveAndCollectPayment}
+          onCancel={() => {
+            setEditId(null);
+            setActiveTab("overview");
+          }}
         />
       ),
     },

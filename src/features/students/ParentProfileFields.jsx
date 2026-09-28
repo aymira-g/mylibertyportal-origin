@@ -9,7 +9,7 @@ import { Shield, Users, AlertCircle } from "lucide-react";
  * and a summary of linked children.
  * Statically preserves role: "parent" without exposing staff roles or divisions.
  */
-export default function ParentProfileFields({ formData, field, editId }) {
+export default function ParentProfileFields({ formData, field, editId, students = [] }) {
   const linkedCount = Array.isArray(formData.childStudentIds)
     ? formData.childStudentIds.length
     : 0;
@@ -143,19 +143,29 @@ export default function ParentProfileFields({ formData, field, editId }) {
           </span>
         </div>
         {linkedCount > 0 ? (
-          <div className="text-[11px] text-slate-600 space-y-1">
+          <div className="text-[11px] text-slate-600 space-y-1.5">
             <p>
               This parent account is linked to {linkedCount} student profile{linkedCount > 1 ? "s" : ""}.
             </p>
-            <div className="flex flex-wrap gap-1 mt-1">
-              {formData.childStudentIds.map((cid) => (
-                <span
-                  key={cid}
-                  className="px-2 py-0.5 bg-white border border-slate-200 rounded font-mono text-[10px]"
-                >
-                  {cid}
-                </span>
-              ))}
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {formData.childStudentIds.map((cid) => {
+                const child = (students || []).find((s) => s.id === cid);
+                const childName = child ? child.displayName || child.name || cid : cid;
+                return (
+                  <span
+                    key={cid}
+                    title={`Student ID: ${cid}`}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-slate-800 font-medium text-[11px] shadow-2xs"
+                  >
+                    <span className="font-bold text-indigo-900">{childName}</span>
+                    {child && (
+                      <span className="text-[9px] text-slate-400 font-mono">
+                        ({cid.slice(0, 6)}…)
+                      </span>
+                    )}
+                  </span>
+                );
+              })}
             </div>
           </div>
         ) : (

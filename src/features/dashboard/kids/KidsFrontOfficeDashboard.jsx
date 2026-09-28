@@ -384,6 +384,7 @@ export default function KidsFrontOfficeDashboard() {
             setEditId(null);
             setActiveTab("overview");
           }}
+          students={students}
         />
       ),
     },

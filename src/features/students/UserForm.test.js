@@ -29,7 +29,7 @@ describe("UserForm Component 3-Way Role Separation", () => {
     expect(html).not.toContain("Edit Parent Account");
   });
 
-  it("renders dedicated Parent Account form when role is parent", () => {
+  it("renders dedicated Parent Account form when role is parent with linked children and student names", () => {
     const html = renderToStaticMarkup(
       React.createElement(UserForm, {
         formData: {
@@ -41,16 +41,37 @@ describe("UserForm Component 3-Way Role Separation", () => {
         setFormData: () => {},
         editId: "parent456",
         onSubmit: () => {},
+        students: [{ id: "student123", displayName: "Ayu Anisa" }],
       })
     );
     expect(html).toContain("Edit Parent Account");
     expect(html).toContain("Authenticated Parent Account");
     expect(html).toContain("Role: parent");
     expect(html).toContain("Linked Children (1)");
+    expect(html).toContain("Ayu Anisa");
+    expect(html).toContain("student123");
     // Must NOT contain staff role dropdown or staff headers
     expect(html).not.toContain("Edit Staff Profile");
     expect(html).not.toContain("Assigned Role");
     expect(html).not.toContain("Employment Status");
+  });
+
+  it("renders 'No children linked yet' message when parent has no linked children", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(UserForm, {
+        formData: {
+          role: "parent",
+          displayName: "Ibu Linda",
+          email: "linda@example.com",
+          childStudentIds: [],
+        },
+        setFormData: () => {},
+        editId: "parent456",
+        onSubmit: () => {},
+      })
+    );
+    expect(html).toContain("Linked Children (0)");
+    expect(html).toContain("No children linked yet. Link children from the Student Profile screen.");
   });
 
   it("renders Staff Profile form when role is a staff role", () => {

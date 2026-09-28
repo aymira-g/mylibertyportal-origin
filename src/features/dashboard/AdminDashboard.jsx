@@ -380,6 +380,7 @@ export default function AdminDashboard() {
             setEditId(null);
             setActiveTab("overview");
           }}
+          students={students}
         />
       ),
     },

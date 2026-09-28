@@ -22,6 +22,7 @@ import {
 } from "../../constants/divisions";
 import { getProgram, normalizeProgram } from "../../constants/programs";
 import { isInstructorRole } from "../shared/roles";
+import { useUserProfile } from "../shared/useUserProfile";
 
 const emptyFormData = {
   firstName: "",
@@ -64,6 +65,7 @@ const emptyFormData = {
   motherPhone: "",
   referralSource: "",
   photoURL: "",
+  childStudentIds: [],
 };
 
 /**
@@ -91,6 +93,7 @@ export function useDashboardData({
 } = {}) {
   const toast = useToast();
   const confirm = useConfirm(); // 👈 shadows native window.confirm on purpose — same call shape, styled modal, just needs "await"
+  const { branch: profileBranch, loading: profileLoading } = useUserProfile();
 
   const [users, setUsers] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -108,12 +111,26 @@ export function useDashboardData({
   // per collection also means one collection's error (see invites below)
   // can't block the others from loading, unlike the old single try/catch.
   useEffect(() => {
+    // If restrictedRead is active and no explicit branch was provided, wait until
+    // profile loading finishes so we have the staff user's branch for branch isolation.
+    if (restrictedRead && !branch && profileLoading) {
+      return () => {};
+    }
+
+    const effectiveTargetBranch = branch || (restrictedRead ? profileBranch : null);
+    const targetBranchId =
+      effectiveTargetBranch && effectiveTargetBranch !== "all"
+        ? branchToId(effectiveTargetBranch)
+        : null;
+
     const usersConstraints = [];
     if (restrictedRead) {
-      usersConstraints.push(where("role", "in", ["student", "instructor"]));
+      // In firestore.rules, staff can list 'student', 'instructor', 'instructorleader', and 'parent'.
+      // Front Office needs parents loaded to display linked parent accounts on the student roster.
+      usersConstraints.push(where("role", "in", ["student", "instructor", "parent"]));
     }
-    if (branch && branch !== "all") {
-      usersConstraints.push(where("branchId", "==", branchToId(branch)));
+    if (targetBranchId) {
+      usersConstraints.push(where("branchId", "==", targetBranchId));
     }
     const usersQuery = usersConstraints.length
       ? query(collection(db, "users"), ...usersConstraints)
@@ -133,8 +150,8 @@ export function useDashboardData({
       handleListenerError("users")
     );
     const classConstraints = [];
-    if (branch && branch !== "all") {
-      classConstraints.push(where("branchId", "==", branchToId(branch)));
+    if (targetBranchId) {
+      classConstraints.push(where("branchId", "==", targetBranchId));
     }
     const classesQuery = classConstraints.length
       ? query(collection(db, "classes"), ...classConstraints)
@@ -147,8 +164,8 @@ export function useDashboardData({
     );
 
     const appConstraints = [];
-    if (branch && branch !== "all") {
-      appConstraints.push(where("branchId", "==", branchToId(branch)));
+    if (targetBranchId) {
+      appConstraints.push(where("branchId", "==", targetBranchId));
     }
     const applicationsQuery = appConstraints.length
       ? query(collection(db, "applications"), ...appConstraints)
@@ -161,8 +178,8 @@ export function useDashboardData({
     );
 
     const todoConstraints = [];
-    if (branch && branch !== "all") {
-      todoConstraints.push(where("branchId", "==", branchToId(branch)));
+    if (targetBranchId) {
+      todoConstraints.push(where("branchId", "==", targetBranchId));
     }
     const todosQuery = todoConstraints.length
       ? query(collection(db, "todos"), ...todoConstraints)
@@ -192,7 +209,7 @@ export function useDashboardData({
       unsubTodos();
       unsubInvites();
     };
-  }, [restrictedRead, branch]);
+  }, [restrictedRead, branch, profileBranch, profileLoading]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -314,7 +331,9 @@ export function useDashboardData({
       );
       setEditId(null);
       setFormData(emptyFormData);
-      setActiveTab?.(formData.role === "student" ? "students" : "directory");
+      setActiveTab?.(
+        formData.role === "student" || formData.role === "parent" ? "students" : "directory"
+      );
       return savedRecord;
     } catch (err) {
       toast(err.message, "error");
@@ -404,6 +423,7 @@ export function useDashboardData({
       motherPhone: user.motherPhone || "",
       referralSource: user.referralSource || "",
       photoURL: user.photoURL || "",
+      childStudentIds: Array.isArray(user.childStudentIds) ? [...user.childStudentIds] : [],
     });
     setActiveTab?.("addUser");
   };
@@ -512,7 +532,7 @@ export function useDashboardData({
     () => users.find((u) => u.id === auth.currentUser?.uid),
     [users]
   );
-  const effectiveBranch = branch || normalizeBranch(currentStaffProfile?.branch);
+  const effectiveBranch = branch || profileBranch || normalizeBranch(currentStaffProfile?.branch);
 
   const scopedClasses = useMemo(() => {
     let list = classes;

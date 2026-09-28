@@ -1,13 +1,75 @@
-// ── SETUP: these now live in Project Settings → Script Properties,
-// NOT in this code — see the setup notes below the code for exactly
-// what to name each one. Nothing secret sits in this file anymore.
+// ── SETUP: these live in Project Settings → Script Properties.
+// If SERVICE_ACCOUNT_KEY contains the entire downloaded JSON key file,
+// this script will automatically parse the email and private key from it!
 const props = PropertiesService.getScriptProperties();
-const FIREBASE_PROJECT_ID = props.getProperty("FIREBASE_PROJECT_ID");
-const SERVICE_ACCOUNT_EMAIL = props.getProperty("SERVICE_ACCOUNT_EMAIL");
-// Script Properties store plain text, so the key's line breaks arrive
-// as literal "\n" characters instead of real newlines. RSA signing
-// needs real newlines, so this converts them back.
-const SERVICE_ACCOUNT_KEY = (props.getProperty("SERVICE_ACCOUNT_KEY") || "").replace(/\\n/g, "\n");
+
+function getFirebaseProjectId_() {
+  let pid = props.getProperty("FIREBASE_PROJECT_ID");
+  if (!pid) {
+    const rawKey = props.getProperty("SERVICE_ACCOUNT_KEY") || "";
+    if (rawKey.trim().startsWith("{")) {
+      try {
+        pid = JSON.parse(rawKey).project_id;
+      } catch (e) {}
+    }
+  }
+  return (pid || "mylibertyies-f2f38").trim().replace(/^["']|["']$/g, "");
+}
+
+function getServiceAccountEmail_() {
+  let email = props.getProperty("SERVICE_ACCOUNT_EMAIL");
+  if (!email) {
+    const rawKey = props.getProperty("SERVICE_ACCOUNT_KEY") || "";
+    if (rawKey.trim().startsWith("{")) {
+      try {
+        email = JSON.parse(rawKey).client_email;
+      } catch (e) {}
+    }
+  }
+  if (!email) {
+    throw new Error(
+      "Missing SERVICE_ACCOUNT_EMAIL: Please add 'SERVICE_ACCOUNT_EMAIL' in Project Settings → Script Properties."
+    );
+  }
+  return email.trim().replace(/^["']|["']$/g, "");
+}
+
+function getServiceAccountKey_() {
+  let raw = props.getProperty("SERVICE_ACCOUNT_KEY");
+  if (!raw || !raw.trim()) {
+    throw new Error(
+      "Missing SERVICE_ACCOUNT_KEY: Please add 'SERVICE_ACCOUNT_KEY' in Project Settings → Script Properties."
+    );
+  }
+  raw = raw.trim();
+
+  // If the user pasted the entire service account JSON file into this property
+  if (raw.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed.private_key) {
+        raw = parsed.private_key;
+      }
+    } catch (e) {
+      // Not valid JSON, proceed with raw string
+    }
+  }
+
+  // Remove surrounding quotes if copied with quotes
+  raw = raw.replace(/^["']|["']$/g, "").trim();
+
+  // Convert literal \n characters to real newlines
+  raw = raw.replace(/\\n/g, "\n");
+
+  if (!raw.includes("BEGIN PRIVATE KEY") && !raw.includes("BEGIN RSA PRIVATE KEY")) {
+    throw new Error(
+      "Invalid SERVICE_ACCOUNT_KEY: Key must start with '-----BEGIN PRIVATE KEY-----'. " +
+        "Make sure you copied the private_key field from your Firebase service account JSON."
+    );
+  }
+
+  return raw;
+}
 
 // ── FIELD MAPPING: match these to your form's EXACT question text ──
 const FIELD_MAP = {
@@ -46,8 +108,11 @@ function base64UrlEncode_(input) {
 function getAccessToken_() {
   const header = { alg: "RS256", typ: "JWT" };
   const now = Math.floor(Date.now() / 1000);
+  const email = getServiceAccountEmail_();
+  const key = getServiceAccountKey_();
+
   const claims = {
-    iss: SERVICE_ACCOUNT_EMAIL,
+    iss: email,
     scope: "https://www.googleapis.com/auth/datastore",
     aud: "https://oauth2.googleapis.com/token",
     exp: now + 3600,
@@ -55,7 +120,7 @@ function getAccessToken_() {
   };
 
   const toSign = base64UrlEncode_(JSON.stringify(header)) + "." + base64UrlEncode_(JSON.stringify(claims));
-  const signatureBytes = Utilities.computeRsaSha256Signature(toSign, SERVICE_ACCOUNT_KEY);
+  const signatureBytes = Utilities.computeRsaSha256Signature(toSign, key);
   const jwt = toSign + "." + base64UrlEncode_(signatureBytes);
 
   const res = UrlFetchApp.fetch("https://oauth2.googleapis.com/token", {
@@ -101,7 +166,8 @@ function onFormSubmit(e) {
   application.branchId = branchId;
 
   const token = getAccessToken_();
-  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/applications`;
+  const projectId = getFirebaseProjectId_();
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/applications`;
 
   const res = UrlFetchApp.fetch(url, {
     method: "post",

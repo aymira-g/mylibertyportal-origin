@@ -18,6 +18,7 @@ export default function UserForm({
   onSaveAndCollectPayment = null,
   onCancel = null,
   onBack = null,
+  students = [],
 }) {
   const [submitting, setSubmitting] = useState(false);
   const handleBack = onCancel || onBack;
@@ -156,7 +157,7 @@ export default function UserForm({
           <StudentFamilyFields formData={formData} field={field} editId={editId} />
         </div>
       ) : isParent ? (
-        <ParentProfileFields formData={formData} field={field} editId={editId} />
+        <ParentProfileFields formData={formData} field={field} editId={editId} students={students} />
       ) : (
         <StaffProfileFields
           formData={formData}

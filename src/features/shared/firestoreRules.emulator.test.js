@@ -7,7 +7,7 @@
  * emulator: `npm run test:rules`. Skipped silently in a plain `npm test`.
  */
 /* global process */
-import { describe, it, beforeAll, beforeEach, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -32,6 +32,7 @@ const USERS = {
   insGto: { role: "instructor", branchId: "kota_gorontalo" },
   cleanerGto: { role: "cleaner", branchId: "kota_gorontalo" },
   parent1: { role: "parent", branchId: "kota_gorontalo", childStudentIds: ["student1"] },
+  parent2: { role: "parent", branchId: "bone_bolango", childStudentIds: ["student2"] },
   student1: { role: "student", branchId: "kota_gorontalo" },
   student2: { role: "student", branchId: "bone_bolango" },
 };
@@ -766,6 +767,108 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       // Parent1 has childStudentIds: ["student1"]. Query where studentIds array-contains student1:
       await assertSucceeds(
         getDocs(query(collection(authed("parent1"), "classes"), where("studentIds", "array-contains", "student1")))
+      );
+    });
+
+    it("INT-020: Front Office parent listing and querying with branch isolation", async () => {
+      // 1. Kota front office can query students, instructors, and parents
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(authed("foGto"), "users"),
+            where("role", "in", ["student", "instructor", "parent"]),
+            where("branchId", "==", "kota_gorontalo")
+          )
+        )
+      );
+
+      // 2. Bone Bolango front office can query their own branch
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(authed("foBoba"), "users"),
+            where("role", "in", ["student", "instructor", "parent"]),
+            where("branchId", "==", "bone_bolango")
+          )
+        )
+      );
+
+      // 3. Bone Bolango front office CANNOT query Kota Gorontalo branch
+      await assertFails(
+        getDocs(
+          query(
+            collection(authed("foBoba"), "users"),
+            where("role", "in", ["student", "instructor", "parent"]),
+            where("branchId", "==", "kota_gorontalo")
+          )
+        )
+      );
+
+      // 4. Dedicated parent query with branchId
+      const snapGto = await assertSucceeds(
+        getDocs(
+          query(
+            collection(authed("foGto"), "users"),
+            where("role", "==", "parent"),
+            where("branchId", "==", "kota_gorontalo")
+          )
+        )
+      );
+      expect(snapGto.docs.map((d) => d.id)).toContain("parent1");
+      expect(snapGto.docs.map((d) => d.id)).not.toContain("parent2");
+
+      // 5. Unfiltered query (no branch filter) for non-Kota staff (foBoba) is blocked
+      await assertFails(
+        getDocs(
+          query(
+            collection(authed("foBoba"), "users"),
+            where("role", "in", ["student", "instructor", "parent"])
+          )
+        )
+      );
+
+      // 6. Test foGto without branchId filter: Kota has a fallback in isSameBranch
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(authed("foGto"), "users"),
+            where("role", "in", ["student", "instructor", "parent"])
+          )
+        )
+      );
+
+      // 7. array-contains query for foGto (succeeds via Kota fallback)
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(authed("foGto"), "users"),
+            where("role", "==", "parent"),
+            where("childStudentIds", "array-contains", "student1")
+          )
+        )
+      );
+
+      // 8. array-contains query for foBoba WITHOUT branchId fails
+      await assertFails(
+        getDocs(
+          query(
+            collection(authed("foBoba"), "users"),
+            where("role", "==", "parent"),
+            where("childStudentIds", "array-contains", "student2")
+          )
+        )
+      );
+
+      // 9. array-contains query for foBoba WITH branchId succeeds
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(authed("foBoba"), "users"),
+            where("role", "==", "parent"),
+            where("branchId", "==", "bone_bolango"),
+            where("childStudentIds", "array-contains", "student2")
+          )
+        )
       );
     });
   });

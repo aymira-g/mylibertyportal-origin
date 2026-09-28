@@ -478,6 +478,7 @@ export default function FrontOfficeDashboard({ role = "frontoffice" }) {
             setEditId(null);
             setActiveTab("overview");
           }}
+          students={students}
         />
       ),
     },

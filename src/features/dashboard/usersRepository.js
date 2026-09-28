@@ -389,21 +389,16 @@ export async function getParentLinkedStudents(parentUid) {
  */
 export async function findParentsForStudent(studentId, branchId = null) {
   if (!studentId) return [];
-  // Query by role and childStudentIds using single-field indexes.
-  // We do not require a heavy composite index with array-contains on Firestore:
-  // parents linked to a student are at most 1-2 documents, so filtering by branchId
-  // in memory avoids index bloat and extra write costs on the users collection.
-  const q = query(
-    collection(db, "users"),
+  const constraints = [
     where("role", "==", "parent"),
-    where("childStudentIds", "array-contains", studentId)
-  );
-  const snap = await getDocs(q);
-  const parents = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    where("childStudentIds", "array-contains", studentId),
+  ];
   if (branchId) {
-    return parents.filter((p) => /** @type {any} */ (p).branchId === branchId);
+    constraints.push(where("branchId", "==", branchId));
   }
-  return parents;
+  const q = query(collection(db, "users"), ...constraints);
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 /**

@@ -6,6 +6,10 @@ import { ProfilePanel, LoginPage } from "./features/auth";
 import { loginWithGoogle } from "./features/auth/authRepository";
 import { isDevSwitcherEnabled } from "./features/auth/devPresets";
 import {
+  checkUserPendingStaffRequest,
+  submitStaffOnboardingRequest,
+} from "./features/shared/approvalsRepository";
+import {
   useToast,
   ErrorBoundary,
   ConnectivityBanner,
@@ -83,6 +87,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [idleWarning, setIdleWarning] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const [pendingStaffRequest, setPendingStaffRequest] = useState(null);
+  const [requestingAccess, setRequestingAccess] = useState(false);
 
   const isPreviewAllowed = Boolean(isDevSwitcherEnabled);
   const canUseDevSwitcher = Boolean(isDevSwitcherEnabled || normalizeRole(role) === "admin");
@@ -107,6 +113,7 @@ function App() {
     setPhotoURL("");
     setIdleWarning(false);
     setProfileOpen(false);
+    setPendingStaffRequest(null);
   }, []);
 
   const handleLogout = useCallback(async () => {
@@ -177,6 +184,12 @@ function App() {
         setDisplayName(currentAuth.displayName || "");
         setNickname(currentAuth.displayName || "");
         setPhotoURL(currentAuth.photoURL || "");
+        try {
+          const pending = await checkUserPendingStaffRequest(uid);
+          if (pending) setPendingStaffRequest(pending);
+        } catch {
+          // Non-blocking check
+        }
       }
       return true;
     },
@@ -306,6 +319,30 @@ function App() {
       toast("Google Sign-In Error: " + (err?.message || "Failed to sign in"), "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRequestAccess = async () => {
+    if (!user) return;
+    setRequestingAccess(true);
+    try {
+      const res = await submitStaffOnboardingRequest({
+        uid: user.uid,
+        email: user.email,
+        displayName: displayName || user.displayName || user.email.split("@")[0],
+        photoURL: photoURL || user.photoURL || "",
+      });
+      setPendingStaffRequest({
+        id: res.id,
+        actionId: "NEW_STAFF_ACCOUNT",
+        status: "pending",
+        requestedAt: new Date().toISOString(),
+      });
+      toast("Access request submitted to Admin Approval queue!", "success");
+    } catch (err) {
+      toast("Failed to submit request: " + (err.message || "Unknown error"), "error");
+    } finally {
+      setRequestingAccess(false);
     }
   };
 
@@ -567,23 +604,63 @@ function App() {
                 "officeboy",
                 "parent",
               ].includes(effectiveRole) && (
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center text-slate-600 text-sm max-w-md mx-auto space-y-3 shadow-xs">
-                  <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto text-lg font-bold">
-                    🔒
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center text-slate-600 text-sm max-w-md mx-auto space-y-4 shadow-sm">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto text-xl font-bold">
+                    {pendingStaffRequest ? "⏳" : "🔒"}
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-800 text-sm">Account Pending Role Assignment</h3>
+                    <h3 className="font-bold text-slate-800 text-base">
+                      {pendingStaffRequest ? "Access Request Submitted" : "Account Pending Role Assignment"}
+                    </h3>
                     <p className="text-xs text-slate-500 mt-1">
-                      Signed in as <strong className="text-slate-700">{user?.email}</strong>. This account does not have a staff or parent role assigned yet. Please contact your academy administrator.
+                      Signed in as <strong className="text-slate-700">{user?.email}</strong>.
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
-                  >
-                    Sign Out
-                  </button>
+
+                  {pendingStaffRequest ? (
+                    <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3.5 text-xs text-amber-900 text-left space-y-1">
+                      <div className="flex items-center justify-between font-bold">
+                        <span>Status: Pending Admin Review</span>
+                        <span className="text-[10px] bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded-full font-mono">
+                          NEW_STAFF_ACCOUNT
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-amber-800 leading-relaxed">
+                        Your request has been forwarded to the Admin Approval Inbox. When an admin authorizes your role and branch, your dashboard will activate.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-xs text-slate-500">
+                        This Google account is signed in, but no role has been provisioned. Click below to submit an onboarding authorization ticket to the Admin Approval queue.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleRequestAccess}
+                        disabled={requestingAccess}
+                        className="w-full py-2.5 px-4 bg-[#1a3a8f] hover:bg-[#152e73] text-white font-bold text-xs rounded-xl transition shadow-xs cursor-pointer disabled:opacity-50"
+                      >
+                        {requestingAccess ? "Submitting Request..." : "Request Staff Role Approval"}
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => user?.uid && refreshProfile(user.uid)}
+                      className="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition cursor-pointer"
+                    >
+                      Check Status
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="py-2 px-3 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-700 font-semibold text-xs rounded-xl transition cursor-pointer"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
                 </div>
               )}
             </Suspense>

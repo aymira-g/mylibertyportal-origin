@@ -3,6 +3,7 @@ import {
   submitApprovalRequest,
   approveApprovalRequest,
   rejectApprovalRequest,
+  submitStaffOnboardingRequest,
 } from "./approvalsRepository";
 import { APPROVAL_STATUS } from "./approvalGates";
 
@@ -67,5 +68,19 @@ describe("approvalsRepository", () => {
     expect(result.status).toBe(APPROVAL_STATUS.REJECTED);
     expect(result.decidedBy).toBe("Branch Manager");
     expect(result.rejectionReason).toBe("Missing documentation");
+  });
+
+  it("submits a new staff onboarding approval request with appropriate payload", async () => {
+    const result = await submitStaffOnboardingRequest({
+      uid: "user_new_google",
+      email: "newteacher@gmail.com",
+      displayName: "New Teacher",
+    });
+
+    expect(result.id).toBe("appr_999");
+    expect(result.actionId).toBe("NEW_STAFF_ACCOUNT");
+    expect(result.requestedByUid).toBe("user_new_google");
+    expect(result.status).toBe(APPROVAL_STATUS.PENDING);
+    expect(result.approverRole).toBe("admin");
   });
 });

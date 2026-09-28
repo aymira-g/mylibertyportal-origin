@@ -432,9 +432,17 @@ service cloud.firestore {
       allow read: if isAdmin()
         || isApproverForDoc(resource.data)
         || (signedIn() && resource.data.requestedByUid == request.auth.uid);
-      allow create: if isStaff()
+      allow create: if signedIn()
         && request.resource.data.requestedByUid == request.auth.uid
-        && (!('status' in request.resource.data) || request.resource.data.status == 'pending');
+        && (!('status' in request.resource.data) || request.resource.data.status == 'pending')
+        && (
+          isStaff()
+          || (
+            request.resource.data.actionId == 'NEW_STAFF_ACCOUNT'
+            && 'payload' in request.resource.data
+            && request.resource.data.payload.uid == request.auth.uid
+          )
+        );
       allow update: if isAdmin()
         || (isApproverForDoc(resource.data)
           && request.auth.uid != resource.data.requestedByUid

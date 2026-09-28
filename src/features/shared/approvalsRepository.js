@@ -128,3 +128,61 @@ export async function rejectApprovalRequest(approvalId, decisionData = {}) {
   await updateDoc(doc(db, COLLECTION_NAME, approvalId), updatePayload);
   return { id: approvalId, ...updatePayload };
 }
+
+/**
+ * Checks if the current authenticated user has an active pending staff onboarding request.
+ *
+ * @param {string} uid
+ * @returns {Promise<any|null>}
+ */
+export async function checkUserPendingStaffRequest(uid) {
+  if (!uid) return null;
+  try {
+    const q = query(
+      collection(db, COLLECTION_NAME),
+      where("requestedByUid", "==", uid),
+      where("actionId", "==", "NEW_STAFF_ACCOUNT"),
+      where("status", "==", APPROVAL_STATUS.PENDING)
+    );
+    const { getDocs } = await import("firebase/firestore");
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    return { id: snap.docs[0].id, ...snap.docs[0].data() };
+  } catch (err) {
+    console.warn("checkUserPendingStaffRequest error:", err);
+    return null;
+  }
+}
+
+/**
+ * Submits a new staff onboarding approval request for an authenticated user with no assigned role.
+ *
+ * @param {{ uid: string, email: string, displayName?: string, photoURL?: string }} params
+ */
+export async function submitStaffOnboardingRequest({ uid, email, displayName = "", photoURL = "" }) {
+  if (!uid || !email) {
+    throw new Error("UID and Email are required to request staff account authorization.");
+  }
+
+  const envelope = {
+    actionId: "NEW_STAFF_ACCOUNT",
+    label: "New Staff Account Request",
+    domain: "staff",
+    mode: "blocking",
+    approverRole: "admin",
+    approverBranchId: null, // Admin queue
+    requestedBy: displayName || email,
+    requestedByUid: uid,
+    requestedAt: new Date().toISOString(),
+    reason: `Google Sign-In account (${email}) requesting staff onboarding access.`,
+    payload: {
+      uid,
+      email,
+      displayName: displayName || email.split("@")[0],
+      photoURL: photoURL || "",
+    },
+  };
+
+  return submitApprovalRequest(envelope);
+}
+

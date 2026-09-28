@@ -5,9 +5,10 @@ import {
   rejectApprovalRequest,
 } from "./approvalsRepository";
 import { applyApprovedShiftCorrection } from "../attendance/shiftsRepository";
+import { updateStaffRecord } from "../dashboard/usersRepository";
 import { useToast } from "./useToast";
 import { useConfirm } from "./useConfirm";
-import { idToBranch } from "../../constants/branches";
+import { idToBranch, BRANCH_MAP } from "../../constants/branches";
 import { checkNetworkReachability } from "../../utils/networkReachability";
 import {
   CheckCircle2,
@@ -29,9 +30,19 @@ export function ApprovalInbox({
   const [loading, setLoading] = useState(true);
   const [selectedDomain, setSelectedDomain] = useState("all");
   const [processingId, setProcessingId] = useState(null);
+  const [staffRoleAssignments, setStaffRoleAssignments] = useState({});
+  const [staffBranchAssignments, setStaffBranchAssignments] = useState({});
 
   const toast = useToast();
   const confirm = useConfirm();
+
+  const handleRoleChange = (id, newRole) => {
+    setStaffRoleAssignments((prev) => ({ ...prev, [id]: newRole }));
+  };
+
+  const handleBranchChange = (id, newBranch) => {
+    setStaffBranchAssignments((prev) => ({ ...prev, [id]: newBranch }));
+  };
 
   useEffect(() => {
     const unsubscribe = listenToPendingApprovals(
@@ -81,6 +92,29 @@ export function ApprovalInbox({
           toast(
             `Approved, but the correction could not be applied (${applyErr.message}). An admin can apply it from Staff Duty Reports.`,
             "warning"
+          );
+        }
+      } else if (approval.actionId === "NEW_STAFF_ACCOUNT" && approval.payload?.uid) {
+        const assignedRole = staffRoleAssignments[approval.id] || "instructor";
+        const assignedBranch = staffBranchAssignments[approval.id] || "kota_gorontalo";
+        try {
+          await updateStaffRecord(approval.payload.uid, {
+            email: approval.payload.email,
+            displayName: approval.payload.displayName || approval.payload.email,
+            role: assignedRole,
+            branchId: assignedBranch,
+            status: "active",
+            photoURL: approval.payload.photoURL || "",
+            createdAt: new Date().toISOString(),
+          });
+          toast(
+            `Staff account provisioned! Assigned ${assignedRole} at ${idToBranch(assignedBranch)}.`,
+            "success"
+          );
+        } catch (provisionErr) {
+          toast(
+            `Approved ticket, but failed to provision user profile: ${provisionErr.message}`,
+            "error"
           );
         }
       } else {
@@ -219,6 +253,41 @@ export function ApprovalInbox({
                   <p className="text-xs text-slate-600 bg-white p-2.5 rounded-xl border border-slate-200/60 font-medium">
                     <strong className="text-slate-800">Reason:</strong> {req.reason}
                   </p>
+                )}
+
+                {req.actionId === "NEW_STAFF_ACCOUNT" && (
+                  <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 flex flex-wrap gap-3 items-center text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <label className="font-bold text-slate-700">Assign Role:</label>
+                      <select
+                        value={staffRoleAssignments[req.id] || "instructor"}
+                        onChange={(e) => handleRoleChange(req.id, e.target.value)}
+                        className="bg-white border border-slate-200 rounded-lg px-2 py-1 font-semibold text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1a3a8f]"
+                      >
+                        <option value="instructor">Instructor</option>
+                        <option value="frontoffice">Front Office</option>
+                        <option value="manager">Branch Manager</option>
+                        <option value="marketing">Marketing</option>
+                        <option value="officeboy">Office Boy</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <label className="font-bold text-slate-700">Assign Branch:</label>
+                      <select
+                        value={staffBranchAssignments[req.id] || "kota_gorontalo"}
+                        onChange={(e) => handleBranchChange(req.id, e.target.value)}
+                        className="bg-white border border-slate-200 rounded-lg px-2 py-1 font-semibold text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1a3a8f]"
+                      >
+                        {Object.entries(BRANCH_MAP).map(([bId, bName]) => (
+                          <option key={bId} value={bId}>
+                            {bName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                 )}
               </div>
 

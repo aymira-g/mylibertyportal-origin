@@ -1,7 +1,15 @@
 import { useState, useEffect } from "react";
 import { auth } from "../../firebase";
 import { useDashboardData } from "./useDashboardData";
-import { AIAssistant, DashboardShell, WelcomeBanner, ApprovalInbox, isStaffRole } from "../shared";
+import {
+  AIAssistant,
+  DashboardShell,
+  WelcomeBanner,
+  ApprovalInbox,
+  isStaffRole,
+  ErrorBoundary,
+  usePendingApprovalsCount,
+} from "../shared";
 import { UserPlus, GraduationCap, BookOpen, AlertCircle, ArrowRight, ShieldCheck, Zap } from "lucide-react";
 import { ReportsDashboard } from "../reports";
 import { StudentApplications, UserForm, StudentRoster, BadgeModal } from "../students";
@@ -55,6 +63,8 @@ export default function AdminDashboard() {
     pendingApplications,
   } = useDashboardData({ setActiveTab: handleTabChange });
 
+  const pendingApprovalsCount = usePendingApprovalsCount("admin");
+
   const overviewTab = (
     <div className="space-y-6 w-full">
       <WelcomeBanner
@@ -97,7 +107,7 @@ export default function AdminDashboard() {
       />
 
       {/* Needs Attention Alert Bar */}
-      {(pendingApplications > 0 || unenrolledStudents.length > 0) && (
+      {(pendingApplications > 0 || unenrolledStudents.length > 0 || pendingApprovalsCount > 0) && (
         <div className="bg-amber-50/80 border border-amber-200/90 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 font-bold">
@@ -118,6 +128,11 @@ export default function AdminDashboard() {
                     • <strong>{unenrolledStudents.length}</strong> active student{unenrolledStudents.length > 1 ? "s" : ""} unassigned to a class
                   </span>
                 )}
+                {pendingApprovalsCount > 0 && (
+                  <span>
+                    • <strong>{pendingApprovalsCount}</strong> pending authorization{pendingApprovalsCount > 1 ? "s" : ""} awaiting approval
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -129,6 +144,15 @@ export default function AdminDashboard() {
                 className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition cursor-pointer"
               >
                 Review Applications
+              </button>
+            )}
+            {pendingApprovalsCount > 0 && (
+              <button
+                type="button"
+                onClick={() => handleTabChange("approvals")}
+                className="px-3 py-1.5 bg-[#1a3a8f] hover:bg-[#132c6d] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                Review Approvals
               </button>
             )}
             {unenrolledStudents.length > 0 && (
@@ -330,12 +354,15 @@ export default function AdminDashboard() {
     {
       id: "approvals",
       label: "Approvals",
+      badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
       component: (
-        <ApprovalInbox
-          userRole="admin"
-          title="Academy Maker-Checker Authorization Registry"
-          subtitle="Dual-control operational authorization queue for sensitive transactions, discounts, cash discrepancy, and data overrides."
-        />
+        <ErrorBoundary label="Approvals queue">
+          <ApprovalInbox
+            userRole="admin"
+            title="Academy Maker-Checker Authorization Registry"
+            subtitle="Dual-control operational authorization queue for sensitive transactions, discounts, cash discrepancy, and data overrides."
+          />
+        </ErrorBoundary>
       ),
     },
     {

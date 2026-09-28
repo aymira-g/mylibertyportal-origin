@@ -1,7 +1,15 @@
 import { useState, useEffect } from "react";
 import { auth } from "../../firebase";
 import { useDashboardData } from "./useDashboardData";
-import { AIAssistant, DashboardShell, WelcomeBanner, useToast, ApprovalInbox, PrimaryActionButton } from "../shared";
+import {
+  AIAssistant,
+  DashboardShell,
+  WelcomeBanner,
+  useToast,
+  ApprovalInbox,
+  PrimaryActionButton,
+  usePendingApprovalsCount,
+} from "../shared";
 import {
   StudentApplications,
   StudentRoster,
@@ -344,6 +352,8 @@ export default function FrontOfficeDashboard({ role = "frontoffice" }) {
     effectiveRole === "manager" ||
     effectiveRole === "admin";
 
+  const pendingApprovalsCount = usePendingApprovalsCount(isLeader ? "ops_lead" : null, myBranch);
+
   const tabs = [
     { id: "overview", label: "Overview", component: overviewTab },
     {
@@ -438,6 +448,7 @@ export default function FrontOfficeDashboard({ role = "frontoffice" }) {
           {
             id: "approvals",
             label: "Approvals",
+            badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
             component: (
               <ApprovalInbox
                 userRole="ops_lead"

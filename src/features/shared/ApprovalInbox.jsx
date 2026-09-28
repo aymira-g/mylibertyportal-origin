@@ -96,19 +96,25 @@ export function ApprovalInbox({
         }
       } else if (approval.actionId === "NEW_STAFF_ACCOUNT" && approval.payload?.uid) {
         const assignedRole = staffRoleAssignments[approval.id] || "instructor";
-        const assignedBranch = staffBranchAssignments[approval.id] || "kota_gorontalo";
+        const assignedBranchId = staffBranchAssignments[approval.id] || "kota_gorontalo";
+        const assignedBranchName = idToBranch(assignedBranchId);
         try {
           await updateStaffRecord(approval.payload.uid, {
-            email: approval.payload.email,
-            displayName: approval.payload.displayName || approval.payload.email,
+            email: approval.payload.email || "",
+            displayName: approval.payload.displayName || approval.payload.email || "Staff Member",
+            nickname: approval.payload.displayName || "",
             role: assignedRole,
-            branchId: assignedBranch,
+            branch: assignedBranchName,
+            branchId: assignedBranchId,
+            division: "courses",
             status: "active",
+            phone: "",
             photoURL: approval.payload.photoURL || "",
+            joinedDate: new Date().toISOString().split("T")[0],
             createdAt: new Date().toISOString(),
           });
           toast(
-            `Staff account provisioned! Assigned ${assignedRole} at ${idToBranch(assignedBranch)}.`,
+            `Staff account provisioned! Assigned ${assignedRole} at ${assignedBranchName}.`,
             "success"
           );
         } catch (provisionErr) {
@@ -245,7 +251,15 @@ export function ApprovalInbox({
                   </span>
                   <span className="inline-flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5 text-slate-400" />
-                    {req.requestedAt ? new Date(req.requestedAt).toLocaleString("id-ID") : "Recently"}
+                    {(() => {
+                      if (!req.requestedAt) return "Recently";
+                      try {
+                        const d = new Date(req.requestedAt);
+                        return isNaN(d.getTime()) ? "Recently" : d.toLocaleString("id-ID");
+                      } catch {
+                        return "Recently";
+                      }
+                    })()}
                   </span>
                 </div>
 

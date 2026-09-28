@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useInstructorRoster } from "./useInstructorRoster";
-import { AIAssistant, DashboardShell, ApprovalInbox } from "../shared";
+import { AIAssistant, DashboardShell, ApprovalInbox, usePendingApprovalsCount } from "../shared";
 import { KioskModal, KioskSidebarButton, InstructorAttendanceView } from "../attendance";
 import { ClassPhotoShare, TeachingMaterial } from "../classes";
 import { ReportsDashboard } from "../reports";
@@ -53,6 +53,10 @@ export default function InstructorDashboard({ role = "", branch = "" }) {
     effectiveRole === "instructorleader" ||
     effectiveRole === "instructor_leader" ||
     effectiveRole === "head_instructor";
+  const pendingApprovalsCount = usePendingApprovalsCount(
+    isLeader ? "instructor_leader" : null,
+    effectiveBranch
+  );
   const classes = useMemo(() => uniqueClasses(rawClasses), [rawClasses]);
   const [allClasses, setAllClasses] = useState([]);
 
@@ -166,6 +170,7 @@ export default function InstructorDashboard({ role = "", branch = "" }) {
           {
             id: "approvals",
             label: "Academic Approvals",
+            badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
             component: (
               <ApprovalInbox
                 userRole="instructor_leader"

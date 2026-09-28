@@ -14,6 +14,7 @@ export function useNetworkStatus() {
       ? navigator.onLine
       : true
   );
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const [showReconnected, setShowReconnected] = useState(false);
 
   const verifyReachability = useCallback(async () => {
@@ -26,19 +27,30 @@ export function useNetworkStatus() {
     let timer = null;
     let isMounted = true;
 
-    const handleOnline = () => {
+    const handleOnline = async () => {
       if (!isMounted) return;
-      setIsOnline(true);
-      setShowReconnected(true);
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
-        if (isMounted) setShowReconnected(false);
-      }, 3500);
+      setIsReconnecting(true);
+      const reachable = await checkNetworkReachability();
+      if (!isMounted) return;
+      setIsReconnecting(false);
+
+      if (reachable) {
+        setIsOnline(true);
+        setShowReconnected(true);
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          if (isMounted) setShowReconnected(false);
+        }, 3500);
+      } else {
+        setIsOnline(false);
+        setShowReconnected(false);
+      }
     };
 
     const handleOffline = () => {
       if (!isMounted) return;
       setIsOnline(false);
+      setIsReconnecting(false);
       setShowReconnected(false);
     };
 
@@ -53,5 +65,5 @@ export function useNetworkStatus() {
     };
   }, []);
 
-  return { isOnline, showReconnected, verifyReachability };
+  return { isOnline, isReconnecting, showReconnected, verifyReachability };
 }

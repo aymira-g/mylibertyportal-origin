@@ -250,8 +250,9 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
       // Switch to receipt view
       setActiveReceipt(savedPayment);
       setActiveTab("receipt");
+      toast("Saved ✓ — Payment recorded successfully!", "success");
     } catch (err) {
-      toast("Error saving payment: " + err.message, "error");
+      toast("Not saved — please try again. " + (err.message || ""), "error");
     } finally {
       setSaving(false);
     }

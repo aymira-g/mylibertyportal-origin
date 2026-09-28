@@ -14,7 +14,7 @@ export default function MobileDashboardShell({
   activeTab,
   onTabChange,
   title,
-  extraSidebarContent,
+  extraSidebarContent = null,
   primaryTabIds = null,
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
@@ -33,18 +33,27 @@ export default function MobileDashboardShell({
     const availableIds = new Set(visibleTabs.map((t) => t.id));
     let matchedPriorities = null;
 
-    if (availableIds.has("cashier") && availableIds.has("walkins")) {
+    if (availableIds.has("cashier") && (availableIds.has("inquiries") || availableIds.has("walkins"))) {
       // Front Office
-      matchedPriorities = ["overview", "cashier", "walkins", "applications"];
+      const inquiryId = availableIds.has("inquiries") ? "inquiries" : "walkins";
+      matchedPriorities = ["overview", "cashier", inquiryId, "applications"];
+    } else if (
+      (availableIds.has("users") || availableIds.has("students") || availableIds.has("directory")) &&
+      availableIds.has("applications")
+    ) {
+      // Admin
+      const studentOrUser = availableIds.has("students")
+        ? "students"
+        : availableIds.has("users")
+          ? "users"
+          : "directory";
+      matchedPriorities = ["overview", studentOrUser, "classes", "approvals"];
     } else if (availableIds.has("attendance") && (availableIds.has("progress") || availableIds.has("classes"))) {
       // Instructor
       matchedPriorities = ["overview", "attendance", "classes", "progress"];
     } else if (availableIds.has("approvals") && availableIds.has("reports") && availableIds.has("classes")) {
       // Manager
       matchedPriorities = ["overview", "approvals", "classes", "reports"];
-    } else if (availableIds.has("users") && availableIds.has("applications")) {
-      // Admin
-      matchedPriorities = ["overview", "users", "classes", "approvals"];
     }
 
     if (matchedPriorities) {
@@ -66,6 +75,61 @@ export default function MobileDashboardShell({
   const selectTab = (tabId) => {
     onTabChange(tabId);
     setMoreOpen(false);
+  };
+
+  const ADMIN_OR_SYSTEM_IDS = new Set([
+    "approvals",
+    "directory",
+    "invites",
+    "terminals",
+    "misc",
+    "tasks",
+    "directives",
+    "ai",
+    "aiAssistant",
+    "settings",
+  ]);
+
+  const dailyMoreTabs = moreTabs.filter((tab) => !ADMIN_OR_SYSTEM_IDS.has(tab.id));
+  const adminMoreTabs = moreTabs.filter((tab) => ADMIN_OR_SYSTEM_IDS.has(tab.id));
+  const hasMultipleSections = dailyMoreTabs.length > 0 && adminMoreTabs.length > 0;
+
+  const renderTabButton = (tab) => {
+    const Icon = getTabIcon(tab);
+    const label = getCleanLabel(tab.label);
+    const isActive = activeTab === tab.id;
+
+    return (
+      <button
+        key={tab.id}
+        onClick={() => selectTab(tab.id)}
+        className={`min-h-12 rounded-xl border px-3 py-2 text-left text-xs font-bold transition flex items-center justify-between gap-2.5 cursor-pointer ${
+          isActive
+            ? "border-[#1a3a8f] bg-[#1a3a8f] text-white"
+            : "border-slate-200 bg-slate-50 text-slate-700 active:bg-slate-100"
+        }`}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <div
+            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+              isActive ? "bg-white/20 text-white" : "bg-white text-[#1a3a8f] shadow-2xs"
+            }`}
+          >
+            <Icon className="w-4 h-4" />
+          </div>
+          <span className="truncate">{label}</span>
+        </div>
+        {tab.badge !== undefined && tab.badge !== null && (
+          <span
+            className={`px-1.5 py-0.5 text-[10px] font-black rounded-full shrink-0 ${
+              isActive ? "bg-white text-[#1a3a8f]" : "bg-amber-100 text-amber-800"
+            }`}
+          >
+            {tab.badge}
+          </span>
+        )}
+      </button>
+    );
   };
 
   return (
@@ -91,7 +155,7 @@ export default function MobileDashboardShell({
             onClick={() => setMoreOpen(false)}
             className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150 cursor-pointer"
           />
-          <section className="fixed inset-x-0 bottom-0 z-50 rounded-t-3xl bg-white p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl animate-in slide-in-from-bottom duration-200 overscroll-contain">
+          <section className="fixed inset-x-0 bottom-0 z-50 rounded-t-3xl bg-white p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl animate-in slide-in-from-bottom duration-200 overscroll-contain max-h-[85vh] overflow-y-auto">
             <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-slate-300" />
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-base font-black text-slate-800">More Tools</h3>
@@ -103,45 +167,35 @@ export default function MobileDashboardShell({
                 ✕ Close
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              {moreTabs.map((tab) => {
-                const Icon = getTabIcon(tab);
-                const label = getCleanLabel(tab.label);
-                const isActive = activeTab === tab.id;
 
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => selectTab(tab.id)}
-                    className={`min-h-14 rounded-xl border px-3 py-2 text-left text-xs font-bold transition flex items-center justify-between gap-2.5 cursor-pointer ${
-                      isActive
-                        ? "border-[#1a3a8f] bg-[#1a3a8f] text-white"
-                        : "border-slate-200 bg-slate-50 text-slate-700 active:bg-slate-100"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div
-                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                          isActive ? "bg-white/20 text-white" : "bg-white text-[#1a3a8f] shadow-2xs"
-                        }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <span className="truncate">{label}</span>
+            {hasMultipleSections ? (
+              <div className="space-y-4">
+                {dailyMoreTabs.length > 0 && (
+                  <div>
+                    <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">
+                      Academic &amp; Operations
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {dailyMoreTabs.map(renderTabButton)}
                     </div>
-                    {tab.badge !== undefined && tab.badge !== null && (
-                      <span
-                        className={`px-1.5 py-0.5 text-[10px] font-black rounded-full shrink-0 ${
-                          isActive ? "bg-white text-[#1a3a8f]" : "bg-amber-100 text-amber-800"
-                        }`}
-                      >
-                        {tab.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+                  </div>
+                )}
+                {adminMoreTabs.length > 0 && (
+                  <div>
+                    <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">
+                      Administration &amp; Tools
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {adminMoreTabs.map(renderTabButton)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {moreTabs.map(renderTabButton)}
+              </div>
+            )}
           </section>
         </>
       )}

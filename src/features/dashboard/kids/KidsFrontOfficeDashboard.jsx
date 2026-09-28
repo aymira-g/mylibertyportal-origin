@@ -215,43 +215,56 @@ export default function KidsFrontOfficeDashboard() {
 
         <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="font-extrabold text-slate-800 text-sm">Desk Quick Launch</h4>
+            <h4 className="font-extrabold text-slate-800 text-sm">Desk Priority Actions</h4>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
             <button
               onClick={handleAddStudent}
-              className="text-[11px] font-bold text-cyan-700 hover:underline inline-flex items-center gap-1"
+              className="p-3 rounded-2xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold transition flex items-center gap-2.5 shadow-xs cursor-pointer text-left"
             >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>+ Register Child</span>
+              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                <UserPlus className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <p className="font-extrabold text-white text-xs">Register Child</p>
+                <p className="text-[10px] text-cyan-100 font-medium">New student admission</p>
+              </div>
             </button>
-          </div>
-          <div className="grid grid-cols-2 gap-2 pt-1">
             <button
               onClick={() => setActiveTab("cashier")}
-              className="p-2.5 rounded-xl bg-cyan-50/80 border border-cyan-200/80 text-xs font-bold text-cyan-900 hover:bg-cyan-100 transition flex items-center gap-2"
+              className="p-3 rounded-2xl bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-800 text-xs font-bold transition flex items-center gap-2.5 cursor-pointer text-left"
             >
-              <CreditCard className="w-4 h-4 text-cyan-700 shrink-0" />
-              <span className="truncate">Desk Cashier</span>
-            </button>
-            <button
-              onClick={() => setActiveTab("inquiries")}
-              className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-bold text-slate-700 hover:bg-slate-100 transition flex items-center gap-2"
-            >
-              <UserCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span className="truncate">Guest Log</span>
-            </button>
-            <button
-              onClick={() => setActiveTab("applications")}
-              className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-bold text-slate-700 hover:bg-slate-100 transition flex items-center gap-2"
-            >
-              <UserPlus className="w-4 h-4 text-indigo-600 shrink-0" />
-              <span className="truncate">Applications</span>
+              <div className="w-8 h-8 rounded-xl bg-cyan-100 flex items-center justify-center shrink-0">
+                <CreditCard className="w-4 h-4 text-cyan-700" />
+              </div>
+              <div>
+                <p className="font-extrabold text-slate-800 text-xs">Desk Cashier</p>
+                <p className="text-[10px] text-slate-500 font-medium">Record tuition &amp; fees</p>
+              </div>
             </button>
             <button
               onClick={() => setKioskOpen(true)}
-              className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-bold text-slate-700 hover:bg-slate-100 transition flex items-center gap-2"
+              className="p-3 rounded-2xl bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-800 text-xs font-bold transition flex items-center gap-2.5 cursor-pointer text-left"
             >
-              <ScanLine className="w-4 h-4 text-cyan-700 shrink-0" />
-              <span className="truncate">Reception Mode</span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+                <ScanLine className="w-4 h-4 text-emerald-700" />
+              </div>
+              <div>
+                <p className="font-extrabold text-slate-800 text-xs">Reception Kiosk</p>
+                <p className="text-[10px] text-slate-500 font-medium">Student check-in scanner</p>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab("inquiries")}
+              className="p-3 rounded-2xl bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-800 text-xs font-bold transition flex items-center gap-2.5 cursor-pointer text-left"
+            >
+              <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
+                <UserCheck className="w-4 h-4 text-indigo-700" />
+              </div>
+              <div>
+                <p className="font-extrabold text-slate-800 text-xs">Guest Log</p>
+                <p className="text-[10px] text-slate-500 font-medium">Inquiries &amp; walk-ins</p>
+              </div>
             </button>
           </div>
         </div>
@@ -378,6 +391,7 @@ export default function KidsFrontOfficeDashboard() {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         title="Kids School — Front Desk"
+        primaryTabIds={["overview", "cashier", "inquiries", "applications"]}
         extraSidebarContent={
           <div className="space-y-2">
             <div className="px-2 pt-1">

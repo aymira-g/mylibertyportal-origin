@@ -1,10 +1,4 @@
-/**
- * UserForm.jsx
- * Add / Edit user form for the students feature.
- * Handles both staff account creation/edits and comprehensive student profile edits
- * matching all Google Registration Form fields.
- */
-
+import { useState } from "react";
 import { auth } from "../../firebase";
 import { getStars } from "../shared";
 import { normalizeDivision } from "../../constants/divisions";
@@ -23,6 +17,7 @@ export default function UserForm({
   onSubmit,
   onSaveAndCollectPayment = null,
 }) {
+  const [submitting, setSubmitting] = useState(false);
   const isSelf = Boolean(editId && auth.currentUser && editId === auth.currentUser.uid);
   const field = (key, value) => setFormData((prev) => ({ ...prev, [key]: value }));
   const isStudent = formData.role === "student";
@@ -46,16 +41,33 @@ export default function UserForm({
     }
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onSubmit(e);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleCollectPaymentClick = async (e) => {
     if (onSaveAndCollectPayment) {
       e.preventDefault();
-      await onSaveAndCollectPayment(e);
+      if (submitting) return;
+      setSubmitting(true);
+      try {
+        await onSaveAndCollectPayment(e);
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 
   return (
     <form
-      onSubmit={onSubmit}
+      onSubmit={handleSubmit}
       className="bg-white p-6 rounded-2xl shadow-sm text-sm border border-slate-200 w-full space-y-6"
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-2">
@@ -142,19 +154,37 @@ export default function UserForm({
       <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
         <button
           type="submit"
-          className="w-full min-h-12 bg-[#1a3a8f] text-white p-3 rounded-xl font-bold hover:bg-[#122b6e] active:scale-[0.98] transition shadow-md cursor-pointer flex-1"
+          disabled={submitting}
+          className="w-full min-h-12 bg-[#1a3a8f] text-white p-3 rounded-xl font-bold hover:bg-[#122b6e] active:scale-[0.98] transition shadow-md cursor-pointer flex-1 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          {editId ? "Update Profile" : "Create Account"}
+          {submitting ? (
+            <>
+              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
+              <span>{editId ? "Saving Changes…" : "Registering…"}</span>
+            </>
+          ) : (
+            <span>{editId ? "Update Profile" : "Create Account"}</span>
+          )}
         </button>
 
         {isStudent && !editId && onSaveAndCollectPayment && (
           <button
             type="button"
+            disabled={submitting}
             onClick={handleCollectPaymentClick}
-            className="w-full sm:w-auto min-h-12 px-5 py-3 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white transition shadow-md flex items-center justify-center gap-2 cursor-pointer shrink-0"
+            className="w-full sm:w-auto min-h-12 px-5 py-3 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white transition shadow-md flex items-center justify-center gap-2 cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <CreditCard className="w-4 h-4" />
-            <span>Save &amp; Open Cashier</span>
+            {submitting ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
+                <span>Saving…</span>
+              </>
+            ) : (
+              <>
+                <CreditCard className="w-4 h-4" />
+                <span>Save &amp; Open Cashier</span>
+              </>
+            )}
           </button>
         )}
       </div>

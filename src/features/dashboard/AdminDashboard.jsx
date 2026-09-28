@@ -95,6 +95,54 @@ export default function AdminDashboard() {
         onNavigateToStudents={() => handleTabChange("students")}
       />
 
+      {/* Needs Attention Alert Bar */}
+      {(pendingApplications > 0 || unenrolledStudents.length > 0) && (
+        <div className="bg-amber-50/80 border border-amber-200/90 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 font-bold">
+              <AlertCircle className="w-5 h-5 text-amber-700" />
+            </div>
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-amber-900">
+                Administrative Attention Required
+              </h4>
+              <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs font-medium text-amber-800">
+                {pendingApplications > 0 && (
+                  <span>
+                    • <strong>{pendingApplications}</strong> pending application{pendingApplications > 1 ? "s" : ""} awaiting review
+                  </span>
+                )}
+                {unenrolledStudents.length > 0 && (
+                  <span>
+                    • <strong>{unenrolledStudents.length}</strong> active student{unenrolledStudents.length > 1 ? "s" : ""} unassigned to a class
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {pendingApplications > 0 && (
+              <button
+                type="button"
+                onClick={() => handleTabChange("applications")}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                Review Applications
+              </button>
+            )}
+            {unenrolledStudents.length > 0 && (
+              <button
+                type="button"
+                onClick={() => handleTabChange("students")}
+                className="px-3 py-1.5 bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                Assign Students
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <h4 className="font-bold text-slate-800">Quick actions</h4>
@@ -339,7 +387,7 @@ export default function AdminDashboard() {
         activeTab={activeTab}
         onTabChange={handleTabChange}
         title="Admin Panel"
-        primaryTabIds={["overview", "users", "classes", "approvals"]}
+        primaryTabIds={["overview", "students", "classes", "approvals"]}
         extraSidebarContent={
           <KioskSidebarButton onClick={() => setKioskOpen(true)} label="Attendance Kiosk" />
         }

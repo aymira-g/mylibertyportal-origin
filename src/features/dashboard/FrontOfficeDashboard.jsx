@@ -193,6 +193,54 @@ export default function FrontOfficeDashboard({ role = "frontoffice" }) {
         onNavigateToStudents={() => setActiveTab("students")}
       />
 
+      {/* Desk Needs Attention Alert Bar */}
+      {(pendingApplications > 0 || unenrolledStudents.length > 0) && (
+        <div className="bg-amber-50/80 border border-amber-200/90 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 font-bold">
+              <AlertCircle className="w-5 h-5 text-amber-700" />
+            </div>
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-amber-900">
+                Desk Attention Required
+              </h4>
+              <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs font-medium text-amber-800">
+                {pendingApplications > 0 && (
+                  <span>
+                    • <strong>{pendingApplications}</strong> pending application{pendingApplications > 1 ? "s" : ""} awaiting review
+                  </span>
+                )}
+                {unenrolledStudents.length > 0 && (
+                  <span>
+                    • <strong>{unenrolledStudents.length}</strong> active student{unenrolledStudents.length > 1 ? "s" : ""} unassigned to a cohort
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {pendingApplications > 0 && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("applications")}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                Review Applications
+              </button>
+            )}
+            {unenrolledStudents.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("students")}
+                className="px-3 py-1.5 bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                Assign Students
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Today's Live Room & Class Board */}
       <TodayScheduleBoard
         classes={classes}
@@ -231,21 +279,21 @@ export default function FrontOfficeDashboard({ role = "frontoffice" }) {
         <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="font-extrabold text-slate-800 text-sm">Priority Desk Actions</h4>
-            <button
-              onClick={handleAddStudent}
-              className="text-xs font-bold text-[#1a3a8f] hover:underline inline-flex items-center gap-1 cursor-pointer"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>+ Add Walk-in</span>
-            </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
             <PrimaryActionButton
+              icon={UserPlus}
+              label="Register Student"
+              description="Create new student profile"
+              onClick={handleAddStudent}
+              variant="primary"
+            />
+            <PrimaryActionButton
               icon={CreditCard}
-              label="Desk Cashier"
+              label="Take Payment"
               description="Record payment & receipt"
               onClick={() => setActiveTab("cashier")}
-              variant="primary"
+              variant="secondary"
             />
             <PrimaryActionButton
               icon={ScanLine}

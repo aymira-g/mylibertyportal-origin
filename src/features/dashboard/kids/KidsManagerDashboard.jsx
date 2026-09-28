@@ -357,6 +357,7 @@ export default function KidsManagerDashboard() {
       activeTab={activeTab}
       onTabChange={setActiveTab}
       title="Kids School — Manager Portal"
+      primaryTabIds={["overview", "classes", "reports", "tasks"]}
       extraSidebarContent={
         <div className="px-2 pb-1">
           <span className="inline-flex items-center gap-1.5 bg-cyan-50 text-cyan-800 text-[11px] font-black px-2.5 py-0.5 rounded-full border border-cyan-200">

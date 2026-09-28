@@ -164,7 +164,7 @@ export async function handleKioskScan(
         showStatus(
           "Attendance Already Decided",
           "info",
-          `Attendance was previously decided manually (${recordResult.record.status}).`,
+          `Attendance was previously decided manually (${recordResult.record.status}). The scan was not allowed to overwrite that record.`,
           userData.displayName
         );
       } else {

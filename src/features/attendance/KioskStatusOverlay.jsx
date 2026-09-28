@@ -3,23 +3,30 @@ import { CheckCircle2, AlertCircle, Volume2 } from "lucide-react";
 export default function KioskStatusOverlay({ status }) {
   if (!status?.message) return null;
 
+  const isError = status.type === "error";
+  const isWarningOrInfo = status.type === "warning" || status.type === "info";
+
   return (
     <div
       className={`absolute inset-0 z-50 flex items-center justify-center p-6 text-white text-center animate-in fade-in zoom-in duration-200 ${
-        status.type === "error"
+        isError
           ? "bg-rose-900/95 backdrop-blur-md"
-          : "bg-gradient-to-br from-emerald-900/95 to-teal-900/95 backdrop-blur-md"
+          : isWarningOrInfo
+            ? "bg-amber-900/95 backdrop-blur-md"
+            : "bg-gradient-to-br from-emerald-900/95 to-teal-900/95 backdrop-blur-md"
       }`}
     >
       <div className="space-y-3 max-w-sm">
         <div
           className={`w-16 h-16 mx-auto rounded-3xl flex items-center justify-center border shadow-lg ${
-            status.type === "error"
+            isError
               ? "bg-rose-500/20 border-rose-400/40 text-rose-200"
-              : "bg-emerald-500/20 border-emerald-400/40 text-emerald-200"
+              : isWarningOrInfo
+                ? "bg-amber-500/20 border-amber-400/40 text-amber-200"
+                : "bg-emerald-500/20 border-emerald-400/40 text-emerald-200"
           }`}
         >
-          {status.type === "error" ? (
+          {isError || isWarningOrInfo ? (
             <AlertCircle className="w-9 h-9" />
           ) : (
             <CheckCircle2 className="w-9 h-9" />

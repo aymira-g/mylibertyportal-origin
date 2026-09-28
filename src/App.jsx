@@ -12,7 +12,7 @@ import {
   PreviewModeProvider,
 } from "./features/shared";
 import { normalizeRole } from "./features/shared/roles";
-import { InstallButton } from "./features/pwa";
+import { InstallButton, PwaUpdateBanner } from "./features/pwa";
 import { AlertTriangle } from "lucide-react";
 import schoolLogo from "./assets/school-logo.webp";
 
@@ -330,6 +330,7 @@ function App() {
     return (
       <>
         <ConnectivityBanner />
+        <PwaUpdateBanner />
         <LoginPage onLogin={handleLogin} loading={loading} />
       </>
     );
@@ -338,6 +339,7 @@ function App() {
   return (
     <div className="bg-gray-50 min-h-screen flex flex-col justify-between">
       <ConnectivityBanner />
+      <PwaUpdateBanner />
       <div>
         {/* Desktop Top Navigation Bar (md and above - 100% untouched) */}
         <div className="hidden md:block bg-white p-3.5 sm:p-4 md:px-6 shadow-xs border-b border-slate-200/80">

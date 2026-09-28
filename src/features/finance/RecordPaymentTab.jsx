@@ -385,9 +385,16 @@ export default function RecordPaymentTab({
       <button
         type="submit"
         disabled={saving || !isOnline}
-        className="w-full bg-[#1a3a8f] hover:bg-[#122b6e] text-white p-3 rounded-xl font-bold text-sm shadow-md transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+        className="w-full bg-[#1a3a8f] hover:bg-[#122b6e] text-white p-3.5 rounded-xl font-bold text-sm shadow-md transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed active:scale-[0.99]"
       >
-        {saving ? "Saving Payment..." : "💾 Save Payment & Generate Receipt"}
+        {saving ? (
+          <>
+            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
+            <span>Saving…</span>
+          </>
+        ) : (
+          <span>💾 Save Payment &amp; Generate Receipt</span>
+        )}
       </button>
     </form>
   );

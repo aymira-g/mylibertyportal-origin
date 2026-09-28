@@ -7,13 +7,13 @@ import { branchToId } from "./branches.js";
 
 export const DEFAULT_WHATSAPP_NUMBER =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_FRONT_DESK_WA) ||
-  "6281244445555";
+  "628114382345";
 
 export const BRANCH_WHATSAPP_NUMBERS = Object.freeze({
-  kota_gorontalo: "6281244445555",
-  bone_bolango: "6281244445556",
-  pohuwato: "6281244445557",
-  limboto: "6281244445558",
+  kota_gorontalo: "628114382345",
+  bone_bolango: "628114382345",
+  pohuwato: "628114382345",
+  limboto: "628114382345",
 });
 
 /**

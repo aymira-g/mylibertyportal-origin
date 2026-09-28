@@ -48,10 +48,9 @@ test.describe('MyLiberty Portal - PWA Health & Deep Linking Suite', () => {
     await expect(page.locator('body')).toBeVisible();
   });
 
-  test('action query parameters (?action=attendance) are cleaned from URL after initialization', async ({ page }) => {
+  test('action query parameters (?action=attendance) are preserved on login page for post-auth routing', async ({ page }) => {
     await page.goto('/?action=attendance');
-    // After dashboard initialization, urlAction.js prunes ?action=attendance
-    await page.waitForTimeout(500);
-    expect(page.url()).not.toContain('action=attendance');
+    await expect(page.locator('input[type="email"]')).toBeVisible();
+    expect(page.url()).toContain('action=attendance');
   });
 });

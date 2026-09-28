@@ -27,7 +27,7 @@ export default function InstructorDashboard({ role = "", branch = "" }) {
   }, []);
   const [kioskOpen, setKioskOpen] = useState(() => {
     const action = getUrlAction();
-    return action === "kiosk" || action === "class-photo" || action === "attendance";
+    return action === "kiosk" || action === "class-photo";
   });
 
   useEffect(() => {

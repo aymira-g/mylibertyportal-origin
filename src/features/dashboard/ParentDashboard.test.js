@@ -2,6 +2,7 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import ParentDashboard from "./ParentDashboard";
+import { ToastProvider } from "../shared";
 
 vi.mock("../../firebase", () => ({
   db: {},
@@ -35,7 +36,11 @@ describe("ParentDashboard Component", () => {
 
   it("renders initial loading state markup correctly", () => {
     const html = renderToStaticMarkup(
-      React.createElement(ParentDashboard, { user: { uid: "parent123" } })
+      React.createElement(
+        ToastProvider,
+        null,
+        React.createElement(ParentDashboard, { user: { uid: "parent123" } })
+      )
     );
     expect(html).toContain("Memuat Portal Orang Tua");
   });

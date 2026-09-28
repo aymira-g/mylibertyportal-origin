@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { auth } from "../../firebase";
 import { sendPasswordResetEmail } from "firebase/auth";
 import schoolLogo from "../../assets/school-logo.webp";
 import { InstallButton } from "../pwa";
-import { clearUrlAction } from "../../utils/urlAction";
 import {
   Mail,
   Lock,
@@ -26,10 +25,6 @@ import {
 } from "./devPresets";
 
 export default function LoginPage({ onLogin, loading }) {
-  useEffect(() => {
-    clearUrlAction();
-  }, []);
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);

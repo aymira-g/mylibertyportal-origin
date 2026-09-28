@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { checkNetworkReachability } from "../../utils/networkReachability";
 
+/**
+ * Hook providing global network connectivity status for UI feedback (e.g. ConnectivityBanner).
+ *
+ * Keeps `navigator.onLine` as the baseline signal to avoid transient probe false-positives
+ * flipping the whole app offline. Specific critical writes (payments, kiosk scans) use
+ * `checkNetworkReachability` directly as a pre-flight guard.
+ */
 export function useNetworkStatus() {
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== "undefined" && typeof navigator.onLine === "boolean"
@@ -19,39 +26,24 @@ export function useNetworkStatus() {
     let timer = null;
     let isMounted = true;
 
-    const handleOnline = async () => {
-      // Validate that the network connection actually reaches the outside world
-      const reachable = await checkNetworkReachability({ timeoutMs: 3000 });
+    const handleOnline = () => {
       if (!isMounted) return;
-
-      if (reachable) {
-        setIsOnline(true);
-        setShowReconnected(true);
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(() => {
-          if (isMounted) setShowReconnected(false);
-        }, 3500);
-      } else {
-        setIsOnline(false);
-      }
+      setIsOnline(true);
+      setShowReconnected(true);
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (isMounted) setShowReconnected(false);
+      }, 3500);
     };
 
     const handleOffline = () => {
+      if (!isMounted) return;
       setIsOnline(false);
       setShowReconnected(false);
     };
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-
-    // Initial check in background to detect captive portals / stalling Wi-Fi on initial load
-    if (typeof navigator !== "undefined" && navigator.onLine) {
-      checkNetworkReachability({ timeoutMs: 3000 }).then((reachable) => {
-        if (isMounted && !reachable) {
-          setIsOnline(false);
-        }
-      });
-    }
 
     return () => {
       isMounted = false;

@@ -33,7 +33,7 @@ describe("checkNetworkReachability", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("returns true when probe fetch succeeds with 200 OK", async () => {
+  it("returns true when probe fetch succeeds with 200 OK using GET", async () => {
     Object.defineProperty(globalThis, "navigator", {
       value: { onLine: true },
       writable: true,
@@ -48,8 +48,41 @@ describe("checkNetworkReachability", () => {
     const reachable = await checkNetworkReachability();
     expect(reachable).toBe(true);
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/manifest.webmanifest?_reachability="),
-      expect.objectContaining({ method: "HEAD", cache: "no-store" })
+      expect.stringContaining("/ping.txt?_reachability="),
+      expect.objectContaining({ method: "GET", cache: "no-store" })
+    );
+  });
+
+  it("falls back to /favicon.svg if /ping.txt probe fails", async () => {
+    Object.defineProperty(globalThis, "navigator", {
+      value: { onLine: true },
+      writable: true,
+      configurable: true,
+    });
+
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+      });
+
+    const reachable = await checkNetworkReachability();
+    expect(reachable).toBe(true);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("/ping.txt?_reachability="),
+      expect.anything()
+    );
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("/favicon.svg?_reachability="),
+      expect.anything()
     );
   });
 
@@ -66,7 +99,7 @@ describe("checkNetworkReachability", () => {
     expect(reachable).toBe(false);
   });
 
-  it("returns false when probe fetch returns a 4xx or 5xx status", async () => {
+  it("returns false when probe fetch returns a 4xx or 5xx status and fallback also fails", async () => {
     Object.defineProperty(globalThis, "navigator", {
       value: { onLine: true },
       writable: true,

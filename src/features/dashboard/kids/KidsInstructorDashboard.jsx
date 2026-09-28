@@ -17,13 +17,17 @@ import { DEFAULT_BRANCH, branchToId } from "../../../constants/branches";
 import { getUrlAction, clearUrlAction } from "../../../utils/urlAction.js";
 
 export default function KidsInstructorDashboard() {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() => {
+    const action = getUrlAction();
+    if (action === "attendance") return "attendance";
+    return "overview";
+  });
   const isClassPhotoAction = useMemo(() => {
     return getUrlAction() === "class-photo";
   }, []);
   const [kioskOpen, setKioskOpen] = useState(() => {
     const action = getUrlAction();
-    return action === "attendance" || action === "class-photo";
+    return action === "kiosk" || action === "class-photo";
   });
 
   useEffect(() => {

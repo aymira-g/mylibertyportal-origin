@@ -451,15 +451,15 @@ All roles now consume `getUrlAction()` and prune query parameters from `window.h
 |---|---|---|---|---|
 | **Front Office** | Opens Attendance Kiosk Modal | Opens Attendance Kiosk Modal | Navigates to registration page | Cleanly pruned via `replaceState` |
 | **Kids Front Office** | Opens Attendance Kiosk Modal | Opens Attendance Kiosk Modal | Navigates to registration page | Cleanly pruned via `replaceState` |
-| **Instructor / Leader** | Opens Kiosk Modal & Attendance Tab | Opens Kiosk Modal with photo prompt | Navigates to registration page | Cleanly pruned via `replaceState` |
-| **Kids Instructor** | Opens Kiosk Modal & Attendance Tab | Opens Kiosk Modal with photo prompt | Navigates to registration page | Cleanly pruned via `replaceState` |
+| **Instructor / Leader** | Opens Attendance Tab | Opens Kiosk Modal with photo prompt | Navigates to registration page | Cleanly pruned via `replaceState` |
+| **Kids Instructor** | Opens Attendance Tab | Opens Kiosk Modal with photo prompt | Navigates to registration page | Cleanly pruned via `replaceState` |
 | **Admin** | Opens Attendance Kiosk Modal | Opens Attendance Kiosk Modal | Navigates to registration page | Cleanly pruned via `replaceState` |
 | **Manager** | Switches to Classes & Coverage tab + info toast | Info toast: *"Action shortcut not supported for Manager view"* | Navigates to registration page | Cleanly pruned via `replaceState` |
 | **Kids Manager** | Switches to Classes & Coverage tab + info toast | Info toast: *"Action shortcut not supported for Kids Manager view"* | Navigates to registration page | Cleanly pruned via `replaceState` |
 | **Marketing** | Info toast: *"Action shortcut not supported for Marketing view"* | Info toast: *"Action shortcut not supported for Marketing view"* | Navigates to registration page | Cleanly pruned via `replaceState` |
 | **Office Staff (Office Boy)** | Info toast: *"Action shortcut not supported for General Affairs view"* | Info toast: *"Action shortcut not supported for General Affairs view"* | Navigates to registration page | Cleanly pruned via `replaceState` |
 | **Parent Portal** | Info toast: *"Action shortcut not supported in Parent Portal"* | Info toast: *"Action shortcut not supported in Parent Portal"* | Navigates to registration page | Cleanly pruned via `replaceState` |
-| **Logged Out (Login Page)** | Preserved or safely stripped without crashing | Preserved or safely stripped without crashing | Opens full public registration flow | Cleanly pruned via `replaceState` |
+| **Logged Out (Login Page)** | Preserved in URL until successful login | Preserved in URL until successful login | Opens full public registration flow | Preserved across login; pruned on dashboard |
 
 ---
 

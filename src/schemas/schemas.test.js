@@ -349,6 +349,41 @@ describe("corporateEventSchema", () => {
       })
     ).toThrow(/YYYY-MM-DD/);
   });
+
+  it("enforces that endTime must be strictly after startTime when both are provided", () => {
+    // Valid: endTime after startTime
+    const valid = corporateEventSchema.parse({
+      name: "Evening Workshop",
+      eventDate: "2026-10-15",
+      startTime: "19:00",
+      endTime: "21:00",
+      audienceType: "all",
+    });
+    expect(valid.startTime).toBe("19:00");
+    expect(valid.endTime).toBe("21:00");
+
+    // Invalid: endTime before startTime
+    expect(() =>
+      corporateEventSchema.parse({
+        name: "Backwards Event",
+        eventDate: "2026-10-15",
+        startTime: "19:00",
+        endTime: "18:00",
+        audienceType: "all",
+      })
+    ).toThrow(/End time must be after start time/);
+
+    // Invalid: endTime equals startTime
+    expect(() =>
+      corporateEventSchema.parse({
+        name: "Zero Duration Event",
+        eventDate: "2026-10-15",
+        startTime: "19:00",
+        endTime: "19:00",
+        audienceType: "all",
+      })
+    ).toThrow(/End time must be after start time/);
+  });
 });
 
 describe("schoolMasterSchema", () => {

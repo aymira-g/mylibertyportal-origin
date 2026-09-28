@@ -44,6 +44,20 @@ export const corporateEventSchema = z
     createdBy: z.string().trim().optional(),
   })
   .superRefine((data, ctx) => {
+    if (data.startTime && data.endTime) {
+      const [startH, startM] = data.startTime.split(":").map(Number);
+      const [endH, endM] = data.endTime.split(":").map(Number);
+      const startMinutes = (startH || 0) * 60 + (startM || 0);
+      const endMinutes = (endH || 0) * 60 + (endM || 0);
+      if (endMinutes <= startMinutes) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["endTime"],
+          message: "End time must be after start time.",
+        });
+      }
+    }
+
     if (data.audienceType === "all") {
       // audienceValue can be null
       return;

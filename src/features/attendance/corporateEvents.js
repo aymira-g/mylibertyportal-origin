@@ -27,7 +27,7 @@ export function isEventWithinTimeWindow(event, currentTime = new Date()) {
   const { startTime, endTime } = event;
 
   // No start time means eligible all day
-  if (!startTime) {
+  if (typeof startTime !== "string" || !/^\d{1,2}:\d{2}$/.test(startTime.trim())) {
     return true;
   }
 
@@ -37,14 +37,22 @@ export function isEventWithinTimeWindow(event, currentTime = new Date()) {
   const w = new Date(d.getTime() + WITA_OFFSET_MS);
   const currentMinutes = w.getUTCHours() * 60 + w.getUTCMinutes();
 
-  const [startH, startM] = startTime.split(":").map(Number);
-  const startMinutes = (startH || 0) * 60 + (startM || 0);
+  const [startH, startM] = startTime.trim().split(":").map(Number);
+  if (Number.isNaN(startH) || Number.isNaN(startM) || startH < 0 || startH > 24 || startM < 0 || startM >= 60) {
+    return true;
+  }
+  const startMinutes = startH * 60 + startM;
   const windowStartMinutes = Math.max(0, startMinutes - 120); // 2 hours before start
 
   let windowEndMinutes = 24 * 60; // Midnight default
-  if (endTime) {
-    const [endH, endM] = endTime.split(":").map(Number);
-    windowEndMinutes = (endH || 0) * 60 + (endM || 0);
+  if (typeof endTime === "string" && /^\d{1,2}:\d{2}$/.test(endTime.trim())) {
+    const [endH, endM] = endTime.trim().split(":").map(Number);
+    if (!Number.isNaN(endH) && !Number.isNaN(endM) && endH >= 0 && endH <= 24 && endM >= 0 && endM < 60) {
+      const parsedEndMinutes = endH * 60 + endM;
+      if (parsedEndMinutes > startMinutes) {
+        windowEndMinutes = parsedEndMinutes;
+      }
+    }
   }
 
   return currentMinutes >= windowStartMinutes && currentMinutes <= windowEndMinutes;

@@ -117,11 +117,13 @@ export async function checkStudentHasHistory(uid, branchId = null) {
     );
     const attendanceQuery = query(
       collection(db, "attendance"),
+      ...(branchId ? [where("branchId", "==", branchId)] : []),
       where("userId", "==", uid),
       limit(1)
     );
     const reportsQuery = query(
       collection(db, "progressReports"),
+      ...(branchId ? [where("branchId", "==", branchId)] : []),
       where("studentId", "==", uid),
       limit(1)
     );
@@ -170,13 +172,22 @@ export async function createStaffAccount(email, password, staffData) {
  * the /classes collection and linked student references from /users (parents)
  * in an atomic batch to avoid leaving orphaned student IDs.
  */
-export async function deleteUserProfile(uid) {
+export async function deleteUserProfile(uid, branchId = null) {
   if (!uid) return;
 
   // 1. Find all classes where this student is currently enrolled
-  const classesQuery = query(collection(db, "classes"), where("studentIds", "array-contains", uid));
+  const classesQuery = query(
+    collection(db, "classes"),
+    ...(branchId ? [where("branchId", "==", branchId)] : []),
+    where("studentIds", "array-contains", uid)
+  );
   // 2. Find any parents who have this student linked
-  const parentsQuery = query(collection(db, "users"), where("childStudentIds", "array-contains", uid));
+  const parentsQuery = query(
+    collection(db, "users"),
+    where("role", "==", "parent"),
+    ...(branchId ? [where("branchId", "==", branchId)] : []),
+    where("childStudentIds", "array-contains", uid)
+  );
 
   const [classesSnap, parentsSnap] = await Promise.all([
     getDocs(classesQuery),
@@ -215,10 +226,14 @@ export async function deleteUserProfile(uid) {
  * Preserves financial payment logs, attendance records, and progress reports
  * while removing active roster enrollment and marking status as 'archived'.
  */
-export async function archiveStudentProfile(uid, actor = null) {
+export async function archiveStudentProfile(uid, actor = null, branchId = null) {
   if (!uid) return;
 
-  const classesQuery = query(collection(db, "classes"), where("studentIds", "array-contains", uid));
+  const classesQuery = query(
+    collection(db, "classes"),
+    ...(branchId ? [where("branchId", "==", branchId)] : []),
+    where("studentIds", "array-contains", uid)
+  );
   const classesSnap = await getDocs(classesQuery);
 
   const batch = writeBatch(db);

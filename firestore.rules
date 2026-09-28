@@ -188,8 +188,8 @@ service cloud.firestore {
         || (signedIn() && userId == request.auth.uid)
         || (isParentOf(userId) && resource.data.role == 'student');
       allow list: if isAdmin()
-        || (isManager() && isSameBranch(resource.data))
-        || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranch(resource.data));
+        || (isManager() && isSameBranchStrict(resource.data))
+        || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranchStrict(resource.data));
       allow create: if isAdmin() 
         || (isFrontOffice() && request.resource.data.role in ['student', 'parent'] && isSameBranch(request.resource.data))
         || (signedIn()
@@ -246,16 +246,24 @@ service cloud.firestore {
     }
 
     match /applications/{applicationId} {
-      // Branch-isolated admissions
-      allow read: if isAdmin() || ((isFrontOffice() || isManager() || hasRole('marketing')) && isSameBranch(resource.data));
+      allow get: if isAdmin() || ((isFrontOffice() || isManager() || hasRole('marketing')) && isSameBranch(resource.data));
+      allow list: if isAdmin() || ((isFrontOffice() || isManager() || hasRole('marketing')) && isSameBranchStrict(resource.data));
       allow update: if isAdmin() || (isFrontOffice() && isSameBranch(resource.data) && isSameBranch(request.resource.data) && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId));
       allow delete: if isAdmin() || (isFrontOffice() && isSameBranch(resource.data));
       allow create: if false;
     }
 
     match /classes/{classId} {
-      allow read: if isAdmin()
+      allow get: if isAdmin()
         || (isStaff() && isSameBranch(resource.data))
+        || (isStaff() && (
+            resource.data.instructorId == request.auth.uid
+            || ('substituteInstructorId' in resource.data && resource.data.substituteInstructorId == request.auth.uid)
+          ))
+        || (signedIn() && ('studentIds' in resource.data) && resource.data.studentIds.hasAny([request.auth.uid]))
+        || (isParent() && ('childStudentIds' in userProfile()) && ('studentIds' in resource.data) && resource.data.studentIds.hasAny(userProfile().childStudentIds));
+      allow list: if isAdmin()
+        || (isStaff() && isSameBranchStrict(resource.data))
         || (isStaff() && (
             resource.data.instructorId == request.auth.uid
             || ('substituteInstructorId' in resource.data && resource.data.substituteInstructorId == request.auth.uid)
@@ -306,8 +314,10 @@ service cloud.firestore {
 
     match /attendance/{attendanceId} {
       // Branch-lock attendance by default. Admin has cross-branch access.
-      allow read: if isAdmin()
+      allow get: if isAdmin()
         || (isStaff() && isSameBranch(resource.data));
+      allow list: if isAdmin()
+        || (isStaff() && isSameBranchStrict(resource.data));
       // Student scans: Admin (reception station), Front Office, Instructor, and Instructor Leader; scanned person must be a student
       allow create: if (isAdmin() || isFrontOffice() || hasRole('instructor') || hasRole('instructorleader') || hasRole('instructor_leader'))
         && request.resource.data.userId is string
@@ -521,8 +531,11 @@ service cloud.firestore {
     }
 
     match /staffLeave/{leaveId} {
-      allow read: if isAdmin()
+      allow get: if isAdmin()
         || (isManager() && isSameBranch(resource.data))
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow list: if isAdmin()
+        || (isManager() && isSameBranchStrict(resource.data))
         || (signedIn() && resource.data.userId == request.auth.uid);
       allow create: if isAdmin()
         && request.resource.data.status == 'approved'
@@ -554,7 +567,8 @@ service cloud.firestore {
       // Read access is restricted to roles that have an operational need:
       // Admin (full access), Manager (oversight/reporting), Marketing (field work).
       // Instructor, Front Office, and Office Boy have no outreach business and are excluded.
-      allow read: if isAdmin() || ((isManager() || hasRole('marketing')) && isSameBranch(resource.data));
+      allow get: if isAdmin() || ((isManager() || hasRole('marketing')) && isSameBranch(resource.data));
+      allow list: if isAdmin() || ((isManager() || hasRole('marketing')) && isSameBranchStrict(resource.data));
       allow create: if (isAdmin() || ((isManager() || hasRole('marketing')) && isSameBranch(request.resource.data)))
         && request.resource.data.name is string
         && request.resource.data.lat is number
@@ -597,8 +611,10 @@ service cloud.firestore {
     }
 
     match /kioskDevices/{deviceId} {
-      allow read: if isAdmin()
+      allow get: if isAdmin()
         || ((isFrontOffice() || isManager()) && isSameBranch(resource.data));
+      allow list: if isAdmin()
+        || ((isFrontOffice() || isManager()) && isSameBranchStrict(resource.data));
       allow write: if false; // Provisioning and revocation managed server-side
     }
 

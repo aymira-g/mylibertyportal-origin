@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { db, auth } from "../../firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, onSnapshot, doc } from "firebase/firestore";
+import { collection, onSnapshot, doc, query, where } from "firebase/firestore";
 import { WelcomeBanner, DashboardShell, useToast } from "../shared";
 import { UserPlus, BookOpen, Users, Copy, Check, ExternalLink } from "lucide-react";
 import { copyText } from "../../utils/copyText";
@@ -211,8 +211,13 @@ export default function MarketingDashboard() {
   }, [userProfile]);
 
   useEffect(() => {
+    if (!marketingBranchId) return;
+
     const unsubApplications = onSnapshot(
-      collection(db, "applications"),
+      query(
+        collection(db, "applications"),
+        where("branchId", "==", marketingBranchId)
+      ),
       (snap) => {
         const pending = snap.docs.filter(
           (d) => (d.data().status || "pending") === "pending"
@@ -227,7 +232,10 @@ export default function MarketingDashboard() {
     );
 
     const unsubClasses = onSnapshot(
-      collection(db, "classes"),
+      query(
+        collection(db, "classes"),
+        where("branchId", "==", marketingBranchId)
+      ),
       (snap) => {
         setClasses(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       },
@@ -240,7 +248,7 @@ export default function MarketingDashboard() {
       unsubApplications();
       unsubClasses();
     };
-  }, []);
+  }, [marketingBranchId]);
 
   useEffect(() => {
     const unsubSchools = listenToSchools(

@@ -438,7 +438,8 @@ export function useDashboardData({
       return;
 
     try {
-      await deleteUserProfile(uid);
+      const targetBranchId = user.branchId || (user.branch ? branchToId(user.branch) : null);
+      await deleteUserProfile(uid, targetBranchId);
       if (!skipConfirm) {
         if (user.role === "student") {
           toast("Student roster profile deleted.");

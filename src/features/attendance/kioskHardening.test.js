@@ -122,4 +122,28 @@ describe("Kiosk Hardening & Cryptographic Integrity", () => {
     expect(isDeviceAuthorized(revokedKiosk)).toBe(false);
     expect(isDeviceAuthorized(null)).toBe(false);
   });
+
+  // ── 5. FAIL-CLOSED KIOSK PROOF BOUNDARY (K-01) ──
+
+  it("fails closed when worker security service is unavailable rather than silently writing to Firestore", async () => {
+    const { kioskClockInWithProof } = await import("./shiftsRepository.js");
+
+    await expect(
+      kioskClockInWithProof({
+        badgeToken: "staff_123",
+        role: "instructor",
+      })
+    ).rejects.toThrow(/Kiosk (security service unavailable|cryptographic terminal is not supported)/);
+  });
+
+  it("fails closed on clock-out when worker service is unavailable rather than bypassing proof", async () => {
+    const { kioskClockOutWithProof } = await import("./shiftsRepository.js");
+
+    await expect(
+      kioskClockOutWithProof({
+        shiftId: "shift_123",
+        badgeToken: "staff_123",
+      })
+    ).rejects.toThrow(/Kiosk (security service unavailable|cryptographic terminal is not supported)/);
+  });
 });

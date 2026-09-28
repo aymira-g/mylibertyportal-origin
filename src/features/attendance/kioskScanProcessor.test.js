@@ -10,6 +10,7 @@ vi.mock("./shiftsRepository.js", () => ({
   fetchInstructorClasses: vi.fn(),
   clockIn: vi.fn(),
   clockOutShift: vi.fn(),
+  kioskClockOutWithProof: vi.fn(),
   recordStudentAttendance: vi.fn(),
 }));
 
@@ -444,6 +445,54 @@ describe("kioskScanProcessor in STATION mode for instructors & corporate events"
       "success",
       expect.stringContaining("General Administrative Duty"),
       "Reception Sarah"
+    );
+  });
+
+  it("prompts staff to scan again for event when clocking out of daytime shift during an active event", async () => {
+    const staffUser = {
+      id: "ins_user_out",
+      displayName: "Jane Doe",
+      role: "instructor",
+      status: "active",
+      branchId: "kota_gorontalo",
+    };
+    const openShift = {
+      id: "shift_day_1",
+      userId: "ins_user_out",
+      classId: "class_day_1",
+      className: "Day English Class",
+      shiftType: "teaching",
+    };
+    const event = {
+      id: "evt_gala",
+      name: "Evening Gala",
+      eventDate: "2026-09-28",
+      startTime: "19:00",
+      audienceType: "all",
+      status: "active",
+    };
+
+    vi.mocked(shiftsRepo.fetchUserById).mockResolvedValueOnce(staffUser);
+    vi.mocked(corpEventsRepo.fetchActiveCorporateEventsForDate).mockResolvedValueOnce([event]);
+    vi.mocked(shiftsRepo.fetchOpenShiftFor).mockResolvedValueOnce(openShift);
+    vi.mocked(shiftsRepo.fetchInstructorClasses).mockResolvedValueOnce([]); // No remaining classes
+
+    await handleKioskScan("ins_user_out", {
+      attendanceMode: "STATION",
+      showStatus,
+      setLastScanned,
+      setPendingClockIn,
+    });
+
+    expect(shiftsRepo.kioskClockOutWithProof).toHaveBeenCalledWith({
+      shiftId: "shift_day_1",
+      badgeToken: "ins_user_out",
+    });
+    expect(showStatus).toHaveBeenCalledWith(
+      "Shift Concluded — Scan Again for Event",
+      "success",
+      expect.stringContaining("Evening Gala"),
+      "Jane Doe"
     );
   });
 });

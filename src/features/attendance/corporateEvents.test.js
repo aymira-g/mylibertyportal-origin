@@ -309,4 +309,18 @@ describe("corporateEvents - isEventWithinTimeWindow", () => {
     // 23:59 WITA (15:59 UTC) -> eligible before midnight
     expect(isEventWithinTimeWindow(event, new Date("2026-09-28T15:59:00Z"))).toBe(true);
   });
+
+  it("ignores an invalid or backward endTime and falls back to midnight WITA", () => {
+    // Malformed endTime strings
+    const malformed = { id: "evt-1", startTime: "19:00", endTime: "invalid-time" };
+    expect(isEventWithinTimeWindow(malformed, new Date("2026-09-28T14:00:00Z"))).toBe(true); // 22:00 WITA
+
+    // Backward endTime (earlier than startTime)
+    const backward = { id: "evt-2", startTime: "19:00", endTime: "18:00" };
+    expect(isEventWithinTimeWindow(backward, new Date("2026-09-28T14:00:00Z"))).toBe(true); // 22:00 WITA
+
+    // Non-string endTime
+    const nonString = { id: "evt-3", startTime: "19:00", endTime: 12345 };
+    expect(isEventWithinTimeWindow(nonString, new Date("2026-09-28T14:00:00Z"))).toBe(true);
+  });
 });

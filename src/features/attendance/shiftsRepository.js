@@ -165,10 +165,20 @@ export function clockIn({
  * Hardened kiosk clock-in backed by server-authoritative Cloudflare Worker,
  * Web Crypto non-exportable P-256 signatures, single-use challenges, and
  * server-side employee identity resolution.
+ *
+ * @param {object} params
+ * @param {string} params.badgeToken
+ * @param {string} [params.role]
+ * @param {string} [params.stationId]
+ * @param {string} [params.classId]
+ * @param {string} [params.className]
+ * @param {string|null} [params.shiftType]
+ * @param {string|null} [params.eventId]
+ * @param {any} [params.punctuality]
  */
 export async function kioskClockInWithProof({
   badgeToken,
-  role = "instructor",
+  role: _role = "instructor", // eslint-disable-line no-unused-vars
   stationId = "reception-01",
   classId = "general",
   className = "",
@@ -181,19 +191,18 @@ export async function kioskClockInWithProof({
       ? import.meta.env.VITE_AI_WORKER_URL
       : "";
 
-  // If worker base is not available or non-browser environment, fall back to direct clockIn
-  if (!workerBase || typeof window === "undefined" || !window.crypto?.subtle) {
-    return clockIn({
-      uid: badgeToken,
-      role,
-      classId,
-      className,
-      shiftType,
-      eventId,
-      punctuality,
-      stationId,
-      clockInAt: new Date(),
-    });
+  // Fail closed if worker base or browser crypto is unavailable.
+  // Never silently fall back to direct client-side Firestore writes (K-01),
+  // which bypasses device cryptographic proof and defaults branch to DEFAULT_BRANCH_ID.
+  if (!workerBase) {
+    throw new Error(
+      "Kiosk security service unavailable (VITE_AI_WORKER_URL is missing). Please contact the administrator."
+    );
+  }
+  if (typeof window === "undefined" || !window.crypto?.subtle) {
+    throw new Error(
+      "Kiosk cryptographic terminal is not supported on this browser or environment."
+    );
   }
 
   const { deviceId } = await getOrCreateKioskKey();
@@ -247,6 +256,80 @@ export async function kioskClockInWithProof({
   }
 
   return clockInRes.json();
+}
+
+/**
+ * Clocks out a shift through the server-authoritative Cloudflare Worker with kiosk proof.
+ * Binds the clock-out action to the scanned badge credential to prevent cross-account closing (K-02).
+ * Fails closed if the worker service or browser crypto is unavailable (K-01 / K-05).
+ */
+export async function kioskClockOutWithProof({ shiftId, badgeToken = null }) {
+  if (!shiftId) {
+    throw new Error("Missing shiftId for kiosk clock-out.");
+  }
+  const workerBase =
+    typeof import.meta !== "undefined" && import.meta.env?.VITE_AI_WORKER_URL
+      ? import.meta.env.VITE_AI_WORKER_URL
+      : "";
+
+  if (!workerBase) {
+    throw new Error(
+      "Kiosk security service unavailable (VITE_AI_WORKER_URL is missing). Please contact the administrator."
+    );
+  }
+  if (typeof window === "undefined" || !window.crypto?.subtle) {
+    throw new Error(
+      "Kiosk cryptographic terminal is not supported on this browser or environment."
+    );
+  }
+
+  const { deviceId } = await getOrCreateKioskKey();
+  const currentUser = auth.currentUser;
+  const idToken = currentUser ? await currentUser.getIdToken() : "";
+
+  // 1. Request single-use challenge nonce from Worker
+  const challengeRes = await fetch(`${workerBase}/api/v1/kiosk/challenge`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+    },
+    body: JSON.stringify({ deviceId }),
+  });
+
+  if (!challengeRes.ok) {
+    const errData = await challengeRes.json().catch(() => ({}));
+    throw new Error(errData?.error || "Kiosk challenge failed.");
+  }
+
+  const { nonce } = await challengeRes.json();
+
+  // 2. Cryptographic signature over challenge & identity (K-02)
+  const signatureToken = badgeToken || shiftId;
+  const signature = await signKioskChallenge(deviceId, nonce, signatureToken);
+
+  // 3. Submit verified clock-out to Worker
+  const clockOutRes = await fetch(`${workerBase}/api/v1/kiosk/clock-out`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+    },
+    body: JSON.stringify({
+      deviceId,
+      shiftId,
+      badgeToken,
+      nonce,
+      signature,
+    }),
+  });
+
+  if (!clockOutRes.ok) {
+    const errData = await clockOutRes.json().catch(() => ({}));
+    throw new Error(errData?.error || "Kiosk verified clock-out failed.");
+  }
+
+  return clockOutRes.json();
 }
 
 export function clockOutShift(shiftId, clockOutAt = new Date()) {

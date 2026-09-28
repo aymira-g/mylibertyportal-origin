@@ -326,6 +326,31 @@ async function verifyDeviceSignature(publicKeyJwk, deviceId, nonce, badgeToken, 
   }
 }
 
+// ── CANONICAL BRANCH MAP & ROLE NORMALIZATION (K-09, K-10) ──
+
+const BRANCH_MAP = {
+  kota_gorontalo: "Kota Gorontalo",
+  bone_bolango: "Bone Bolango",
+  pohuwato: "Pohuwato",
+  limboto: "Limboto",
+};
+
+const LEGACY_ROLE_ALIASES = {
+  ops_lead: "opslead",
+  frontofficelead: "opslead",
+  front_office_lead: "opslead",
+  instructor_leader: "instructorleader",
+  head_instructor: "instructorleader",
+  branch_manager: "manager",
+  front_office: "frontoffice",
+};
+
+function normalizeRole(role) {
+  if (!role || typeof role !== "string") return role;
+  const trimmed = role.trim().toLowerCase();
+  return LEGACY_ROLE_ALIASES[trimmed] || trimmed;
+}
+
 // ── AUDIT LOGGER ──
 
 async function logKioskAudit(action, details, token) {
@@ -585,20 +610,18 @@ async function handleShiftClockIn(request, env) {
     return json({ error: "No user profile found matching this badge credential." }, 404, request, env);
   }
 
+  const normalizedRole = normalizeRole(user.role);
   const trackedRoles = [
     "instructor",
     "instructorleader",
-    "instructor_leader",
     "frontoffice",
     "opslead",
-    "ops_lead",
-    "frontofficelead",
     "marketing",
     "officeboy",
     "admin",
     "manager",
   ];
-  if (!trackedRoles.includes(user.role)) {
+  if (!trackedRoles.includes(normalizedRole)) {
     return json({ error: `User role '${user.role}' is not tracked for shifts.` }, 403, request, env);
   }
 
@@ -618,11 +641,12 @@ async function handleShiftClockIn(request, env) {
 
   // 6. Create the shift with server-authoritative timestamp
   const serverTime = new Date().toISOString();
+  const branchName = BRANCH_MAP[device.branchId] || "Kota Gorontalo";
   const shiftPayload = {
     userId: badgeToken,
     displayName: user.displayName || user.name || "Staff Member",
-    role: user.role,
-    branch: device.branchId === "bone_bolango" ? "Bone Bolango" : "Kota Gorontalo",
+    role: normalizedRole,
+    branch: branchName,
     branchId: device.branchId,
     classId: classId || "general",
     className: className || "",
@@ -679,7 +703,7 @@ async function handleShiftClockOut(request, env) {
     return json({ error: "Invalid JSON body" }, 400, request, env);
   }
 
-  const { deviceId, shiftId, nonce, signature } = body || {};
+  const { deviceId, shiftId, badgeToken, nonce, signature } = body || {};
   if (!deviceId || !shiftId || !nonce || !signature) {
     return json({ error: "Missing required parameters (deviceId, shiftId, nonce, signature)." }, 400, request, env);
   }
@@ -721,14 +745,23 @@ async function handleShiftClockOut(request, env) {
   inMemoryChallenges.delete(deviceId);
   await fsDeleteDoc("kioskChallenges", deviceId, token);
 
-  // 3. Verify signature
-  const isSignatureValid = await verifyDeviceSignature(
+  // 3. Verify signature (supports signature over badgeToken or shiftId)
+  let isSignatureValid = await verifyDeviceSignature(
     device.publicKeyJwk,
     deviceId,
     nonce,
-    shiftId,
+    badgeToken || shiftId,
     signature
   );
+  if (!isSignatureValid && badgeToken) {
+    isSignatureValid = await verifyDeviceSignature(
+      device.publicKeyJwk,
+      deviceId,
+      nonce,
+      shiftId,
+      signature
+    );
+  }
   if (!isSignatureValid) {
     return json({ error: "Cryptographic device signature verification failed." }, 401, request, env);
   }
@@ -740,6 +773,9 @@ async function handleShiftClockOut(request, env) {
   }
   if (shift.clockOut) {
     return json({ error: "Shift has already been closed." }, 400, request, env);
+  }
+  if (badgeToken && shift.userId !== badgeToken) {
+    return json({ error: "Shift does not belong to the scanned employee credential." }, 403, request, env);
   }
 
   const serverTime = new Date().toISOString();

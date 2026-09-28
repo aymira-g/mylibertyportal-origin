@@ -30,6 +30,8 @@ const USERS = {
   foGto: { role: "frontoffice", branchId: "kota_gorontalo" },
   foBoba: { role: "frontoffice", branchId: "bone_bolango" },
   insGto: { role: "instructor", branchId: "kota_gorontalo" },
+  mktGto: { role: "marketing", branchId: "kota_gorontalo" },
+  obGto: { role: "officeboy", branchId: "kota_gorontalo" },
   cleanerGto: { role: "cleaner", branchId: "kota_gorontalo" },
   parent1: { role: "parent", branchId: "kota_gorontalo", childStudentIds: ["student1"] },
   parent2: { role: "parent", branchId: "bone_bolango", childStudentIds: ["student2"] },
@@ -827,8 +829,8 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         )
       );
 
-      // 6. Test foGto without branchId filter: Kota has a fallback in isSameBranch
-      await assertSucceeds(
+      // 6. Test foGto without branchId filter: blocked under isSameBranchStrict
+      await assertFails(
         getDocs(
           query(
             collection(authed("foGto"), "users"),
@@ -837,12 +839,50 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         )
       );
 
-      // 7. array-contains query for foGto (succeeds via Kota fallback)
+      // 6b. Unscoped query without branchId is also blocked for instructor, marketing, and office boy
+      await assertFails(
+        getDocs(
+          query(
+            collection(authed("insGto"), "users"),
+            where("role", "in", ["student", "instructor", "parent"])
+          )
+        )
+      );
+      await assertFails(
+        getDocs(
+          query(
+            collection(authed("mktGto"), "users"),
+            where("role", "in", ["student", "instructor", "parent"])
+          )
+        )
+      );
+      await assertFails(
+        getDocs(
+          query(
+            collection(authed("obGto"), "users"),
+            where("role", "in", ["student", "instructor", "parent"])
+          )
+        )
+      );
+
+      // 7. array-contains query for foGto WITHOUT branchId is blocked
+      await assertFails(
+        getDocs(
+          query(
+            collection(authed("foGto"), "users"),
+            where("role", "==", "parent"),
+            where("childStudentIds", "array-contains", "student1")
+          )
+        )
+      );
+
+      // 7b. array-contains query for foGto WITH branchId succeeds
       await assertSucceeds(
         getDocs(
           query(
             collection(authed("foGto"), "users"),
             where("role", "==", "parent"),
+            where("branchId", "==", "kota_gorontalo"),
             where("childStudentIds", "array-contains", "student1")
           )
         )

@@ -5,6 +5,7 @@ import {
   fetchInstructorClasses,
   clockIn,
   clockOutShift,
+  kioskClockOutWithProof,
   recordStudentAttendance,
 } from "./shiftsRepository";
 import { isKindergartenDivision } from "../../constants/divisions.js";
@@ -470,17 +471,42 @@ export async function handleKioskScan(
         }
       }
 
-      await clockOutShift(openShift.id);
-      showStatus(
-        "Shift Concluded",
-        "success",
-        openShift.shiftType === "corporate_event"
-          ? `Thank you for attending ${openShift.className}!`
-          : isInstructorRole(userData.role)
+      if (typeof kioskClockOutWithProof === "function") {
+        try {
+          await kioskClockOutWithProof({ shiftId: openShift.id, badgeToken: uid });
+        } catch {
+          await clockOutShift(openShift.id);
+        }
+      } else {
+        await clockOutShift(openShift.id);
+      }
+
+      if (openShift.shiftType === "corporate_event") {
+        showStatus(
+          "Shift Concluded",
+          "success",
+          `Thank you for attending ${openShift.className}!`,
+          userData.displayName
+        );
+      } else if (hasMatchingEvents) {
+        showStatus(
+          "Shift Concluded — Scan Again for Event",
+          "success",
+          matchedEvents.length > 1
+            ? "Daytime shift closed. Please scan your badge again to select your evening event."
+            : `Daytime shift closed. Please scan your badge again to check in for ${matchedEvents[0].name}.`,
+          userData.displayName
+        );
+      } else {
+        showStatus(
+          "Shift Concluded",
+          "success",
+          isInstructorRole(userData.role)
             ? "Thank you for teaching today!"
             : "Thank you for your hard work today!",
-        userData.displayName
-      );
+          userData.displayName
+        );
+      }
       setLastScanned({
         name: userData.displayName,
         role: userData.role,

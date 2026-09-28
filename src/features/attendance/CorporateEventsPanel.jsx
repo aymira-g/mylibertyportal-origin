@@ -116,6 +116,17 @@ export default function CorporateEventsPanel() {
       return;
     }
 
+    if (formData.startTime && formData.endTime) {
+      const [startH, startM] = formData.startTime.split(":").map(Number);
+      const [endH, endM] = formData.endTime.split(":").map(Number);
+      const startMin = (startH || 0) * 60 + (startM || 0);
+      const endMin = (endH || 0) * 60 + (endM || 0);
+      if (endMin <= startMin) {
+        toast("End time must be after start time.", "error");
+        return;
+      }
+    }
+
     try {
       setSubmitting(true);
       const currentUser = auth.currentUser;

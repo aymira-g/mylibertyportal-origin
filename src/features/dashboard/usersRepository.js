@@ -10,7 +10,6 @@ import {
   limit,
   getDocs,
   getDoc,
-  arrayUnion,
   arrayRemove,
 } from "firebase/firestore";
 import { createUserWithEmailAndPassword, deleteUser } from "firebase/auth";

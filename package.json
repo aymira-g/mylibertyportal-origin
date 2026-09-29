@@ -17,7 +17,8 @@
     "format:check": "prettier --check .",
     "knip": "knip",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:worker": "npm run deploy --prefix cloudflare-worker"
   },
   "dependencies": {
     "date-fns": "^4.4.0",

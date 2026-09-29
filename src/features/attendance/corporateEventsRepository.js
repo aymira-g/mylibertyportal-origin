@@ -12,6 +12,7 @@ import {
   orderBy,
 } from "firebase/firestore";
 import { corporateEventSchema } from "../../schemas/corporateEventSchema.js";
+import { branchToId, idToBranch } from "../../constants/branches.js";
 
 /**
  * Fetches active corporate events for a specific date (YYYY-MM-DD WITA).
@@ -67,12 +68,20 @@ export function subscribeCorporateEvents(onData, onError) {
  * Creates a new corporate event in Firestore.
  * Validates payload with corporateEventSchema before writing.
  *
- * @param {object} rawPayload
+ * @param {Record<string, any>} rawPayload
  * @param {string} creatorUid
  * @returns {Promise<import("firebase/firestore").DocumentReference>}
  */
 export function createCorporateEvent(rawPayload, creatorUid) {
   const validated = corporateEventSchema.parse(rawPayload);
+
+  const payloadRecord = /** @type {Record<string, any>} */ (rawPayload || {});
+  const rawBranch =
+    payloadRecord.branchId ||
+    payloadRecord.branch ||
+    (validated.audienceType === "branch" ? validated.audienceValue : null);
+  const branchId = rawBranch ? branchToId(rawBranch) : null;
+  const branch = branchId ? idToBranch(branchId) : null;
 
   const docData = {
     name: validated.name,
@@ -81,6 +90,7 @@ export function createCorporateEvent(rawPayload, creatorUid) {
     endTime: validated.endTime || null,
     audienceType: validated.audienceType,
     audienceValue: validated.audienceValue || null,
+    ...(branchId ? { branchId, branch } : {}),
     status: "active",
     createdBy: creatorUid,
     createdAt: serverTimestamp(),

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { auth } from "../../firebase";
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
-import { useUserProfile } from "../shared";
+import { useUserProfile, normalizeRole } from "../shared";
 import ParentDashboard from "../dashboard/ParentDashboard";
 import schoolLogo from "../../assets/school-logo.webp";
 import {
@@ -257,7 +257,7 @@ export default function ParentPortalPage() {
   }
 
   // 2. Authenticated but not a parent account -> Deny access
-  if (userRole !== "parent") {
+  if (normalizeRole(userRole) !== "parent") {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center max-w-md w-full shadow-sm space-y-4">

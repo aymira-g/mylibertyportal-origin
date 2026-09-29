@@ -10,12 +10,20 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { getStars } from "../shared/levels";
+import { branchToId, idToBranch, DEFAULT_BRANCH_ID } from "../../constants/branches.js";
 
 /**
  * Firestore read and write operations for progress reports.
  */
 export function createProgressReport(report) {
-  return addDoc(collection(db, "progressReports"), report);
+  const rawBranch = report?.branchId || report?.branch || DEFAULT_BRANCH_ID;
+  const branchId = branchToId(rawBranch);
+  const branch = idToBranch(branchId);
+  return addDoc(collection(db, "progressReports"), {
+    ...report,
+    branchId,
+    branch,
+  });
 }
 
 export async function fetchInstructorProgressReports(instructorId) {
@@ -31,8 +39,12 @@ export async function fetchInstructorProgressReports(instructorId) {
     );
 }
 
-export async function fetchPendingPromotions() {
-  const q = query(collection(db, "progressReports"), where("eligibleForPromotion", "==", true));
+export async function fetchPendingPromotions(branchId = null) {
+  const constraints = [where("eligibleForPromotion", "==", true)];
+  if (branchId && branchId !== "all") {
+    constraints.push(where("branchId", "==", branchToId(branchId)));
+  }
+  const q = query(collection(db, "progressReports"), ...constraints);
   const snap = await getDocs(q);
   return snap.docs.map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }));
 }

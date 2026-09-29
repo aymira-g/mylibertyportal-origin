@@ -141,7 +141,7 @@ export default function ManagerDashboard() {
     );
 
     const unsubTodos = onSnapshot(
-      query(collection(db, "todos"), where("branchId", "==", managerBranchId)),
+      query(collection(db, "todos"), where("branchId", "in", [managerBranchId, "all"])),
       (snap) => {
         setTodos(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
         setTodosPermission(true);

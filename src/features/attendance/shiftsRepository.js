@@ -645,9 +645,16 @@ export async function logStaffLeave({
   return leaveDoc;
 }
 
-export async function fetchStaffLeaves(sinceDate = null) {
-  const q = sinceDate
-    ? query(collection(db, "staffLeave"), where("endDate", ">=", sinceDate))
+export async function fetchStaffLeaves(sinceDate = null, branchId = null) {
+  const constraints = [];
+  if (branchId && branchId !== "all") {
+    constraints.push(where("branchId", "==", branchToId(branchId)));
+  }
+  if (sinceDate) {
+    constraints.push(where("endDate", ">=", sinceDate));
+  }
+  const q = constraints.length
+    ? query(collection(db, "staffLeave"), ...constraints)
     : collection(db, "staffLeave");
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));

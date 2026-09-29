@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { auth, db } from "../../firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
+import { normalizeRole } from "./roles";
 
 /**
  * useUserProfile
@@ -10,6 +11,7 @@ import { doc, onSnapshot } from "firebase/firestore";
  *
  * Guarantees that:
  * - Profile changes (e.g. role updates, branch reassignments) react in real-time.
+ * - Roles are normalized to canonical lowercase representations.
  * - Firestore snapshot listeners are cleanly torn down on user sign-out or component unmount.
  * - No untracked async promises or unmounted state updates occur.
  *
@@ -70,7 +72,7 @@ export function useUserProfile() {
     };
   }, []);
 
-  const role = profile?.role || null;
+  const role = normalizeRole(profile?.role) || null;
   const branchId = profile?.branchId || null;
   const branch = profile?.branch || null;
 

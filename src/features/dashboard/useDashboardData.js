@@ -179,7 +179,7 @@ export function useDashboardData({
 
     const todoConstraints = [];
     if (targetBranchId) {
-      todoConstraints.push(where("branchId", "==", targetBranchId));
+      todoConstraints.push(where("branchId", "in", [targetBranchId, "all"]));
     }
     const todosQuery = todoConstraints.length
       ? query(collection(db, "todos"), ...todoConstraints)

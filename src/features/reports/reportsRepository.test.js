@@ -190,7 +190,8 @@ describe("fetchStudentProgressData", () => {
       { id: "att2", timestamp: "2026-09-20T08:00:00.000Z", branchId: "bone_bolango" },
     ]);
     fake.seed("progressReports", [
-      { id: "p1", studentId: "st1" },
+      { id: "p1", studentId: "st1", branchId: "kota_gorontalo" },
+      { id: "p2", studentId: "st2", branchId: "bone_bolango" },
     ]);
 
     const result = await fetchStudentProgressData(true, false, "2026-09-01T00:00:00.000Z", "Kota Gorontalo");
@@ -200,6 +201,8 @@ describe("fetchStudentProgressData", () => {
     expect(result.users[0].id).toBe("st1");
     expect(result.attendance).toHaveLength(1);
     expect(result.attendance[0].id).toBe("att1");
+    expect(result.progress).toHaveLength(1);
+    expect(result.progress[0].id).toBe("p1");
   });
 });
 

@@ -2,6 +2,7 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { useUserProfile } from "./useUserProfile";
+import { normalizeRole } from "./roles";
 
 const unsubAuthMock = vi.fn();
 const unsubProfileMock = vi.fn();
@@ -40,5 +41,13 @@ describe("useUserProfile hook", () => {
     expect(hookState.role).toBeNull();
     expect(hookState.branchId).toBeNull();
     expect(hookState.loading).toBe(false);
+  });
+
+  it("ensures normalizeRole correctly handles legacy aliases and casing", () => {
+    expect(normalizeRole("ops_lead")).toBe("opslead");
+    expect(normalizeRole("front_office")).toBe("frontoffice");
+    expect(normalizeRole("branch_manager")).toBe("manager");
+    expect(normalizeRole("Parent")).toBe("parent");
+    expect(normalizeRole("instructor_leader")).toBe("instructorleader");
   });
 });

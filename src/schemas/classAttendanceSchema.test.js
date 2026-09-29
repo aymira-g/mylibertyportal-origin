@@ -104,4 +104,15 @@ describe("classAttendanceSchema", () => {
     const invalidMethod = { ...validPayload, method: "KIOSK" };
     expect(classAttendanceSchema.safeParse(invalidMethod).success).toBe(false);
   });
+
+  it("dual-stamps branch and branchId when branchId is provided", () => {
+    const res = classAttendanceSchema.safeParse({
+      ...validPayload,
+      branchId: "bone_bolango",
+    });
+    expect(res.success).toBe(true);
+    if (!res.success) return;
+    expect(res.data.branchId).toBe("bone_bolango");
+    expect(res.data.branch).toBe("Bone Bolango");
+  });
 });

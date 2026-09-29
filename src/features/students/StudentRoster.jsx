@@ -175,18 +175,18 @@ export default function StudentRoster({
   };
 
   const loadPendingPromotions = useCallback(() => {
-    fetchPendingPromotions()
+    fetchPendingPromotions(branchId)
       .then((reports) => {
         setPendingPromotions(reports);
       })
       .catch((err) => {
         console.error("Error loading pending promotions:", err);
       });
-  }, []);
+  }, [branchId]);
 
   useEffect(() => {
     let active = true;
-    fetchPendingPromotions()
+    fetchPendingPromotions(branchId)
       .then((reports) => {
         if (active) {
           setPendingPromotions(reports);
@@ -198,7 +198,7 @@ export default function StudentRoster({
     return () => {
       active = false;
     };
-  }, []);
+  }, [branchId]);
 
   const pendingPromotionsMap = useMemo(() => {
     const map = {};

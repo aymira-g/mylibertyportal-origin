@@ -141,6 +141,9 @@ export async function fetchStudentProgressData(isAdminView, isFrontOffice, since
   if (!isAdminView && !isFrontOffice) {
     progressFilters.push(where("instructorId", "==", auth.currentUser?.uid));
   }
+  if (normalizedBranchId) {
+    progressFilters.push(where("branchId", "==", normalizedBranchId));
+  }
   const progressQuery = progressFilters.length
     ? query(collection(db, "progressReports"), ...progressFilters)
     : collection(db, "progressReports");

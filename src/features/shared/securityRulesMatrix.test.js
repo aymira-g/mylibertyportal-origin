@@ -27,7 +27,9 @@ function isAdmin(user) {
 }
 
 function isManager(user) {
-  return Boolean(user && isActiveUser(user) && user.role === "manager");
+  return Boolean(
+    user && isActiveUser(user) && (user.role === "manager" || user.role === "branch_manager")
+  );
 }
 
 function isFrontOffice(user) {
@@ -45,6 +47,7 @@ function isStaff(user) {
       [
         "admin",
         "manager",
+        "branch_manager",
         "instructor",
         "instructorleader",
         "instructor_leader",
@@ -1201,6 +1204,8 @@ describe("Security Rules Matrix & Branch Isolation", () => {
       expect(isAdmin(activeAdmin)).toBe(true);
       expect(isAdmin(terminatedAdmin)).toBe(false);
       expect(isManager(resignedManager)).toBe(false);
+      expect(isManager({ uid: "bm1", role: "branch_manager", status: "active" })).toBe(true);
+      expect(isStaff({ uid: "bm1", role: "branch_manager", status: "active" })).toBe(true);
       expect(isFrontOffice(terminatedFO)).toBe(false);
       expect(isStaff(terminatedInstructor)).toBe(false);
     });

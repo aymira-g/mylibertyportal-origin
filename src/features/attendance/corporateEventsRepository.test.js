@@ -51,6 +51,8 @@ describe("corporateEventsRepository", () => {
 
       const op = fake.opsOf("add")[0];
       expect(op.data.audienceValue).toBe("Kota Gorontalo");
+      expect(op.data.branchId).toBe("kota_gorontalo");
+      expect(op.data.branch).toBe("Kota Gorontalo");
     });
 
     it("rejects invalid event payload via schema", () => {

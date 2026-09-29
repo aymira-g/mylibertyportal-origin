@@ -26,11 +26,11 @@ service cloud.firestore {
     }
 
     function isManager() {
-      return hasRole('manager');
+      return hasRole('manager') || hasRole('branch_manager');
     }
 
     function isStaff() {
-      return signedIn() && isActiveUser() && userProfile().role in ['admin', 'manager', 'instructor', 'instructorleader', 'instructor_leader', 'marketing', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'officeboy'];
+      return signedIn() && isActiveUser() && userProfile().role in ['admin', 'manager', 'branch_manager', 'instructor', 'instructorleader', 'instructor_leader', 'marketing', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'officeboy'];
     }
 
     function isFrontOffice() {
@@ -206,7 +206,12 @@ service cloud.firestore {
         || (signedIn()
             && userId == request.auth.uid
             && request.resource.data.inviteId is string
-            && isInviteValid(request.resource.data.inviteId));
+            && isInviteValid(request.resource.data.inviteId)
+            && request.resource.data.keys().hasOnly([
+              'firstName', 'lastName', 'nickname', 'gender', 'displayName', 'email',
+              'role', 'branch', 'branchId', 'division', 'status', 'phone', 'dob',
+              'educationLevel', 'inviteId', 'createdAt', 'photoURL'
+            ]));
       allow delete: if isAdmin() || (isFrontOffice() && resource.data.role in ['student', 'parent'] && isSameBranch(resource.data));
       allow update: if isAdmin()
         || (isFrontOffice()

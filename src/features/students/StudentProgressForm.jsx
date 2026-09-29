@@ -84,6 +84,8 @@ export default function StudentProgressForm({ classes, students, onSaved }) {
     setFeedback({ message: "", type: "" });
     try {
       const instructor = auth.currentUser;
+      const reportBranch = selectedClass.branch || selectedStudent.branch || "";
+      const reportBranchId = selectedClass.branchId || selectedStudent.branchId || "";
       await createProgressReport({
         studentId: selectedStudent.id,
         studentName: selectedStudent.displayName || "",
@@ -93,6 +95,8 @@ export default function StudentProgressForm({ classes, students, onSaved }) {
         instructorName: instructor?.displayName || instructor?.email || "",
         examDate,
         level,
+        branch: reportBranch,
+        branchId: reportBranchId,
         pronunciationScore: Number(scores.pronunciation),
         fluencyScore: Number(scores.fluency),
         vocabularyScore: Number(scores.vocabulary),

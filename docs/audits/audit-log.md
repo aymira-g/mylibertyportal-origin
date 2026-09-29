@@ -217,4 +217,26 @@ Remediation delivered across all 14 kiosk trigger points (K-01 to K-14) per `doc
     - **ESLint**: 0 errors, 0 warnings.
     - **Vite Build**: Compiled cleanly.
 
+---
+
+## 2026-09-29 — Light Regression Check: Manager Reports & Instructor Punctuality Audit Scoping
+
+Executed Level 1 Light Regression Check per `docs/audits/Light Regression Check Playbook/`:
+
+| Field | Value |
+|---|---|
+| **Change** | Introduced `isManager` branch-supervisor mode to `ReportsDashboard.jsx` & scoped repository queries |
+| **Date** | 2026-09-29 |
+| **Section** | Reports / Attendance / Branch Scoping |
+| **Workflow** | Manager Dashboard -> Reports & Analytics (Instructor Punctuality, Staff Duty, Admissions, Learner Progress) |
+| **Normal Test** | Manager views "Instructor Punctuality" (branch-scoped) & "Staff Duty Logs" (branch-scoped); Admin views global; Instructor views personal "My Punctuality" |
+| **Duplicate Test** | Rapid tab navigation and date selection execute cleanly without fetch loops or state corruption |
+| **Failure Test** | Empty month/campus returns "No scheduled classes found for this month" without crashing |
+| **Boundary Test** | Branch selector locked to `userBranch` for Manager; cross-branch leakage blocked at query and rules layer |
+| **Result Verification** | 10 repository unit tests verify branch scoping; 75 test files (936 tests) passing; ESLint 0 errors; Typecheck 0 errors; Vite build clean |
+| **Findings** | None. Branch isolation and role boundaries strictly preserved |
+| **Escalation Required** | No |
+| **Status** | **PASS** |
+
+
 

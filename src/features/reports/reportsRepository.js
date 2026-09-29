@@ -7,16 +7,17 @@ import { isStaffRole } from "../shared/roles.js";
  * All direct Firestore reads for the Reports domain live here.
  */
 
-export async function fetchStaffShifts(isAdminView, since = null, branchId = null) {
+export async function fetchStaffShifts(isAdminView, since = null, branchId = null, isManager = false) {
   const normalizedBranchId = branchId ? branchToId(branchId) : null;
+  const isSupervisor = isAdminView || isManager;
   const shiftsRef = collection(db, "shifts");
   const filters = [];
-  if (!isAdminView) filters.push(where("userId", "==", auth.currentUser?.uid));
+  if (!isSupervisor) filters.push(where("userId", "==", auth.currentUser?.uid));
   if (normalizedBranchId) filters.push(where("branchId", "==", normalizedBranchId));
   if (since) filters.push(where("clockIn", ">=", since));
 
   const openFilters = [where("clockOut", "==", null)];
-  if (!isAdminView) openFilters.push(where("userId", "==", auth.currentUser?.uid));
+  if (!isSupervisor) openFilters.push(where("userId", "==", auth.currentUser?.uid));
   if (normalizedBranchId) openFilters.push(where("branchId", "==", normalizedBranchId));
 
   const [shiftsSnap, openSnap] = await Promise.all([
@@ -30,7 +31,7 @@ export async function fetchStaffShifts(isAdminView, since = null, branchId = nul
 
   const existingUsersMap = new Map();
 
-  if (isAdminView) {
+  if (isSupervisor) {
     const usersQuery = normalizedBranchId
       ? query(collection(db, "users"), where("branchId", "==", normalizedBranchId))
       : collection(db, "users");
@@ -41,10 +42,10 @@ export async function fetchStaffShifts(isAdminView, since = null, branchId = nul
     if (userDoc.exists()) existingUsersMap.set(userDoc.id, { id: userDoc.id, ...userDoc.data() });
   }
 
-  // Fetch leaves if admin or user
+  // Fetch leaves if admin, manager, or individual user
   let leaves = [];
   try {
-    const leaveQuery = isAdminView
+    const leaveQuery = isSupervisor
       ? (normalizedBranchId ? query(collection(db, "staffLeave"), where("branchId", "==", normalizedBranchId)) : collection(db, "staffLeave"))
       : query(collection(db, "staffLeave"), where("userId", "==", auth.currentUser?.uid));
     const leaveSnap = await getDocs(leaveQuery);
@@ -76,15 +77,16 @@ export async function fetchStaffShifts(isAdminView, since = null, branchId = nul
 /**
  * @returns {Promise<{ scans: any[], classes: any[], students: any[] }>}
  */
-export async function fetchTodayScansData(sinceWitaIso, isAdminView, isFrontOffice, branchId = null) {
+export async function fetchTodayScansData(sinceWitaIso, isAdminView, isFrontOffice, branchId = null, isManager = false) {
   const normalizedBranchId = branchId ? branchToId(branchId) : null;
+  const isSupervisor = isAdminView || isFrontOffice || isManager;
 
   const attendanceFilters = [where("timestamp", ">=", sinceWitaIso)];
   if (normalizedBranchId) attendanceFilters.push(where("branchId", "==", normalizedBranchId));
   const attendanceQuery = query(collection(db, "attendance"), ...attendanceFilters);
 
   const classesFilters = [];
-  if (!isAdminView && !isFrontOffice) {
+  if (!isSupervisor) {
     classesFilters.push(where("instructorId", "==", auth.currentUser?.uid));
   }
   if (normalizedBranchId) {
@@ -95,7 +97,7 @@ export async function fetchTodayScansData(sinceWitaIso, isAdminView, isFrontOffi
     : collection(db, "classes");
 
   const usersFilters = [];
-  if (!isAdminView) {
+  if (!isAdminView && !isManager) {
     usersFilters.push(where("role", "in", isFrontOffice ? ["student", "instructor"] : ["student"]));
   }
   if (normalizedBranchId) {
@@ -123,11 +125,12 @@ export async function fetchTodayScansData(sinceWitaIso, isAdminView, isFrontOffi
 /**
  * @returns {Promise<{ users: any[], classes: any[], attendance: any[], progress: any[] }>}
  */
-export async function fetchStudentProgressData(isAdminView, isFrontOffice, since = null, branchId = null) {
+export async function fetchStudentProgressData(isAdminView, isFrontOffice, since = null, branchId = null, isManager = false) {
   const normalizedBranchId = branchId ? branchToId(branchId) : null;
+  const isSupervisor = isAdminView || isFrontOffice || isManager;
 
   const classesFilters = [];
-  if (!isAdminView && !isFrontOffice) {
+  if (!isSupervisor) {
     classesFilters.push(where("instructorId", "==", auth.currentUser?.uid));
   }
   if (normalizedBranchId) {
@@ -138,7 +141,7 @@ export async function fetchStudentProgressData(isAdminView, isFrontOffice, since
     : collection(db, "classes");
 
   const progressFilters = [];
-  if (!isAdminView && !isFrontOffice) {
+  if (!isSupervisor) {
     progressFilters.push(where("instructorId", "==", auth.currentUser?.uid));
   }
   if (normalizedBranchId) {
@@ -149,7 +152,7 @@ export async function fetchStudentProgressData(isAdminView, isFrontOffice, since
     : collection(db, "progressReports");
 
   const usersFilters = [];
-  if (!isAdminView) {
+  if (!isAdminView && !isManager) {
     usersFilters.push(where("role", "in", isFrontOffice ? ["student", "instructor"] : ["student"]));
   }
   if (normalizedBranchId) {
@@ -218,11 +221,12 @@ export async function fetchAdmissionsReportData(since = null, branchId = null) {
   };
 }
 
-export async function fetchInstructorAnalyticsData(isAdminView, uid, branchId = null) {
+export async function fetchInstructorAnalyticsData(isAdminView, uid, branchId = null, isManager = false) {
   const normalizedBranchId = branchId ? branchToId(branchId) : null;
+  const isSupervisor = isAdminView || isManager;
 
   const classesFilters = [];
-  if (!isAdminView) {
+  if (!isSupervisor) {
     classesFilters.push(where("instructorId", "==", uid));
   }
   if (normalizedBranchId) {
@@ -233,7 +237,7 @@ export async function fetchInstructorAnalyticsData(isAdminView, uid, branchId = 
     : collection(db, "classes");
 
   const shiftsFilters = [];
-  if (!isAdminView) {
+  if (!isSupervisor) {
     shiftsFilters.push(where("userId", "==", uid));
   }
   if (normalizedBranchId) {
@@ -249,7 +253,7 @@ export async function fetchInstructorAnalyticsData(isAdminView, uid, branchId = 
   ]);
 
   let instructors;
-  if (isAdminView) {
+  if (isSupervisor) {
     const userFilters = [where("role", "==", "instructor")];
     if (normalizedBranchId) {
       userFilters.push(where("branchId", "==", normalizedBranchId));

@@ -12,15 +12,19 @@ import { BRANCHES } from "../../constants/branches";
 export default function ReportsDashboard({
   isAdminView = false,
   isFrontOffice = false,
+  isManager = false,
   canEdit = true,
   division = "all",
   userBranch = null,
 }) {
   const isActualAdmin = isAdminView && !isFrontOffice;
+  const isSupervisor = isActualAdmin || isManager;
   const canPerformAdminActions = isActualAdmin && canEdit;
 
   // Default initial subTab
-  const [subTab, setSubTab] = useState(isFrontOffice || !isAdminView ? "today" : "staff");
+  const [subTab, setSubTab] = useState(
+    isFrontOffice || (!isAdminView && !isManager) ? "today" : "staff"
+  );
 
   // Shared Horizon Range (0 = all, or days)
   const [rangeDays, setRangeDays] = useState(30);
@@ -94,7 +98,7 @@ export default function ReportsDashboard({
             }`}
           >
             <Users className="w-3.5 h-3.5" />
-            <span>{isActualAdmin || isAdminView ? "Staff Duty Logs" : "My Duty Log"}</span>
+            <span>{isSupervisor ? "Staff Duty Logs" : "My Duty Log"}</span>
           </button>
 
           {/* Sub-Tab: Learner Progress & Attendance */}
@@ -111,7 +115,7 @@ export default function ReportsDashboard({
           </button>
 
           {/* Sub-Tab: Admissions Velocity (Admin, Manager, Front Office) */}
-          {(isAdminView || isFrontOffice) && (
+          {(isAdminView || isFrontOffice || isManager) && (
             <button
               onClick={() => setSubTab("admissions")}
               className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
@@ -137,7 +141,7 @@ export default function ReportsDashboard({
             >
               <UserCheck className="w-3.5 h-3.5" />
               <span>
-                {isActualAdmin || isAdminView ? "Instructor Punctuality" : "My Punctuality"}
+                {isSupervisor ? "Instructor Punctuality" : "My Punctuality"}
               </span>
             </button>
           )}
@@ -199,6 +203,7 @@ export default function ReportsDashboard({
           branchFilter={branchFilter}
           isAdminView={isAdminView}
           isFrontOffice={isFrontOffice}
+          isManager={isManager}
           division={division}
         />
       )}
@@ -210,6 +215,7 @@ export default function ReportsDashboard({
           rangeDays={rangeDays}
           isAdminView={isAdminView}
           isActualAdmin={isActualAdmin}
+          isManager={isManager}
           canPerformAdminActions={canPerformAdminActions}
         />
       )}
@@ -221,10 +227,11 @@ export default function ReportsDashboard({
           rangeDays={rangeDays}
           isAdminView={isAdminView}
           isFrontOffice={isFrontOffice}
+          isManager={isManager}
         />
       )}
 
-      {subTab === "admissions" && (isAdminView || isFrontOffice) && (
+      {subTab === "admissions" && (isAdminView || isFrontOffice || isManager) && (
         <AdmissionsTab ref={activeTabRef} branchFilter={branchFilter} rangeDays={rangeDays} />
       )}
 
@@ -232,6 +239,7 @@ export default function ReportsDashboard({
         <InstructorPunctualityTab
           ref={activeTabRef}
           isAdminView={isAdminView}
+          isManager={isManager}
           branchFilter={branchFilter}
         />
       )}

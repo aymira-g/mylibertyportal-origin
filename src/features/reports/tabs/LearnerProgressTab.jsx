@@ -14,11 +14,11 @@ import { LearnerCard } from "./LearnerCard";
 
 const LearnerProgressTab = forwardRef(
   /**
-   * @param {{ branchFilter?: string; rangeDays?: number; isAdminView?: boolean; isFrontOffice?: boolean }} props
+   * @param {{ branchFilter?: string; rangeDays?: number; isAdminView?: boolean; isFrontOffice?: boolean; isManager?: boolean }} props
    * @param {any} ref
    */
   function LearnerProgressTab(
-    { branchFilter = "all", rangeDays = 30, isAdminView = false, isFrontOffice = false },
+    { branchFilter = "all", rangeDays = 30, isAdminView = false, isFrontOffice = false, isManager = false },
     ref
   ) {
     const [students, setStudents] = useState([]);
@@ -42,7 +42,8 @@ const LearnerProgressTab = forwardRef(
           isAdminView,
           isFrontOffice,
           rangeToSince(rangeDays),
-          branchId
+          branchId,
+          isManager
         );
 
         const usersById = {};
@@ -59,8 +60,9 @@ const LearnerProgressTab = forwardRef(
           ...progress.map((p) => p.studentId),
         ]);
 
+        const isSupervisor = isAdminView || isFrontOffice || isManager;
         const relevantStudentIds =
-          isAdminView || isFrontOffice
+          isSupervisor
             ? null
             : new Set(fetchedClasses.flatMap((c) => c.studentIds || []));
 
@@ -69,10 +71,10 @@ const LearnerProgressTab = forwardRef(
             if (usersById[id]) {
               return (
                 usersById[id].role === "student" &&
-                (isAdminView || isFrontOffice || relevantStudentIds.has(id))
+                (isSupervisor || relevantStudentIds.has(id))
               );
             }
-            return isAdminView || isFrontOffice;
+            return isSupervisor;
           })
           .map((id) => {
             const u = usersById[id];
@@ -139,7 +141,7 @@ const LearnerProgressTab = forwardRef(
       } finally {
         setStudentsLoading(false);
       }
-    }, [isAdminView, isFrontOffice, selectedClassId, rangeDays, branchFilter]);
+    }, [isAdminView, isFrontOffice, isManager, selectedClassId, rangeDays, branchFilter]);
 
     useEffect(() => {
       fetchStudentProgress();

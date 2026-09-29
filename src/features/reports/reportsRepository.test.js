@@ -128,6 +128,28 @@ describe("fetchStaffShifts", () => {
     expect(result.leaves).toHaveLength(1);
     expect(result.leaves[0].id).toBe("l2");
   });
+
+  it("allows manager to view all staff shifts and leaves for branch without restricting to manager uid", async () => {
+    fake.seed("users", [
+      { id: "u1", role: "instructor", displayName: "Ms. Rina", branchId: "kota_gorontalo" },
+      { id: "u2", role: "frontoffice", displayName: "Mr. Budi", branchId: "kota_gorontalo" },
+      { id: "mgr", role: "manager", displayName: "Manager Alice", branchId: "kota_gorontalo" },
+    ]);
+
+    fake.seed("shifts", [
+      { id: "s1", userId: "u1", clockIn: "2026-09-21T08:00:00.000Z", clockOut: "2026-09-21T16:00:00.000Z", branchId: "kota_gorontalo" },
+      { id: "s2", userId: "u2", clockIn: "2026-09-21T09:00:00.000Z", clockOut: null, branchId: "kota_gorontalo" },
+    ]);
+
+    fake.seed("staffLeave", [
+      { id: "l1", userId: "u1", branchId: "kota_gorontalo" },
+    ]);
+
+    const result = await fetchStaffShifts(false, null, "Kota Gorontalo", true);
+    expect(result.shifts).toHaveLength(2);
+    expect(result.staffMembers).toHaveLength(3);
+    expect(result.leaves).toHaveLength(1);
+  });
 });
 
 describe("fetchTodayScansData", () => {
@@ -241,6 +263,57 @@ describe("fetchInstructorAnalyticsData", () => {
     ]);
 
     const result = await fetchInstructorAnalyticsData(true, "admin1", "Kota Gorontalo");
+    expect(result.classes).toHaveLength(1);
+    expect(result.classes[0].id).toBe("c1");
+    expect(result.shifts).toHaveLength(1);
+    expect(result.shifts[0].id).toBe("s1");
+    expect(result.instructors).toHaveLength(1);
+    expect(result.instructors[0].id).toBe("ins1");
+  });
+
+  it("allows manager to audit all branch instructors without filtering by manager uid", async () => {
+    fake.seed("classes", [
+      { id: "c1", branchId: "kota_gorontalo", instructorId: "ins1" },
+      { id: "c2", branchId: "kota_gorontalo", instructorId: "ins2" },
+      { id: "c3", branchId: "bone_bolango", instructorId: "ins3" },
+    ]);
+    fake.seed("shifts", [
+      { id: "s1", branchId: "kota_gorontalo", userId: "ins1" },
+      { id: "s2", branchId: "kota_gorontalo", userId: "ins2" },
+      { id: "s3", branchId: "bone_bolango", userId: "ins3" },
+    ]);
+    fake.seed("users", [
+      { id: "ins1", role: "instructor", branchId: "kota_gorontalo" },
+      { id: "ins2", role: "instructor", branchId: "kota_gorontalo" },
+      { id: "ins3", role: "instructor", branchId: "bone_bolango" },
+      { id: "mgr1", role: "manager", branchId: "kota_gorontalo" },
+    ]);
+
+    // When isManager = true, isAdminView = false
+    const result = await fetchInstructorAnalyticsData(false, "mgr1", "Kota Gorontalo", true);
+    expect(result.classes).toHaveLength(2);
+    expect(result.classes.map((c) => c.id)).toEqual(expect.arrayContaining(["c1", "c2"]));
+    expect(result.shifts).toHaveLength(2);
+    expect(result.shifts.map((s) => s.id)).toEqual(expect.arrayContaining(["s1", "s2"]));
+    expect(result.instructors).toHaveLength(2);
+    expect(result.instructors.map((i) => i.id)).toEqual(expect.arrayContaining(["ins1", "ins2"]));
+  });
+
+  it("filters to personal instructor uid when neither admin nor manager", async () => {
+    fake.seed("classes", [
+      { id: "c1", branchId: "kota_gorontalo", instructorId: "ins1" },
+      { id: "c2", branchId: "kota_gorontalo", instructorId: "ins2" },
+    ]);
+    fake.seed("shifts", [
+      { id: "s1", branchId: "kota_gorontalo", userId: "ins1" },
+      { id: "s2", branchId: "kota_gorontalo", userId: "ins2" },
+    ]);
+    fake.seed("users", [
+      { id: "ins1", role: "instructor", branchId: "kota_gorontalo" },
+      { id: "ins2", role: "instructor", branchId: "kota_gorontalo" },
+    ]);
+
+    const result = await fetchInstructorAnalyticsData(false, "ins1", "Kota Gorontalo", false);
     expect(result.classes).toHaveLength(1);
     expect(result.classes[0].id).toBe("c1");
     expect(result.shifts).toHaveLength(1);

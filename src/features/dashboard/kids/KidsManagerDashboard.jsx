@@ -338,6 +338,7 @@ export default function KidsManagerDashboard() {
         <ReportsDashboard
           isAdminView={false}
           isFrontOffice={false}
+          isManager={true}
           canEdit={false}
           division="kindergarten"
           userBranch={managerProfile?.branch || DEFAULT_BRANCH}

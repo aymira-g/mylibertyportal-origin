@@ -577,6 +577,7 @@ export default function ManagerDashboard() {
         <ReportsDashboard
           isAdminView={false}
           isFrontOffice={false}
+          isManager={true}
           canEdit={false}
           userBranch={myBranch}
         />

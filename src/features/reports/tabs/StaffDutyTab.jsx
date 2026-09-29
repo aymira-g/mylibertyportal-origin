@@ -23,7 +23,7 @@ import { ScheduledLeavesList } from "./ScheduledLeavesList";
 
 const StaffDutyTab = forwardRef(
   /**
-   * @param {{ branchFilter?: string; rangeDays?: number; isAdminView?: boolean; isActualAdmin?: boolean; canPerformAdminActions?: boolean }} props
+   * @param {{ branchFilter?: string; rangeDays?: number; isAdminView?: boolean; isActualAdmin?: boolean; isManager?: boolean; canPerformAdminActions?: boolean }} props
    * @param {any} ref
    */
   function StaffDutyTab(
@@ -32,6 +32,7 @@ const StaffDutyTab = forwardRef(
       rangeDays = 30,
       isAdminView = false,
       isActualAdmin = false,
+      isManager = false,
       canPerformAdminActions = false,
     },
     ref
@@ -54,7 +55,7 @@ const StaffDutyTab = forwardRef(
       setShiftsLoading(true);
       try {
         const branchId = branchFilter && branchFilter !== "all" ? branchToId(branchFilter) : null;
-        const data = await fetchStaffShifts(isAdminView, rangeToSince(rangeDays), branchId);
+        const data = await fetchStaffShifts(isAdminView, rangeToSince(rangeDays), branchId, isManager);
         setShifts(data.shifts || []);
         setStaffMembers(data.staffMembers || []);
         setLeaves(data.leaves || []);
@@ -63,7 +64,7 @@ const StaffDutyTab = forwardRef(
       } finally {
         setShiftsLoading(false);
       }
-    }, [isAdminView, rangeDays, branchFilter]);
+    }, [isAdminView, isManager, rangeDays, branchFilter]);
 
     useEffect(() => {
       fetchShifts();
@@ -220,7 +221,7 @@ const StaffDutyTab = forwardRef(
             <h4 className="font-extrabold text-slate-800 text-sm flex items-center gap-1.5">
               <Clock className="w-4 h-4 text-[#1a3a8f]" />
               <span>
-                {isActualAdmin || isAdminView
+                {isActualAdmin || isAdminView || isManager
                   ? "Staff Clock-In / Clock-Out Ledger"
                   : "My Clock-In / Out History"}
               </span>
@@ -387,7 +388,7 @@ const StaffDutyTab = forwardRef(
         />
 
         {/* Scheduled Staff Leaves Ledger (Admin & Manager) */}
-        {(isActualAdmin || isAdminView) && (
+        {(isActualAdmin || isAdminView || isManager) && (
           <ScheduledLeavesList
             leaves={leaves}
             canPerformAdminActions={canPerformAdminActions}

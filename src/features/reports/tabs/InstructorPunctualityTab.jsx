@@ -9,10 +9,13 @@ import { matchesBranchFilter, normalizeBranch, branchToId } from "../../../const
 
 const InstructorPunctualityTab = forwardRef(
   /**
-   * @param {{ isAdminView?: boolean; branchFilter?: string }} props
+   * @param {{ isAdminView?: boolean; isManager?: boolean; branchFilter?: string }} props
    * @param {any} ref
    */
-  function InstructorPunctualityTab({ isAdminView = false, branchFilter = "all" }, ref) {
+  function InstructorPunctualityTab(
+    { isAdminView = false, isManager = false, branchFilter = "all" },
+    ref
+  ) {
     const now = new Date();
     const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
     const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -28,7 +31,7 @@ const InstructorPunctualityTab = forwardRef(
           classes: rawClasses,
           shifts: rawShifts,
           instructors,
-        } = await fetchInstructorAnalyticsData(isAdminView, uid, branchId);
+        } = await fetchInstructorAnalyticsData(isAdminView, uid, branchId, isManager);
 
         const fetchedClasses = uniqueClasses(rawClasses);
         const fetchedShifts = rawShifts;
@@ -53,7 +56,7 @@ const InstructorPunctualityTab = forwardRef(
       } finally {
         setAnalyticsLoading(false);
       }
-    }, [isAdminView, selectedYear, selectedMonth, branchFilter]);
+    }, [isAdminView, isManager, selectedYear, selectedMonth, branchFilter]);
 
     useEffect(() => {
       fetchInstructorAnalytics();
@@ -172,7 +175,7 @@ const InstructorPunctualityTab = forwardRef(
               Computing readiness audit compliance for {monthNames[selectedMonth]} {selectedYear}...
             </span>
           </div>
-        ) : analytics.length === 0 ? (
+        ) : filteredAnalytics.length === 0 ? (
           <div className="p-8 text-center text-slate-400 text-xs italic bg-slate-50/70 rounded-2xl border border-dashed border-slate-200">
             No scheduled classes found for this month.
           </div>

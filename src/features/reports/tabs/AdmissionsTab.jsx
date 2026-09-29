@@ -5,14 +5,15 @@ import { getBatchAvailability } from "../../classes";
 import { exportTableCSV } from "../../shared";
 import { TrendingUp, School, RefreshCw, Search, Users } from "lucide-react";
 import { normalizeBranch, matchesBranchFilter, branchToId } from "../../../constants/branches";
+import { matchesDivisionFilter, divisionOfProgram } from "../../../constants/divisions";
 import { getProgram, getStudentProgram } from "../../../constants/programs";
 
 const AdmissionsTab = forwardRef(
   /**
-   * @param {{ branchFilter?: string; rangeDays?: number }} props
+   * @param {{ branchFilter?: string; rangeDays?: number; division?: string }} props
    * @param {any} ref
    */
-  function AdmissionsTab({ branchFilter = "all", rangeDays = 30 }, ref) {
+  function AdmissionsTab({ branchFilter = "all", rangeDays = 30, division = "all" }, ref) {
     const [admissionsData, setAdmissionsData] = useState({ applications: [], classes: [] });
     const [admissionsLoading, setAdmissionsLoading] = useState(true);
     const [admissionsSearch, setAdmissionsSearch] = useState("");
@@ -21,14 +22,18 @@ const AdmissionsTab = forwardRef(
       setAdmissionsLoading(true);
       try {
         const branchId = branchFilter && branchFilter !== "all" ? branchToId(branchFilter) : null;
-        const data = await fetchAdmissionsReportData(rangeToSince(rangeDays), branchId);
+        const data = await fetchAdmissionsReportData(
+          rangeToSince(rangeDays),
+          branchId,
+          division !== "all" ? division : null
+        );
         setAdmissionsData(data);
       } catch (err) {
         console.error(err);
       } finally {
         setAdmissionsLoading(false);
       }
-    }, [rangeDays, branchFilter]);
+    }, [rangeDays, branchFilter, division]);
 
     useEffect(() => {
       fetchAdmissions();
@@ -42,6 +47,15 @@ const AdmissionsTab = forwardRef(
       if (branchFilter !== "all") {
         apps = apps.filter((a) => matchesBranchFilter(a.branch, branchFilter));
         cls = cls.filter((c) => matchesBranchFilter(c.branch, branchFilter));
+      }
+
+      if (division !== "all") {
+        apps = apps.filter((a) =>
+          matchesDivisionFilter(a.division || divisionOfProgram(a.programId || a.program), division)
+        );
+        cls = cls.filter((c) =>
+          matchesDivisionFilter(c.division || divisionOfProgram(c.programId || c.program), division)
+        );
       }
 
       const pending = apps.filter((a) => (a.status || "pending") === "pending").length;
@@ -79,7 +93,7 @@ const AdmissionsTab = forwardRef(
         filteredApps: apps,
         classes: cls,
       };
-    }, [admissionsData, branchFilter]);
+    }, [admissionsData, branchFilter, division]);
 
     // Expose exportCSV to parent
     useImperativeHandle(ref, () => ({

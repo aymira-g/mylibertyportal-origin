@@ -95,6 +95,15 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "branchId", "order": "ASCENDING" },
+        { "fieldPath": "division", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "applications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "branchId", "order": "ASCENDING" },
         { "fieldPath": "submittedAt", "order": "ASCENDING" }
       ]
     },
@@ -103,6 +112,24 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "branchId", "order": "ASCENDING" },
+        { "fieldPath": "division", "order": "ASCENDING" },
+        { "fieldPath": "submittedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "applications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "branchId", "order": "ASCENDING" },
+        { "fieldPath": "submittedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "applications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "branchId", "order": "ASCENDING" },
+        { "fieldPath": "division", "order": "ASCENDING" },
         { "fieldPath": "submittedAt", "order": "DESCENDING" }
       ]
     },

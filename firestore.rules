@@ -81,6 +81,22 @@ service cloud.firestore {
         ));
     }
 
+    // Division scope helpers for branch managers
+    function userDivision() {
+      return signedIn() && ('division' in userProfile()) ? userProfile().division : null;
+    }
+
+    function isSameDivisionStrict(data) {
+      return data != null && ('division' in data) && data.division == userDivision();
+    }
+
+    function isDivisionAllowedForManager(data) {
+      return !isManager()
+        || (userDivision() == null
+          ? (!('division' in data) || data.division != 'kindergarten')
+          : isSameDivisionStrict(data));
+    }
+
     function isApproverForDoc(data) {
       let targetRole = data != null && 'approverRole' in data ? data.approverRole : 'manager';
       let roleMatches = (targetRole == 'admin' && isAdmin())
@@ -202,13 +218,13 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get: if isAdmin()
-        || ((isManager() || isFrontOffice()) && isSameBranch(resource.data))
-        || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranch(resource.data))
+        || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && (resource.data.role != 'student' || isDivisionAllowedForManager(resource.data)))
+        || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranch(resource.data) && (resource.data.role != 'student' || isDivisionAllowedForManager(resource.data)))
         || (signedIn() && userId == request.auth.uid)
         || (isParentOf(userId) && resource.data.role == 'student');
       allow list: if isAdmin()
-        || (isManager() && isSameBranchStrict(resource.data))
-        || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranchStrict(resource.data));
+        || (isManager() && isSameBranchStrict(resource.data) && (resource.data.role != 'student' || isDivisionAllowedForManager(resource.data)))
+        || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranchStrict(resource.data) && (resource.data.role != 'student' || isDivisionAllowedForManager(resource.data)));
       allow create: if isAdmin() 
         || (isFrontOffice() && request.resource.data.role in ['student', 'parent'] && isSameBranch(request.resource.data)
           && (request.resource.data.role != 'parent'
@@ -273,8 +289,8 @@ service cloud.firestore {
     }
 
     match /applications/{applicationId} {
-      allow get: if isAdmin() || ((isFrontOffice() || isManager() || hasRole('marketing')) && isSameBranch(resource.data));
-      allow list: if isAdmin() || ((isFrontOffice() || isManager() || hasRole('marketing')) && isSameBranchStrict(resource.data));
+      allow get: if isAdmin() || ((isFrontOffice() || isManager() || hasRole('marketing')) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
+      allow list: if isAdmin() || ((isFrontOffice() || isManager() || hasRole('marketing')) && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data));
       allow update: if isAdmin() || (isFrontOffice() && isSameBranch(resource.data) && isSameBranch(request.resource.data) && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId));
       allow delete: if isAdmin() || (isFrontOffice() && isSameBranch(resource.data));
       allow create: if false;
@@ -282,7 +298,7 @@ service cloud.firestore {
 
     match /classes/{classId} {
       allow get: if isAdmin()
-        || (isStaff() && isSameBranch(resource.data))
+        || (isStaff() && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data))
         || (isStaff() && (
             resource.data.instructorId == request.auth.uid
             || ('substituteInstructorId' in resource.data && resource.data.substituteInstructorId == request.auth.uid)
@@ -290,7 +306,7 @@ service cloud.firestore {
         || (signedIn() && ('studentIds' in resource.data) && resource.data.studentIds.hasAny([request.auth.uid]))
         || (isParent() && isSameBranch(resource.data) && ('childStudentIds' in userProfile()) && ('studentIds' in resource.data) && resource.data.studentIds.hasAny(userProfile().childStudentIds));
       allow list: if isAdmin()
-        || (isStaff() && isSameBranchStrict(resource.data))
+        || (isStaff() && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data))
         || (isStaff() && (
             resource.data.instructorId == request.auth.uid
             || ('substituteInstructorId' in resource.data && resource.data.substituteInstructorId == request.auth.uid)
@@ -470,11 +486,11 @@ service cloud.firestore {
     }
 
     match /deskInquiries/{inquiryId} {
-      allow get: if isAdmin() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(resource.data));
-      allow list: if isAdmin() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranchStrict(resource.data));
-      allow create: if isAdmin() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(request.resource.data));
-      allow update: if isAdmin() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(resource.data) && isSameBranch(request.resource.data) && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId));
-      allow delete: if isAdmin() || ((isManager() || isFrontOffice()) && isSameBranch(resource.data));
+      allow get: if isAdmin() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
+      allow list: if isAdmin() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data));
+      allow create: if isAdmin() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(request.resource.data) && isDivisionAllowedForManager(request.resource.data));
+      allow update: if isAdmin() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(resource.data) && isSameBranch(request.resource.data) && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId) && isDivisionAllowedForManager(resource.data) && isDivisionAllowedForManager(request.resource.data));
+      allow delete: if isAdmin() || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
     }
 
     match /approvals/{approvalId} {
@@ -513,11 +529,11 @@ service cloud.firestore {
 
     match /progressReports/{reportId} {
       allow get: if isAdmin()
-        || ((isManager() || isFrontOffice()) && isSameBranch(resource.data))
+        || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data))
         || (signedIn() && resource.data.instructorId == request.auth.uid)
         || (isParentOf(resource.data.studentId));
       allow list: if isAdmin()
-        || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data))
+        || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data))
         || (signedIn() && resource.data.instructorId == request.auth.uid)
         || (isParent() && ('childStudentIds' in userProfile()) && userProfile().childStudentIds.hasAny([resource.data.studentId]));
       allow create: if signedIn()
@@ -528,7 +544,7 @@ service cloud.firestore {
           || (('substituteInstructorId' in get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data)
             && get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.substituteInstructorId == request.auth.uid))
         && get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.studentIds.hasAny([request.resource.data.studentId]);
-      allow update, delete: if isAdmin() || ((isManager() || isFrontOffice()) && isSameBranch(resource.data));
+      allow update, delete: if isAdmin() || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
     }
 
     match /shifts/{shiftId} {

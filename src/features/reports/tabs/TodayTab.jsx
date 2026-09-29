@@ -27,7 +27,14 @@ const TodayTab = forwardRef(
       try {
         const startIso = getStartOfTodayWitaIso();
         const branchId = branchFilter && branchFilter !== "all" ? branchToId(branchFilter) : null;
-        const data = await fetchTodayScansData(startIso, isAdminView, isFrontOffice, branchId, isManager);
+        const data = await fetchTodayScansData(
+          startIso,
+          isAdminView,
+          isFrontOffice,
+          branchId,
+          isManager,
+          division !== "all" ? division : null
+        );
         setTodayScans(data.scans || []);
         setTodayClasses(uniqueClasses(data.classes || []));
         setAllStudentsList(data.students || []);
@@ -37,7 +44,7 @@ const TodayTab = forwardRef(
       } finally {
         setTodayLoading(false);
       }
-    }, [isAdminView, isFrontOffice, isManager, branchFilter, toast]);
+    }, [isAdminView, isFrontOffice, isManager, branchFilter, division, toast]);
 
     useEffect(() => {
       fetchTodayScans();

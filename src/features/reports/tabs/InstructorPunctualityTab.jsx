@@ -6,14 +6,15 @@ import { uniqueClasses } from "../reportsUtils";
 import { exportTableCSV } from "../../shared";
 import { UserCheck, RefreshCw, CheckCircle2, AlertTriangle } from "lucide-react";
 import { matchesBranchFilter, normalizeBranch, branchToId } from "../../../constants/branches";
+import { matchesDivisionFilter, divisionOfProgram } from "../../../constants/divisions";
 
 const InstructorPunctualityTab = forwardRef(
   /**
-   * @param {{ isAdminView?: boolean; isManager?: boolean; branchFilter?: string }} props
+   * @param {{ isAdminView?: boolean; isManager?: boolean; branchFilter?: string; division?: string }} props
    * @param {any} ref
    */
   function InstructorPunctualityTab(
-    { isAdminView = false, isManager = false, branchFilter = "all" },
+    { isAdminView = false, isManager = false, branchFilter = "all", division = "all" },
     ref
   ) {
     const now = new Date();
@@ -31,9 +32,20 @@ const InstructorPunctualityTab = forwardRef(
           classes: rawClasses,
           shifts: rawShifts,
           instructors,
-        } = await fetchInstructorAnalyticsData(isAdminView, uid, branchId, isManager);
+        } = await fetchInstructorAnalyticsData(
+          isAdminView,
+          uid,
+          branchId,
+          isManager,
+          division !== "all" ? division : null
+        );
 
-        const fetchedClasses = uniqueClasses(rawClasses);
+        let fetchedClasses = uniqueClasses(rawClasses);
+        if (division !== "all") {
+          fetchedClasses = fetchedClasses.filter((c) =>
+            matchesDivisionFilter(c.division || divisionOfProgram(c.programId || c.program), division)
+          );
+        }
         const fetchedShifts = rawShifts;
 
         const instructorsById = {};
@@ -56,7 +68,7 @@ const InstructorPunctualityTab = forwardRef(
       } finally {
         setAnalyticsLoading(false);
       }
-    }, [isAdminView, isManager, selectedYear, selectedMonth, branchFilter]);
+    }, [isAdminView, isManager, selectedYear, selectedMonth, branchFilter, division]);
 
     useEffect(() => {
       fetchInstructorAnalytics();

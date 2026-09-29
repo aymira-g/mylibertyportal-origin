@@ -4,6 +4,7 @@ import { getTodayWitaString, rangeToSince, uniqueClasses } from "../reportsUtils
 import { isStudentAtRisk, AT_RISK_LABEL } from "../atRisk";
 import { exportTableCSV } from "../../shared";
 import { normalizeBranch, matchesBranchFilter, branchToId } from "../../../constants/branches";
+import { matchesDivisionFilter, divisionOfProgram } from "../../../constants/divisions";
 import {
   GraduationCap,
   Search,
@@ -14,11 +15,11 @@ import { LearnerCard } from "./LearnerCard";
 
 const LearnerProgressTab = forwardRef(
   /**
-   * @param {{ branchFilter?: string; rangeDays?: number; isAdminView?: boolean; isFrontOffice?: boolean; isManager?: boolean }} props
+   * @param {{ branchFilter?: string; rangeDays?: number; isAdminView?: boolean; isFrontOffice?: boolean; isManager?: boolean; division?: string }} props
    * @param {any} ref
    */
   function LearnerProgressTab(
-    { branchFilter = "all", rangeDays = 30, isAdminView = false, isFrontOffice = false, isManager = false },
+    { branchFilter = "all", rangeDays = 30, isAdminView = false, isFrontOffice = false, isManager = false, division = "all" },
     ref
   ) {
     const [students, setStudents] = useState([]);
@@ -43,7 +44,8 @@ const LearnerProgressTab = forwardRef(
           isFrontOffice,
           rangeToSince(rangeDays),
           branchId,
-          isManager
+          isManager,
+          division !== "all" ? division : null
         );
 
         const usersById = {};
@@ -51,7 +53,12 @@ const LearnerProgressTab = forwardRef(
           usersById[u.id] = u;
         });
 
-        const fetchedClasses = uniqueClasses(rawClasses);
+        let fetchedClasses = uniqueClasses(rawClasses);
+        if (division !== "all") {
+          fetchedClasses = fetchedClasses.filter((c) =>
+            matchesDivisionFilter(c.division || divisionOfProgram(c.programId || c.program), division)
+          );
+        }
         setClasses(fetchedClasses);
 
         const allStudentIds = new Set([
@@ -69,6 +76,12 @@ const LearnerProgressTab = forwardRef(
         const studentList = Array.from(allStudentIds)
           .filter((id) => {
             if (usersById[id]) {
+              if (division !== "all") {
+                const u = usersById[id];
+                if (!matchesDivisionFilter(u.division || divisionOfProgram(u.programId || u.program), division)) {
+                  return false;
+                }
+              }
               return (
                 usersById[id].role === "student" &&
                 (isSupervisor || relevantStudentIds.has(id))
@@ -141,7 +154,7 @@ const LearnerProgressTab = forwardRef(
       } finally {
         setStudentsLoading(false);
       }
-    }, [isAdminView, isFrontOffice, isManager, selectedClassId, rangeDays, branchFilter]);
+    }, [isAdminView, isFrontOffice, isManager, selectedClassId, rangeDays, branchFilter, division]);
 
     useEffect(() => {
       fetchStudentProgress();

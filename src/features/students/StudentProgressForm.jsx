@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { LevelBadge, LEVEL_KEYS, LEVELS } from "../shared";
 import { todayWita } from "../../utils/dateWita.js";
+import { divisionOfProgram } from "../../constants/divisions.js";
 const SCORE_FIELDS = [
   {
     field: "pronunciation",
@@ -86,6 +87,11 @@ export default function StudentProgressForm({ classes, students, onSaved }) {
       const instructor = auth.currentUser;
       const reportBranch = selectedClass.branch || selectedStudent.branch || "";
       const reportBranchId = selectedClass.branchId || selectedStudent.branchId || "";
+      const reportDivision =
+        selectedClass.division ||
+        selectedStudent.division ||
+        divisionOfProgram(selectedClass.programId || selectedClass.program) ||
+        "courses";
       await createProgressReport({
         studentId: selectedStudent.id,
         studentName: selectedStudent.displayName || "",
@@ -97,6 +103,7 @@ export default function StudentProgressForm({ classes, students, onSaved }) {
         level,
         branch: reportBranch,
         branchId: reportBranchId,
+        division: reportDivision,
         pronunciationScore: Number(scores.pronunciation),
         fluencyScore: Number(scores.fluency),
         vocabularyScore: Number(scores.vocabulary),

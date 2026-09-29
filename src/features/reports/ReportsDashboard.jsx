@@ -217,6 +217,7 @@ export default function ReportsDashboard({
           isActualAdmin={isActualAdmin}
           isManager={isManager}
           canPerformAdminActions={canPerformAdminActions}
+          division={division}
         />
       )}
 
@@ -228,11 +229,17 @@ export default function ReportsDashboard({
           isAdminView={isAdminView}
           isFrontOffice={isFrontOffice}
           isManager={isManager}
+          division={division}
         />
       )}
 
       {subTab === "admissions" && (isAdminView || isFrontOffice || isManager) && (
-        <AdmissionsTab ref={activeTabRef} branchFilter={branchFilter} rangeDays={rangeDays} />
+        <AdmissionsTab
+          ref={activeTabRef}
+          branchFilter={branchFilter}
+          rangeDays={rangeDays}
+          division={division}
+        />
       )}
 
       {subTab === "instructors" && !isFrontOffice && (
@@ -241,6 +248,7 @@ export default function ReportsDashboard({
           isAdminView={isAdminView}
           isManager={isManager}
           branchFilter={branchFilter}
+          division={division}
         />
       )}
     </div>

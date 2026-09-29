@@ -23,7 +23,7 @@ import { ScheduledLeavesList } from "./ScheduledLeavesList";
 
 const StaffDutyTab = forwardRef(
   /**
-   * @param {{ branchFilter?: string; rangeDays?: number; isAdminView?: boolean; isActualAdmin?: boolean; isManager?: boolean; canPerformAdminActions?: boolean }} props
+   * @param {{ branchFilter?: string; rangeDays?: number; isAdminView?: boolean; isActualAdmin?: boolean; isManager?: boolean; canPerformAdminActions?: boolean; division?: string }} props
    * @param {any} ref
    */
   function StaffDutyTab(
@@ -34,6 +34,7 @@ const StaffDutyTab = forwardRef(
       isActualAdmin = false,
       isManager = false,
       canPerformAdminActions = false,
+      division = "all",
     },
     ref
   ) {
@@ -55,7 +56,13 @@ const StaffDutyTab = forwardRef(
       setShiftsLoading(true);
       try {
         const branchId = branchFilter && branchFilter !== "all" ? branchToId(branchFilter) : null;
-        const data = await fetchStaffShifts(isAdminView, rangeToSince(rangeDays), branchId, isManager);
+        const data = await fetchStaffShifts(
+          isAdminView,
+          rangeToSince(rangeDays),
+          branchId,
+          isManager,
+          division !== "all" ? division : null
+        );
         setShifts(data.shifts || []);
         setStaffMembers(data.staffMembers || []);
         setLeaves(data.leaves || []);
@@ -64,7 +71,7 @@ const StaffDutyTab = forwardRef(
       } finally {
         setShiftsLoading(false);
       }
-    }, [isAdminView, isManager, rangeDays, branchFilter]);
+    }, [isAdminView, isManager, rangeDays, branchFilter, division]);
 
     useEffect(() => {
       fetchShifts();

@@ -195,6 +195,34 @@ describe("fetchTodayScansData", () => {
     expect(result.classes).toHaveLength(2);
     expect(result.students).toHaveLength(2);
   });
+
+  it("scopes classes and students to division when division is provided", async () => {
+    fake.seed("attendance", [
+      { id: "att1", timestamp: "2026-09-28T08:00:00.000Z", userId: "st1", branchId: "kota_gorontalo" },
+      { id: "att2", timestamp: "2026-09-28T08:30:00.000Z", userId: "st2", branchId: "kota_gorontalo" },
+    ]);
+    fake.seed("classes", [
+      { id: "c1", className: "Kids Class", branchId: "kota_gorontalo", division: "kindergarten" },
+      { id: "c2", className: "Adult Course", branchId: "kota_gorontalo", division: "courses" },
+    ]);
+    fake.seed("users", [
+      { id: "st1", role: "student", branchId: "kota_gorontalo", division: "kindergarten" },
+      { id: "st2", role: "student", branchId: "kota_gorontalo", division: "courses" },
+    ]);
+
+    const result = await fetchTodayScansData(
+      "2026-09-28T00:00:00.000Z",
+      false,
+      false,
+      "kota_gorontalo",
+      true,
+      "kindergarten"
+    );
+    expect(result.classes).toHaveLength(1);
+    expect(result.classes[0].id).toBe("c1");
+    expect(result.students).toHaveLength(1);
+    expect(result.students[0].id).toBe("st1");
+  });
 });
 
 describe("fetchStudentProgressData", () => {
@@ -226,6 +254,39 @@ describe("fetchStudentProgressData", () => {
     expect(result.progress).toHaveLength(1);
     expect(result.progress[0].id).toBe("p1");
   });
+
+  it("scopes classes, users, and progressReports to division when division is provided", async () => {
+    fake.seed("classes", [
+      { id: "c1", branchId: "kota_gorontalo", division: "kindergarten" },
+      { id: "c2", branchId: "kota_gorontalo", division: "courses" },
+    ]);
+    fake.seed("users", [
+      { id: "st1", role: "student", branchId: "kota_gorontalo", division: "kindergarten" },
+      { id: "st2", role: "student", branchId: "kota_gorontalo", division: "courses" },
+    ]);
+    fake.seed("attendance", [
+      { id: "att1", timestamp: "2026-09-20T08:00:00.000Z", branchId: "kota_gorontalo" },
+    ]);
+    fake.seed("progressReports", [
+      { id: "p1", studentId: "st1", branchId: "kota_gorontalo", division: "kindergarten" },
+      { id: "p2", studentId: "st2", branchId: "kota_gorontalo", division: "courses" },
+    ]);
+
+    const result = await fetchStudentProgressData(
+      false,
+      false,
+      "2026-09-01T00:00:00.000Z",
+      "Kota Gorontalo",
+      true,
+      "kindergarten"
+    );
+    expect(result.classes).toHaveLength(1);
+    expect(result.classes[0].id).toBe("c1");
+    expect(result.users).toHaveLength(1);
+    expect(result.users[0].id).toBe("st1");
+    expect(result.progress).toHaveLength(1);
+    expect(result.progress[0].id).toBe("p1");
+  });
 });
 
 describe("fetchAdmissionsReportData", () => {
@@ -244,6 +305,23 @@ describe("fetchAdmissionsReportData", () => {
     expect(result.applications[0].id).toBe("app2");
     expect(result.classes).toHaveLength(1);
     expect(result.classes[0].id).toBe("c2");
+  });
+
+  it("scopes applications and classes to division when division is provided", async () => {
+    fake.seed("applications", [
+      { id: "app1", displayName: "Applicant 1", branchId: "kota_gorontalo", division: "kindergarten" },
+      { id: "app2", displayName: "Applicant 2", branchId: "kota_gorontalo", division: "courses" },
+    ]);
+    fake.seed("classes", [
+      { id: "c1", branchId: "kota_gorontalo", division: "kindergarten" },
+      { id: "c2", branchId: "kota_gorontalo", division: "courses" },
+    ]);
+
+    const result = await fetchAdmissionsReportData(null, "kota_gorontalo", "kindergarten");
+    expect(result.applications).toHaveLength(1);
+    expect(result.applications[0].id).toBe("app1");
+    expect(result.classes).toHaveLength(1);
+    expect(result.classes[0].id).toBe("c1");
   });
 });
 
@@ -318,6 +396,33 @@ describe("fetchInstructorAnalyticsData", () => {
     expect(result.classes[0].id).toBe("c1");
     expect(result.shifts).toHaveLength(1);
     expect(result.shifts[0].id).toBe("s1");
+    expect(result.instructors).toHaveLength(1);
+    expect(result.instructors[0].id).toBe("ins1");
+  });
+
+  it("scopes classes and instructors to division when division is provided", async () => {
+    fake.seed("classes", [
+      { id: "c1", branchId: "kota_gorontalo", division: "kindergarten", instructorId: "ins1" },
+      { id: "c2", branchId: "kota_gorontalo", division: "courses", instructorId: "ins2" },
+    ]);
+    fake.seed("shifts", [
+      { id: "s1", branchId: "kota_gorontalo", userId: "ins1" },
+      { id: "s2", branchId: "kota_gorontalo", userId: "ins2" },
+    ]);
+    fake.seed("users", [
+      { id: "ins1", role: "instructor", branchId: "kota_gorontalo", division: "kindergarten" },
+      { id: "ins2", role: "instructor", branchId: "kota_gorontalo", division: "courses" },
+    ]);
+
+    const result = await fetchInstructorAnalyticsData(
+      false,
+      "mgr1",
+      "Kota Gorontalo",
+      true,
+      "kindergarten"
+    );
+    expect(result.classes).toHaveLength(1);
+    expect(result.classes[0].id).toBe("c1");
     expect(result.instructors).toHaveLength(1);
     expect(result.instructors[0].id).toBe("ins1");
   });

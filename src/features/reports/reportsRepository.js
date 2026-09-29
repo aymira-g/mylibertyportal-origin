@@ -7,7 +7,7 @@ import { isStaffRole } from "../shared/roles.js";
  * All direct Firestore reads for the Reports domain live here.
  */
 
-export async function fetchStaffShifts(isAdminView, since = null, branchId = null, isManager = false) {
+export async function fetchStaffShifts(isAdminView, since = null, branchId = null, isManager = false, division = null) {
   const normalizedBranchId = branchId ? branchToId(branchId) : null;
   const isSupervisor = isAdminView || isManager;
   const shiftsRef = collection(db, "shifts");
@@ -68,7 +68,9 @@ export async function fetchStaffShifts(isAdminView, since = null, branchId = nul
     .sort((a, b) => (b.clockIn || "").localeCompare(a.clockIn || ""));
 
   const staffMembers = Array.from(existingUsersMap.values()).filter(
-    (u) => isStaffRole(u.role)
+    (u) =>
+      isStaffRole(u.role) &&
+      (!division || division === "all" || !u.division || u.division === division)
   );
 
   return { shifts: raw, staffMembers, leaves };
@@ -77,7 +79,7 @@ export async function fetchStaffShifts(isAdminView, since = null, branchId = nul
 /**
  * @returns {Promise<{ scans: any[], classes: any[], students: any[] }>}
  */
-export async function fetchTodayScansData(sinceWitaIso, isAdminView, isFrontOffice, branchId = null, isManager = false) {
+export async function fetchTodayScansData(sinceWitaIso, isAdminView, isFrontOffice, branchId = null, isManager = false, division = null) {
   const normalizedBranchId = branchId ? branchToId(branchId) : null;
   const isSupervisor = isAdminView || isFrontOffice || isManager;
 
@@ -92,6 +94,9 @@ export async function fetchTodayScansData(sinceWitaIso, isAdminView, isFrontOffi
   if (normalizedBranchId) {
     classesFilters.push(where("branchId", "==", normalizedBranchId));
   }
+  if (division && division !== "all") {
+    classesFilters.push(where("division", "==", division));
+  }
   const classesQuery = classesFilters.length
     ? query(collection(db, "classes"), ...classesFilters)
     : collection(db, "classes");
@@ -102,6 +107,9 @@ export async function fetchTodayScansData(sinceWitaIso, isAdminView, isFrontOffi
   }
   if (normalizedBranchId) {
     usersFilters.push(where("branchId", "==", normalizedBranchId));
+  }
+  if (division && division !== "all") {
+    usersFilters.push(where("division", "==", division));
   }
   const usersQuery = usersFilters.length
     ? query(collection(db, "users"), ...usersFilters)
@@ -125,7 +133,7 @@ export async function fetchTodayScansData(sinceWitaIso, isAdminView, isFrontOffi
 /**
  * @returns {Promise<{ users: any[], classes: any[], attendance: any[], progress: any[] }>}
  */
-export async function fetchStudentProgressData(isAdminView, isFrontOffice, since = null, branchId = null, isManager = false) {
+export async function fetchStudentProgressData(isAdminView, isFrontOffice, since = null, branchId = null, isManager = false, division = null) {
   const normalizedBranchId = branchId ? branchToId(branchId) : null;
   const isSupervisor = isAdminView || isFrontOffice || isManager;
 
@@ -135,6 +143,9 @@ export async function fetchStudentProgressData(isAdminView, isFrontOffice, since
   }
   if (normalizedBranchId) {
     classesFilters.push(where("branchId", "==", normalizedBranchId));
+  }
+  if (division && division !== "all") {
+    classesFilters.push(where("division", "==", division));
   }
   const classesQuery = classesFilters.length
     ? query(collection(db, "classes"), ...classesFilters)
@@ -147,6 +158,9 @@ export async function fetchStudentProgressData(isAdminView, isFrontOffice, since
   if (normalizedBranchId) {
     progressFilters.push(where("branchId", "==", normalizedBranchId));
   }
+  if (division && division !== "all") {
+    progressFilters.push(where("division", "==", division));
+  }
   const progressQuery = progressFilters.length
     ? query(collection(db, "progressReports"), ...progressFilters)
     : collection(db, "progressReports");
@@ -157,6 +171,9 @@ export async function fetchStudentProgressData(isAdminView, isFrontOffice, since
   }
   if (normalizedBranchId) {
     usersFilters.push(where("branchId", "==", normalizedBranchId));
+  }
+  if (division && division !== "all") {
+    usersFilters.push(where("division", "==", division));
   }
   const usersQuery = usersFilters.length
     ? query(collection(db, "users"), ...usersFilters)
@@ -188,7 +205,7 @@ export async function fetchStudentProgressData(isAdminView, isFrontOffice, since
   };
 }
 
-export async function fetchAdmissionsReportData(since = null, branchId = null) {
+export async function fetchAdmissionsReportData(since = null, branchId = null, division = null) {
   const normalizedBranchId = branchId ? branchToId(branchId) : null;
 
   const appFilters = [];
@@ -198,6 +215,9 @@ export async function fetchAdmissionsReportData(since = null, branchId = null) {
   if (normalizedBranchId) {
     appFilters.push(where("branchId", "==", normalizedBranchId));
   }
+  if (division && division !== "all") {
+    appFilters.push(where("division", "==", division));
+  }
   const appQuery = appFilters.length
     ? query(collection(db, "applications"), ...appFilters)
     : collection(db, "applications");
@@ -205,6 +225,9 @@ export async function fetchAdmissionsReportData(since = null, branchId = null) {
   const classFilters = [];
   if (normalizedBranchId) {
     classFilters.push(where("branchId", "==", normalizedBranchId));
+  }
+  if (division && division !== "all") {
+    classFilters.push(where("division", "==", division));
   }
   const classesQuery = classFilters.length
     ? query(collection(db, "classes"), ...classFilters)
@@ -221,7 +244,7 @@ export async function fetchAdmissionsReportData(since = null, branchId = null) {
   };
 }
 
-export async function fetchInstructorAnalyticsData(isAdminView, uid, branchId = null, isManager = false) {
+export async function fetchInstructorAnalyticsData(isAdminView, uid, branchId = null, isManager = false, division = null) {
   const normalizedBranchId = branchId ? branchToId(branchId) : null;
   const isSupervisor = isAdminView || isManager;
 
@@ -231,6 +254,9 @@ export async function fetchInstructorAnalyticsData(isAdminView, uid, branchId = 
   }
   if (normalizedBranchId) {
     classesFilters.push(where("branchId", "==", normalizedBranchId));
+  }
+  if (division && division !== "all") {
+    classesFilters.push(where("division", "==", division));
   }
   const classesQuery = classesFilters.length
     ? query(collection(db, "classes"), ...classesFilters)
@@ -261,7 +287,11 @@ export async function fetchInstructorAnalyticsData(isAdminView, uid, branchId = 
     const usersSnap = await getDocs(
       query(collection(db, "users"), ...userFilters)
     );
-    instructors = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    let instDocs = usersSnap.docs.map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }));
+    if (division && division !== "all") {
+      instDocs = instDocs.filter((d) => !d.division || d.division === division);
+    }
+    instructors = instDocs;
   } else {
     const selfDoc = await getDoc(doc(db, "users", uid));
     instructors = selfDoc.exists() ? [{ id: selfDoc.id, ...selfDoc.data() }] : [];

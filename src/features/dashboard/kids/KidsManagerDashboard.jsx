@@ -64,26 +64,70 @@ export default function KidsManagerDashboard() {
       return;
     }
 
-    const unsubUsers = onSnapshot(
-      query(collection(db, "users"), where("branchId", "==", managerBranchId)),
+    let studentDocs = [];
+    let staffDocs = [];
+    const updateUsers = () => {
+      setRawUsers([...studentDocs, ...staffDocs]);
+      setLoading(false);
+    };
+
+    const unsubStudents = onSnapshot(
+      query(
+        collection(db, "users"),
+        where("branchId", "==", managerBranchId),
+        where("role", "==", "student"),
+        where("division", "==", "kindergarten")
+      ),
       (snap) => {
-        setRawUsers(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-        setLoading(false);
+        studentDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        updateUsers();
       },
       (err) => {
-        console.warn("users listener:", err);
+        console.warn("kids students listener:", err);
+        setLoading(false);
+      }
+    );
+
+    const unsubStaff = onSnapshot(
+      query(
+        collection(db, "users"),
+        where("branchId", "==", managerBranchId),
+        where("role", "in", [
+          "instructor",
+          "instructorleader",
+          "opslead",
+          "frontoffice",
+          "manager",
+          "admin",
+          "officeboy",
+        ])
+      ),
+      (snap) => {
+        staffDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        updateUsers();
+      },
+      (err) => {
+        console.warn("kids staff listener:", err);
         setLoading(false);
       }
     );
 
     const unsubClasses = onSnapshot(
-      query(collection(db, "classes"), where("branchId", "==", managerBranchId)),
+      query(
+        collection(db, "classes"),
+        where("branchId", "==", managerBranchId),
+        where("division", "==", "kindergarten")
+      ),
       (snap) => setRawClasses(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
       (err) => console.warn("classes listener:", err)
     );
 
     const unsubApplications = onSnapshot(
-      query(collection(db, "applications"), where("branchId", "==", managerBranchId)),
+      query(
+        collection(db, "applications"),
+        where("branchId", "==", managerBranchId),
+        where("division", "==", "kindergarten")
+      ),
       (snap) => setRawApplications(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
       (err) => console.warn("applications listener:", err)
     );
@@ -117,7 +161,8 @@ export default function KidsManagerDashboard() {
     );
 
     return () => {
-      unsubUsers();
+      unsubStudents();
+      unsubStaff();
       unsubClasses();
       unsubApplications();
       unsubShifts();

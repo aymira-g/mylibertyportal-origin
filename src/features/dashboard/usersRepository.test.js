@@ -27,12 +27,14 @@ vi.mock(
 vi.mock("firebase/auth", () => authMock);
 vi.mock("../../firebase", () => ({
   db: {},
-  auth: { currentUser: { uid: "admin1" } },
+  auth: { currentUser: { uid: "admin1", getIdToken: vi.fn().mockResolvedValue("test-token") } },
   getSecondaryAuth: () => ({ secondary: true }),
 }));
 
 beforeEach(() => {
   fake.reset();
+  vi.stubEnv("VITE_AI_WORKER_URL", "https://worker.test");
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true }) }));
   vi.spyOn(console, "warn").mockImplementation(() => {});
 });
 
@@ -210,7 +212,7 @@ describe("createParentAccount", () => {
     expect(userDoc.data.role).toBe("parent");
     expect(userDoc.data.displayName).toBe("Ibu Linda");
     expect(userDoc.data.email).toBe("parent@example.com");
-    expect(userDoc.data.childStudentIds).toEqual(["student_abc"]);
+    expect(userDoc.data.childStudentIds).toEqual([]);
     expect(userDoc.data.branchId).toBe("kota_gorontalo");
     expect(userDoc.data.branch).toBe("Kota Gorontalo");
     expect(userDoc.data.status).toBe("active");
@@ -256,12 +258,9 @@ describe("createParentAccount", () => {
 });
 
 describe("linkChildToParent and unlinkChildFromParent", () => {
-  it("links a child to a parent with arrayUnion", async () => {
+  it("links a child through the server-authoritative Worker", async () => {
     await linkChildToParent("parent1", "child1");
-    const op = fake.find("users/parent1");
-    expect(op.opts).toEqual({ merge: true });
-    expect(op.data.childStudentIds).toEqual({ __op: "arrayUnion", items: ["child1"] });
-    expect(op.data.updatedAt).toBeTruthy();
+    expect(fetch).toHaveBeenCalledWith(expect.stringMatching(/\/api\/v1\/parent-link$/), expect.objectContaining({ method: "POST" }));
   });
 
   it("unlinks a child from a parent with arrayRemove", async () => {

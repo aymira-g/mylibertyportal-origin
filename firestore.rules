@@ -171,6 +171,9 @@ service cloud.firestore {
 
     function studentIsEnrolled(classId, studentId) {
       let c = classDoc(classId);
+      // Firestore rules cannot safely inspect a nested field inside every
+      // enrollment map. `studentIds` is the authorization roster and is
+      // maintained alongside the richer `enrollments` display metadata.
       return c != null && ('studentIds' in c) && c.studentIds.hasAny([studentId]);
     }
 
@@ -183,13 +186,18 @@ service cloud.firestore {
     }
 
     function isParent() {
-      return signedIn() && userProfile().role == 'parent';
+      return signedIn() && isActiveUser() && userProfile().role == 'parent';
     }
 
     function isParentOf(studentId) {
       return isParent()
         && ('childStudentIds' in userProfile())
-        && userProfile().childStudentIds.hasAny([studentId]);
+        && userProfile().childStudentIds.hasAny([studentId])
+        && exists(/databases/$(database)/documents/users/$(studentId))
+        && get(/databases/$(database)/documents/users/$(studentId)).data.role == 'student'
+        && isSameBranch(get(/databases/$(database)/documents/users/$(studentId)).data)
+        && (!('status' in get(/databases/$(database)/documents/users/$(studentId)).data)
+          || get(/databases/$(database)/documents/users/$(studentId)).data.status == 'active');
     }
 
     match /users/{userId} {
@@ -202,7 +210,10 @@ service cloud.firestore {
         || (isManager() && isSameBranchStrict(resource.data))
         || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranchStrict(resource.data));
       allow create: if isAdmin() 
-        || (isFrontOffice() && request.resource.data.role in ['student', 'parent'] && isSameBranch(request.resource.data))
+        || (isFrontOffice() && request.resource.data.role in ['student', 'parent'] && isSameBranch(request.resource.data)
+          && (request.resource.data.role != 'parent'
+            || !('childStudentIds' in request.resource.data)
+            || request.resource.data.childStudentIds.size() == 0))
         || (signedIn()
             && userId == request.auth.uid
             && request.resource.data.inviteId is string
@@ -240,7 +251,7 @@ service cloud.firestore {
           && isSameBranch(request.resource.data)
           && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId)
           && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['displayName', 'phone', 'childStudentIds', 'updatedAt', 'status', 'branch']))
+            .hasOnly(['displayName', 'phone', 'updatedAt', 'status', 'branch']))
         || (signedIn()
           && userId == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys()
@@ -277,7 +288,7 @@ service cloud.firestore {
             || ('substituteInstructorId' in resource.data && resource.data.substituteInstructorId == request.auth.uid)
           ))
         || (signedIn() && ('studentIds' in resource.data) && resource.data.studentIds.hasAny([request.auth.uid]))
-        || (isParent() && ('childStudentIds' in userProfile()) && ('studentIds' in resource.data) && resource.data.studentIds.hasAny(userProfile().childStudentIds));
+        || (isParent() && isSameBranch(resource.data) && ('childStudentIds' in userProfile()) && ('studentIds' in resource.data) && resource.data.studentIds.hasAny(userProfile().childStudentIds));
       allow list: if isAdmin()
         || (isStaff() && isSameBranchStrict(resource.data))
         || (isStaff() && (
@@ -285,7 +296,7 @@ service cloud.firestore {
             || ('substituteInstructorId' in resource.data && resource.data.substituteInstructorId == request.auth.uid)
           ))
         || (signedIn() && ('studentIds' in resource.data) && resource.data.studentIds.hasAny([request.auth.uid]))
-        || (isParent() && ('childStudentIds' in userProfile()) && ('studentIds' in resource.data) && resource.data.studentIds.hasAny(userProfile().childStudentIds));
+        || (isParent() && isSameBranchStrict(resource.data) && ('childStudentIds' in userProfile()) && ('studentIds' in resource.data) && resource.data.studentIds.hasAny(userProfile().childStudentIds));
       allow create, delete: if isAdmin();
       allow update: if isAdmin()
         || (isFrontOffice()
@@ -339,7 +350,8 @@ service cloud.firestore {
         && isSameBranch(request.resource.data)
         && request.resource.data.userId is string
         && request.resource.data.timestamp is string
-        && roleOf(request.resource.data.userId) == 'student';
+        && roleOf(request.resource.data.userId) == 'student'
+        && isSameBranch(get(/databases/$(database)/documents/users/$(request.resource.data.userId)).data);
       // Double-scan idempotency: allow Front Office and Instructors to update existing day scan as long as student identity is preserved
       allow update: if isAdmin()
         || ((isFrontOffice() || hasRole('instructor') || hasRole('instructorleader') || hasRole('instructor_leader'))
@@ -426,7 +438,9 @@ service cloud.firestore {
         && request.resource.data.attendanceDate == resource.data.attendanceDate
         && validClassAttendanceIdentity(request.resource.data)
         && request.resource.data.method == 'MANUAL'
-        && request.resource.data.status in ['PRESENT', 'ABSENT', 'LATE', 'EXCUSED'];
+        && request.resource.data.status in ['PRESENT', 'ABSENT', 'LATE', 'EXCUSED']
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'note', 'method', 'markedBy', 'markedByName', 'markedAt', 'updatedAt']);
 
       allow delete: if isAdmin();
     }
@@ -440,7 +454,9 @@ service cloud.firestore {
       allow create: if (isAdmin() || (isFrontOffice() && isSameBranch(request.resource.data)))
         && request.resource.data.amount is number
         && request.resource.data.amount > 0
-        && request.resource.data.studentId is string;
+        && request.resource.data.studentId is string
+        && roleOf(request.resource.data.studentId) == 'student'
+        && isSameBranch(get(/databases/$(database)/documents/users/$(request.resource.data.studentId)).data);
       allow update: if isAdmin()
         || (
           isFrontOffice()
@@ -508,7 +524,9 @@ service cloud.firestore {
         && request.resource.data.instructorId == request.auth.uid
         && request.resource.data.studentId is string
         && request.resource.data.classId is string
-        && get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.instructorId == request.auth.uid
+        && (get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.instructorId == request.auth.uid
+          || (('substituteInstructorId' in get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data)
+            && get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.substituteInstructorId == request.auth.uid))
         && get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.studentIds.hasAny([request.resource.data.studentId]);
       allow update, delete: if isAdmin() || ((isManager() || isFrontOffice()) && isSameBranch(resource.data));
     }
@@ -527,7 +545,8 @@ service cloud.firestore {
         && request.resource.data.clockIn is string
         && request.resource.data.clockIn.size() > 0
         && request.resource.data.clockOut == null
-        && isTrackedShiftRole(roleOf(request.resource.data.userId));
+        && isTrackedShiftRole(roleOf(request.resource.data.userId))
+        && isSameBranch(get(/databases/$(database)/documents/users/$(request.resource.data.userId)).data);
       // Shift clock-out and updates: Admin or Front Office (kiosk clock-out)
       allow update: if isAdmin()
         || (isFrontOffice()

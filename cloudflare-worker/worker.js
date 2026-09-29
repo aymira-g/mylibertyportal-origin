@@ -192,6 +192,43 @@ async function fsGetDoc(collectionPath, docId, token) {
   return fromFirestoreDocument(await res.json());
 }
 
+/**
+ * Atomically consumes a persisted kiosk challenge. The update-time
+ * precondition is a compare-and-set: concurrent Worker isolates may read the
+ * same nonce, but only one can change that exact document version.
+ */
+async function fsConsumeKioskChallenge(deviceId, nonce, token) {
+  const url = `${FIRESTORE_BASE}/kioskChallenges/${encodeURIComponent(deviceId)}`;
+  const read = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!read.ok) return { ok: false, reason: "invalid" };
+
+  const raw = await read.json();
+  const challenge = fromFirestoreDocument(raw);
+  if (
+    !challenge ||
+    challenge.nonce !== nonce ||
+    challenge.consumed ||
+    Date.now() > new Date(challenge.expiresAt).getTime()
+  ) {
+    return { ok: false, reason: "invalid" };
+  }
+
+  const consumedAt = new Date().toISOString();
+  const write = await fetch(
+    `${url}?currentDocument.updateTime=${encodeURIComponent(raw.updateTime)}`,
+    {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fields: toFirestoreFields({ ...challenge, consumed: true, consumedAt }),
+      }),
+    }
+  );
+  if (!write.ok) return { ok: false, reason: "already-consumed" };
+  inMemoryChallenges.delete(deviceId);
+  return { ok: true, challenge };
+}
+
 async function fsSetDoc(collectionPath, docId, data, token) {
   const url = `${FIRESTORE_BASE}/${collectionPath}/${encodeURIComponent(docId)}`;
   const res = await fetch(url, {
@@ -584,33 +621,10 @@ async function handleShiftClockIn(request, env) {
   }
 
   // 2. Atomic Challenge Verification and Consumption (K-12)
-  const now = Date.now();
-  let challenge = inMemoryChallenges.get(deviceId);
-  if (!challenge) {
-    const docChallenge = await fsGetDoc("kioskChallenges", deviceId, token);
-    if (docChallenge) {
-      challenge = {
-        nonce: docChallenge.nonce,
-        expiresAt: new Date(docChallenge.expiresAt).getTime(),
-        consumed: Boolean(docChallenge.consumed),
-      };
-    }
+  const consumedChallenge = await fsConsumeKioskChallenge(deviceId, nonce, token);
+  if (!consumedChallenge.ok) {
+    return json({ error: "Invalid or already-consumed challenge nonce. Please rescan." }, 401, request, env);
   }
-
-  if (!challenge || challenge.nonce !== nonce || challenge.consumed) {
-    return json({ error: "Invalid or already-consumed challenge nonce." }, 401, request, env);
-  }
-
-  if (now > challenge.expiresAt) {
-    inMemoryChallenges.delete(deviceId);
-    await fsDeleteDoc("kioskChallenges", deviceId, token);
-    return json({ error: "Challenge nonce has expired. Please rescan." }, 401, request, env);
-  }
-
-  // Mark consumed atomically across isolates before delete
-  inMemoryChallenges.set(deviceId, { ...challenge, consumed: true });
-  await fsSetDoc("kioskChallenges", deviceId, { ...challenge, consumed: true, consumedAt: new Date().toISOString() }, token).catch(() => {});
-  await fsDeleteDoc("kioskChallenges", deviceId, token).catch(() => {});
 
   // 3. Verify device signature against stored public key
   const isSignatureValid = await verifyDeviceSignature(
@@ -630,8 +644,11 @@ async function handleShiftClockIn(request, env) {
   if (!user) {
     return json({ error: "No user profile found matching this badge credential." }, 404, request, env);
   }
-  if (user.status === "terminated" || user.status === "resigned") {
+  if (user.status && user.status !== "active") {
     return json({ error: "This staff badge is no longer active. Please contact administration." }, 403, request, env);
+  }
+  if (user.branchId !== device.branchId) {
+    return json({ error: "This staff badge is assigned to a different branch." }, 403, request, env);
   }
 
   const normalizedRole = normalizeRole(user.role);
@@ -653,21 +670,26 @@ async function handleShiftClockIn(request, env) {
   let resolvedClassName = className || "";
   if (classId && classId !== "general" && !classId.startsWith("corporate_event:")) {
     const classDoc = await fsGetDoc("classes", classId, token);
-    if (classDoc) {
-      if (classDoc.instructorId !== badgeToken && classDoc.substituteInstructorId !== badgeToken) {
-        return json({ error: "Instructor is not assigned to this class." }, 403, request, env);
-      }
-      resolvedClassName = classDoc.className || resolvedClassName;
+    if (!classDoc) {
+      return json({ error: "Selected class no longer exists." }, 404, request, env);
     }
+    if (classDoc.branchId && classDoc.branchId !== device.branchId) {
+      return json({ error: "Selected class belongs to a different branch." }, 403, request, env);
+    }
+    if (classDoc.instructorId !== badgeToken && classDoc.substituteInstructorId !== badgeToken) {
+      return json({ error: "Instructor is not assigned to this class." }, 403, request, env);
+    }
+    resolvedClassName = classDoc.className || resolvedClassName;
   } else if (eventId || (classId && classId.startsWith("corporate_event:"))) {
     const targetEventId = eventId || classId.replace("corporate_event:", "");
     const eventDoc = await fsGetDoc("corporateEvents", targetEventId, token);
-    if (eventDoc) {
-      if (eventDoc.status !== "active") {
-        return json({ error: "Selected corporate event is not active or has been cancelled." }, 400, request, env);
-      }
-      resolvedClassName = eventDoc.name || resolvedClassName;
+    if (!eventDoc) {
+      return json({ error: "Selected corporate event no longer exists." }, 404, request, env);
     }
+    if (eventDoc.status !== "active") {
+      return json({ error: "Selected corporate event is not active or has been cancelled." }, 400, request, env);
+    }
+    resolvedClassName = eventDoc.name || resolvedClassName;
   }
 
   // 6. Enforce Single Open Shift Invariant Atomically (K-03)
@@ -705,6 +727,7 @@ async function handleShiftClockIn(request, env) {
       if (shiftCheck && shiftCheck.clockOut) {
         // Stale lock detected, clean up
         await fsDeleteDoc("activeShifts", badgeToken, token);
+        return json({ error: "A stale kiosk lock was cleared. Please scan again." }, 409, request, env);
       } else {
         return json(
           {
@@ -750,7 +773,14 @@ async function handleShiftClockIn(request, env) {
     ...(eventId ? { eventId } : {}),
   };
 
-  const createdShift = await fsCreateDoc("shifts", shiftPayload, token);
+  let createdShift;
+  try {
+    createdShift = await fsCreateDoc("shifts", shiftPayload, token);
+  } catch (err) {
+    // Never leave an unresolvable opening lock after a failed shift write.
+    await fsDeleteDoc("activeShifts", badgeToken, token).catch(() => {});
+    throw err;
+  }
 
   // Update activeShifts lock to point to the created shiftId
   await fsSetDoc(
@@ -820,33 +850,11 @@ async function handleShiftClockOut(request, env) {
     return json({ error: "Kiosk terminal is not authorized or has been revoked." }, 403, request, env);
   }
 
-  // 2. Consume challenge (K-12)
-  const now = Date.now();
-  let challenge = inMemoryChallenges.get(deviceId);
-  if (!challenge) {
-    const docChallenge = await fsGetDoc("kioskChallenges", deviceId, token);
-    if (docChallenge) {
-      challenge = {
-        nonce: docChallenge.nonce,
-        expiresAt: new Date(docChallenge.expiresAt).getTime(),
-        consumed: Boolean(docChallenge.consumed),
-      };
-    }
-  }
-
-  if (!challenge || challenge.nonce !== nonce || challenge.consumed) {
+  // 2. Consume the nonce with a Firestore compare-and-set (K-12)
+  const consumedChallenge = await fsConsumeKioskChallenge(deviceId, nonce, token);
+  if (!consumedChallenge.ok) {
     return json({ error: "Invalid or already-consumed challenge nonce." }, 401, request, env);
   }
-
-  if (now > challenge.expiresAt) {
-    inMemoryChallenges.delete(deviceId);
-    await fsDeleteDoc("kioskChallenges", deviceId, token);
-    return json({ error: "Challenge nonce has expired." }, 401, request, env);
-  }
-
-  inMemoryChallenges.set(deviceId, { ...challenge, consumed: true });
-  await fsSetDoc("kioskChallenges", deviceId, { ...challenge, consumed: true, consumedAt: new Date().toISOString() }, token).catch(() => {});
-  await fsDeleteDoc("kioskChallenges", deviceId, token).catch(() => {});
 
   // 3. Verify signature over badgeToken
   let isSignatureValid = await verifyDeviceSignature(
@@ -952,33 +960,11 @@ async function handleShiftClassSwitch(request, env) {
     return json({ error: "Kiosk terminal is not authorized or has been revoked." }, 403, request, env);
   }
 
-  // 2. Consume challenge
-  const now = Date.now();
-  let challenge = inMemoryChallenges.get(deviceId);
-  if (!challenge) {
-    const docChallenge = await fsGetDoc("kioskChallenges", deviceId, token);
-    if (docChallenge) {
-      challenge = {
-        nonce: docChallenge.nonce,
-        expiresAt: new Date(docChallenge.expiresAt).getTime(),
-        consumed: Boolean(docChallenge.consumed),
-      };
-    }
-  }
-
-  if (!challenge || challenge.nonce !== nonce || challenge.consumed) {
+  // 2. Consume the nonce with a Firestore compare-and-set.
+  const consumedChallenge = await fsConsumeKioskChallenge(deviceId, nonce, token);
+  if (!consumedChallenge.ok) {
     return json({ error: "Invalid or already-consumed challenge nonce." }, 401, request, env);
   }
-
-  if (now > challenge.expiresAt) {
-    inMemoryChallenges.delete(deviceId);
-    await fsDeleteDoc("kioskChallenges", deviceId, token);
-    return json({ error: "Challenge nonce has expired." }, 401, request, env);
-  }
-
-  inMemoryChallenges.set(deviceId, { ...challenge, consumed: true });
-  await fsSetDoc("kioskChallenges", deviceId, { ...challenge, consumed: true, consumedAt: new Date().toISOString() }, token).catch(() => {});
-  await fsDeleteDoc("kioskChallenges", deviceId, token).catch(() => {});
 
   // 3. Verify signature over badgeToken
   const isSignatureValid = await verifyDeviceSignature(
@@ -997,10 +983,9 @@ async function handleShiftClassSwitch(request, env) {
   if (!user) {
     return json({ error: "No user profile found matching this badge credential." }, 404, request, env);
   }
-  if (user.status === "terminated" || user.status === "resigned") {
+  if (user.status && user.status !== "active") {
     return json({ error: "This staff badge is no longer active." }, 403, request, env);
   }
-
   // 5. Verify previous shift belongs to user and is open
   const prevShift = await fsGetDoc("shifts", previousShiftId, token);
   if (!prevShift) {
@@ -1012,16 +997,23 @@ async function handleShiftClassSwitch(request, env) {
   if (prevShift.userId !== badgeToken) {
     return json({ error: "Previous shift does not belong to the scanned employee credential." }, 403, request, env);
   }
+  if (user.branchId !== device.branchId || prevShift.branchId !== device.branchId) {
+    return json({ error: "This shift or staff badge belongs to a different branch." }, 403, request, env);
+  }
 
   // 6. Validate new class metadata authoritatively (K-06, K-11)
   let resolvedClassName = className || "";
   const classDoc = await fsGetDoc("classes", classId, token);
-  if (classDoc) {
-    if (classDoc.instructorId !== badgeToken && classDoc.substituteInstructorId !== badgeToken) {
-      return json({ error: "Instructor is not assigned to this class." }, 403, request, env);
-    }
-    resolvedClassName = classDoc.className || resolvedClassName;
+  if (!classDoc) {
+    return json({ error: "Selected class no longer exists." }, 404, request, env);
   }
+  if (classDoc.branchId && classDoc.branchId !== device.branchId) {
+    return json({ error: "Selected class belongs to a different branch." }, 403, request, env);
+  }
+  if (classDoc.instructorId !== badgeToken && classDoc.substituteInstructorId !== badgeToken) {
+    return json({ error: "Instructor is not assigned to this class." }, 403, request, env);
+  }
+  resolvedClassName = classDoc.className || resolvedClassName;
 
   const serverTime = new Date().toISOString();
   const branchName = BRANCH_MAP[device.branchId] || "Kota Gorontalo";
@@ -1061,7 +1053,15 @@ async function handleShiftClassSwitch(request, env) {
     createdAt: serverTime,
   };
 
-  const createdShift = await fsCreateDoc("shifts", newShiftPayload, token);
+  let createdShift;
+  try {
+    createdShift = await fsCreateDoc("shifts", newShiftPayload, token);
+  } catch (err) {
+    // Compensate the close so a transient create failure does not strand staff
+    // without an open shift. The retry can safely attempt the switch again.
+    await fsSetDoc("shifts", previousShiftId, prevShift, token).catch(() => {});
+    throw err;
+  }
 
   // Update activeShifts lock to point to new shift
   await fsSetDoc(
@@ -1103,6 +1103,36 @@ async function handleShiftClassSwitch(request, env) {
     request,
     env
   );
+}
+
+async function handleParentLink(request, env) {
+  const caller = await verifyCaller(request);
+  if (!caller) return json({ error: "Invalid or expired login." }, 401, request, env);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "Invalid JSON body." }, 400, request, env); }
+  const { parentUid, studentId } = body || {};
+  if (!parentUid || !studentId) return json({ error: "Parent and student are required." }, 400, request, env);
+  const token = await getAuthToken(request, env);
+  if (!token) return json({ error: "Server authentication unavailable." }, 500, request, env);
+  const [actor, parent, student] = await Promise.all([
+    fsGetDoc("users", caller.user_id, token), fsGetDoc("users", parentUid, token), fsGetDoc("users", studentId, token),
+  ]);
+  const actorRole = normalizeRole(actor?.role);
+  if (!actor || !["admin", "frontoffice", "opslead", "frontofficelead"].includes(actorRole)) {
+    return json({ error: "Only authorized front-office staff can manage parent links." }, 403, request, env);
+  }
+  if (!parent || parent.role !== "parent" || !student || student.role !== "student" || (student.status && student.status !== "active")) {
+    return json({ error: "The selected active parent or student was not found." }, 404, request, env);
+  }
+  if (actorRole !== "admin" && (actor.branchId !== parent.branchId || parent.branchId !== student.branchId)) {
+    return json({ error: "Parent and student must belong to your branch." }, 403, request, env);
+  }
+  await fsSetDoc("users", parentUid, {
+    ...parent,
+    childStudentIds: [...new Set([...(parent.childStudentIds || []), studentId])],
+    updatedAt: new Date().toISOString(),
+  }, token);
+  return json({ success: true }, 200, request, env);
 }
 
 // ── AI ASSISTANT PROXY ──
@@ -1231,6 +1261,10 @@ export default {
     if (request.method === "POST" && (path === "/api/v1/shift/class-switch" || path === "/api/v1/kiosk/class-switch")) {
       return handleShiftClassSwitch(request, env);
     }
+    if (request.method === "POST" && path === "/api/v1/parent-link") {
+      return handleParentLink(request, env);
+    }
+
 
     return json({ error: "Not found", path }, 404, request, env);
   },

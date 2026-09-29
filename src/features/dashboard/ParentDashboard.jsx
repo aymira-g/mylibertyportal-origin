@@ -58,6 +58,11 @@ export default function ParentDashboard({ user = null }) {
     getAuthenticatedParentBundle(currentUid)
       .then((bundle) => {
         if (!active) return;
+        if (bundle.parent?.status && bundle.parent.status !== "active") {
+          setError("This parent account is inactive. Please contact the front desk.");
+          setLoadingInitial(false);
+          return;
+        }
         setParentProfile(bundle.parent);
         setChildren(bundle.children || []);
         if (bundle.children && bundle.children.length > 0) {

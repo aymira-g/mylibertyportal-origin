@@ -167,7 +167,7 @@ export default function KidsInstructorDashboard() {
     {
       id: "reports",
       label: "Reports",
-      component: <ReportsDashboard division="kindergarten" />,
+      component: <ReportsDashboard division="kindergarten" userBranch={instructorBranch || DEFAULT_BRANCH} />,
     },
     { id: "ai", label: "AI Assistant", component: <AIAssistant /> },
   ];

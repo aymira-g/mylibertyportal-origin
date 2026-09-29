@@ -353,7 +353,7 @@ export default function KidsFrontOfficeDashboard() {
       id: "reports",
       label: "Reports",
       component: (
-        <ReportsDashboard isAdminView={false} isFrontOffice={true} division="kindergarten" />
+        <ReportsDashboard isAdminView={false} isFrontOffice={true} division="kindergarten" userBranch={myBranch} />
       ),
     },
     {

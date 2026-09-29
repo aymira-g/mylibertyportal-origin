@@ -6,7 +6,6 @@ import {
   kioskClockOutWithProof,
   kioskSwitchClassWithProof,
   clockOutShift,
-  switchClassAtomic,
   recordStudentAttendance,
 } from "./shiftsRepository";
 import { soundEffects } from "./soundEffects";
@@ -264,28 +263,16 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
         typeof import.meta !== "undefined" && Boolean(import.meta.env?.VITE_AI_WORKER_URL);
       const hasCrypto = typeof window !== "undefined" && Boolean(window.crypto?.subtle);
 
-      if (typeof kioskSwitchClassWithProof === "function" && hasWorker && hasCrypto) {
-        await kioskSwitchClassWithProof({
-          previousShiftId: pendingTransition.openShift.id,
-          badgeToken: pendingTransition.uid,
-          classId: nextClass.id,
-          className: nextClass.className,
-          punctuality,
-        });
-      } else {
-        await switchClassAtomic({
-          previousShiftId: pendingTransition.openShift.id,
-          clockOutAt: now,
-          uid: pendingTransition.uid,
-          displayName: pendingTransition.userData.displayName,
-          role: pendingTransition.userData.role,
-          branchId: pendingTransition.userData.branchId || pendingTransition.openShift.branchId,
-          branch: pendingTransition.userData.branch || pendingTransition.openShift.branch,
-          classId: nextClass.id,
-          className: nextClass.className,
-          punctuality,
-        });
+      if (typeof kioskSwitchClassWithProof !== "function" || !hasWorker || !hasCrypto) {
+        throw new Error("Secure kiosk verification is unavailable. Please reconnect and try again.");
       }
+      await kioskSwitchClassWithProof({
+        previousShiftId: pendingTransition.openShift.id,
+        badgeToken: pendingTransition.uid,
+        classId: nextClass.id,
+        className: nextClass.className,
+        punctuality,
+      });
 
       const name = pendingTransition.userData.displayName;
       showStatus(

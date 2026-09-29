@@ -10,6 +10,7 @@ import {
   where,
   onSnapshot,
   writeBatch,
+  runTransaction,
 } from "firebase/firestore";
 import { classAttendanceSchema } from "../../schemas/classAttendanceSchema.js";
 
@@ -129,15 +130,6 @@ export async function recordClassAttendanceScan({
 }) {
   const docId = getClassAttendanceDocId(classId, studentId, attendanceDate);
   const docRef = doc(db, "classAttendance", docId);
-  const existingSnap = await getDoc(docRef);
-
-  if (existingSnap.exists()) {
-    return {
-      status: "exists",
-      record: { id: docId, ...existingSnap.data() },
-    };
-  }
-
   const nowIso = new Date().toISOString();
   const rawData = {
     classId,
@@ -157,12 +149,16 @@ export async function recordClassAttendanceScan({
   };
 
   const validatedData = classAttendanceSchema.parse(rawData);
-  await setDoc(docRef, validatedData);
-
-  return {
-    status: "created",
-    record: { id: docId, ...validatedData },
-  };
+  // The transaction retries if another scanner writes this deterministic ID
+  // first, so a concurrent scan becomes the normal idempotent result.
+  return runTransaction(db, async (tx) => {
+    const existingSnap = await tx.get(docRef);
+    if (existingSnap.exists()) {
+      return { status: "exists", record: { id: docId, ...existingSnap.data() } };
+    }
+    tx.set(docRef, validatedData);
+    return { status: "created", record: { id: docId, ...validatedData } };
+  });
 }
 
 /**

@@ -329,7 +329,9 @@ export async function createParentAccount(email, password, parentData) {
     email: input.email.trim().toLowerCase(),
     phone: (input.phone || "").trim(),
     role: "parent",
-    childStudentIds: initialChildren,
+    // Linkage is written only by the server-authoritative Worker after the
+    // parent profile exists and the target student has been branch-validated.
+    childStudentIds: [],
     status: input.status || "active",
     branchId: canonicalBranchId,
     branch: canonicalBranch,
@@ -341,6 +343,9 @@ export async function createParentAccount(email, password, parentData) {
 
   try {
     await setDoc(doc(db, "users", cred.user.uid), payload, { merge: true });
+    for (const studentId of initialChildren) {
+      await linkChildThroughWorker(cred.user.uid, studentId);
+    }
   } catch (err) {
     try {
       await deleteUser(cred.user);
@@ -382,6 +387,24 @@ export function updateParentRecord(uid, parentData = {}) {
   return setDoc(doc(db, "users", uid), payload, { merge: true });
 }
 
+async function linkChildThroughWorker(parentUid, studentId) {
+  const workerBase = import.meta.env?.VITE_AI_WORKER_URL || "";
+  const user = auth.currentUser;
+  if (!workerBase || !user) {
+    throw new Error("Secure parent linking is unavailable. Please reconnect and try again.");
+  }
+  const response = await fetch(`${workerBase.replace(/\/$/, "")}/api/v1/parent-link`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${await user.getIdToken()}`,
+    },
+    body: JSON.stringify({ parentUid, studentId }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || "Could not link the parent account.");
+}
+
 /**
  * Links a student to a parent's childStudentIds list.
  *
@@ -390,14 +413,7 @@ export function updateParentRecord(uid, parentData = {}) {
  */
 export function linkChildToParent(parentUid, studentId) {
   const parsed = parentChildLinkSchema.parse({ parentUid, studentId });
-  return setDoc(
-    doc(db, "users", parsed.parentUid),
-    {
-      childStudentIds: arrayUnion(parsed.studentId),
-      updatedAt: new Date().toISOString(),
-    },
-    { merge: true }
-  );
+  return linkChildThroughWorker(parsed.parentUid, parsed.studentId);
 }
 
 /**

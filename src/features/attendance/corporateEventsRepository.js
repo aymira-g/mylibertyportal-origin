@@ -10,6 +10,7 @@ import {
   serverTimestamp,
   onSnapshot,
   orderBy,
+  limit,
 } from "firebase/firestore";
 import { corporateEventSchema } from "../../schemas/corporateEventSchema.js";
 import { branchToId, idToBranch } from "../../constants/branches.js";
@@ -38,7 +39,7 @@ export async function fetchActiveCorporateEventsForDate(dateStr) {
  * @returns {Promise<Array<object>>}
  */
 export async function fetchCorporateEvents() {
-  const q = query(collection(db, "corporateEvents"), orderBy("eventDate", "desc"));
+  const q = query(collection(db, "corporateEvents"), orderBy("eventDate", "desc"), limit(100));
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
@@ -51,7 +52,7 @@ export async function fetchCorporateEvents() {
  * @returns {() => void} Unsubscribe function
  */
 export function subscribeCorporateEvents(onData, onError) {
-  const q = query(collection(db, "corporateEvents"), orderBy("eventDate", "desc"));
+  const q = query(collection(db, "corporateEvents"), orderBy("eventDate", "desc"), limit(100));
   return onSnapshot(
     q,
     (snap) => {

@@ -262,8 +262,10 @@ export async function kioskClockInWithProof({
  * Clocks out a shift through the server-authoritative Cloudflare Worker with kiosk proof.
  * Binds the clock-out action to the scanned badge credential to prevent cross-account closing (K-02).
  * Fails closed if the worker service or browser crypto is unavailable (K-01 / K-05).
+ * @param {{ shiftId?: string, badgeToken?: string }} [params]
  */
-export async function kioskClockOutWithProof({ shiftId, badgeToken }) {
+export async function kioskClockOutWithProof(params = {}) {
+  const { shiftId, badgeToken } = params;
   if (!shiftId || !badgeToken) {
     throw new Error("Missing shiftId or badgeToken for kiosk clock-out.");
   }

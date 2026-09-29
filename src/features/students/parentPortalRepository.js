@@ -56,7 +56,10 @@ export async function getAuthenticatedParentBundle(parentUid) {
     try {
       const childDoc = await getDoc(doc(db, "users", childId));
       if (childDoc.exists()) {
-        children.push({ id: childDoc.id, ...childDoc.data() });
+        const child = childDoc.data();
+        if (child.role === "student" && (!child.status || child.status === "active")) {
+          children.push({ id: childDoc.id, ...child });
+        }
       }
     } catch (err) {
       console.warn(`Failed to read linked child ${childId}:`, err);

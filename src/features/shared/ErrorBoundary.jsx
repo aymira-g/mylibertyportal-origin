@@ -19,11 +19,11 @@ import { reportError } from "../../utils/reportError";
 export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
   }
 
   componentDidCatch(error) {
@@ -31,7 +31,7 @@ export default class ErrorBoundary extends Component {
   }
 
   handleReset = () => {
-    this.setState({ hasError: false });
+    this.setState({ hasError: false, error: null });
   };
 
   render() {
@@ -47,6 +47,11 @@ export default class ErrorBoundary extends Component {
             reloading. If it keeps happening, let an admin know what you were doing right before
             this appeared.
           </p>
+          {this.state.error?.message && (
+            <div className="text-left bg-rose-50 border border-rose-200/80 rounded-xl p-3 text-[11px] font-mono text-rose-800 break-words">
+              <strong>Error:</strong> {this.state.error.message}
+            </div>
+          )}
           <div className="flex gap-2 justify-center pt-2">
             <button
               onClick={this.handleReset}

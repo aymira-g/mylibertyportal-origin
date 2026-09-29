@@ -55,6 +55,7 @@ export {
   isActionOperational,
 } from "./approvalGates";
 export { ApprovalInbox } from "./ApprovalInbox";
+export { usePendingApprovalsCount } from "./usePendingApprovalsCount";
 export {
   submitApprovalRequest,
   listenToPendingApprovals,

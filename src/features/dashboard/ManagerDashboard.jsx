@@ -1,7 +1,15 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { auth, db } from "../../firebase";
 import { collection, onSnapshot, query, where, doc } from "firebase/firestore";
-import { AIAssistant, DashboardShell, useToast, ApprovalInbox, isStaffRole, isInstructorRole } from "../shared";
+import {
+  AIAssistant,
+  DashboardShell,
+  useToast,
+  ApprovalInbox,
+  isStaffRole,
+  isInstructorRole,
+  usePendingApprovalsCount,
+} from "../shared";
 import { ReportsDashboard } from "../reports";
 import { StudentRoster } from "../students";
 import { createTodo, deleteTodo, toggleTodoComplete } from "../staff";
@@ -438,6 +446,8 @@ export default function ManagerDashboard() {
     return getFollowUpSchools(schools).length;
   }, [schools]);
 
+  const pendingApprovalsCount = usePendingApprovalsCount("manager", managerBranchId || myBranch);
+
   const getStudentClasses = useCallback(
     (studentId) => {
       return (scopedClasses || []).filter((c) => (c.studentIds || []).includes(studentId));
@@ -538,6 +548,7 @@ export default function ManagerDashboard() {
     {
       id: "approvals",
       label: "Branch Approvals",
+      badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
       component: (
         <ApprovalInbox
           userRole="manager"

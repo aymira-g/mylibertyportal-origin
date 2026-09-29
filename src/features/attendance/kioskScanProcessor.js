@@ -206,12 +206,18 @@ export async function handleKioskScan(
 
   if (userData.role === "student") {
     const studentStatus = userData.status || "active";
-    if (studentStatus === "inactive" || studentStatus === "graduated") {
+    if (
+      studentStatus === "inactive" ||
+      studentStatus === "graduated" ||
+      studentStatus === "archived"
+    ) {
       return showStatus(
         "Pass Inactive",
         "error",
         studentStatus === "graduated"
           ? "This student has graduated. Please contact the administration."
+          : studentStatus === "archived"
+          ? "This student record is archived. Please contact the front office."
           : "This student pass is inactive. Please contact the front office.",
         userData.displayName
       );
@@ -472,11 +478,7 @@ export async function handleKioskScan(
       }
 
       if (typeof kioskClockOutWithProof === "function") {
-        try {
-          await kioskClockOutWithProof({ shiftId: openShift.id, badgeToken: uid });
-        } catch {
-          await clockOutShift(openShift.id);
-        }
+        await kioskClockOutWithProof({ shiftId: openShift.id, badgeToken: uid });
       } else {
         await clockOutShift(openShift.id);
       }

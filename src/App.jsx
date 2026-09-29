@@ -170,7 +170,7 @@ function App() {
           );
           return false;
         }
-        setRole(data.role || "student");
+        setRole(normalizeRole(data.role) || "student");
         setDivision(normalizeDivision(data.division));
         setBranch(data.branchId || data.branch || "kota_gorontalo");
         setDisplayName(data.displayName || "");

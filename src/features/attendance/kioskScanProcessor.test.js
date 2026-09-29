@@ -503,3 +503,80 @@ describe("kioskScanProcessor in STATION mode for instructors & corporate events"
     );
   });
 });
+
+describe("kioskScanProcessor student status validations", () => {
+  let showStatus;
+  let setLastScanned;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    showStatus = vi.fn();
+    setLastScanned = vi.fn();
+  });
+
+  it("rejects archived students from scanning at kiosk", async () => {
+    vi.mocked(shiftsRepo.fetchUserById).mockResolvedValueOnce({
+      id: "std_archived",
+      displayName: "Archived Student",
+      role: "student",
+      status: "archived",
+    });
+
+    await handleKioskScan("std_archived", {
+      attendanceMode: "STATION",
+      showStatus,
+      setLastScanned,
+    });
+
+    expect(showStatus).toHaveBeenCalledWith(
+      "Pass Inactive",
+      "error",
+      "This student record is archived. Please contact the front office.",
+      "Archived Student"
+    );
+  });
+
+  it("rejects inactive students from scanning at kiosk", async () => {
+    vi.mocked(shiftsRepo.fetchUserById).mockResolvedValueOnce({
+      id: "std_inactive",
+      displayName: "Inactive Student",
+      role: "student",
+      status: "inactive",
+    });
+
+    await handleKioskScan("std_inactive", {
+      attendanceMode: "STATION",
+      showStatus,
+      setLastScanned,
+    });
+
+    expect(showStatus).toHaveBeenCalledWith(
+      "Pass Inactive",
+      "error",
+      "This student pass is inactive. Please contact the front office.",
+      "Inactive Student"
+    );
+  });
+
+  it("rejects graduated students from scanning at kiosk", async () => {
+    vi.mocked(shiftsRepo.fetchUserById).mockResolvedValueOnce({
+      id: "std_graduated",
+      displayName: "Graduated Student",
+      role: "student",
+      status: "graduated",
+    });
+
+    await handleKioskScan("std_graduated", {
+      attendanceMode: "STATION",
+      showStatus,
+      setLastScanned,
+    });
+
+    expect(showStatus).toHaveBeenCalledWith(
+      "Pass Inactive",
+      "error",
+      "This student has graduated. Please contact the administration.",
+      "Graduated Student"
+    );
+  });
+});

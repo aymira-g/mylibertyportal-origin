@@ -5,22 +5,35 @@ import { describe, it, expect } from "vitest";
  * This guarantees mathematical and operational correctness of all security rule predicates.
  */
 
+function isActiveUser(user) {
+  if (!user) return false;
+  return !("status" in user) || (user.status !== "resigned" && user.status !== "terminated");
+}
+
 function userBranch(user) {
   if (!user) return "kota_gorontalo";
-  return user.branchId || "kota_gorontalo";
+  if (user.branchId) return user.branchId;
+  if (user.branch) {
+    if (user.branch === "Bone Bolango") return "bone_bolango";
+    if (user.branch === "Pohuwato") return "pohuwato";
+    if (user.branch === "Limboto") return "limboto";
+    return "kota_gorontalo";
+  }
+  return "kota_gorontalo";
 }
 
 function isAdmin(user) {
-  return Boolean(user && user.role === "admin");
+  return Boolean(user && isActiveUser(user) && user.role === "admin");
 }
 
 function isManager(user) {
-  return Boolean(user && user.role === "manager");
+  return Boolean(user && isActiveUser(user) && user.role === "manager");
 }
 
 function isFrontOffice(user) {
   return Boolean(
     user &&
+      isActiveUser(user) &&
       ["frontoffice", "opslead", "ops_lead", "frontofficelead"].includes(user.role)
   );
 }
@@ -28,6 +41,7 @@ function isFrontOffice(user) {
 function isStaff(user) {
   return Boolean(
     user &&
+      isActiveUser(user) &&
       [
         "admin",
         "manager",
@@ -1175,6 +1189,136 @@ describe("Security Rules Matrix & Branch Isolation", () => {
 
       expect(canUpdateTodo(academyDoc, completedUpdate, foBoneBolango)).toBe(true);
       expect(canUpdateTodo(academyDoc, completedUpdate, foGorontalo)).toBe(true);
+    });
+
+    it("strictly revokes staff and admin authorizations when status is resigned or terminated", () => {
+      const activeAdmin = { uid: "adm1", role: "admin", status: "active", branchId: "kota_gorontalo" };
+      const terminatedAdmin = { uid: "adm1", role: "admin", status: "terminated", branchId: "kota_gorontalo" };
+      const resignedManager = { uid: "mgr1", role: "manager", status: "resigned", branchId: "kota_gorontalo" };
+      const terminatedFO = { uid: "fo1", role: "frontoffice", status: "terminated", branchId: "kota_gorontalo" };
+      const terminatedInstructor = { uid: "ins1", role: "instructor", status: "terminated", branchId: "kota_gorontalo" };
+
+      expect(isAdmin(activeAdmin)).toBe(true);
+      expect(isAdmin(terminatedAdmin)).toBe(false);
+      expect(isManager(resignedManager)).toBe(false);
+      expect(isFrontOffice(terminatedFO)).toBe(false);
+      expect(isStaff(terminatedInstructor)).toBe(false);
+    });
+
+    it("correctly resolves legacy branch string when branchId is absent", () => {
+      const legacyUserBone = { uid: "u1", role: "instructor", branch: "Bone Bolango" };
+      const legacyUserPohuwato = { uid: "u2", role: "instructor", branch: "Pohuwato" };
+      const legacyUserLimboto = { uid: "u3", role: "instructor", branch: "Limboto" };
+      const legacyUserDefault = { uid: "u4", role: "instructor" };
+
+      expect(userBranch(legacyUserBone)).toBe("bone_bolango");
+      expect(userBranch(legacyUserPohuwato)).toBe("pohuwato");
+      expect(userBranch(legacyUserLimboto)).toBe("limboto");
+      expect(userBranch(legacyUserDefault)).toBe("kota_gorontalo");
+    });
+  });
+
+  describe("Payment Security Rules Invariants (Section 4 Audit)", () => {
+    function isParentOf(studentId, user) {
+      return (
+        user?.role === "parent" &&
+        Array.isArray(user.childStudentIds) &&
+        user.childStudentIds.includes(studentId)
+      );
+    }
+
+    function canGetPayment(payment, user) {
+      if (!user) return false;
+      if (isAdmin(user)) return true;
+      if ((isManager(user) || isFrontOffice(user)) && isSameBranch(payment, user)) return true;
+      if (payment.studentId === user.uid) return true;
+      if (isParentOf(payment.studentId, user)) return true;
+      return false;
+    }
+
+    function canCreatePayment(payment, user) {
+      if (!user) return false;
+      const isAuthorized = isAdmin(user) || (isFrontOffice(user) && isSameBranch(payment, user));
+      if (!isAuthorized) return false;
+      if (typeof payment.amount !== "number" || payment.amount <= 0) return false;
+      if (typeof payment.studentId !== "string" || !payment.studentId.trim()) return false;
+      return true;
+    }
+
+    function canUpdatePayment(existing, incoming, user) {
+      if (!user) return false;
+      if (isAdmin(user)) return true;
+      if (
+        isFrontOffice(user) &&
+        isSameBranch(existing, user) &&
+        isSameBranch(incoming, user) &&
+        (!existing.branchId || incoming.branchId === existing.branchId)
+      ) {
+        const allowedKeys = new Set(["notes", "approvalStatus", "referenceNumber", "updatedAt"]);
+        const changedKeys = Object.keys(incoming).filter((k) => existing[k] !== incoming[k]);
+        return changedKeys.every((k) => allowedKeys.has(k));
+      }
+      return false;
+    }
+
+    function canDeletePayment(user) {
+      if (!user) return false;
+      return isAdmin(user);
+    }
+
+    const paymentKota = {
+      id: "pay_1",
+      studentId: "std_alice",
+      branchId: "kota_gorontalo",
+      amount: 500000,
+      period: "October 2026",
+    };
+
+    const parentAlice = {
+      uid: "par_1",
+      role: "parent",
+      branchId: "kota_gorontalo",
+      childStudentIds: ["std_alice"],
+    };
+
+    const parentBob = {
+      uid: "par_2",
+      role: "parent",
+      branchId: "kota_gorontalo",
+      childStudentIds: ["std_bob"],
+    };
+
+    it("allows student and their verified parent to read payment receipt records", () => {
+      const studentUser = { uid: "std_alice", role: "student", branchId: "kota_gorontalo" };
+      const strangerStudent = { uid: "std_charlie", role: "student", branchId: "kota_gorontalo" };
+
+      expect(canGetPayment(paymentKota, studentUser)).toBe(true);
+      expect(canGetPayment(paymentKota, parentAlice)).toBe(true);
+      expect(canGetPayment(paymentKota, parentBob)).toBe(false);
+      expect(canGetPayment(paymentKota, strangerStudent)).toBe(false);
+    });
+
+    it("enforces positive numeric amount and studentId on payment creation", () => {
+      expect(canCreatePayment(paymentKota, foGorontalo)).toBe(true);
+      expect(canCreatePayment({ ...paymentKota, amount: 0 }, foGorontalo)).toBe(false);
+      expect(canCreatePayment({ ...paymentKota, amount: -1000 }, foGorontalo)).toBe(false);
+      expect(canCreatePayment({ ...paymentKota, studentId: "" }, foGorontalo)).toBe(false);
+      expect(canCreatePayment(paymentKota, foBoneBolango)).toBe(false);
+    });
+
+    it("forbids Front Office from altering core financial fields (amount, studentId)", () => {
+      const tamperedAmount = { ...paymentKota, amount: 200000 };
+      const allowedNoteUpdate = { ...paymentKota, notes: "Paid via BCA Transfer" };
+
+      expect(canUpdatePayment(paymentKota, allowedNoteUpdate, foGorontalo)).toBe(true);
+      expect(canUpdatePayment(paymentKota, tamperedAmount, foGorontalo)).toBe(false);
+      expect(canUpdatePayment(paymentKota, tamperedAmount, adminUser)).toBe(true);
+    });
+
+    it("prohibits Front Office from deleting payment records (admin-only)", () => {
+      expect(canDeletePayment(foGorontalo)).toBe(false);
+      expect(canDeletePayment(managerGorontalo)).toBe(false);
+      expect(canDeletePayment(adminUser)).toBe(true);
     });
   });
 });

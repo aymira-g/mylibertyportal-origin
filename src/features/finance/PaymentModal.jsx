@@ -137,25 +137,26 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
 
   const handleRecordPayment = async (e) => {
     e.preventDefault();
-    const isReachable = await checkNetworkReachability();
-    if (!isReachable) {
-      toast(
-        "Cannot record payment: connection is offline or unstable. Please check your internet connection.",
-        "error"
-      );
-      return;
-    }
-    if (!amount || amount <= 0) {
-      toast("Please enter a valid payment amount.", "error");
-      return;
-    }
-    if (!period.trim()) {
-      toast("Please enter a billing period (e.g. September 2026).", "error");
-      return;
-    }
-
+    if (saving) return;
     setSaving(true);
     try {
+      const isReachable = await checkNetworkReachability();
+      if (!isReachable) {
+        toast(
+          "Cannot record payment: connection is offline or unstable. Please check your internet connection.",
+          "error"
+        );
+        return;
+      }
+      if (!amount || amount <= 0) {
+        toast("Please enter a valid payment amount.", "error");
+        return;
+      }
+      if (!period.trim()) {
+        toast("Please enter a billing period (e.g. September 2026).", "error");
+        return;
+      }
+
       const nowISO = new Date().toISOString();
 
       let planMonths = null;

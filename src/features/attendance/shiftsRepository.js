@@ -424,11 +424,16 @@ export function switchClassAtomic({
   uid,
   displayName = "",
   role,
+  branch = null,
+  branchId = null,
   classId = "general",
   className = "",
   punctuality = null,
   stationId = "reception-01",
 }) {
+  const finalBranchId = branchToId(branchId || branch || DEFAULT_BRANCH_ID);
+  const finalBranch = idToBranch(finalBranchId);
+
   const batch = writeBatch(db);
   const prevRef = doc(db, "shifts", previousShiftId);
   batch.update(prevRef, { clockOut: clockOutAt.toISOString() });
@@ -438,6 +443,8 @@ export function switchClassAtomic({
     userId: uid,
     displayName: displayName || "",
     role,
+    branch: finalBranch,
+    branchId: finalBranchId,
     classId: classId || "general",
     className: className || "",
     clockIn: clockOutAt.toISOString(),
@@ -492,7 +499,7 @@ export function recordStudentAttendance({
   };
 
   if (dateKey) {
-    const docId = `${uid}_${dateKey}`;
+    const docId = eventId ? `${uid}_${dateKey}_${eventId}` : `${uid}_${dateKey}`;
     return setDoc(doc(db, "attendance", docId), payload, { merge: true });
   }
 
@@ -544,6 +551,8 @@ export async function adjustShiftWithAudit({
     note: note || "",
     actorId,
     actorNameSnapshot: actorName,
+    branchId: beforeShift.branchId || null,
+    branch: beforeShift.branch || null,
     ...(appliedFromApproval ? { appliedFromApproval } : {}),
     createdAt: serverTimestamp(),
   });

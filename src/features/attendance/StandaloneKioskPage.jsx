@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import schoolLogo from "../../assets/school-logo.webp";
 import Kiosk from "./Kiosk";
 import { Users, GraduationCap, ArrowLeft, ShieldCheck } from "lucide-react";
@@ -17,6 +17,41 @@ export default function StandaloneKioskPage({ initialMode = "students" }) {
     }
     return initialMode;
   });
+
+  useEffect(() => {
+    let wakeLock = null;
+
+    async function requestWakeLock() {
+      if (
+        typeof navigator !== "undefined" &&
+        "wakeLock" in navigator &&
+        document.visibilityState === "visible"
+      ) {
+        try {
+          wakeLock = await navigator.wakeLock.request("screen");
+        } catch {
+          // Wake lock request might fail (e.g. low battery, background tab)
+        }
+      }
+    }
+
+    requestWakeLock();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        requestWakeLock();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (wakeLock) {
+        wakeLock.release().catch(() => {});
+      }
+    };
+  }, []);
 
   const isStaff = mode === "staff";
   const isStudents = mode === "students";

@@ -15,7 +15,10 @@ import {
   updateStaffStatus,
 } from "./usersRepository.js";
 
-const authMock = vi.hoisted(() => ({ createUserWithEmailAndPassword: vi.fn() }));
+const authMock = vi.hoisted(() => ({
+  createUserWithEmailAndPassword: vi.fn(),
+  deleteUser: vi.fn(),
+}));
 
 vi.mock(
   "firebase/firestore",
@@ -98,6 +101,19 @@ describe("checkStudentHasHistory", () => {
     });
   });
 
+  it("detects classAttendance records even if general attendance is empty", async () => {
+    fake.seed("payments", []);
+    fake.seed("attendance", []);
+    fake.seed("classAttendance", [{ id: "ca1", studentId: "s1" }]);
+    fake.seed("progressReports", []);
+    expect(await checkStudentHasHistory("s1")).toEqual({
+      hasPayments: false,
+      hasAttendance: true,
+      hasReports: false,
+      error: null,
+    });
+  });
+
   it("returns the error message on a failed lookup", async () => {
     const firestore = /** @type {any} */ (await import("firebase/firestore"));
     firestore.getDocs.mockRejectedValueOnce(new Error("unavailable"));
@@ -129,13 +145,14 @@ describe("createStaffAccount", () => {
     expect(fake.ops).toHaveLength(0);
   });
 
-  it("explains the half-finished state when the profile save fails", async () => {
-    authMock.createUserWithEmailAndPassword.mockResolvedValueOnce({ user: { uid: "new-uid" } });
+  it("rolls back the created Auth account when the profile save fails", async () => {
+    const userObj = { uid: "new-uid" };
+    authMock.createUserWithEmailAndPassword.mockResolvedValueOnce({ user: userObj });
     fake.failWhen = () => new Error("permission-denied");
     const err = await createStaffAccount("a@b.id", "pw", {}).catch((e) => e);
-    expect(err.message).toContain("Account was created in Firebase Auth");
-    expect(err.message).toContain("permission-denied");
-    expect(err.cause.message).toBe("permission-denied");
+    expect(err.message).toContain("Account creation failed");
+    expect(err.message).toContain("rolled back");
+    expect(authMock.deleteUser).toHaveBeenCalledWith(userObj);
   });
 });
 
@@ -223,6 +240,18 @@ describe("createParentAccount", () => {
       })
     ).rejects.toThrow();
     expect(authMock.createUserWithEmailAndPassword).not.toHaveBeenCalled();
+  });
+
+  it("rolls back the created Auth account when saving parent doc fails", async () => {
+    const userObj = { uid: "parent_fail_1" };
+    authMock.createUserWithEmailAndPassword.mockResolvedValueOnce({ user: userObj });
+    fake.failWhen = () => new Error("permission-denied");
+    const err = await createParentAccount("parentfail@example.com", "pass123456", {
+      displayName: "Parent Fail",
+    }).catch((e) => e);
+    expect(err.message).toContain("Parent account creation failed");
+    expect(err.message).toContain("rolled back");
+    expect(authMock.deleteUser).toHaveBeenCalledWith(userObj);
   });
 });
 

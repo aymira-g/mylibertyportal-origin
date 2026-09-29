@@ -205,6 +205,8 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
         uid: pendingTransition.uid,
         displayName: pendingTransition.userData.displayName,
         role: pendingTransition.userData.role,
+        branchId: pendingTransition.userData.branchId || pendingTransition.openShift.branchId,
+        branch: pendingTransition.userData.branch || pendingTransition.openShift.branch,
         classId: nextClass.id,
         className: nextClass.className,
         punctuality,

@@ -145,6 +145,7 @@ describe("STUDENT_STATUS_OPTIONS", () => {
       "on_leave",
       "graduated",
       "inactive",
+      "archived",
     ]);
   });
 });

@@ -433,8 +433,8 @@ async function handleKioskProvision(request, env) {
 
   const token = await getAuthToken(request, env);
   const userDoc = await fsGetDoc("users", caller.user_id, token);
-  if (!userDoc || userDoc.role !== "admin") {
-    return json({ error: "Forbidden: Only administrators can provision kiosk terminals." }, 403, request, env);
+  if (!userDoc || userDoc.role !== "admin" || userDoc.status === "terminated" || userDoc.status === "resigned") {
+    return json({ error: "Forbidden: Only active administrators can provision kiosk terminals." }, 403, request, env);
   }
 
   let body;
@@ -483,8 +483,8 @@ async function handleKioskRevoke(request, env) {
 
   const token = await getAuthToken(request, env);
   const userDoc = await fsGetDoc("users", caller.user_id, token);
-  if (!userDoc || userDoc.role !== "admin") {
-    return json({ error: "Forbidden: Only administrators can revoke terminals." }, 403, request, env);
+  if (!userDoc || userDoc.role !== "admin" || userDoc.status === "terminated" || userDoc.status === "resigned") {
+    return json({ error: "Forbidden: Only active administrators can revoke terminals." }, 403, request, env);
   }
 
   let body;
@@ -608,6 +608,9 @@ async function handleShiftClockIn(request, env) {
   const user = await fsGetDoc("users", badgeToken, token);
   if (!user) {
     return json({ error: "No user profile found matching this badge credential." }, 404, request, env);
+  }
+  if (user.status === "terminated" || user.status === "resigned") {
+    return json({ error: "This staff badge is no longer active. Please contact administration." }, 403, request, env);
   }
 
   const normalizedRole = normalizeRole(user.role);
@@ -819,6 +822,28 @@ async function handleAIAssistant(request, env) {
   const caller = await verifyCaller(request);
   if (!caller) {
     return json({ error: "Invalid or expired login" }, 401, request, env);
+  }
+
+  const token = await getAuthToken(request, env);
+  const userDoc = token ? await fsGetDoc("users", caller.user_id, token) : null;
+  const userRole = normalizeRole(userDoc?.role);
+  const staffRoles = [
+    "admin",
+    "manager",
+    "instructor",
+    "instructorleader",
+    "frontoffice",
+    "opslead",
+    "marketing",
+    "officeboy",
+  ];
+  if (
+    !userDoc ||
+    !staffRoles.includes(userRole) ||
+    userDoc.status === "terminated" ||
+    userDoc.status === "resigned"
+  ) {
+    return json({ error: "Forbidden: AI Assistant is restricted to active staff members." }, 403, request, env);
   }
 
   let body;

@@ -12,8 +12,13 @@ service cloud.firestore {
         : null;
     }
 
+    function isActiveUser() {
+      return signedIn()
+        && (!('status' in userProfile()) || (userProfile().status != 'resigned' && userProfile().status != 'terminated'));
+    }
+
     function hasRole(role) {
-      return signedIn() && userProfile().role == role;
+      return signedIn() && isActiveUser() && userProfile().role == role;
     }
 
     function isAdmin() {
@@ -25,17 +30,23 @@ service cloud.firestore {
     }
 
     function isStaff() {
-      return signedIn() && userProfile().role in ['admin', 'manager', 'instructor', 'instructorleader', 'instructor_leader', 'marketing', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'officeboy'];
+      return signedIn() && isActiveUser() && userProfile().role in ['admin', 'manager', 'instructor', 'instructorleader', 'instructor_leader', 'marketing', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'officeboy'];
     }
 
     function isFrontOffice() {
-      return signedIn() && userProfile().role in ['frontoffice', 'opslead', 'ops_lead', 'frontofficelead'];
+      return signedIn() && isActiveUser() && userProfile().role in ['frontoffice', 'opslead', 'ops_lead', 'frontofficelead'];
     }
 
     function userBranch() {
       return signedIn() && ('branchId' in userProfile())
         ? userProfile().branchId
-        : 'kota_gorontalo';
+        : (signedIn() && ('branch' in userProfile())
+          ? (
+            (userProfile().branch == 'Bone Bolango' ? 'bone_bolango' :
+            userProfile().branch == 'Pohuwato' ? 'pohuwato' :
+            userProfile().branch == 'Limboto' ? 'limboto' : 'kota_gorontalo')
+          )
+          : 'kota_gorontalo');
     }
 
     function isSameBranch(data) {
@@ -235,7 +246,7 @@ service cloud.firestore {
       // inviteId is the invite's unguessable token. Public signup can look
       // an invite up by its exact ID, but can never list/dump the collection.
       allow get: if true;
-      allow list: if isAdmin() || isFrontOffice();
+      allow list: if isAdmin() || (isFrontOffice() && isSameBranchStrict(resource.data));
 
       // A newly-registered staff member may clear the one invite that
       // matches their own (just-verified) auth email; admins can cancel any.
@@ -320,12 +331,15 @@ service cloud.firestore {
         || (isStaff() && isSameBranchStrict(resource.data));
       // Student scans: Admin (reception station), Front Office, Instructor, and Instructor Leader; scanned person must be a student
       allow create: if (isAdmin() || isFrontOffice() || hasRole('instructor') || hasRole('instructorleader') || hasRole('instructor_leader'))
+        && isSameBranch(request.resource.data)
         && request.resource.data.userId is string
         && request.resource.data.timestamp is string
         && roleOf(request.resource.data.userId) == 'student';
       // Double-scan idempotency: allow Front Office and Instructors to update existing day scan as long as student identity is preserved
       allow update: if isAdmin()
         || ((isFrontOffice() || hasRole('instructor') || hasRole('instructorleader') || hasRole('instructor_leader'))
+          && isSameBranch(resource.data)
+          && isSameBranch(request.resource.data)
           && request.resource.data.userId == resource.data.userId
           && request.resource.data.role == resource.data.role);
       allow delete: if isAdmin();
@@ -413,11 +427,25 @@ service cloud.firestore {
     }
 
     match /payments/{paymentId} {
-      allow get: if isAdmin() || ((isManager() || isFrontOffice()) && isSameBranch(resource.data)) || (signedIn() && resource.data.studentId == request.auth.uid);
-      allow list: if isAdmin() || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data));
-      allow create: if isAdmin() || (isFrontOffice() && isSameBranch(request.resource.data));
-      allow update: if isAdmin() || (isFrontOffice() && isSameBranch(resource.data) && isSameBranch(request.resource.data) && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId));
-      allow delete: if isAdmin() || (isFrontOffice() && isSameBranch(resource.data));
+      allow get: if isAdmin()
+        || ((isManager() || isFrontOffice()) && isSameBranch(resource.data))
+        || (signedIn() && (resource.data.studentId == request.auth.uid || isParentOf(resource.data.studentId)));
+      allow list: if isAdmin()
+        || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data));
+      allow create: if (isAdmin() || (isFrontOffice() && isSameBranch(request.resource.data)))
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.studentId is string;
+      allow update: if isAdmin()
+        || (
+          isFrontOffice()
+          && isSameBranch(resource.data)
+          && isSameBranch(request.resource.data)
+          && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['notes', 'approvalStatus', 'referenceNumber', 'updatedAt'])
+        );
+      allow delete: if isAdmin();
     }
 
     match /deskInquiries/{inquiryId} {
@@ -525,7 +553,7 @@ service cloud.firestore {
     }
 
     match /shiftAuditEvents/{eventId} {
-      allow read: if isAdmin() || isManager();
+      allow read: if isAdmin() || (isManager() && isSameBranchStrict(resource.data));
       allow create: if (isAdmin()
           && request.resource.data.actorId == request.auth.uid
           && request.resource.data.shiftId is string)
@@ -631,7 +659,7 @@ service cloud.firestore {
     }
 
     match /kioskAuditEvents/{eventId} {
-      allow read: if isAdmin() || isManager();
+      allow read: if isAdmin() || (isManager() && isSameBranchStrict(resource.data));
       allow write: if false; // Append-only audit events created server-side
     }
 

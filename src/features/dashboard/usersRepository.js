@@ -13,7 +13,7 @@ import {
   arrayUnion,
   arrayRemove,
 } from "firebase/firestore";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, deleteUser } from "firebase/auth";
 import { branchToId, idToBranch, DEFAULT_BRANCH_ID } from "../../constants/branches";
 import {
   createParentPayloadSchema,
@@ -121,20 +121,27 @@ export async function checkStudentHasHistory(uid, branchId = null) {
       where("userId", "==", uid),
       limit(1)
     );
+    const classAttendanceQuery = query(
+      collection(db, "classAttendance"),
+      ...(branchId ? [where("branchId", "==", branchId)] : []),
+      where("studentId", "==", uid),
+      limit(1)
+    );
     const reportsQuery = query(
       collection(db, "progressReports"),
       ...(branchId ? [where("branchId", "==", branchId)] : []),
       where("studentId", "==", uid),
       limit(1)
     );
-    const [paymentsSnap, attendanceSnap, reportsSnap] = await Promise.all([
+    const [paymentsSnap, attendanceSnap, classAttendanceSnap, reportsSnap] = await Promise.all([
       getDocs(paymentsQuery),
       getDocs(attendanceQuery),
+      getDocs(classAttendanceQuery),
       getDocs(reportsQuery),
     ]);
     return {
       hasPayments: !paymentsSnap.empty,
-      hasAttendance: !attendanceSnap.empty,
+      hasAttendance: !attendanceSnap.empty || !classAttendanceSnap.empty,
       hasReports: !reportsSnap.empty,
       error: null,
     };
@@ -157,9 +164,13 @@ export async function createStaffAccount(email, password, staffData) {
   try {
     await setDoc(doc(db, "users", cred.user.uid), payload, { merge: true });
   } catch (err) {
+    try {
+      await deleteUser(cred.user);
+    } catch (cleanupErr) {
+      console.warn("Failed to clean up secondary auth user:", cleanupErr);
+    }
     throw new Error(
-      `Account was created in Firebase Auth, but saving the profile failed: ${err.message}. ` +
-        `An admin must finish this manually in the Firebase Console, or delete the Auth account and try again.`,
+      `Account creation failed: saving profile failed (${err.message}). The Auth account was rolled back.`,
       { cause: err }
     );
   }
@@ -181,17 +192,36 @@ export async function deleteUserProfile(uid, branchId = null) {
     ...(branchId ? [where("branchId", "==", branchId)] : []),
     where("studentIds", "array-contains", uid)
   );
-  // 2. Find any parents who have this student linked
-  const parentsQuery = query(
-    collection(db, "users"),
-    where("role", "==", "parent"),
-    ...(branchId ? [where("branchId", "==", branchId)] : []),
-    where("childStudentIds", "array-contains", uid)
-  );
+
+  // 2. Find any parents who have this student linked.
+  // Multi-branch parents may be assigned to a different branch than the student.
+  // Query unconstrained first; fallback to branch-scoped if permission denied.
+  const classesPromise = getDocs(classesQuery);
+  const parentsPromise = (async () => {
+    try {
+      const unconstrainedParentsQuery = query(
+        collection(db, "users"),
+        where("role", "==", "parent"),
+        where("childStudentIds", "array-contains", uid)
+      );
+      return await getDocs(unconstrainedParentsQuery);
+    } catch {
+      if (branchId) {
+        const scopedParentsQuery = query(
+          collection(db, "users"),
+          where("role", "==", "parent"),
+          where("branchId", "==", branchId),
+          where("childStudentIds", "array-contains", uid)
+        );
+        return await getDocs(scopedParentsQuery);
+      }
+      return { docs: [] };
+    }
+  })();
 
   const [classesSnap, parentsSnap] = await Promise.all([
-    getDocs(classesQuery),
-    getDocs(parentsQuery),
+    classesPromise,
+    parentsPromise,
   ]);
 
   const batch = writeBatch(db);
@@ -312,8 +342,13 @@ export async function createParentAccount(email, password, parentData) {
   try {
     await setDoc(doc(db, "users", cred.user.uid), payload, { merge: true });
   } catch (err) {
+    try {
+      await deleteUser(cred.user);
+    } catch (cleanupErr) {
+      console.warn("Failed to clean up secondary auth user:", cleanupErr);
+    }
     throw new Error(
-      `Parent account created in Firebase Auth, but saving user doc failed: ${err.message}.`,
+      `Parent account creation failed: saving user doc failed: ${err.message}. The Auth account was rolled back.`,
       { cause: err }
     );
   }

@@ -84,6 +84,7 @@ export const STUDENT_STATUS_MAP = {
   on_leave: { label: "On Leave", tone: "bg-amber-50 text-amber-700 border-amber-200" },
   graduated: { label: "Graduated", tone: "bg-indigo-50 text-indigo-700 border-indigo-200" },
   inactive: { label: "Inactive", tone: "bg-slate-100 text-slate-600 border-slate-200" },
+  archived: { label: "Archived", tone: "bg-slate-100 text-slate-500 border-slate-300" },
 };
 
 export const STUDENT_STATUS_OPTIONS = Object.entries(STUDENT_STATUS_MAP).map(([value, conf]) => ({

@@ -111,11 +111,14 @@ export default function FrontDeskCashReconcile({
   }, [targetBranchId, toast]);
 
   const filteredPayments = useMemo(() => {
-    if (!branchLabel || branchLabel === "all" || studentBranchMap.size === 0) {
+    if (!branchLabel || branchLabel === "all") {
       return payments;
     }
     return payments.filter((p) => {
-      const b = studentBranchMap.get(p.studentId);
+      const b =
+        (studentBranchMap.size > 0 ? studentBranchMap.get(p.studentId) : null) ||
+        p.branch ||
+        p.branchId;
       return matchesBranchFilter(b, branchLabel);
     });
   }, [payments, branchLabel, studentBranchMap]);

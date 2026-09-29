@@ -94,6 +94,8 @@ export default function ShiftReconciliationModal({
           name: currentUser.displayName || currentUser.name || "Front Desk Staff",
           uid: currentUser.uid,
           role: currentUser.role || "frontoffice",
+          branchId: currentUser.branchId || activeShift.branchId || activeShift.branch,
+          branch: currentUser.branch || activeShift.branch,
         },
       });
 

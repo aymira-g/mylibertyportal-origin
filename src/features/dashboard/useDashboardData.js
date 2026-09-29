@@ -190,14 +190,16 @@ export function useDashboardData({
       (snap) => setTodos(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
       handleListenerError("todos")
     );
-    // firestore.rules allows `list` on invites for admin OR front office,
-    // so both dashboards that use this hook can read them. An older comment
-    // here claimed Front Office had no access and swallowed every error into
-    // an empty array — which meant a genuine rules or network failure looked
-    // exactly like "there are no invites". Errors are surfaced like every
-    // other listener now.
+    const inviteConstraints = [];
+    if (targetBranchId) {
+      inviteConstraints.push(where("branchId", "==", targetBranchId));
+    }
+    const invitesQuery = inviteConstraints.length
+      ? query(collection(db, "invites"), ...inviteConstraints)
+      : collection(db, "invites");
+
     const unsubInvites = onSnapshot(
-      collection(db, "invites"),
+      invitesQuery,
       (snap) => setInvites(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
       handleListenerError("invites")
     );

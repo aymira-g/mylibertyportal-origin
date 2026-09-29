@@ -64,10 +64,14 @@ export default function ApplicationPlacementModal({
   const [openProfile, setOpenProfile] = useState(false);
   const [overrideDuplicate, setOverrideDuplicate] = useState(false);
 
-  // Filter enrollable classes
+  // Filter enrollable classes matching the applicant's campus branch
   const enrollableClasses = useMemo(() => {
-    return classes.filter((cls) => getBatchAvailability(cls).canEnroll);
-  }, [classes]);
+    return classes.filter(
+      (cls) =>
+        getBatchAvailability(cls).canEnroll &&
+        (!app.branch || matchesBranchFilter(cls.branch, app.branch))
+    );
+  }, [classes, app.branch]);
 
   // Sort batches: applicant's program first, branch, batchType, then compatible with selectedLevel, then by name
   const sortedClasses = useMemo(() => {

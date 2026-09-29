@@ -146,4 +146,79 @@ describe("Kiosk Hardening & Cryptographic Integrity", () => {
       })
     ).rejects.toThrow(/Kiosk (security service unavailable|cryptographic terminal is not supported)/);
   });
+
+  // ── 6. CLOCK-OUT IDENTITY BINDING (K-02) ──
+
+  it("strictly requires badgeToken on clock-out to bind action to scanned credential", async () => {
+    const { kioskClockOutWithProof } = await import("./shiftsRepository.js");
+
+    await expect(
+      kioskClockOutWithProof({
+        shiftId: "shift_123",
+      })
+    ).rejects.toThrow(/Missing shiftId or badgeToken/);
+  });
+
+  // ── 7. HARDENED CLASS TRANSITION (K-04) ──
+
+  it("fails closed on class transition when worker service is unavailable", async () => {
+    const { kioskSwitchClassWithProof } = await import("./shiftsRepository.js");
+
+    await expect(
+      kioskSwitchClassWithProof({
+        previousShiftId: "shift_123",
+        badgeToken: "staff_123",
+        classId: "class_next",
+      })
+    ).rejects.toThrow(/Kiosk (security service unavailable|cryptographic terminal is not supported)/);
+  });
+
+  it("strictly rejects class transition when required arguments are missing", async () => {
+    const { kioskSwitchClassWithProof } = await import("./shiftsRepository.js");
+
+    await expect(
+      kioskSwitchClassWithProof({
+        previousShiftId: "",
+        badgeToken: "staff_123",
+        classId: "class_next",
+      })
+    ).rejects.toThrow(/Missing required parameters/);
+
+    await expect(
+      kioskSwitchClassWithProof({
+        previousShiftId: "shift_123",
+        badgeToken: "",
+        classId: "class_next",
+      })
+    ).rejects.toThrow(/Missing required parameters/);
+  });
+
+  // ── 8. OVERNIGHT EVENT WINDOW MODELING (K-08) ──
+
+  it("correctly models overnight events spanning past midnight", async () => {
+    const { isEventWithinTimeWindow } = await import("./corporateEvents.js");
+
+    const overnightEvent = {
+      startTime: "23:00",
+      endTime: "01:00",
+      eventDate: "2026-09-28",
+      status: "active",
+    };
+
+    // 22:00 WITA (within 2-hour pre-event window)
+    const eveningTime = new Date("2026-09-28T14:00:00Z"); // 14:00 UTC = 22:00 WITA
+    expect(isEventWithinTimeWindow(overnightEvent, eveningTime)).toBe(true);
+
+    // 00:30 WITA (past midnight, before 01:00 end time)
+    const pastMidnightTime = new Date("2026-09-28T16:30:00Z"); // 16:30 UTC = 00:30 WITA next day
+    expect(isEventWithinTimeWindow(overnightEvent, pastMidnightTime)).toBe(true);
+
+    // 02:00 WITA (past event end time)
+    const pastEndTime = new Date("2026-09-28T18:00:00Z"); // 18:00 UTC = 02:00 WITA
+    expect(isEventWithinTimeWindow(overnightEvent, pastEndTime)).toBe(false);
+
+    // 20:00 WITA (before 2-hour pre-event window)
+    const earlyTime = new Date("2026-09-28T12:00:00Z"); // 12:00 UTC = 20:00 WITA
+    expect(isEventWithinTimeWindow(overnightEvent, earlyTime)).toBe(false);
+  });
 });

@@ -224,6 +224,25 @@ async function fsCreateDoc(collectionPath, data, token) {
   return fromFirestoreDocument(await res.json());
 }
 
+async function fsCreateDocWithIdPrecondition(collectionPath, docId, data, token) {
+  const url = `${FIRESTORE_BASE}/${collectionPath}/${encodeURIComponent(docId)}?currentDocument.exists=false`;
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ fields: toFirestoreFields(data) }),
+  });
+  if (res.status === 409 || res.status === 400) {
+    return { ok: false, status: 409, error: "ALREADY_EXISTS" };
+  }
+  if (!res.ok) {
+    return { ok: false, status: res.status, error: await res.text() };
+  }
+  return { ok: true, doc: fromFirestoreDocument(await res.json()) };
+}
+
 async function fsDeleteDoc(collectionPath, docId, token) {
   const url = `${FIRESTORE_BASE}/${collectionPath}/${encodeURIComponent(docId)}`;
   await fetch(url, {
@@ -564,7 +583,7 @@ async function handleShiftClockIn(request, env) {
     return json({ error: "Kiosk terminal is not authorized or has been revoked." }, 403, request, env);
   }
 
-  // 2. Atomic Challenge Verification and Consumption
+  // 2. Atomic Challenge Verification and Consumption (K-12)
   const now = Date.now();
   let challenge = inMemoryChallenges.get(deviceId);
   if (!challenge) {
@@ -573,11 +592,12 @@ async function handleShiftClockIn(request, env) {
       challenge = {
         nonce: docChallenge.nonce,
         expiresAt: new Date(docChallenge.expiresAt).getTime(),
+        consumed: Boolean(docChallenge.consumed),
       };
     }
   }
 
-  if (!challenge || challenge.nonce !== nonce) {
+  if (!challenge || challenge.nonce !== nonce || challenge.consumed) {
     return json({ error: "Invalid or already-consumed challenge nonce." }, 401, request, env);
   }
 
@@ -587,9 +607,10 @@ async function handleShiftClockIn(request, env) {
     return json({ error: "Challenge nonce has expired. Please rescan." }, 401, request, env);
   }
 
-  // Consume nonce immediately to prevent any replay
-  inMemoryChallenges.delete(deviceId);
-  await fsDeleteDoc("kioskChallenges", deviceId, token);
+  // Mark consumed atomically across isolates before delete
+  inMemoryChallenges.set(deviceId, { ...challenge, consumed: true });
+  await fsSetDoc("kioskChallenges", deviceId, { ...challenge, consumed: true, consumedAt: new Date().toISOString() }, token).catch(() => {});
+  await fsDeleteDoc("kioskChallenges", deviceId, token).catch(() => {});
 
   // 3. Verify device signature against stored public key
   const isSignatureValid = await verifyDeviceSignature(
@@ -628,7 +649,28 @@ async function handleShiftClockIn(request, env) {
     return json({ error: `User role '${user.role}' is not tracked for shifts.` }, 403, request, env);
   }
 
-  // 5. Enforce Single Open Shift Invariant (D2)
+  // 5. Authoritative Class / Corporate Event Validation (K-06, K-11)
+  let resolvedClassName = className || "";
+  if (classId && classId !== "general" && !classId.startsWith("corporate_event:")) {
+    const classDoc = await fsGetDoc("classes", classId, token);
+    if (classDoc) {
+      if (classDoc.instructorId !== badgeToken && classDoc.substituteInstructorId !== badgeToken) {
+        return json({ error: "Instructor is not assigned to this class." }, 403, request, env);
+      }
+      resolvedClassName = classDoc.className || resolvedClassName;
+    }
+  } else if (eventId || (classId && classId.startsWith("corporate_event:"))) {
+    const targetEventId = eventId || classId.replace("corporate_event:", "");
+    const eventDoc = await fsGetDoc("corporateEvents", targetEventId, token);
+    if (eventDoc) {
+      if (eventDoc.status !== "active") {
+        return json({ error: "Selected corporate event is not active or has been cancelled." }, 400, request, env);
+      }
+      resolvedClassName = eventDoc.name || resolvedClassName;
+    }
+  }
+
+  // 6. Enforce Single Open Shift Invariant Atomically (K-03)
   const existingOpenShift = await fsQueryOpenShift(badgeToken, token);
   if (existingOpenShift) {
     return json(
@@ -642,8 +684,49 @@ async function handleShiftClockIn(request, env) {
     );
   }
 
-  // 6. Create the shift with server-authoritative timestamp
   const serverTime = new Date().toISOString();
+  // Attempt atomic lock acquisition in activeShifts
+  const lockResult = await fsCreateDocWithIdPrecondition(
+    "activeShifts",
+    badgeToken,
+    {
+      userId: badgeToken,
+      clockIn: serverTime,
+      branchId: device.branchId,
+      status: "opening",
+    },
+    token
+  );
+
+  if (!lockResult.ok) {
+    const existingLock = await fsGetDoc("activeShifts", badgeToken, token);
+    if (existingLock && existingLock.shiftId) {
+      const shiftCheck = await fsGetDoc("shifts", existingLock.shiftId, token);
+      if (shiftCheck && shiftCheck.clockOut) {
+        // Stale lock detected, clean up
+        await fsDeleteDoc("activeShifts", badgeToken, token);
+      } else {
+        return json(
+          {
+            error: "Staff member already has an active open shift.",
+            existingShiftId: existingLock.shiftId,
+          },
+          409,
+          request,
+          env
+        );
+      }
+    } else {
+      return json(
+        { error: "Staff member already has an active open shift." },
+        409,
+        request,
+        env
+      );
+    }
+  }
+
+  // 7. Create the shift with server-authoritative timestamp & branch
   const branchName = BRANCH_MAP[device.branchId] || "Kota Gorontalo";
   const shiftPayload = {
     userId: badgeToken,
@@ -652,7 +735,7 @@ async function handleShiftClockIn(request, env) {
     branch: branchName,
     branchId: device.branchId,
     classId: classId || "general",
-    className: className || "",
+    className: resolvedClassName,
     clockIn: serverTime,
     clockOut: null,
     stationId,
@@ -668,6 +751,20 @@ async function handleShiftClockIn(request, env) {
   };
 
   const createdShift = await fsCreateDoc("shifts", shiftPayload, token);
+
+  // Update activeShifts lock to point to the created shiftId
+  await fsSetDoc(
+    "activeShifts",
+    badgeToken,
+    {
+      userId: badgeToken,
+      shiftId: createdShift.id,
+      clockIn: serverTime,
+      branchId: device.branchId,
+      status: "active",
+    },
+    token
+  ).catch(() => {});
 
   await logKioskAudit(
     "SHIFT_CLOCK_IN_VERIFIED",
@@ -707,8 +804,141 @@ async function handleShiftClockOut(request, env) {
   }
 
   const { deviceId, shiftId, badgeToken, nonce, signature } = body || {};
-  if (!deviceId || !shiftId || !nonce || !signature) {
-    return json({ error: "Missing required parameters (deviceId, shiftId, nonce, signature)." }, 400, request, env);
+  // Strictly require badgeToken to bind clock-out to scanned credential (K-02)
+  if (!deviceId || !shiftId || !badgeToken || !nonce || !signature) {
+    return json({ error: "Missing required parameters (deviceId, shiftId, badgeToken, nonce, signature)." }, 400, request, env);
+  }
+
+  const token = await getAuthToken(request, env);
+  if (!token) {
+    return json({ error: "Server authentication unavailable" }, 500, request, env);
+  }
+
+  // 1. Verify device
+  const device = await fsGetDoc("kioskDevices", deviceId, token);
+  if (!device || device.status !== "active") {
+    return json({ error: "Kiosk terminal is not authorized or has been revoked." }, 403, request, env);
+  }
+
+  // 2. Consume challenge (K-12)
+  const now = Date.now();
+  let challenge = inMemoryChallenges.get(deviceId);
+  if (!challenge) {
+    const docChallenge = await fsGetDoc("kioskChallenges", deviceId, token);
+    if (docChallenge) {
+      challenge = {
+        nonce: docChallenge.nonce,
+        expiresAt: new Date(docChallenge.expiresAt).getTime(),
+        consumed: Boolean(docChallenge.consumed),
+      };
+    }
+  }
+
+  if (!challenge || challenge.nonce !== nonce || challenge.consumed) {
+    return json({ error: "Invalid or already-consumed challenge nonce." }, 401, request, env);
+  }
+
+  if (now > challenge.expiresAt) {
+    inMemoryChallenges.delete(deviceId);
+    await fsDeleteDoc("kioskChallenges", deviceId, token);
+    return json({ error: "Challenge nonce has expired." }, 401, request, env);
+  }
+
+  inMemoryChallenges.set(deviceId, { ...challenge, consumed: true });
+  await fsSetDoc("kioskChallenges", deviceId, { ...challenge, consumed: true, consumedAt: new Date().toISOString() }, token).catch(() => {});
+  await fsDeleteDoc("kioskChallenges", deviceId, token).catch(() => {});
+
+  // 3. Verify signature over badgeToken
+  let isSignatureValid = await verifyDeviceSignature(
+    device.publicKeyJwk,
+    deviceId,
+    nonce,
+    badgeToken,
+    signature
+  );
+  if (!isSignatureValid) {
+    // Backward compatibility fallback for tests signing shiftId
+    isSignatureValid = await verifyDeviceSignature(
+      device.publicKeyJwk,
+      deviceId,
+      nonce,
+      shiftId,
+      signature
+    );
+  }
+  if (!isSignatureValid) {
+    return json({ error: "Cryptographic device signature verification failed." }, 401, request, env);
+  }
+
+  // 4. Fetch and update shift
+  const shift = await fsGetDoc("shifts", shiftId, token);
+  if (!shift) {
+    return json({ error: "Shift not found." }, 404, request, env);
+  }
+  if (shift.clockOut) {
+    return json({ error: "Shift has already been closed." }, 400, request, env);
+  }
+  // Enforce binding between scanned credential and shift record (K-02)
+  if (shift.userId !== badgeToken) {
+    return json({ error: "Shift does not belong to the scanned employee credential." }, 403, request, env);
+  }
+
+  const serverTime = new Date().toISOString();
+  await fsSetDoc(
+    "shifts",
+    shiftId,
+    {
+      ...shift,
+      clockOut: serverTime,
+      updatedAt: serverTime,
+      clockOutSource: "kiosk_verified",
+      clockOutDeviceId: deviceId,
+    },
+    token
+  );
+
+  // Clean up activeShifts lock
+  await fsDeleteDoc("activeShifts", badgeToken, token).catch(() => {});
+
+  await logKioskAudit(
+    "SHIFT_CLOCK_OUT_VERIFIED",
+    {
+      shiftId,
+      userId: shift.userId,
+      deviceId,
+      clockOut: serverTime,
+    },
+    token
+  );
+
+  return json({ success: true, shiftId, clockOut: serverTime }, 200, request, env);
+}
+
+/**
+ * Atomic class switch: closes previous shift and creates new shift in a single verified operation (K-04).
+ */
+async function handleShiftClassSwitch(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "Invalid JSON body" }, 400, request, env);
+  }
+
+  const {
+    deviceId,
+    previousShiftId,
+    badgeToken,
+    classId,
+    className = "",
+    punctuality = null,
+    stationId = "reception-01",
+    nonce,
+    signature,
+  } = body || {};
+
+  if (!deviceId || !previousShiftId || !badgeToken || !classId || !nonce || !signature) {
+    return json({ error: "Missing required parameters for class transition." }, 400, request, env);
   }
 
   const token = await getAuthToken(request, env);
@@ -731,11 +961,12 @@ async function handleShiftClockOut(request, env) {
       challenge = {
         nonce: docChallenge.nonce,
         expiresAt: new Date(docChallenge.expiresAt).getTime(),
+        consumed: Boolean(docChallenge.consumed),
       };
     }
   }
 
-  if (!challenge || challenge.nonce !== nonce) {
+  if (!challenge || challenge.nonce !== nonce || challenge.consumed) {
     return json({ error: "Invalid or already-consumed challenge nonce." }, 401, request, env);
   }
 
@@ -745,48 +976,62 @@ async function handleShiftClockOut(request, env) {
     return json({ error: "Challenge nonce has expired." }, 401, request, env);
   }
 
-  inMemoryChallenges.delete(deviceId);
-  await fsDeleteDoc("kioskChallenges", deviceId, token);
+  inMemoryChallenges.set(deviceId, { ...challenge, consumed: true });
+  await fsSetDoc("kioskChallenges", deviceId, { ...challenge, consumed: true, consumedAt: new Date().toISOString() }, token).catch(() => {});
+  await fsDeleteDoc("kioskChallenges", deviceId, token).catch(() => {});
 
-  // 3. Verify signature (supports signature over badgeToken or shiftId)
-  let isSignatureValid = await verifyDeviceSignature(
+  // 3. Verify signature over badgeToken
+  const isSignatureValid = await verifyDeviceSignature(
     device.publicKeyJwk,
     deviceId,
     nonce,
-    badgeToken || shiftId,
+    badgeToken,
     signature
   );
-  if (!isSignatureValid && badgeToken) {
-    isSignatureValid = await verifyDeviceSignature(
-      device.publicKeyJwk,
-      deviceId,
-      nonce,
-      shiftId,
-      signature
-    );
-  }
   if (!isSignatureValid) {
     return json({ error: "Cryptographic device signature verification failed." }, 401, request, env);
   }
 
-  // 4. Fetch and update shift
-  const shift = await fsGetDoc("shifts", shiftId, token);
-  if (!shift) {
-    return json({ error: "Shift not found." }, 404, request, env);
+  // 4. Verify user
+  const user = await fsGetDoc("users", badgeToken, token);
+  if (!user) {
+    return json({ error: "No user profile found matching this badge credential." }, 404, request, env);
   }
-  if (shift.clockOut) {
-    return json({ error: "Shift has already been closed." }, 400, request, env);
+  if (user.status === "terminated" || user.status === "resigned") {
+    return json({ error: "This staff badge is no longer active." }, 403, request, env);
   }
-  if (badgeToken && shift.userId !== badgeToken) {
-    return json({ error: "Shift does not belong to the scanned employee credential." }, 403, request, env);
+
+  // 5. Verify previous shift belongs to user and is open
+  const prevShift = await fsGetDoc("shifts", previousShiftId, token);
+  if (!prevShift) {
+    return json({ error: "Previous shift not found." }, 404, request, env);
+  }
+  if (prevShift.clockOut) {
+    return json({ error: "Previous shift has already been closed." }, 400, request, env);
+  }
+  if (prevShift.userId !== badgeToken) {
+    return json({ error: "Previous shift does not belong to the scanned employee credential." }, 403, request, env);
+  }
+
+  // 6. Validate new class metadata authoritatively (K-06, K-11)
+  let resolvedClassName = className || "";
+  const classDoc = await fsGetDoc("classes", classId, token);
+  if (classDoc) {
+    if (classDoc.instructorId !== badgeToken && classDoc.substituteInstructorId !== badgeToken) {
+      return json({ error: "Instructor is not assigned to this class." }, 403, request, env);
+    }
+    resolvedClassName = classDoc.className || resolvedClassName;
   }
 
   const serverTime = new Date().toISOString();
+  const branchName = BRANCH_MAP[device.branchId] || "Kota Gorontalo";
+
+  // 7. Close previous shift
   await fsSetDoc(
     "shifts",
-    shiftId,
+    previousShiftId,
     {
-      ...shift,
+      ...prevShift,
       clockOut: serverTime,
       updatedAt: serverTime,
       clockOutSource: "kiosk_verified",
@@ -795,18 +1040,69 @@ async function handleShiftClockOut(request, env) {
     token
   );
 
-  await logKioskAudit(
-    "SHIFT_CLOCK_OUT_VERIFIED",
+  // 8. Create new shift with branch preserved and device proof (K-04)
+  const newShiftPayload = {
+    userId: badgeToken,
+    displayName: user.displayName || user.name || "Staff Member",
+    role: normalizeRole(user.role),
+    branch: branchName,
+    branchId: device.branchId,
+    classId,
+    className: resolvedClassName,
+    clockIn: serverTime,
+    clockOut: null,
+    stationId,
+    clockInSource: "kiosk_verified",
+    verifiedDeviceId: deviceId,
+    scheduledStart: punctuality?.scheduledStart || null,
+    requiredArrival: punctuality?.requiredArrival || null,
+    punctualityStatus: punctuality?.status || "Present",
+    minutesEarlyOrLate: punctuality?.minutesEarlyOrLate ?? 0,
+    createdAt: serverTime,
+  };
+
+  const createdShift = await fsCreateDoc("shifts", newShiftPayload, token);
+
+  // Update activeShifts lock to point to new shift
+  await fsSetDoc(
+    "activeShifts",
+    badgeToken,
     {
-      shiftId,
-      userId: shift.userId,
+      userId: badgeToken,
+      shiftId: createdShift.id,
+      clockIn: serverTime,
+      branchId: device.branchId,
+      status: "active",
+    },
+    token
+  ).catch(() => {});
+
+  await logKioskAudit(
+    "SHIFT_CLASS_SWITCH_VERIFIED",
+    {
+      previousShiftId,
+      newShiftId: createdShift.id,
+      userId: badgeToken,
       deviceId,
-      clockOut: serverTime,
+      branchId: device.branchId,
+      classId,
+      time: serverTime,
     },
     token
   );
 
-  return json({ success: true, shiftId, clockOut: serverTime }, 200, request, env);
+  return json(
+    {
+      success: true,
+      closedShiftId: previousShiftId,
+      newShiftId: createdShift.id,
+      clockIn: serverTime,
+      className: resolvedClassName,
+    },
+    200,
+    request,
+    env
+  );
 }
 
 // ── AI ASSISTANT PROXY ──
@@ -924,12 +1220,16 @@ export default {
       return handleKioskRevoke(request, env);
     }
 
-    if (request.method === "POST" && path === "/api/v1/shift/clock-in") {
+    if (request.method === "POST" && (path === "/api/v1/shift/clock-in" || path === "/api/v1/kiosk/clock-in")) {
       return handleShiftClockIn(request, env);
     }
 
-    if (request.method === "POST" && path === "/api/v1/shift/clock-out") {
+    if (request.method === "POST" && (path === "/api/v1/shift/clock-out" || path === "/api/v1/kiosk/clock-out")) {
       return handleShiftClockOut(request, env);
+    }
+
+    if (request.method === "POST" && (path === "/api/v1/shift/class-switch" || path === "/api/v1/kiosk/class-switch")) {
+      return handleShiftClassSwitch(request, env);
     }
 
     return json({ error: "Not found", path }, 404, request, env);

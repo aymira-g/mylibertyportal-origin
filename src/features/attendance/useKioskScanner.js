@@ -1,15 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Html5QrcodeScanner } from "html5-qrcode";
 import { getInstantPunctuality } from ".";
 import {
   kioskClockInWithProof,
+  kioskClockOutWithProof,
+  kioskSwitchClassWithProof,
   clockOutShift,
   switchClassAtomic,
+  recordStudentAttendance,
 } from "./shiftsRepository";
 import { soundEffects } from "./soundEffects";
 import { triggerHaptic } from "../shared";
 import { handleKioskScan } from "./kioskScanProcessor";
 import { checkNetworkReachability } from "../../utils/networkReachability";
+import { todayWita } from "../../utils/dateWita.js";
+import { DEFAULT_BRANCH, branchToId } from "../../constants/branches.js";
 
 export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}) {
   const [kioskScanning, setKioskScanning] = useState(false);
@@ -20,6 +25,7 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
   const [status, setStatus] = useState({ message: "", type: "", detail: "", personName: "" });
   const [lastScanned, setLastScanned] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const statusTimerRef = useRef(null);
 
   // Real-time digital clock display
   useEffect(() => {
@@ -27,7 +33,19 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
     return () => clearInterval(timer);
   }, []);
 
+  // Clean up auto-clear status timer on unmount
+  useEffect(() => {
+    return () => {
+      if (statusTimerRef.current) {
+        clearTimeout(statusTimerRef.current);
+      }
+    };
+  }, []);
+
   const showStatus = (message, type = "success", detail = "", personName = "") => {
+    if (statusTimerRef.current) {
+      clearTimeout(statusTimerRef.current);
+    }
     setStatus({ message, type, detail, personName });
     if (type === "success") {
       soundEffects.playSuccess();
@@ -39,8 +57,9 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
       triggerHaptic("error");
     }
     // Auto-clear after 4.5 seconds
-    setTimeout(() => {
+    statusTimerRef.current = setTimeout(() => {
       setStatus({ message: "", type: "", detail: "", personName: "" });
+      statusTimerRef.current = null;
     }, 4500);
   };
 
@@ -98,6 +117,36 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
       const clockInAt = new Date();
       const isLeave = (pendingClockIn.userData.status || "active") === "on_leave";
       const name = pendingClockIn.userData.displayName;
+
+      // Student corporate event selection
+      if (pendingClockIn.userData.role === "student") {
+        const todayDate = todayWita();
+        const rawBranch =
+          pendingClockIn.userData.branchId || pendingClockIn.userData.branch || DEFAULT_BRANCH;
+        await recordStudentAttendance({
+          uid: pendingClockIn.uid,
+          displayName: name,
+          dateKey: todayDate,
+          eventId: event ? event.id : null,
+          eventName: event ? event.name : null,
+          branchId: branchToId(rawBranch),
+          branch: pendingClockIn.userData.branch || DEFAULT_BRANCH,
+        });
+
+        cancelPendingClockIn();
+        showStatus(
+          isLeave ? "Attendance Recorded (On Leave)" : "Attendance Recorded",
+          "success",
+          `Checked in for ${event?.name || "Corporate Event"}.`,
+          name
+        );
+        return setLastScanned({
+          name,
+          role: "student",
+          time: new Date(),
+          type: `Check-in (${event?.name || "Corporate Event"})`,
+        });
+      }
 
       if (isEvent && event) {
         await kioskClockInWithProof({
@@ -195,22 +244,48 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
   const switchToNextClass = async () => {
     const nextClass = pendingTransition?.remainingClasses.find((cls) => cls.id === nextClassId);
     if (!pendingTransition || !nextClass) return;
+
+    const isReachable = await checkNetworkReachability();
+    if (!isReachable) {
+      showStatus(
+        "Kiosk Offline",
+        "error",
+        "Cannot switch class: connection is offline or unstable. Please reconnect to branch Wi-Fi.",
+        pendingTransition?.userData?.displayName || ""
+      );
+      return;
+    }
+
     try {
       const now = new Date();
       const punctuality = getInstantPunctuality(nextClass, now);
 
-      await switchClassAtomic({
-        previousShiftId: pendingTransition.openShift.id,
-        clockOutAt: now,
-        uid: pendingTransition.uid,
-        displayName: pendingTransition.userData.displayName,
-        role: pendingTransition.userData.role,
-        branchId: pendingTransition.userData.branchId || pendingTransition.openShift.branchId,
-        branch: pendingTransition.userData.branch || pendingTransition.openShift.branch,
-        classId: nextClass.id,
-        className: nextClass.className,
-        punctuality,
-      });
+      const hasWorker =
+        typeof import.meta !== "undefined" && Boolean(import.meta.env?.VITE_AI_WORKER_URL);
+      const hasCrypto = typeof window !== "undefined" && Boolean(window.crypto?.subtle);
+
+      if (typeof kioskSwitchClassWithProof === "function" && hasWorker && hasCrypto) {
+        await kioskSwitchClassWithProof({
+          previousShiftId: pendingTransition.openShift.id,
+          badgeToken: pendingTransition.uid,
+          classId: nextClass.id,
+          className: nextClass.className,
+          punctuality,
+        });
+      } else {
+        await switchClassAtomic({
+          previousShiftId: pendingTransition.openShift.id,
+          clockOutAt: now,
+          uid: pendingTransition.uid,
+          displayName: pendingTransition.userData.displayName,
+          role: pendingTransition.userData.role,
+          branchId: pendingTransition.userData.branchId || pendingTransition.openShift.branchId,
+          branch: pendingTransition.userData.branch || pendingTransition.openShift.branch,
+          classId: nextClass.id,
+          className: nextClass.className,
+          punctuality,
+        });
+      }
 
       const name = pendingTransition.userData.displayName;
       showStatus(
@@ -234,8 +309,27 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
 
   const clockOutOnly = async () => {
     if (!pendingTransition) return;
+
+    const isReachable = await checkNetworkReachability();
+    if (!isReachable) {
+      showStatus(
+        "Kiosk Offline",
+        "error",
+        "Cannot clock out: connection is offline or unstable. Please reconnect to branch Wi-Fi.",
+        pendingTransition?.userData?.displayName || ""
+      );
+      return;
+    }
+
     try {
-      await clockOutShift(pendingTransition.openShift.id);
+      if (typeof kioskClockOutWithProof === "function") {
+        await kioskClockOutWithProof({
+          shiftId: pendingTransition.openShift.id,
+          badgeToken: pendingTransition.uid,
+        });
+      } else {
+        await clockOutShift(pendingTransition.openShift.id);
+      }
       const name = pendingTransition.userData.displayName;
       showStatus("Clocked Out", "success", "Shift completed and archived.", name);
       setLastScanned({
@@ -265,7 +359,14 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
 
     scanner.render(
       async (uid) => {
-        scanner.clear();
+        try {
+          const clearPromise = scanner.clear();
+          if (clearPromise && typeof clearPromise.catch === "function") {
+            clearPromise.catch(() => {});
+          }
+        } catch {
+          // ignore synchronous clear error
+        }
         setKioskScanning(false);
         const isReachable = await checkNetworkReachability();
         if (!isReachable) {
@@ -293,7 +394,10 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
     );
     return () => {
       try {
-        scanner.clear();
+        const clearPromise = scanner.clear();
+        if (clearPromise && typeof clearPromise.catch === "function") {
+          clearPromise.catch(() => {});
+        }
       } catch {
         // Safe unmount
       }

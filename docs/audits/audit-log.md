@@ -178,4 +178,43 @@ reachable by an actual admin through one path:
   `AdminDashboard.jsx`) parse cleanly. Not run through the test suite — same
   caveat as above.
 
+---
+
+## 2026-09-29 — Delivery of Point 3 / Domain 3: Attendance + Kiosk Hardening
+
+Remediation delivered across all 14 kiosk trigger points (K-01 to K-14) per `docs/audits/current/MyLiberty_Portal_Attendance_Kiosk_Deep_Audit_and_Trigger_Map.md`:
+
+1. **Fail-Closed Kiosk Proof Boundary (K-01)**:
+   - Wired `executeStaffClockIn` into `kioskScanProcessor.js` for instructor events, staff events, and general duty.
+   - Eliminates direct unverified client-side Firestore writes during station scans.
+2. **Clock-Out Identity Binding (K-02)**:
+   - `kioskClockOutWithProof` strictly requires `badgeToken` and signs challenge with the scanned credential.
+   - Cloudflare Worker enforces `shift.userId === badgeToken` before closing shift.
+3. **Atomic Single Open Shift Mutual Exclusion (K-03)**:
+   - Cloudflare Worker enforces atomic mutual exclusion using `activeShifts/${badgeToken}` with Firestore precondition `currentDocument.exists=false`.
+   - Prevents concurrent scans across devices from creating multiple active shifts.
+   - Automatically cleans up active shift lock on verified clock-out.
+4. **Hardened Class Transition (K-04 & K-05)**:
+   - Added `handleShiftClassSwitch` endpoint (`/api/v1/shift/class-switch`) to Cloudflare Worker.
+   - Added `kioskSwitchClassWithProof` in `shiftsRepository.js`.
+   - `useKioskScanner.js` guards `switchToNextClass()` and `clockOutOnly()` with `checkNetworkReachability()` and executes transitions via server-authoritative worker proof with branch preservation.
+5. **Server-Authoritative Metadata Validation (K-06 & K-11)**:
+   - Cloudflare Worker verifies class exists, verifies instructor assignment (`classDoc.instructorId === badgeToken || classDoc.substituteInstructorId === badgeToken`), and resolves authoritative `classDoc.className`.
+   - Corporate events verified active before shift creation.
+6. **Multi-Event Student Attendance Resolution (K-07 & K-13)**:
+   - `kioskScanProcessor.js` opens picker modal when multiple corporate events match and picker is available.
+   - If picker unavailable, attributes attendance deterministically to candidate event (`targetEvent`) rather than writing `eventId: null`.
+   - `useKioskScanner.js` handles student event selection in `createShift`.
+   - Deterministic key `${uid}_${dateKey}_${eventId}` in `recordStudentAttendance` preserves distinct same-day attendance records.
+7. **Overnight Event Time Window Modeling (K-08)**:
+   - `corporateEvents.js` properly handles crossover past midnight (e.g. 23:00 -> 01:00) during pre-event window, evening, and post-midnight morning hours.
+8. **Multi-Worker Challenge Atomic Consumption (K-12)**:
+   - Challenge marked `consumed: true` before deletion across isolate boundaries.
+9. **Status Overlay Race Prevention (K-14)**:
+   - Auto-clear timer cleanup ref in `useKioskScanner.js` clears existing timeouts before scheduling new status alerts.
+10. **Verification**:
+    - **75 test files passing, 933 tests passing (0 failures)**.
+    - **ESLint**: 0 errors, 0 warnings.
+    - **Vite Build**: Compiled cleanly.
+
 

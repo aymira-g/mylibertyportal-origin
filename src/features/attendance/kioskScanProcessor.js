@@ -4,6 +4,7 @@ import {
   fetchOpenShiftFor,
   fetchInstructorClasses,
   clockIn,
+  kioskClockInWithProof,
   clockOutShift,
   kioskClockOutWithProof,
   recordStudentAttendance,
@@ -16,6 +17,56 @@ import { recordClassAttendanceScan } from "./classAttendanceRepository";
 import { resolveStudentClass } from "./classResolution";
 import { DEFAULT_BRANCH, branchToId } from "../../constants/branches.js";
 import { isInstructorRole } from "../shared/roles.js";
+
+/**
+ * Executes staff clock-in preferentially using hardened kiosk proof when available (K-01).
+ */
+async function executeStaffClockIn({
+  uid,
+  userData,
+  classId = "general",
+  className = "General Duty",
+  shiftType = null,
+  eventId = null,
+  punctuality = null,
+}) {
+  const punctualityPayload = punctuality || {
+    status: "Present",
+    scheduledStart: null,
+    requiredArrival: null,
+    minutesEarlyOrLate: 0,
+  };
+
+  const hasWorker =
+    typeof import.meta !== "undefined" && Boolean(import.meta.env?.VITE_AI_WORKER_URL);
+  const hasCrypto = typeof window !== "undefined" && Boolean(window.crypto?.subtle);
+
+  if (typeof kioskClockInWithProof === "function" && hasWorker && hasCrypto) {
+    return await kioskClockInWithProof({
+      badgeToken: uid,
+      role: userData.role,
+      classId,
+      className,
+      shiftType,
+      eventId,
+      punctuality: punctualityPayload,
+    });
+  }
+
+  return clockIn({
+    uid,
+    displayName: userData.displayName,
+    role: userData.role,
+    branch: userData.branch,
+    branchId: userData.branchId,
+    classId,
+    className,
+    clockInAt: new Date(),
+    shiftType,
+    eventId,
+    punctuality: punctualityPayload,
+  });
+}
 
 /**
  * Core business resolution for QR badge scan at the kiosk station or class session.
@@ -232,6 +283,20 @@ export async function handleKioskScan(
     );
     const matchedEvent = matchingResult.match;
     const matchedEvents = matchingResult.matchedEvents || (matchedEvent ? [matchedEvent] : []);
+
+    // If multiple corporate events match today and picker is supported, prompt student/operator
+    if (matchedEvents.length > 1 && setPendingClockIn) {
+      return setPendingClockIn({
+        uid,
+        userData,
+        classes: [],
+        matchedEvent: null,
+        matchedEvents,
+      });
+    }
+
+    // When exactly 1 event matches or picker unavailable, attribute attendance to targetEvent (K-07)
+    const targetEvent = matchedEvent || (matchedEvents.length > 0 ? matchedEvents[0] : null);
     const matchingEventIds = matchedEvents.map((e) => e.id);
 
     const rawBranch = userData.branchId || userData.branch || DEFAULT_BRANCH;
@@ -239,8 +304,8 @@ export async function handleKioskScan(
       uid,
       displayName: userData.displayName,
       dateKey: todayDate,
-      eventId: matchedEvent ? matchedEvent.id : null,
-      eventName: matchedEvent ? matchedEvent.name : null,
+      eventId: targetEvent ? targetEvent.id : null,
+      eventName: targetEvent ? targetEvent.name : null,
       matchingEventIds: matchingEventIds.length > 0 ? matchingEventIds : null,
       branchId: branchToId(rawBranch),
       branch: userData.branch || DEFAULT_BRANCH,
@@ -248,8 +313,8 @@ export async function handleKioskScan(
 
     const isLeave = studentStatus === "on_leave";
     let eventSuffix = "";
-    if (matchedEvent) {
-      eventSuffix = ` · Attending: ${matchedEvent.name}`;
+    if (targetEvent) {
+      eventSuffix = ` · Attending: ${targetEvent.name}`;
     } else if (matchedEvents.length > 1) {
       eventSuffix = ` · Multiple Events Scheduled (${matchedEvents.length})`;
     }
@@ -266,8 +331,8 @@ export async function handleKioskScan(
       name: userData.displayName,
       role: "student",
       time: new Date(),
-      type: matchedEvent
-        ? `Check-in (${matchedEvent.name})`
+      type: targetEvent
+        ? `Check-in (${targetEvent.name})`
         : matchedEvents.length > 1
         ? `Check-in (${matchedEvents.length} Events)`
         : "Check-in",
@@ -333,15 +398,11 @@ export async function handleKioskScan(
         // Instructor has no classes scheduled today.
         // Check if exactly one active corporate event matches.
         if (matchedEvent) {
-          await clockIn({
+          await executeStaffClockIn({
             uid,
-            displayName: userData.displayName,
-            role: userData.role,
-            branch: userData.branch,
-            branchId: userData.branchId,
+            userData,
             classId: `corporate_event:${matchedEvent.id}`,
             className: matchedEvent.name,
-            clockInAt: new Date(),
             shiftType: "corporate_event",
             eventId: matchedEvent.id,
             punctuality: {
@@ -389,15 +450,11 @@ export async function handleKioskScan(
 
       // Non-instructor staff (manager, frontoffice, marketing, officeboy, admin):
       if (matchedEvent) {
-        await clockIn({
+        await executeStaffClockIn({
           uid,
-          displayName: userData.displayName,
-          role: userData.role,
-          branch: userData.branch,
-          branchId: userData.branchId,
+          userData,
           classId: `corporate_event:${matchedEvent.id}`,
           className: matchedEvent.name,
-          clockInAt: new Date(),
           shiftType: "corporate_event",
           eventId: matchedEvent.id,
           punctuality: {
@@ -434,15 +491,11 @@ export async function handleKioskScan(
         });
       } else {
         // 0 matches -> Clock in to General Duty
-        await clockIn({
+        await executeStaffClockIn({
           uid,
-          displayName: userData.displayName,
-          role: userData.role,
-          branch: userData.branch,
-          branchId: userData.branchId,
+          userData,
           classId: "general",
           className: "General Duty",
-          clockInAt: new Date(),
           punctuality: {
             status: "Present",
             scheduledStart: null,

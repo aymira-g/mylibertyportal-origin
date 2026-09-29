@@ -263,9 +263,9 @@ export async function kioskClockInWithProof({
  * Binds the clock-out action to the scanned badge credential to prevent cross-account closing (K-02).
  * Fails closed if the worker service or browser crypto is unavailable (K-01 / K-05).
  */
-export async function kioskClockOutWithProof({ shiftId, badgeToken = null }) {
-  if (!shiftId) {
-    throw new Error("Missing shiftId for kiosk clock-out.");
+export async function kioskClockOutWithProof({ shiftId, badgeToken }) {
+  if (!shiftId || !badgeToken) {
+    throw new Error("Missing shiftId or badgeToken for kiosk clock-out.");
   }
   const workerBase =
     typeof import.meta !== "undefined" && import.meta.env?.VITE_AI_WORKER_URL
@@ -305,8 +305,7 @@ export async function kioskClockOutWithProof({ shiftId, badgeToken = null }) {
   const { nonce } = await challengeRes.json();
 
   // 2. Cryptographic signature over challenge & identity (K-02)
-  const signatureToken = badgeToken || shiftId;
-  const signature = await signKioskChallenge(deviceId, nonce, signatureToken);
+  const signature = await signKioskChallenge(deviceId, nonce, badgeToken);
 
   // 3. Submit verified clock-out to Worker
   const clockOutRes = await fetch(`${workerBase}/api/v1/kiosk/clock-out`, {
@@ -330,6 +329,89 @@ export async function kioskClockOutWithProof({ shiftId, badgeToken = null }) {
   }
 
   return clockOutRes.json();
+}
+
+/**
+ * Performs an atomic class transition through the server-authoritative Cloudflare Worker (K-04).
+ * Closes the previous shift and opens the new shift atomically while preserving branch and device proof.
+ */
+export async function kioskSwitchClassWithProof({
+  previousShiftId,
+  badgeToken,
+  classId,
+  className = "",
+  punctuality = null,
+  stationId = "reception-01",
+}) {
+  if (!previousShiftId || !badgeToken || !classId) {
+    throw new Error("Missing required parameters for class transition.");
+  }
+  const workerBase =
+    typeof import.meta !== "undefined" && import.meta.env?.VITE_AI_WORKER_URL
+      ? import.meta.env.VITE_AI_WORKER_URL
+      : "";
+
+  if (!workerBase) {
+    throw new Error(
+      "Kiosk security service unavailable (VITE_AI_WORKER_URL is missing). Please contact the administrator."
+    );
+  }
+  if (typeof window === "undefined" || !window.crypto?.subtle) {
+    throw new Error(
+      "Kiosk cryptographic terminal is not supported on this browser or environment."
+    );
+  }
+
+  const { deviceId } = await getOrCreateKioskKey();
+  const currentUser = auth.currentUser;
+  const idToken = currentUser ? await currentUser.getIdToken() : "";
+
+  // 1. Request single-use challenge nonce from Worker
+  const challengeRes = await fetch(`${workerBase}/api/v1/kiosk/challenge`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+    },
+    body: JSON.stringify({ deviceId }),
+  });
+
+  if (!challengeRes.ok) {
+    const errData = await challengeRes.json().catch(() => ({}));
+    throw new Error(errData?.error || "Kiosk challenge failed.");
+  }
+
+  const { nonce } = await challengeRes.json();
+
+  // 2. Cryptographic signature over challenge & identity
+  const signature = await signKioskChallenge(deviceId, nonce, badgeToken);
+
+  // 3. Submit verified class transition to Worker
+  const switchRes = await fetch(`${workerBase}/api/v1/shift/class-switch`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+    },
+    body: JSON.stringify({
+      deviceId,
+      previousShiftId,
+      badgeToken,
+      classId,
+      className,
+      punctuality,
+      stationId,
+      nonce,
+      signature,
+    }),
+  });
+
+  if (!switchRes.ok) {
+    const errData = await switchRes.json().catch(() => ({}));
+    throw new Error(errData?.error || "Kiosk verified class transition failed.");
+  }
+
+  return switchRes.json();
 }
 
 export function clockOutShift(shiftId, clockOutAt = new Date()) {

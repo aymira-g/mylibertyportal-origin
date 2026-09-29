@@ -9,8 +9,10 @@ vi.mock("./shiftsRepository.js", () => ({
   fetchOpenShiftFor: vi.fn(),
   fetchInstructorClasses: vi.fn(),
   clockIn: vi.fn(),
+  kioskClockInWithProof: vi.fn(),
   clockOutShift: vi.fn(),
   kioskClockOutWithProof: vi.fn(),
+  kioskSwitchClassWithProof: vi.fn(),
   recordStudentAttendance: vi.fn(),
 }));
 
@@ -371,17 +373,53 @@ describe("kioskScanProcessor in STATION mode for instructors & corporate events"
     expect(shiftsRepo.recordStudentAttendance).toHaveBeenCalledWith(
       expect.objectContaining({
         uid: "std_multi",
-        eventId: null,
-        eventName: null,
+        eventId: "evt_s1",
+        eventName: "Festival",
         matchingEventIds: ["evt_s1", "evt_s2"],
       })
     );
     expect(showStatus).toHaveBeenCalledWith(
       "Attendance Recorded",
       "success",
-      expect.stringContaining("Multiple Events Scheduled (2)"),
+      expect.stringContaining("Festival"),
       "Charlie Student"
     );
+  });
+
+  it("prompts student with picker when multiple corporate events match and picker is available", async () => {
+    const studentUser = {
+      id: "std_multi_picker",
+      displayName: "Dana Student",
+      role: "student",
+      status: "active",
+      branchId: "kota_gorontalo",
+    };
+    vi.mocked(shiftsRepo.fetchUserById).mockResolvedValueOnce(studentUser);
+
+    const events = [
+      { id: "evt_s1", name: "Festival", eventDate: "2026-09-28", audienceType: "all", status: "active" },
+      { id: "evt_s2", name: "Open Day", eventDate: "2026-09-28", audienceType: "all", status: "active" },
+    ];
+    vi.mocked(corpEventsRepo.fetchActiveCorporateEventsForDate).mockResolvedValueOnce(events);
+
+    const setPendingClockIn = vi.fn();
+    await handleKioskScan("std_multi_picker", {
+      attendanceMode: "STATION",
+      showStatus,
+      setLastScanned,
+      setPendingClockIn,
+    });
+
+    expect(setPendingClockIn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uid: "std_multi_picker",
+        matchedEvents: expect.arrayContaining([
+          expect.objectContaining({ id: "evt_s1" }),
+          expect.objectContaining({ id: "evt_s2" }),
+        ]),
+      })
+    );
+    expect(shiftsRepo.recordStudentAttendance).not.toHaveBeenCalled();
   });
 
   it("prompts non-instructor staff with picker including General Duty when multiple corporate events match", async () => {

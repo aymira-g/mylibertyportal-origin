@@ -44,15 +44,22 @@ export function isEventWithinTimeWindow(event, currentTime = new Date()) {
   const startMinutes = startH * 60 + startM;
   const windowStartMinutes = Math.max(0, startMinutes - 120); // 2 hours before start
 
+  let parsedEndMinutes = null;
   let windowEndMinutes = 24 * 60; // Midnight default
   if (typeof endTime === "string" && /^\d{1,2}:\d{2}$/.test(endTime.trim())) {
     const [endH, endM] = endTime.trim().split(":").map(Number);
     if (!Number.isNaN(endH) && !Number.isNaN(endM) && endH >= 0 && endH <= 24 && endM >= 0 && endM < 60) {
-      const parsedEndMinutes = endH * 60 + endM;
+      parsedEndMinutes = endH * 60 + endM;
       if (parsedEndMinutes > startMinutes) {
         windowEndMinutes = parsedEndMinutes;
       }
     }
+  }
+
+  // Handle overnight events spanning past midnight (e.g. 23:00 -> 01:00)
+  const isOvernight = parsedEndMinutes !== null && parsedEndMinutes <= startMinutes;
+  if (isOvernight) {
+    return currentMinutes >= windowStartMinutes || currentMinutes <= parsedEndMinutes;
   }
 
   return currentMinutes >= windowStartMinutes && currentMinutes <= windowEndMinutes;
@@ -63,7 +70,7 @@ export function isEventWithinTimeWindow(event, currentTime = new Date()) {
  *
  * Eligibility rules:
  * - Event must be active (not cancelled).
- * - Event date must match target dateStr (YYYY-MM-DD WITA calendar date).
+ * - Event date must match target dateStr (YYYY-MM-DD WITA calendar date), or previous day for overnight events.
  * - Event must be within the time eligibility window (2 hours before startTime until endTime/midnight).
  * - "all": matches everyone (students, every staff role, and managers).
  * - "branch": matches anyone in that canonical branch.
@@ -81,8 +88,34 @@ export function isEventEligible(event, user, dateStr, currentTime = new Date()) 
     return false;
   }
 
-  if (dateStr && event.eventDate !== dateStr) {
-    return false;
+  const d = typeof currentTime === "string" ? new Date(currentTime) : currentTime;
+  const w = new Date((d && !isNaN(d.getTime()) ? d.getTime() : Date.now()) + WITA_OFFSET_MS);
+  const currentMinutes = w.getUTCHours() * 60 + w.getUTCMinutes();
+
+  let isOvernightPastMidnight = false;
+  if (event.startTime && event.endTime) {
+    const [sH, sM] = event.startTime.split(":").map(Number);
+    const [eH, eM] = event.endTime.split(":").map(Number);
+    if (!Number.isNaN(sH) && !Number.isNaN(eH)) {
+      const sMin = sH * 60 + (sM || 0);
+      const eMin = eH * 60 + (eM || 0);
+      if (eMin <= sMin && currentMinutes <= eMin) {
+        // Current time is past midnight on the morning following event start
+        isOvernightPastMidnight = true;
+      }
+    }
+  }
+
+  if (dateStr) {
+    if (isOvernightPastMidnight) {
+      // Allow matching if eventDate is either today or yesterday
+      const yesterdayDate = new Date(w.getTime() - 86400000).toISOString().slice(0, 10);
+      if (event.eventDate !== dateStr && event.eventDate !== yesterdayDate) {
+        return false;
+      }
+    } else if (event.eventDate !== dateStr) {
+      return false;
+    }
   }
 
   if (!isEventWithinTimeWindow(event, currentTime)) {

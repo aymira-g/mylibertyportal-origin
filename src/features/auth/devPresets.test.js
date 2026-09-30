@@ -36,7 +36,7 @@ describe("DevPresets configuration", () => {
     expect(roles).toContain("parent");
   });
 
-  it("includes separate Manager TK, Front Office TK, and Instructor TK test accounts for Kindergarten division testing", () => {
+  it("includes separate Manager, Front Office, and Instructor test accounts for Kindergarten division testing", () => {
     const tkManager = MODE_1_TEST_ACCOUNTS.find(
       (a) => a.role === "manager" && a.division === "kindergarten"
     );
@@ -63,28 +63,43 @@ describe("DevPresets configuration", () => {
     expect(foLead?.label).toBe("Front Office Lead");
   });
 
-  it("aligns Studio and TK paired test account labels with specification", () => {
-    const managerStudio = MODE_1_TEST_ACCOUNTS.find(
-      (a) => a.role === "manager" && a.division === "studio"
+  it("aligns Courses and Kindergarten paired test account labels with specification", () => {
+    const managerCourses = MODE_1_TEST_ACCOUNTS.find(
+      (a) => a.role === "manager" && a.division === "courses"
     );
-    expect(managerStudio?.label).toBe("Manager (Studio)");
+    expect(managerCourses?.label).toBe("Manager · Courses");
 
-    const instructorStudio = MODE_1_TEST_ACCOUNTS.find(
-      (a) => a.role === "instructor" && a.division === "studio"
+    const instructorCourses = MODE_1_TEST_ACCOUNTS.find(
+      (a) => a.role === "instructor" && a.division === "courses"
     );
-    expect(instructorStudio?.label).toBe("Instructor (Studio)");
+    expect(instructorCourses?.label).toBe("Instructor · Courses");
 
-    const foStudio = MODE_1_TEST_ACCOUNTS.find(
-      (a) => a.role === "frontoffice" && a.division === "studio"
+    const foCourses = MODE_1_TEST_ACCOUNTS.find(
+      (a) => a.role === "frontoffice" && a.division === "courses"
     );
-    expect(foStudio?.label).toBe("Front Office (Studio)");
+    expect(foCourses?.label).toBe("Front Office · Courses");
+
+    const managerTk = MODE_1_TEST_ACCOUNTS.find(
+      (a) => a.role === "manager" && a.division === "kindergarten"
+    );
+    expect(managerTk?.label).toBe("Manager · Kindergarten");
+
+    const instructorTk = MODE_1_TEST_ACCOUNTS.find(
+      (a) => a.role === "instructor" && a.division === "kindergarten"
+    );
+    expect(instructorTk?.label).toBe("Instructor · Kindergarten");
+
+    const foTk = MODE_1_TEST_ACCOUNTS.find(
+      (a) => a.role === "frontoffice" && a.division === "kindergarten"
+    );
+    expect(foTk?.label).toBe("Front Office · Kindergarten");
   });
 
   it("ensures every Mode 1 test account has valid structure", () => {
     MODE_1_TEST_ACCOUNTS.forEach((account) => {
       expect(account.email).toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
       expect(account.label).toBeTruthy();
-      expect(["studio", "kindergarten"]).toContain(account.division);
+      expect(["courses", "kindergarten"]).toContain(account.division);
       expect(account.branch).toBe("kota_gorontalo");
     });
   });

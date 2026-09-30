@@ -68,6 +68,18 @@ The MODE 1 test accounts use informal UI labels that include division context:
 The `label` field is purely for the dev switcher UI. The `role` field is canonical and correct.  
 `"Manager (TK)"` is display text — it does **not** define a role named `manager_tk`.
 
+However, the `(TK)` suffix notation is worth cleaning up because it visually collapses role and division into a single string, which is exactly the embedding pattern we want to prevent. The future label format should make the two dimensions explicit, for example:
+
+```
+// Current (ambiguous)
+label: "Manager (TK)"
+
+// Target (explicit)
+label: "Manager · Kindergarten"   // or structured as role + division badge in the UI
+```
+
+This does not affect runtime behavior. It only affects what developers read in devPresets and in the Quick Switcher UI.
+
 **Classification of `"studio"` division values:** ⚠️ Legacy invalid division value.  
 `"studio"` is not a valid division. Valid values are `"courses"`, `"kindergarten"`, `"all"`, or `null` (for facility-independent roles). The `normalizeDivision` alias table does not include `"studio"`, so these values silently fall back to `DEFAULT_DIVISION = "courses"` at runtime. This is pre-existing tech debt documented in `docs/plans/active/kindergarten-division-scope-revision-plan.md` (Finding F).
 
@@ -263,12 +275,29 @@ No division-specific role IDs exist anywhere in the codebase. There is nothing t
 
 | Step | What | Files | Risk |
 |---|---|---|---|
-| 1 | Replace `"studio"` with `"courses"` in devPresets | `devPresets.js` | Zero |
-| 2 | Replace `"studio"` with `"courses"` in DevQuickSwitcher; rename toggle label | `DevQuickSwitcher.jsx` | Zero |
-| 3 | Fix test assertion: accept `["courses","kindergarten"]` not `["studio","kindergarten"]` | `devPresets.test.js` | Zero |
-| 4 | Set `supportsDivision: true` for marketing in PREVIEW_ROLES | `devPresets.js` | Zero |
-| 5 | Align mobile badge: `"· TK"` → `"· Kindergarten"` | `App.jsx` | Zero |
-| 6 | Update dev spec doc terminology: `Studio` → `Courses` | `docs/specs/dev-tools/hybrid-quick-switch-user-spec.md` | Zero |
+| 1 | Replace `"studio"` with `"courses"` in devPresets; rename `"Manager (Studio)"` → `"Manager · Courses"` etc. | `devPresets.js` | Zero |
+| 2 | Rename TK labels to make role/division explicit: `"Manager (TK)"` → `"Manager · Kindergarten"` etc. | `devPresets.js` | Zero |
+| 3 | Replace `"studio"` fallback with `"courses"` in DevQuickSwitcher; rename toggle label | `DevQuickSwitcher.jsx` | Zero |
+| 4 | Fix test assertion: accept `["courses","kindergarten"]` not `["studio","kindergarten"]`; update test descriptions to use `"Kindergarten division"` not `"TK"` | `devPresets.test.js` | Zero |
+| 5 | Set `supportsDivision: true` for marketing in PREVIEW_ROLES | `devPresets.js` | Zero |
+| 6 | Align mobile badge: `"· TK"` → `"· Kindergarten"` | `App.jsx` | Zero |
+| 7 | Update dev spec doc terminology: `Studio` → `Courses` | `docs/specs/dev-tools/hybrid-quick-switch-user-spec.md` | Zero |
+
+### Label format intent (Steps 1–2)
+
+The new label convention for Mode 1 test accounts should make the ROLE × DIVISION structure visually explicit:
+
+```js
+// Before (role and division collapsed into one string)
+label: "Manager (TK)"
+label: "Manager (Studio)"
+
+// After (role and division are separate, readable dimensions)
+label: "Manager · Kindergarten"
+label: "Manager · Courses"
+```
+
+This directly reinforces the architectural model in the developer interface. Any dev reading devPresets immediately sees that `manager` and `kindergarten` are two separate things — not one compound identifier.
 
 All steps are cosmetic, dev-tooling, or test accuracy fixes. None touch Firestore, schemas, permissions, or production data.
 
@@ -301,4 +330,4 @@ All steps are cosmetic, dev-tooling, or test accuracy fixes. None touch Firestor
 | Decision | Status |
 |---|---|
 | Architectural rule: Division must not be embedded into role identifiers | 🔒 Locked (conceptually approved by Kifry) |
-| Steps 1–6 (label/test/tooling cleanup) | ⏳ Pending Kifry review |
+| Steps 1–7 (label/test/tooling/spec cleanup) | ✅ Completed & Verified |

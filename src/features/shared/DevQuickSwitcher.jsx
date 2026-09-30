@@ -277,7 +277,7 @@ export default function DevQuickSwitcher({
 
   const handlePreviewRoleSelect = (roleKey) => {
     const roleDef = PREVIEW_ROLES.find((r) => r.role === roleKey);
-    const div = roleDef?.supportsDivision ? previewDivision || realDivision || "studio" : "studio";
+    const div = roleDef?.supportsDivision ? previewDivision || realDivision || "courses" : "courses";
     onSetPreview?.(roleKey, div);
   };
 
@@ -476,7 +476,7 @@ export default function DevQuickSwitcher({
                       <div className="min-w-0">
                         <p className="font-bold text-[11px]">Active Preview</p>
                         <p className="text-[10px] text-amber-800 truncate">
-                          {previewRole?.toUpperCase()} · {previewDivision === "kindergarten" ? "Kindergarten" : "Studio"}
+                          {previewRole?.toUpperCase()} · {previewDivision === "kindergarten" ? "Kindergarten" : "Courses"}
                         </p>
                       </div>
                     </div>
@@ -498,14 +498,14 @@ export default function DevQuickSwitcher({
                   <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl">
                     <button
                       type="button"
-                      onClick={() => handleToggleDivision("studio")}
+                      onClick={() => handleToggleDivision("courses")}
                       className={`py-1 text-xs font-bold rounded-lg transition cursor-pointer ${
                         (previewDivision || realDivision) !== "kindergarten"
                           ? "bg-white text-indigo-900 shadow-2xs"
                           : "text-slate-600 hover:text-slate-900"
                       }`}
                     >
-                      English Studio
+                      Courses
                     </button>
                     <button
                       type="button"
@@ -516,7 +516,7 @@ export default function DevQuickSwitcher({
                           : "text-slate-600 hover:text-slate-900"
                       }`}
                     >
-                      Kindergarten (TK)
+                      Kindergarten
                     </button>
                   </div>
                 </div>
@@ -678,11 +678,6 @@ export default function DevQuickSwitcher({
                           <div className="min-w-0 pr-2">
                             <div className="flex items-center gap-1.5">
                               <span className="truncate">{acc.label}</span>
-                              {acc.division === "kindergarten" && (
-                                <span className="text-[9px] bg-amber-100 text-amber-800 px-1 rounded font-bold">
-                                  TK
-                                </span>
-                              )}
                             </div>
                             <p className="text-[10px] text-slate-400 font-mono truncate">
                               {acc.email}

@@ -23,7 +23,7 @@ superseded_by: null
 
 In MyLiberty Portal, testing the application requires inspecting multiple distinct operational roles:
 - **Admin** (Superadmin overview, company-wide settings, user approvals)
-- **Manager** (Branch performance, staff management, payroll review — English Studio & Kindergarten)
+- **Manager** (Branch performance, staff management, payroll review — Courses & Kindergarten)
 - **Instructor / Instructor Leader** (Class logs, student grading, agenda, attendance)
 - **Front Office / Ops Lead / Front Office Lead** (Student registrations, payments, daily receipting, attendance kiosk)
 - **Marketing** (Leads, campaigns, prospect follow-ups)
@@ -60,7 +60,7 @@ graph TD
 ### Mode 2: Instant UI Preview (Zero Network Latency)
 - **What it does:** Overrides `role` and `division` in local React state (`App.jsx`) to load a different dashboard component instantly. The underlying Firebase Auth session and Firestore data remain unchanged.
 - **Visual Warning Banner:** Shows a sticky top banner:  
-  `"⚠️ UI Preview Mode: [Instructor - English Studio] — Layout only. Data & writes belong to your real session."`
+  `"⚠️ UI Preview Mode: [Instructor - Courses] — Layout only. Data & writes belong to your real session."`
 - **Use case:** Quick visual check of dashboard layout, menu navigation, responsive behavior, button placement, CSS tweaks. **Not for testing data correctness or Firestore rules** — use Mode 1 for that.
 
 #### Mode 2 Write Protection
@@ -83,7 +83,7 @@ Because `auth.currentUser` remains the real user during Mode 2, any Firestore re
 ### A. On the Login Screen (`LoginPage.jsx`)
 Below the login form (visible only in Dev mode or when enabled), a collapsible panel:
 > **⚡ Quick Test Accounts (Dev Mode)**  
-> `[ Admin ]` `[ Manager ]` `[ Manager·TK ]` `[ Instructor ]` `[ Front Office ]` `[ Marketing ]` `[ Office Boy ]`  
+> `[ Admin ]` `[ Manager · Courses ]` `[ Manager · Kindergarten ]` `[ Instructor · Courses ]` `[ Front Office · Courses ]` `[ Marketing ]` `[ Office Boy ]`  
 > *Clicking any button calls `onLogin(email, password)` — the same prop already used by the login form.*
 
 ### B. Floating Pill on Inside Pages (`DevQuickSwitcher.jsx`)
@@ -92,10 +92,10 @@ Below the login form (visible only in Dev mode or when enabled), a collapsible p
 - When clicked, expands into a sleek card with:
   1. **Current Active User & Role badge** — shows the real authenticated user and their Firestore role.
   2. **Switch Real Account** (Mode 1 — triggers genuine Firebase Auth re-login).
-     - Role buttons: Admin, Manager, Manager·TK, Instructor, Instructor Leader, Front Office, Ops Lead, Marketing, Office Boy.
+     - Role buttons: Admin, Manager · Courses, Manager · Kindergarten, Instructor · Courses, Instructor · Kindergarten, Instructor Leader, Front Office · Courses, Front Office · Kindergarten, Ops Lead, Marketing, Office Boy.
   3. **Preview UI As...** (Mode 2 — instant in-memory preview).
      - Role picker with all dashboard-routable roles (see Section 5).
-     - Division toggle (`English Studio` ↔ `Kindergarten`).
+     - Division toggle (`Courses` ↔ `Kindergarten`).
   4. **Branch indicator** (read-only) — displays the current user's `branchId` from their Firestore document. **Not switchable** — branch is determined by the user's data, not a client-side toggle. Switching branches requires Mode 1 with a test account assigned to that branch.
 
 ---
@@ -133,15 +133,15 @@ The following roles are currently handled by the dashboard router in `App.jsx` a
 | Role Key | Dashboard Component | Division Variant |
 | :--- | :--- | :--- |
 | `admin` | `AdminDashboard` | — |
-| `manager` | `ManagerDashboard` | Studio |
+| `manager` | `ManagerDashboard` | Courses |
 | `manager` | `KidsManagerDashboard` | Kindergarten |
-| `instructor` | `InstructorDashboard` | Studio |
+| `instructor` | `InstructorDashboard` | Courses |
 | `instructor` | `KidsInstructorDashboard` | Kindergarten |
-| `instructorleader` / `instructor_leader` | `InstructorDashboard` (with `role` prop) | Studio |
+| `instructorleader` / `instructor_leader` | `InstructorDashboard` (with `role` prop) | Courses |
 | `instructorleader` / `instructor_leader` | `KidsInstructorDashboard` | Kindergarten |
-| `frontoffice` | `FrontOfficeDashboard` | Studio |
+| `frontoffice` | `FrontOfficeDashboard` | Courses |
 | `frontoffice` | `KidsFrontOfficeDashboard` | Kindergarten |
-| `opslead` / `ops_lead` / `frontofficelead` | `FrontOfficeDashboard` (with `role` prop) | Studio |
+| `opslead` / `ops_lead` / `frontofficelead` | `FrontOfficeDashboard` (with `role` prop) | Courses |
 | `opslead` / `ops_lead` / `frontofficelead` | `KidsFrontOfficeDashboard` | Kindergarten |
 | `marketing` | `MarketingDashboard` | — |
 | `officeboy` | `OfficeBoyDashboard` | — |
@@ -158,7 +158,7 @@ The Mode 2 preview should offer a simplified picker using canonical role labels:
 - Marketing
 - Office Boy
 
-With a separate **Division toggle** (`English Studio` ↔ `Kindergarten`) that affects which dashboard variant loads.
+With a separate **Division toggle** (`Courses` ↔ `Kindergarten`) that affects which dashboard variant loads.
 
 ---
 
@@ -168,17 +168,17 @@ For Mode 1 (Authentic Auth Switch) to pass Firestore rules, the following test a
 
 | Role | Test Email | Firestore `role` | Firestore `division` | Default Branch |
 | :--- | :--- | :--- | :--- | :--- |
-| **Admin** | `admin.test@myliberty.id` | `admin` | `studio` | `kota_gorontalo` |
-| **Manager** | `manager.test@myliberty.id` | `manager` | `studio` | `kota_gorontalo` |
-| **Manager · TK** | `manager-tk.test@myliberty.id` | `manager` | `kindergarten` | `kota_gorontalo` |
-| **Instructor (Studio)** | `instructor.test@myliberty.id` | `instructor` | `studio` | `kota_gorontalo` |
-| **Instructor · TK** | `instructor-tk.test@myliberty.id` | `instructor` | `kindergarten` | `kota_gorontalo` |
-| **Instructor Leader** | `instructorleader.test@myliberty.id` | `instructorleader` | `studio` | `kota_gorontalo` |
-| **Front Office (Studio)** | `frontoffice.test@myliberty.id` | `frontoffice` | `studio` | `kota_gorontalo` |
-| **Front Office · TK** | `frontoffice-tk.test@myliberty.id` | `frontoffice` | `kindergarten` | `kota_gorontalo` |
-| **Front Office Lead** | `frontofficelead.test@myliberty.id` | `opslead` | `studio` | `kota_gorontalo` |
-| **Marketing** | `marketing.test@myliberty.id` | `marketing` | `studio` | `kota_gorontalo` |
-| **Office Boy** | `officeboy.test@myliberty.id` | `officeboy` | `studio` | `kota_gorontalo` |
+| **Admin** | `admin.test@myliberty.id` | `admin` | `courses` | `kota_gorontalo` |
+| **Manager · Courses** | `manager.test@myliberty.id` | `manager` | `courses` | `kota_gorontalo` |
+| **Manager · Kindergarten** | `manager-tk.test@myliberty.id` | `manager` | `kindergarten` | `kota_gorontalo` |
+| **Instructor · Courses** | `instructor.test@myliberty.id` | `instructor` | `courses` | `kota_gorontalo` |
+| **Instructor · Kindergarten** | `instructor-tk.test@myliberty.id` | `instructor` | `kindergarten` | `kota_gorontalo` |
+| **Instructor Leader** | `instructorleader.test@myliberty.id` | `instructorleader` | `courses` | `kota_gorontalo` |
+| **Front Office · Courses** | `frontoffice.test@myliberty.id` | `frontoffice` | `courses` | `kota_gorontalo` |
+| **Front Office · Kindergarten** | `frontoffice-tk.test@myliberty.id` | `frontoffice` | `kindergarten` | `kota_gorontalo` |
+| **Front Office Lead** | `frontofficelead.test@myliberty.id` | `opslead` | `courses` | `kota_gorontalo` |
+| **Marketing** | `marketing.test@myliberty.id` | `marketing` | `courses` | `kota_gorontalo` |
+| **Office Boy** | `officeboy.test@myliberty.id` | `officeboy` | `courses` | `kota_gorontalo` |
 
 **Password:** All test accounts use the same password, stored in `VITE_DEV_TEST_PASSWORD` in `.env.local`.
 

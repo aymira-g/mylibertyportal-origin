@@ -485,7 +485,7 @@ function App() {
                   MY LIBERTY
                 </span>
                 <span className="text-[9px] bg-indigo-50 text-indigo-800 font-extrabold px-1.5 py-0.5 rounded-full border border-indigo-100 uppercase shrink-0">
-                  {role} {division === "kindergarten" ? "· TK" : ""}
+                  {role} {division === "kindergarten" ? "· Kindergarten" : ""}
                 </span>
               </div>
             </div>

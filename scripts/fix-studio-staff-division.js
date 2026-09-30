@@ -1,7 +1,12 @@
 /**
- * One-shot fix: assign correct division values to staff profiles
- * that were flagged as invalid_division_studio or missing_division
- * by audit-and-backfill-division.js.
+ * LEGACY MIGRATION TOOL — studio → courses
+ *
+ * One-shot fix: assign correct canonical division values ("courses" / "all")
+ * to historical staff profiles that were flagged as invalid_division_studio or
+ * missing_division by audit-and-backfill-division.js.
+ *
+ * NOTE: "studio" is an obsolete source value being converted to "courses".
+ * It is NOT a valid active division in the application domain.
  *
  * Usage:
  *   node scripts/fix-studio-staff-division.js --projectId=<id> [--dry-run] [--commit]

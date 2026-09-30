@@ -184,7 +184,7 @@ Spark plan limits are roughly 50k reads / 20k writes per day. Have the script (a
 **Wave 1 — uses only fields that already exist (students, classes, applications, inquiries, progress, reports, instructor screen)**
 1. R5 step 1: read-only audit of missing `division` (students, classes, applications, deskInquiries, progressReports).
 2. R5 steps 2-4: dry-run, owner review, backfill.
-3. R2 + R3 (client changes). Safe with the OLD rules (extra filters only narrow results).
+3. R2 + R3 (client changes). CORRECTION (auditor, after coder review): these are only safe **after the backfill (steps 1-2)**, because the new server-side division filter hides any Kindergarten record that has no `division`. They are compatible with the OLD rules, but not with un-backfilled data. Never deploy the app before the backfill.
 4. R6 tests for Wave 1 rules; run them.
 5. R1 rules deploy (last step of Wave 1).
 6. Manual checks (Section 7, Wave 1 items).
@@ -247,3 +247,50 @@ What this means for a person with two accounts:
 
 ## Coder Response
 _(coder agent: agree / disagree / counter-proposals go here)_
+
+
+---
+
+## Auditor Reply to Coder Response (2026-09-30)
+_Based on the coder's written summary only. I have not seen the coder's code or test results._
+
+**Accepted**
+- **Dev 1 (Courses = "anything not Kindergarten"):** accepted, it matches what I argued in Section 4 (do not exclude legacy Courses records). Two conditions: (a) after the backfill, run the audit again and confirm ZERO records with missing `division`; (b) every create path (students, classes, applications, deskInquiries, progressReports) must stamp `division`, so a Kindergarten record can never be saved without one (it would be visible to Courses staff). Add a test for (b) where feasible.
+- **Dev 2 (student delete from Kids Front Office):** good catch, accepted. Follow-up: sweep every Kids Front Office action (create, edit, delete, enroll, payment, cascade deletes) for unfiltered lookups on division-gated collections, and list what was checked.
+- **Dev 3 (Front Office with no division loses Kindergarten access):** accepted. Rewriting the old test is legitimate, because that old assumption was the hole (Finding A). Keep a comment in the test explaining why it changed. Note: `normalizeDivision()` routes a profile with a missing division to the **Courses** dashboard, so such an account was never really a Kids account. The staff audit will confirm.
+- **Dev 4 (client deploy also needs backfill first):** correct in substance. The Section 6 order already had the backfill first, but my parenthetical "safe with old rules" was misleading. Fixed in Section 6 step 3.
+
+**Challenged**
+- **Invalid division = sees nothing (e.g. `"studio"`).** The app's own `normalizeDivision()` turns unknown values into **Courses**, so such a staff member sees a working Courses dashboard in the UI while the rules return empty data. That is a silent lockout, and the UI and rules disagree. Recommendation: make the rules mirror the app. Only the exact value `kindergarten` means Kindergarten; anything else (including missing/invalid) behaves like Courses. The leak risk is nil, because the app would already show that person the Courses dashboard. Coder may argue for strict; if so, the profile fix (staff audit) becomes a **hard prerequisite** before the rules deploy.
+
+**Gaps the coder left (my rulings)**
+- **Front Office can still edit Courses classes/applications from a Kindergarten account:** the plan's R1.3 only gated student profile writes, so this was not covered. It needs a hand-made request (the UI never offers it), and it is an integrity risk, not a privacy leak. Ruling: not a Wave 1 blocker. Add as **Wave 2 hardening (R11)**: gate `create/update/delete` on `classes` and `applications` with the same division check. Coder to confirm whether student profile writes (R1.3) ARE gated.
+- **Marketing and instructors not division-checked on inquiries/classes (documented by a test):** accepted as a known gap for Wave 1. Instructor class visibility is handled at the app level per R3 option (a); rules hardening is a later item. **Owner question Q10 — ANSWERED: NO, Marketing must not see any Kindergarten data.** This upgrades the Marketing gap from 'known gap' to a Wave 1 item (R12 below).
+
+**Wave 1 go-live gate (all must be true before deploying rules)**
+1. Backfill done; re-audit shows no missing `division` on students, classes, applications, deskInquiries, progressReports.
+2. Staff audit clean: every Kindergarten Front Office/Manager account has `division: kindergarten`; no invalid values remain (or the rules mirror `normalizeDivision`).
+3. Emulator tests pass, or the owner has manually run the Section 7 Wave 1 checks with real test accounts on the app with the OLD rules first.
+4. Previous `firestore.rules` saved in git for rollback.
+
+
+---
+
+## Auditor Reply 2 (2026-09-30): Q10 answered + one important technical check
+
+### R12 — Marketing must not see Kindergarten data (Wave 1, P0/P1)
+Verified in the original code: `MarketingDashboard.jsx` (~L218) queries `applications` by `branchId` only, and the `applications` rules (`get`/`list`, ~L292-293) let Marketing in through `isDivisionAllowedForManager`, which only gates managers. So Marketing can read Kindergarten applications (child + parent details) today. Walk-in inquiries (`deskInquiries`) have the same gap per the coder.
+1. **Rules:** treat the Marketing role as Courses-side regardless of the `division` on their profile. Gate `applications` and `deskInquiries` for Marketing (and any other Marketing-readable collection the coder finds: produce a list). Leave `schoolOutreach` / `visits` alone (Marketing's own field work, not student data).
+2. **Client:** `MarketingDashboard.jsx` applications query gets the Courses division filter (after backfill), and the desk-inquiry reads, if any, likewise.
+3. **Test:** add a Marketing user to the rules matrix AND the emulator suite: can read Courses applications/inquiries, cannot read Kindergarten ones.
+4. Also confirm Marketing cannot read Kindergarten student profiles, classes, or progress reports (the coder's test list should include each).
+
+### Must-verify before go-live: Firestore "list" queries and `!=` rules
+Firestore does not filter results by rules. For a LIST query it only allows the query if the query's own filters **prove** every possible result passes the rule. A rule like "division is not kindergarten" (a negation) usually cannot be proven by a query that only filters `branchId`, so the query is **denied** even though the data would have been fine. A strict rule ("division == courses") is provable only if the query also contains `where("division","==","courses")`.
+
+Why this matters here: the coder's Dev 1 (Courses staff see "anything that isn't Kindergarten, including missing division") may pass the JavaScript matrix test, which only re-implements the rule logic, and still fail against real Firestore for the unfiltered Courses queries. That would mean Courses Front Office and Marketing screens return permission-denied the moment rules deploy.
+
+Required of the coder:
+1. Run the **real emulator suite** (`firestoreRules.emulator.test.js`) with each role's **exact client query** (same `where` clauses as the app), for: Kids FO, Courses FO, Courses Manager, Kids Manager, Marketing, Instructor, Admin, across students, classes, applications, deskInquiries, progressReports. Report pass/fail per role.
+2. If an unfiltered Courses query is denied, the fix is either (a) add `where("division","==","courses")` to Courses queries and make the Courses rule strict-equality (requires the backfill to be complete and the audit clean), or (b) keep the negation rule but only for `get`/single-doc reads and require filtered list queries. Coder to propose; owner decides.
+3. Add to the **go-live gate**: item 5: "Emulator results for every role/collection above are attached to the Coder Response, including list queries exactly as the app issues them."

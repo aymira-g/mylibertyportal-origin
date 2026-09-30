@@ -103,6 +103,22 @@ export default function InvitesPanel({ invites = [], users = [], onCreateInvite,
     );
   }, [cleanEmail, invites]);
 
+  // Auto-sets division when role changes (can still be manually overridden)
+  const ROLE_DIVISION_MAP = {
+    instructorleader: "all",
+    manager: "all",
+    opslead: "all",
+    officeboy: "all",
+    marketing: "courses",
+  };
+
+  const handleRoleChange = (newRole) => {
+    setInviteRole(newRole);
+    if (ROLE_DIVISION_MAP[newRole] !== undefined) {
+      setInviteDivision(ROLE_DIVISION_MAP[newRole]);
+    }
+  };
+
   const handleDivisionChange = (newDiv) => {
     setInviteDivision(newDiv);
     if (newDiv === "kindergarten" && inviteRole === "marketing") {
@@ -223,7 +239,7 @@ export default function InvitesPanel({ invites = [], users = [], onCreateInvite,
             </label>
             <select
               value={inviteRole}
-              onChange={(e) => setInviteRole(e.target.value)}
+              onChange={(e) => handleRoleChange(e.target.value)}
               className="w-full py-2.5 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:border-[#1a3a8f] outline-none cursor-pointer transition"
             >
               <option value="instructor">Instructor / Teacher</option>

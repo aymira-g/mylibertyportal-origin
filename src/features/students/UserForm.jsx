@@ -45,6 +45,22 @@ export default function UserForm({
     }
   };
 
+  // Auto-selects division when role changes (user can still override division after)
+  const ROLE_DIVISION_MAP = {
+    instructorleader: "all",
+    manager: "all",
+    opslead: "all",
+    officeboy: "all",
+    marketing: "courses",
+  };
+
+  const handleRoleChange = (newRole) => {
+    field("role", newRole);
+    if (ROLE_DIVISION_MAP[newRole] !== undefined) {
+      field("division", ROLE_DIVISION_MAP[newRole]);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (submitting) return;
@@ -165,6 +181,7 @@ export default function UserForm({
           formData={formData}
           field={field}
           handleDivisionChange={handleDivisionChange}
+          onRoleChange={handleRoleChange}
           editId={editId}
           isSelf={isSelf}
         />

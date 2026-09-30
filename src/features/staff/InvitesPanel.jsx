@@ -12,7 +12,7 @@ import { DEFAULT_BRANCH } from "../../constants/branches.js";
 import {
   DEFAULT_DIVISION,
   DIVISION_BADGES,
-  normalizeDivision,
+  normalizeStaffDivision,
 } from "../../constants/divisions.js";
 import { copyText } from "../../utils/copyText";
 import {
@@ -213,6 +213,7 @@ export default function InvitesPanel({ invites = [], users = [], onCreateInvite,
             >
               <option value="courses">Course Academy</option>
               <option value="kindergarten">Kids School (Kindergarten)</option>
+              <option value="all">All Divisions (Cross-Divisional)</option>
             </select>
           </div>
 
@@ -331,7 +332,8 @@ export default function InvitesPanel({ invites = [], users = [], onCreateInvite,
                 label: inv.role,
                 tone: "bg-slate-100 text-slate-600 border-slate-200",
               };
-              const divBadge = DIVISION_BADGES[normalizeDivision(inv.division)];
+              const divKey = normalizeStaffDivision(inv.division);
+              const divBadge = DIVISION_BADGES[divKey] || DIVISION_BADGES.courses;
               const expiry = getExpiryInfo(inv.expiresAt);
               const createdStr = inv.createdAt
                 ? new Date(inv.createdAt).toLocaleDateString("id-ID", {

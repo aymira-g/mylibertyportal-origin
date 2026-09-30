@@ -16,7 +16,7 @@ import {
   TRACKED_STAFF_ROLES,
   getInstructorWorkload,
 } from "./staffUtils";
-import { DIVISION_BADGES, normalizeDivision } from "../../constants/divisions.js";
+import { DIVISION_BADGES, normalizeStaffDivision } from "../../constants/divisions.js";
 import { normalizeWhatsAppNumber } from "../finance/receiptMessages";
 import { isInstructorRole } from "../shared/roles";
 
@@ -95,10 +95,10 @@ export function StaffMemberCard({
 
               <span
                 className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                  DIVISION_BADGES[normalizeDivision(u.division)].tone
+                  DIVISION_BADGES[normalizeStaffDivision(u.division)]?.tone || DIVISION_BADGES.courses.tone
                 }`}
               >
-                {DIVISION_BADGES[normalizeDivision(u.division)].label}
+                {DIVISION_BADGES[normalizeStaffDivision(u.division)]?.label || "Courses"}
               </span>
 
               <span

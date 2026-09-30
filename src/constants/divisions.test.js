@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   DIVISIONS,
+  STAFF_DIVISIONS,
   DEFAULT_DIVISION,
   DIVISION_LABELS,
+  DIVISION_BADGES,
   normalizeDivision,
+  normalizeStaffDivision,
   divisionOfProgram,
   matchesDivisionFilter,
   isKindergartenDivision,
@@ -16,9 +19,12 @@ describe("divisions.js", () => {
   describe("constants and defaults", () => {
     it("exports canonical divisions array and default", () => {
       expect(DIVISIONS).toEqual(["courses", "kindergarten"]);
+      expect(STAFF_DIVISIONS).toEqual(["courses", "kindergarten", "all"]);
       expect(DEFAULT_DIVISION).toBe("courses");
+      expect(DIVISION_LABELS.all).toBe("All Divisions");
       expect(DIVISION_LABELS.courses).toBeDefined();
       expect(DIVISION_LABELS.kindergarten).toBeDefined();
+      expect(DIVISION_BADGES.all).toBeDefined();
     });
   });
 
@@ -57,6 +63,25 @@ describe("divisions.js", () => {
     });
   });
 
+  describe("normalizeStaffDivision", () => {
+    it("preserves 'all' and cross-divisional aliases", () => {
+      expect(normalizeStaffDivision("all")).toBe("all");
+      expect(normalizeStaffDivision("ALL")).toBe("all");
+      expect(normalizeStaffDivision("  all  ")).toBe("all");
+      expect(normalizeStaffDivision("both")).toBe("all");
+      expect(normalizeStaffDivision("cross")).toBe("all");
+      expect(normalizeStaffDivision("cross-divisional")).toBe("all");
+    });
+
+    it("falls back to standard normalizeDivision for specific divisions and defaults", () => {
+      expect(normalizeStaffDivision("courses")).toBe("courses");
+      expect(normalizeStaffDivision("kindergarten")).toBe("kindergarten");
+      expect(normalizeStaffDivision("tk")).toBe("kindergarten");
+      expect(normalizeStaffDivision(null)).toBe("courses");
+      expect(normalizeStaffDivision("")).toBe("courses");
+    });
+  });
+
   describe("divisionOfProgram", () => {
     it("maps kids_school program to kindergarten division", () => {
       expect(divisionOfProgram("kids_school")).toBe("kindergarten");
@@ -80,9 +105,16 @@ describe("divisions.js", () => {
     it("returns true when filter is empty or 'all'", () => {
       expect(matchesDivisionFilter("courses", "all")).toBe(true);
       expect(matchesDivisionFilter("kindergarten", "all")).toBe(true);
+      expect(matchesDivisionFilter("all", "all")).toBe(true);
       expect(matchesDivisionFilter(null, "all")).toBe(true);
       expect(matchesDivisionFilter("courses", "")).toBe(true);
       expect(matchesDivisionFilter("courses", null)).toBe(true);
+    });
+
+    it("returns true when item division is 'all' (cross-divisional matches any filter)", () => {
+      expect(matchesDivisionFilter("all", "courses")).toBe(true);
+      expect(matchesDivisionFilter("all", "kindergarten")).toBe(true);
+      expect(matchesDivisionFilter("cross-divisional", "kindergarten")).toBe(true);
     });
 
     it("matches canonical divisions accurately with normalization", () => {

@@ -1,7 +1,7 @@
 import StudentPhotoCapture from "./StudentPhotoCapture";
 import { STAFF_STATUS_OPTIONS, STANDARD_BRANCHES } from "../staff/staffUtils";
 import { normalizeBranch } from "../../constants/branches";
-import { normalizeDivision } from "../../constants/divisions";
+import { normalizeStaffDivision } from "../../constants/divisions";
 
 export default function StaffProfileFields({
   formData,
@@ -133,12 +133,13 @@ export default function StaffProfileFields({
             Division (Divisi) *
           </label>
           <select
-            value={normalizeDivision(formData.division)}
+            value={normalizeStaffDivision(formData.division)}
             onChange={(e) => handleDivisionChange(e.target.value)}
             className="w-full p-2.5 border rounded-xl bg-white font-bold text-xs"
           >
             <option value="courses">Course Academy</option>
             <option value="kindergarten">Kids School (Kindergarten)</option>
+            <option value="all">All Divisions (Cross-Divisional)</option>
           </select>
         </div>
         <div>
@@ -155,7 +156,7 @@ export default function StaffProfileFields({
             <option value="frontoffice">Front Office</option>
             <option value="opslead">Front Office Leader (Ops Lead)</option>
             <option value="manager">Manager</option>
-            {normalizeDivision(formData.division) !== "kindergarten" && (
+            {normalizeStaffDivision(formData.division) !== "kindergarten" && (
               <>
                 <option value="marketing">Marketing Staff</option>
                 <option value="officeboy">Office Support (Office Boy)</option>

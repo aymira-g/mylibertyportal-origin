@@ -8,15 +8,22 @@
 import { normalizeProgram } from "./programs.js";
 
 export const DIVISIONS = ["courses", "kindergarten"];
+export const STAFF_DIVISIONS = ["courses", "kindergarten", "all"];
 
 export const DEFAULT_DIVISION = "courses";
 
 export const DIVISION_LABELS = {
+  all: "All Divisions",
   courses: "Course Academy",
   kindergarten: "Kids School (Kindergarten)",
 };
 
 export const DIVISION_BADGES = {
+  all: {
+    label: "All Divisions",
+    shortLabel: "All",
+    tone: "bg-slate-100 text-slate-700 border-slate-300",
+  },
   courses: {
     label: "Courses",
     shortLabel: "Courses",
@@ -77,6 +84,33 @@ export function normalizeDivision(raw) {
 }
 
 /**
+ * Normalizes staff division strings including "all" (cross-divisional).
+ * Defaults safely to DEFAULT_DIVISION ("courses") for missing/legacy records.
+ *
+ * @param {any} [raw]
+ * @returns {"courses" | "kindergarten" | "all"}
+ */
+export function normalizeStaffDivision(raw) {
+  if (!raw || typeof raw !== "string") {
+    return DEFAULT_DIVISION;
+  }
+  const clean = raw.trim().toLowerCase();
+  if (!clean) {
+    return DEFAULT_DIVISION;
+  }
+  if (
+    clean === "all" ||
+    clean === "both" ||
+    clean === "cross" ||
+    clean === "cross-divisional" ||
+    clean === "cross_divisional"
+  ) {
+    return "all";
+  }
+  return normalizeDivision(clean);
+}
+
+/**
  * Derives the organizational division from an educational program ID.
  * - "kids_school" -> "kindergarten"
  * - All other programs -> "courses"
@@ -99,7 +133,8 @@ export function divisionOfProgram(programId) {
  */
 export function matchesDivisionFilter(itemDivision, filterDivision) {
   if (!filterDivision || filterDivision === "all") return true;
-  const canonicalItem = normalizeDivision(itemDivision);
+  const canonicalItem = normalizeStaffDivision(itemDivision);
+  if (canonicalItem === "all") return true;
   const canonicalFilter = normalizeDivision(filterDivision);
   return canonicalItem === canonicalFilter;
 }

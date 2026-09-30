@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { auth } from "../../firebase";
 import { getStars } from "../shared";
-import { normalizeDivision } from "../../constants/divisions";
+import { normalizeStaffDivision } from "../../constants/divisions";
 import StudentPersonalFields from "./StudentPersonalFields";
 import StudentAcademicFields from "./StudentAcademicFields";
 import StudentTuitionFields from "./StudentTuitionFields";
@@ -127,8 +127,10 @@ export default function UserForm({
               {!isStudent && !isParent && (
                 <span className="px-3 py-1 bg-cyan-50 text-cyan-700 font-bold text-xs rounded-full uppercase">
                   Division:{" "}
-                  {normalizeDivision(formData.division) === "kindergarten"
+                  {normalizeStaffDivision(formData.division) === "kindergarten"
                     ? "Kids School"
+                    : normalizeStaffDivision(formData.division) === "all"
+                    ? "All Divisions"
                     : "Courses"}
                 </span>
               )}

@@ -46,7 +46,9 @@ const COLLECTIONS = [
   "todos",
 ];
 
-const VALID_DIVISIONS = ["courses", "kindergarten"];
+// Staff profiles and shared records (todos, cross-divisional shifts) may also use "all".
+const VALID_STAFF_DIVISIONS = ["courses", "kindergarten", "all"];
+const VALID_DERIVED = ["courses", "kindergarten", "all"];
 
 function deriveDivisionFromProgram(programIdOrName) {
   if (!programIdOrName || typeof programIdOrName !== "string") return null;
@@ -227,7 +229,7 @@ async function runDivisionAudit() {
         if (role !== "student") {
           // Staff profile audit
           const div = data.division;
-          if (!div || !VALID_DIVISIONS.includes(div)) {
+          if (!div || !VALID_STAFF_DIVISIONS.includes(div)) {
             report.staffProfilesWithInvalidDivision.push({
               uid: doc.id,
               displayName: data.displayName || data.email || "Unknown Staff",
@@ -248,7 +250,7 @@ async function runDivisionAudit() {
       }
 
       const existingDiv = data.division;
-      if (existingDiv && (VALID_DIVISIONS.includes(existingDiv) || (collName === "todos" && existingDiv === "all"))) {
+      if (existingDiv && VALID_DERIVED.includes(existingDiv)) {
         continue; // Already has canonical division
       }
 
@@ -290,7 +292,7 @@ async function runDivisionAudit() {
       } else if (!derived && collName === "shifts") {
         if (data.userId) {
           const user = await getUserCached(data.userId);
-          if (user) {
+          if (user && user.division && VALID_DERIVED.includes(user.division)) {
             derived = user.division;
             if (derived) matchedSource = `staff:${data.userId}`;
           }

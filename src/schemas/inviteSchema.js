@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { normalizeBranch } from "../constants/branches.js";
-import { normalizeDivision } from "../constants/divisions.js";
+import { normalizeStaffDivision } from "../constants/divisions.js";
 
 export const ALLOWED_STAFF_ROLES = [
   "admin",
@@ -36,7 +36,7 @@ export const inviteSchema = z
       .string()
       .trim()
       .optional()
-      .transform((d) => normalizeDivision(d)),
+      .transform((d) => normalizeStaffDivision(d)),
   })
   .refine(
     (data) => {

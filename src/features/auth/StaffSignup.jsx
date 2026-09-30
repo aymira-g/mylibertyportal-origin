@@ -5,7 +5,7 @@ import schoolLogo from "../../assets/school-logo.webp";
 import { fetchInviteByToken, completeStaffSignup } from "./authRepository";
 import { AlertCircle, CheckCircle2, Mail, ArrowRight, Loader2 } from "lucide-react";
 import { normalizeBranch, branchToId } from "../../constants/branches";
-import { normalizeDivision } from "../../constants/divisions";
+import { normalizeStaffDivision } from "../../constants/divisions";
 
 /**
  * Runs `commit` and retries it on Firestore permission errors only. Right
@@ -136,7 +136,7 @@ export default function StaffSignup() {
         role: invite.role,
         branch: normalizeBranch(invite.branch),
         branchId: branchToId(invite.branchId || invite.branch),
-        division: normalizeDivision(invite.division),
+        division: normalizeStaffDivision(invite.division),
         status: "active",
         phone,
         dob: formData.dob,

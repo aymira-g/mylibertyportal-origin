@@ -51,6 +51,13 @@ describe("inviteSchema", () => {
       division: "kindergarten",
     });
     expect(kidsDiv.division).toBe("kindergarten");
+
+    const allDiv = inviteSchema.parse({
+      email: "admin@myliberty.id",
+      role: "admin",
+      division: "all",
+    });
+    expect(allDiv.division).toBe("all");
   });
 
   it("rejects marketing role for kindergarten division", () => {

@@ -17,6 +17,7 @@ import {
 import { createApprovalEnvelope } from "../shared/approvalGates";
 import { submitApprovalRequest } from "../shared/approvalsRepository";
 import { branchToId, idToBranch, DEFAULT_BRANCH_ID } from "../../constants/branches";
+import { normalizeDivision } from "../../constants/divisions";
 import { getOrCreateKioskKey, signKioskChallenge } from "./kioskDeviceCrypto";
 import { todayWita } from "../../utils/dateWita.js";
 
@@ -127,9 +128,11 @@ export function clockIn({
   docId = null,
   shiftType = null,
   eventId = null,
+  division = null,
 }) {
   const finalBranchId = branchToId(branchId || branch || DEFAULT_BRANCH_ID);
   const finalBranch = idToBranch(finalBranchId);
+  const finalDivision = normalizeDivision(division);
 
   const payload = {
     userId: uid,
@@ -137,6 +140,7 @@ export function clockIn({
     role,
     branch: finalBranch,
     branchId: finalBranchId,
+    division: finalDivision,
     classId: classId || "general",
     className: className || "",
     clockIn: clockInAt.toISOString(),
@@ -514,9 +518,11 @@ export function switchClassAtomic({
   className = "",
   punctuality = null,
   stationId = "reception-01",
+  division = null,
 }) {
   const finalBranchId = branchToId(branchId || branch || DEFAULT_BRANCH_ID);
   const finalBranch = idToBranch(finalBranchId);
+  const finalDivision = normalizeDivision(division);
 
   const batch = writeBatch(db);
   const prevRef = doc(db, "shifts", previousShiftId);
@@ -529,6 +535,7 @@ export function switchClassAtomic({
     role,
     branch: finalBranch,
     branchId: finalBranchId,
+    division: finalDivision,
     classId: classId || "general",
     className: className || "",
     clockIn: clockOutAt.toISOString(),
@@ -559,6 +566,7 @@ export function recordStudentAttendance({
   matchingEventIds = null,
   branchId = null,
   branch = null,
+  division = null,
 }) {
   const canonicalBranchId = branchId
     ? branchToId(branchId)
@@ -568,6 +576,7 @@ export function recordStudentAttendance({
   const canonicalBranch = branch
     ? branch
     : idToBranch(canonicalBranchId);
+  const finalDivision = normalizeDivision(division);
 
   const payload = {
     userId: uid,
@@ -577,6 +586,7 @@ export function recordStudentAttendance({
     method: "KIOSK",
     branchId: canonicalBranchId,
     branch: canonicalBranch,
+    division: finalDivision,
     ...(eventId ? { eventId } : {}),
     ...(eventName ? { eventName } : {}),
     ...(Array.isArray(matchingEventIds) && matchingEventIds.length > 0 ? { matchingEventIds } : {}),

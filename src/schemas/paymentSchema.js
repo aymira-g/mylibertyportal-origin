@@ -8,6 +8,7 @@ export const paymentRecordSchema = z.object({
   planId: z.string().trim().optional().default("monthly"),
   branch: z.string().optional(),
   branchId: z.string().optional(),
+  division: z.string().optional(),
   recordedAt: z.string().optional(),
   recordedBy: z.string().optional(),
   coverageStart: z.string().optional(),

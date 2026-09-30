@@ -18,6 +18,7 @@ export function createTodo({
   createdBy = null,
   createdByName = null,
   branch = DEFAULT_BRANCH,
+  division = "all",
 }) {
   const normalizedBranch = normalizeBranch(branch);
   return addDoc(collection(db, "todos"), {
@@ -38,6 +39,7 @@ export function createTodo({
     createdByName: createdByName || null,
     branch: normalizedBranch,
     branchId: branchToId(normalizedBranch),
+    division: division || "all",
   });
 }
 

@@ -31,6 +31,7 @@ export default function FrontDeskCashReconcile({
   students = [],
   activeShift = null,
   currentUser = {},
+  division = null,
   onShiftClosed = null,
 }) {
   const toast = useToast();
@@ -62,7 +63,7 @@ export default function FrontDeskCashReconcile({
   const loadDailyPayments = useCallback(async () => {
     setLoading(true);
     try {
-      const list = await getPaymentsForRecordedDay(new Date(), targetBranchId);
+      const list = await getPaymentsForRecordedDay(new Date(), targetBranchId, division);
       setPayments(list);
       setLastRefreshed(
         new Date().toLocaleTimeString("id-ID", {
@@ -78,11 +79,11 @@ export default function FrontDeskCashReconcile({
     } finally {
       setLoading(false);
     }
-  }, [targetBranchId, toast]);
+  }, [targetBranchId, division, toast]);
 
   useEffect(() => {
     let active = true;
-    getPaymentsForRecordedDay(new Date(), targetBranchId)
+    getPaymentsForRecordedDay(new Date(), targetBranchId, division)
       .then((list) => {
         if (active) {
           setPayments(list);
@@ -108,7 +109,7 @@ export default function FrontDeskCashReconcile({
     return () => {
       active = false;
     };
-  }, [targetBranchId, toast]);
+  }, [targetBranchId, division, toast]);
 
   const filteredPayments = useMemo(() => {
     if (!branchLabel || branchLabel === "all") {

@@ -19,7 +19,13 @@ export function useStaffDirectives(role, explicitBranch = null) {
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const currentUser = auth.currentUser;
-  const { branchId: profileBranchId, branch: profileBranch, loading: profileLoading } = useUserProfile();
+  const {
+    branchId: profileBranchId,
+    branch: profileBranch,
+    profile,
+    loading: profileLoading,
+  } = useUserProfile();
+  const profileDivision = profile?.division;
 
   const effectiveBranchId = explicitBranch
     ? branchToId(explicitBranch)
@@ -58,13 +64,18 @@ export function useStaffDirectives(role, explicitBranch = null) {
 
   const directives = useMemo(() => {
     const uid = currentUser?.uid;
+    const userDiv = profileDivision || null;
     return todos.filter((t) => {
+      // Division gating: must be "all", missing, or matching user's division
+      if (userDiv && t.division && t.division !== "all" && t.division !== userDiv) {
+        return false;
+      }
       if (t.assignee === "all") return true;
       if (role && t.assignee === role) return true;
       if (uid && t.assignee === uid) return true;
       return false;
     });
-  }, [todos, role, currentUser?.uid]);
+  }, [todos, role, currentUser?.uid, profileDivision]);
 
   const activeDirectives = useMemo(() => {
     return directives

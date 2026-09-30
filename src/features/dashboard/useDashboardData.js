@@ -250,7 +250,14 @@ export function useDashboardData({
 
     const unsubTodos = onSnapshot(
       todosQuery,
-      (snap) => setTodos(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      (snap) => {
+        const list = snap.docs.map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }));
+        if (division === "kindergarten") {
+          setTodos(list.filter((t) => !t.division || t.division === "all" || t.division === "kindergarten"));
+        } else {
+          setTodos(list);
+        }
+      },
       handleListenerError("todos")
     );
     const inviteConstraints = [];
@@ -523,7 +530,10 @@ export function useDashboardData({
   const handleAddTodo = async (todoData) => {
     const isDirective = todoData?.type === "directive";
     try {
-      await createTodo(todoData);
+      await createTodo({
+        ...todoData,
+        division: division && division !== "all" ? division : "all",
+      });
       toast(
         isDirective ? "Directive issued successfully." : "Task created successfully.",
         "success"

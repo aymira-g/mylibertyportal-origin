@@ -277,20 +277,20 @@ function canListProgressReports(queryData, user) {
 function canGetUser(doc, user) {
   if (!user) return false;
   if (isAdmin(user)) return true;
+  if (doc.uid === user.uid || doc.id === user.uid) return true;
   if (
     (isManager(user) || isFrontOffice(user)) &&
     isSameBranch(doc, user) &&
-    (doc.role !== "student" || isDivisionAllowedForManager(doc, user))
+    (doc.role === "parent" || isDivisionAllowedForBranchStaff(doc, user))
   )
     return true;
   if (
     isStaff(user) &&
     ["student", "instructor", "instructorleader", "instructor_leader", "parent"].includes(doc.role) &&
     isSameBranch(doc, user) &&
-    (doc.role !== "student" || isDivisionAllowedForManager(doc, user))
+    (doc.role === "parent" || isDivisionAllowedForBranchStaff(doc, user))
   )
     return true;
-  if (doc.uid === user.uid || doc.id === user.uid) return true;
   if (isParentOf(doc.id || doc.uid, user) && doc.role === "student") return true;
   return false;
 }
@@ -301,14 +301,14 @@ function canListUsers(queryData, user) {
   if (
     isManager(user) &&
     isSameBranchStrict(queryData, user) &&
-    (queryData.role !== "student" || isDivisionAllowedForManager(queryData, user))
+    (queryData.role === "parent" || isDivisionAllowedForBranchStaff(queryData, user))
   )
     return true;
   if (
     isStaff(user) &&
     ["student", "instructor", "instructorleader", "instructor_leader", "parent"].includes(queryData.role) &&
     isSameBranchStrict(queryData, user) &&
-    (queryData.role !== "student" || isDivisionAllowedForManager(queryData, user))
+    (queryData.role === "parent" || isDivisionAllowedForBranchStaff(queryData, user))
   )
     return true;
   return false;
@@ -362,8 +362,85 @@ function canDecideApproval(doc, user) {
 function canGetPayment(doc, user) {
   if (!user) return false;
   if (isAdmin(user)) return true;
-  if ((isManager(user) || isFrontOffice(user)) && isSameBranch(doc, user)) return true;
+  if (
+    (isManager(user) || isFrontOffice(user)) &&
+    isSameBranch(doc, user) &&
+    isDivisionAllowedForBranchStaff(doc, user)
+  )
+    return true;
   return doc.studentId === user.uid;
+}
+
+function canListPayments(queryData, user) {
+  if (!user) return false;
+  if (isAdmin(user)) return true;
+  if (
+    (isManager(user) || isFrontOffice(user)) &&
+    isSameBranchStrict(queryData, user) &&
+    isDivisionAllowedForBranchStaff(queryData, user)
+  )
+    return true;
+  return false;
+}
+
+function canGetAttendance(doc, user) {
+  if (!user) return false;
+  if (isAdmin(user)) return true;
+  if (isStaff(user) && isSameBranch(doc, user) && isDivisionAllowedForBranchStaff(doc, user)) return true;
+  return false;
+}
+
+function canListAttendance(queryData, user) {
+  if (!user) return false;
+  if (isAdmin(user)) return true;
+  if (isStaff(user) && isSameBranchStrict(queryData, user) && isDivisionAllowedForBranchStaff(queryData, user)) return true;
+  return false;
+}
+
+function canGetShift(doc, user) {
+  if (!user) return false;
+  if (isAdmin(user)) return true;
+  if (doc.userId === user.uid) return true;
+  if (
+    (isManager(user) || isFrontOffice(user)) &&
+    isSameBranch(doc, user) &&
+    isDivisionAllowedForBranchStaff(doc, user)
+  )
+    return true;
+  return false;
+}
+
+function canListShifts(queryData, user) {
+  if (!user) return false;
+  if (isAdmin(user)) return true;
+  if (queryData.userId === user.uid) return true;
+  if (
+    (isManager(user) || isFrontOffice(user)) &&
+    isSameBranchStrict(queryData, user) &&
+    isDivisionAllowedForBranchStaff(queryData, user)
+  )
+    return true;
+  return false;
+}
+
+function canGetClassAttendance(doc, user, classDoc = null) {
+  if (!user) return false;
+  if (isAdmin(user)) return true;
+  const targetClass = classDoc || { branchId: doc.branchId, division: doc.division };
+  if (
+    (isManager(user) || isFrontOffice(user)) &&
+    isSameBranch(targetClass, user) &&
+    isDivisionAllowedForBranchStaff(targetClass, user)
+  )
+    return true;
+  if (
+    (user.role === "instructor" || user.role === "instructorleader" || user.role === "instructor_leader") &&
+    (targetClass.instructorId === user.uid || targetClass.substituteInstructorId === user.uid)
+  )
+    return true;
+  if (doc.studentId === user.uid) return true;
+  if (isParent(user) && Array.isArray(user.childStudentIds) && user.childStudentIds.includes(doc.studentId)) return true;
+  return false;
 }
 
 /**
@@ -1939,6 +2016,261 @@ describe("Security Rules Matrix & Branch Isolation", () => {
         division: "kindergarten",
       };
       expect(canGetProgressReport(reportOther, kidsInstructorGorontalo)).toBe(false);
+    });
+  });
+
+  describe("Section 19: Wave 2 Staff, Shifts, Attendance, and Payments Division Security Matrix", () => {
+    const kidsManager = {
+      uid: "mgr_k_gtlo",
+      role: "manager",
+      branchId: "kota_gorontalo",
+      division: "kindergarten",
+    };
+
+    const kidsFO = {
+      uid: "fo_k_gtlo",
+      role: "frontoffice",
+      branchId: "kota_gorontalo",
+      division: "kindergarten",
+    };
+
+    const coursesManager = {
+      uid: "mgr_c_gtlo",
+      role: "manager",
+      branchId: "kota_gorontalo",
+      division: "courses",
+    };
+
+    const coursesFO = {
+      uid: "fo_c_gtlo",
+      role: "frontoffice",
+      branchId: "kota_gorontalo",
+      division: "courses",
+    };
+
+    const foreignKidsManager = {
+      uid: "mgr_k_boba",
+      role: "manager",
+      branchId: "bone_bolango",
+      division: "kindergarten",
+    };
+
+    // Staff profiles
+    const staffKids = {
+      uid: "staff_k_1",
+      role: "instructor",
+      branchId: "kota_gorontalo",
+      division: "kindergarten",
+    };
+
+    const staffCourses = {
+      uid: "staff_c_1",
+      role: "instructor",
+      branchId: "kota_gorontalo",
+      division: "courses",
+    };
+
+    const staffLegacy = {
+      uid: "staff_legacy_1",
+      role: "instructor",
+      branchId: "kota_gorontalo",
+    };
+
+    const parentUser = {
+      uid: "parent_1",
+      role: "parent",
+      branchId: "kota_gorontalo",
+    };
+
+    // Payments
+    const paymentKidsGtlo = {
+      id: "pay_k_gtlo",
+      branchId: "kota_gorontalo",
+      division: "kindergarten",
+      studentId: "std_k_1",
+    };
+
+    const paymentCoursesGtlo = {
+      id: "pay_c_gtlo",
+      branchId: "kota_gorontalo",
+      division: "courses",
+      studentId: "std_c_1",
+    };
+
+    const paymentLegacyGtlo = {
+      id: "pay_leg_gtlo",
+      branchId: "kota_gorontalo",
+      studentId: "std_leg_1",
+    };
+
+    const paymentKidsBoba = {
+      id: "pay_k_boba",
+      branchId: "bone_bolango",
+      division: "kindergarten",
+      studentId: "std_boba_1",
+    };
+
+    // Shifts
+    const shiftKidsGtlo = {
+      id: "shift_k_gtlo",
+      userId: "staff_k_1",
+      branchId: "kota_gorontalo",
+      division: "kindergarten",
+    };
+
+    const shiftCoursesGtlo = {
+      id: "shift_c_gtlo",
+      userId: "staff_c_1",
+      branchId: "kota_gorontalo",
+      division: "courses",
+    };
+
+    const shiftLegacyGtlo = {
+      id: "shift_leg_gtlo",
+      userId: "staff_legacy_1",
+      branchId: "kota_gorontalo",
+    };
+
+    // Attendance
+    const attKidsGtlo = {
+      id: "att_k_gtlo",
+      branchId: "kota_gorontalo",
+      division: "kindergarten",
+      userId: "std_k_1",
+    };
+
+    const attCoursesGtlo = {
+      id: "att_c_gtlo",
+      branchId: "kota_gorontalo",
+      division: "courses",
+      userId: "std_c_1",
+    };
+
+    // Class Attendance
+    const classKids = {
+      id: "cls_k_1",
+      branchId: "kota_gorontalo",
+      division: "kindergarten",
+      instructorId: "staff_k_1",
+    };
+
+    const classCourses = {
+      id: "cls_c_1",
+      branchId: "kota_gorontalo",
+      division: "courses",
+      instructorId: "staff_c_1",
+    };
+
+    const classAttKids = {
+      id: "cls_att_k",
+      classId: "cls_k_1",
+      studentId: "std_k_1",
+      branchId: "kota_gorontalo",
+      division: "kindergarten",
+    };
+
+    const classAttCourses = {
+      id: "cls_att_c",
+      classId: "cls_c_1",
+      studentId: "std_c_1",
+      branchId: "kota_gorontalo",
+      division: "courses",
+    };
+
+    // --- 1. Payments Tests ---
+    it("Kids Front Office and Manager can read Kindergarten payments in own branch", () => {
+      expect(canGetPayment(paymentKidsGtlo, kidsFO)).toBe(true);
+      expect(canGetPayment(paymentKidsGtlo, kidsManager)).toBe(true);
+      expect(canListPayments({ branchId: "kota_gorontalo", division: "kindergarten" }, kidsFO)).toBe(true);
+      expect(canListPayments({ branchId: "kota_gorontalo", division: "kindergarten" }, kidsManager)).toBe(true);
+    });
+
+    it("Kids Front Office and Manager are DENIED reading Courses and legacy payments", () => {
+      expect(canGetPayment(paymentCoursesGtlo, kidsFO)).toBe(false);
+      expect(canGetPayment(paymentCoursesGtlo, kidsManager)).toBe(false);
+      expect(canGetPayment(paymentLegacyGtlo, kidsFO)).toBe(false);
+      expect(canGetPayment(paymentLegacyGtlo, kidsManager)).toBe(false);
+      expect(canListPayments({ branchId: "kota_gorontalo", division: "courses" }, kidsFO)).toBe(false);
+    });
+
+    it("Kids Manager in another branch is DENIED reading Gorontalo payments", () => {
+      expect(canGetPayment(paymentKidsGtlo, foreignKidsManager)).toBe(false);
+      expect(canGetPayment(paymentKidsBoba, kidsManager)).toBe(false);
+      expect(canListPayments({ branchId: "kota_gorontalo", division: "kindergarten" }, foreignKidsManager)).toBe(false);
+    });
+
+    it("Courses Front Office and Manager can read Courses and legacy payments, DENIED Kindergarten", () => {
+      expect(canGetPayment(paymentCoursesGtlo, coursesFO)).toBe(true);
+      expect(canGetPayment(paymentCoursesGtlo, coursesManager)).toBe(true);
+      expect(canGetPayment(paymentLegacyGtlo, coursesFO)).toBe(true);
+      expect(canGetPayment(paymentLegacyGtlo, coursesManager)).toBe(true);
+      expect(canGetPayment(paymentKidsGtlo, coursesFO)).toBe(false);
+      expect(canGetPayment(paymentKidsGtlo, coursesManager)).toBe(false);
+    });
+
+    // --- 2. Shifts Tests ---
+    it("Kids Manager and Front Office can read Kindergarten staff shifts in own branch", () => {
+      expect(canGetShift(shiftKidsGtlo, kidsManager)).toBe(true);
+      expect(canGetShift(shiftKidsGtlo, kidsFO)).toBe(true);
+      expect(canListShifts({ branchId: "kota_gorontalo", division: "kindergarten" }, kidsManager)).toBe(true);
+    });
+
+    it("Kids Manager and Front Office are DENIED Courses staff shifts", () => {
+      expect(canGetShift(shiftCoursesGtlo, kidsManager)).toBe(false);
+      expect(canGetShift(shiftCoursesGtlo, kidsFO)).toBe(false);
+      expect(canListShifts({ branchId: "kota_gorontalo", division: "courses" }, kidsManager)).toBe(false);
+    });
+
+    it("Courses Manager and Front Office can read Courses and legacy shifts, DENIED Kindergarten shifts", () => {
+      expect(canGetShift(shiftCoursesGtlo, coursesManager)).toBe(true);
+      expect(canGetShift(shiftLegacyGtlo, coursesManager)).toBe(true);
+      expect(canGetShift(shiftKidsGtlo, coursesManager)).toBe(false);
+      expect(canGetShift(shiftKidsGtlo, coursesFO)).toBe(false);
+    });
+
+    it("Staff member can always read their own shift regardless of division viewer", () => {
+      expect(canGetShift(shiftKidsGtlo, { uid: "staff_k_1", role: "instructor" })).toBe(true);
+      expect(canGetShift(shiftCoursesGtlo, { uid: "staff_c_1", role: "instructor" })).toBe(true);
+    });
+
+    // --- 3. Attendance Tests ---
+    it("Kids Front Office can read Kindergarten attendance, DENIED Courses attendance", () => {
+      expect(canGetAttendance(attKidsGtlo, kidsFO)).toBe(true);
+      expect(canListAttendance({ branchId: "kota_gorontalo", division: "kindergarten" }, kidsFO)).toBe(true);
+      expect(canGetAttendance(attCoursesGtlo, kidsFO)).toBe(false);
+      expect(canListAttendance({ branchId: "kota_gorontalo", division: "courses" }, kidsFO)).toBe(false);
+    });
+
+    it("Courses Front Office can read Courses attendance, DENIED Kindergarten attendance", () => {
+      expect(canGetAttendance(attCoursesGtlo, coursesFO)).toBe(true);
+      expect(canListAttendance({ branchId: "kota_gorontalo", division: "courses" }, coursesFO)).toBe(true);
+      expect(canGetAttendance(attKidsGtlo, coursesFO)).toBe(false);
+    });
+
+    // --- 4. Class Attendance Tests ---
+    it("Kids Front Office can read Kindergarten class attendance, DENIED Courses class attendance", () => {
+      expect(canGetClassAttendance(classAttKids, kidsFO, classKids)).toBe(true);
+      expect(canGetClassAttendance(classAttCourses, kidsFO, classCourses)).toBe(false);
+    });
+
+    it("Kids Instructor can read class attendance for assigned class, DENIED unassigned class", () => {
+      expect(canGetClassAttendance(classAttKids, staffKids, classKids)).toBe(true);
+      expect(canGetClassAttendance(classAttCourses, staffKids, classCourses)).toBe(false);
+    });
+
+    // --- 5. Staff Users Scoping Tests ---
+    it("Kids Manager listing users sees Kindergarten staff and parents, DENIED Courses staff", () => {
+      expect(canGetUser(staffKids, kidsManager)).toBe(true);
+      expect(canGetUser(parentUser, kidsManager)).toBe(true);
+      expect(canGetUser(staffCourses, kidsManager)).toBe(false);
+      expect(canGetUser(staffLegacy, kidsManager)).toBe(false);
+    });
+
+    it("Courses Manager listing users sees Courses and legacy staff, DENIED Kindergarten staff", () => {
+      expect(canGetUser(staffCourses, coursesManager)).toBe(true);
+      expect(canGetUser(staffLegacy, coursesManager)).toBe(true);
+      expect(canGetUser(parentUser, coursesManager)).toBe(true);
+      expect(canGetUser(staffKids, coursesManager)).toBe(false);
     });
   });
 });

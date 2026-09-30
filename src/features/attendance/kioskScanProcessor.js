@@ -59,6 +59,7 @@ async function executeStaffClockIn({
     role: userData.role,
     branch: userData.branch,
     branchId: userData.branchId,
+    division: userData.division,
     classId,
     className,
     clockInAt: new Date(),
@@ -309,6 +310,7 @@ export async function handleKioskScan(
       matchingEventIds: matchingEventIds.length > 0 ? matchingEventIds : null,
       branchId: branchToId(rawBranch),
       branch: userData.branch || DEFAULT_BRANCH,
+      division: userData.division,
     });
 
     const isLeave = studentStatus === "on_leave";

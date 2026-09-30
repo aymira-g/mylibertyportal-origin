@@ -28,6 +28,7 @@ export default function PaymentCashierTab({
   students = [],
   onPaymentRecorded = null,
   branchLabel = null,
+  division = null,
   onBack = null,
 }) {
   const toast = useToast();
@@ -45,11 +46,12 @@ export default function PaymentCashierTab({
   useOverlayHistory(pickerOpen, handleClosePicker, "cashierPicker");
 
   const cashierBranchId = branchToId(branchLabel || "");
+  const serverDivision = division === "kindergarten" ? "kindergarten" : null;
 
   const loadPayments = useCallback(async () => {
     setLoading(true);
     try {
-      const list = await getRecentPayments(50, cashierBranchId);
+      const list = await getRecentPayments(50, cashierBranchId, serverDivision);
       setPayments(list);
     } catch (err) {
       console.error("Failed to load recent payments:", err);
@@ -57,11 +59,11 @@ export default function PaymentCashierTab({
     } finally {
       setLoading(false);
     }
-  }, [toast, cashierBranchId]);
+  }, [toast, cashierBranchId, serverDivision]);
 
   useEffect(() => {
     let active = true;
-    getRecentPayments(50, cashierBranchId)
+    getRecentPayments(50, cashierBranchId, serverDivision)
       .then((list) => {
         if (active) {
           setPayments(list);
@@ -79,7 +81,7 @@ export default function PaymentCashierTab({
     return () => {
       active = false;
     };
-  }, [toast, cashierBranchId]);
+  }, [toast, cashierBranchId, serverDivision]);
 
   const filteredPayments = useMemo(() => {
     return payments.filter((p) => {
@@ -138,7 +140,11 @@ export default function PaymentCashierTab({
   return (
     <div className="space-y-6 w-full">
       {/* 1. Daily Reconciliation Banner */}
-      <FrontDeskCashReconcile branchLabel={branchLabel} students={students} />
+      <FrontDeskCashReconcile
+        branchLabel={branchLabel}
+        students={students}
+        division={serverDivision}
+      />
 
       {/* 2. Cashier Header & Actions */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-5 space-y-4">

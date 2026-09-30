@@ -29,6 +29,7 @@ export const classAttendanceSchema = z
     className: z.string().trim().optional().default(""),
     branchId: z.string().trim().optional().default(""),
     branch: z.string().trim().optional().default(""),
+    division: z.string().trim().optional().default(""),
     note: z.string().trim().optional().default(""),
     createdAt: z.string().trim().optional(),
     updatedAt: z.string().trim().optional(),

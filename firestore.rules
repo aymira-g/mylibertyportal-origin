@@ -222,13 +222,13 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get: if isAdmin()
-        || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && (resource.data.role != 'student' || isDivisionAllowedForManager(resource.data)))
-        || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranch(resource.data) && (resource.data.role != 'student' || isDivisionAllowedForManager(resource.data)))
+        || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)))
+        || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranch(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)))
         || (signedIn() && userId == request.auth.uid)
         || (isParentOf(userId) && resource.data.role == 'student');
       allow list: if isAdmin()
-        || (isManager() && isSameBranchStrict(resource.data) && (resource.data.role != 'student' || isDivisionAllowedForManager(resource.data)))
-        || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranchStrict(resource.data) && (resource.data.role != 'student' || isDivisionAllowedForManager(resource.data)));
+        || (isManager() && isSameBranchStrict(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)))
+        || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranchStrict(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)));
       allow create: if isAdmin() 
         || (isFrontOffice() && request.resource.data.role in ['student', 'parent'] && isSameBranch(request.resource.data)
           && (request.resource.data.role != 'student' || isDivisionAllowedForBranchStaff(request.resource.data))
@@ -367,12 +367,13 @@ service cloud.firestore {
     match /attendance/{attendanceId} {
       // Branch-lock attendance by default. Admin has cross-branch access.
       allow get: if isAdmin()
-        || (isStaff() && isSameBranch(resource.data));
+        || (isStaff() && isSameBranch(resource.data) && isDivisionAllowedForBranchStaff(resource.data));
       allow list: if isAdmin()
-        || (isStaff() && isSameBranchStrict(resource.data));
+        || (isStaff() && isSameBranchStrict(resource.data) && isDivisionAllowedForBranchStaff(resource.data));
       // Student scans: Admin (reception station), Front Office, Instructor, and Instructor Leader; scanned person must be a student
       allow create: if (isAdmin() || isFrontOffice() || hasRole('instructor') || hasRole('instructorleader') || hasRole('instructor_leader'))
         && isSameBranch(request.resource.data)
+        && isDivisionAllowedForBranchStaff(request.resource.data)
         && request.resource.data.userId is string
         && request.resource.data.timestamp is string
         && roleOf(request.resource.data.userId) == 'student'
@@ -382,6 +383,8 @@ service cloud.firestore {
         || ((isFrontOffice() || hasRole('instructor') || hasRole('instructorleader') || hasRole('instructor_leader'))
           && isSameBranch(resource.data)
           && isSameBranch(request.resource.data)
+          && isDivisionAllowedForBranchStaff(resource.data)
+          && isDivisionAllowedForBranchStaff(request.resource.data)
           && request.resource.data.userId == resource.data.userId
           && request.resource.data.role == resource.data.role);
       allow delete: if isAdmin();
@@ -425,6 +428,7 @@ service cloud.firestore {
         || (
           (isManager() || isFrontOffice())
           && isSameBranch(classDoc(resource.data.classId))
+          && isDivisionAllowedForBranchStaff(classDoc(resource.data.classId))
         )
         || (
           (
@@ -472,11 +476,11 @@ service cloud.firestore {
 
     match /payments/{paymentId} {
       allow get: if isAdmin()
-        || ((isManager() || isFrontOffice()) && isSameBranch(resource.data))
+        || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isDivisionAllowedForBranchStaff(resource.data))
         || (signedIn() && (resource.data.studentId == request.auth.uid || isParentOf(resource.data.studentId)));
       allow list: if isAdmin()
-        || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data));
-      allow create: if (isAdmin() || (isFrontOffice() && isSameBranch(request.resource.data)))
+        || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data) && isDivisionAllowedForBranchStaff(resource.data));
+      allow create: if (isAdmin() || (isFrontOffice() && isSameBranch(request.resource.data) && isDivisionAllowedForBranchStaff(request.resource.data)))
         && request.resource.data.amount is number
         && request.resource.data.amount > 0
         && request.resource.data.studentId is string
@@ -558,13 +562,13 @@ service cloud.firestore {
 
     match /shifts/{shiftId} {
       allow get: if isAdmin()
-        || ((isManager() || isFrontOffice()) && isSameBranch(resource.data))
+        || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isDivisionAllowedForBranchStaff(resource.data))
         || (signedIn() && resource.data.userId == request.auth.uid);
       allow list: if isAdmin()
-        || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data))
+        || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data) && isDivisionAllowedForBranchStaff(resource.data))
         || (signedIn() && resource.data.userId == request.auth.uid);
       // Staff scans: Admin and Front Office (reception kiosk station), for tracked roles only, new shifts start open
-      allow create: if (isAdmin() || (isFrontOffice() && isSameBranch(request.resource.data)))
+      allow create: if (isAdmin() || (isFrontOffice() && isSameBranch(request.resource.data) && isDivisionAllowedForBranchStaff(request.resource.data)))
         && request.resource.data.userId is string
         && request.resource.data.userId.size() > 0
         && request.resource.data.clockIn is string

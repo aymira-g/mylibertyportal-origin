@@ -29,6 +29,7 @@ describe("recordPayment", () => {
       ...record,
       branch: "Kota Gorontalo",
       branchId: "kota_gorontalo",
+      division: "courses",
     });
     const payment = fake.find("payments/auto-1");
     const student = fake.find("users/s1");
@@ -39,6 +40,7 @@ describe("recordPayment", () => {
         ...record,
         branch: "Kota Gorontalo",
         branchId: "kota_gorontalo",
+        division: "courses",
       },
     });
     expect(student).toMatchObject({ kind: "set", via: "batch", opts: { merge: true } });

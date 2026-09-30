@@ -108,7 +108,11 @@ export default function ManagerDashboard() {
     const unsubUsers = onSnapshot(
       query(collection(db, "users"), where("branchId", "==", managerBranchId)),
       (snap) => {
-        setUsers(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setUsers(
+          snap.docs
+            .map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }))
+            .filter((u) => !u.division || u.division !== "kindergarten")
+        );
         setLoading(false);
       },
       (err) => {
@@ -119,13 +123,23 @@ export default function ManagerDashboard() {
 
     const unsubClasses = onSnapshot(
       query(collection(db, "classes"), where("branchId", "==", managerBranchId)),
-      (snap) => setClasses(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      (snap) =>
+        setClasses(
+          snap.docs
+            .map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }))
+            .filter((c) => !c.division || c.division !== "kindergarten")
+        ),
       (err) => console.warn("classes listener:", err)
     );
 
     const unsubApplications = onSnapshot(
       query(collection(db, "applications"), where("branchId", "==", managerBranchId)),
-      (snap) => setApplications(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      (snap) =>
+        setApplications(
+          snap.docs
+            .map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }))
+            .filter((a) => !a.division || a.division !== "kindergarten")
+        ),
       (err) => console.warn("applications listener:", err)
     );
 
@@ -136,14 +150,23 @@ export default function ManagerDashboard() {
         where("branchId", "==", managerBranchId),
         where("clockOut", "==", null)
       ),
-      (snap) => setShifts(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      (snap) =>
+        setShifts(
+          snap.docs
+            .map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }))
+            .filter((s) => !s.division || s.division !== "kindergarten")
+        ),
       (err) => console.warn("shifts listener:", err)
     );
 
     const unsubTodos = onSnapshot(
       query(collection(db, "todos"), where("branchId", "in", [managerBranchId, "all"])),
       (snap) => {
-        setTodos(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setTodos(
+          snap.docs
+            .map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }))
+            .filter((t) => !t.division || t.division === "all" || t.division !== "kindergarten")
+        );
         setTodosPermission(true);
       },
       (err) => {
@@ -247,7 +270,7 @@ export default function ManagerDashboard() {
     setDailyPaymentsLoading(true);
     try {
       const list = await getPaymentsForRecordedDay(new Date(), managerBranchId);
-      setDailyPayments(list);
+      setDailyPayments(list.filter((p) => !p.division || p.division !== "kindergarten"));
     } catch (err) {
       console.warn("fetchTodayPayments error:", err);
       toast("Could not load today's payment totals.", "error");
@@ -262,7 +285,7 @@ export default function ManagerDashboard() {
       try {
         const list = await getPaymentsForRecordedDay(new Date(), managerBranchId);
         if (active) {
-          setDailyPayments(list);
+          setDailyPayments(list.filter((p) => !p.division || p.division !== "kindergarten"));
           setDailyPaymentsLoading(false);
         }
       } catch (err) {
@@ -280,7 +303,7 @@ export default function ManagerDashboard() {
 
   const handleAddTodo = async (todoData) => {
     try {
-      await createTodo(todoData);
+      await createTodo({ ...todoData, division: "courses" });
       toast("Staff directive issued successfully.", "success");
     } catch (err) {
       if (err?.code === "permission-denied" || err?.message?.includes("insufficient permissions")) {

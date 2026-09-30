@@ -1,9 +1,14 @@
 /**
  * Administrative audit and backfill script: audit-and-backfill-division.js
  *
- * Implements R5 and R10 from docs/plans/active/kindergarten-division-scope-revision-plan.md:
+ * Implements R5, R8.2, R9, and R10 from docs/plans/active/kindergarten-division-scope-revision-plan.md:
  * - Read-only audit counting division distribution across collections
- * - Derives missing division values via divisionOfProgram(programId || program)
+ * - Derives missing division values via:
+ *     - users / classes / applications / inquiries / progress: divisionOfProgram(programId || program)
+ *     - payments: derived from student profile's division or program
+ *     - classAttendance: derived from parent class's division
+ *     - attendance / shifts: derived from staff/student profile's division
+ *     - todos: default to shared "all"
  * - Safe dry-run mode generating a structured report of unambiguous vs ambiguous records
  * - Audits staff profiles for invalid values like "studio"
  * - Batched writes (max 400 per commit) protecting free-tier Spark quotas
@@ -16,7 +21,7 @@
  *   --audit-only            Only report counts and distribution without preparing backfill payloads.
  *   --dry-run               (Default) Analyze and output changes to backfill-division-report.json without writing.
  *   --commit                Apply unambiguous updates in batched writes.
- *   --collection=<name>     Restrict operation to a specific collection (users, classes, applications, deskInquiries, progressReports).
+ *   --collection=<name>     Restrict operation to a specific collection (users, classes, applications, deskInquiries, progressReports, payments, classAttendance, attendance, shifts, todos).
  *   --service-account=<path>Path to GCP service account key (or GOOGLE_APPLICATION_CREDENTIALS).
  *   --emulator[=<host>]     Run against local Firestore emulator (default: 127.0.0.1:8080).
  *   --adc                   Use Google Cloud Application Default Credentials.
@@ -34,6 +39,11 @@ const COLLECTIONS = [
   "applications",
   "deskInquiries",
   "progressReports",
+  "payments",
+  "classAttendance",
+  "attendance",
+  "shifts",
+  "todos",
 ];
 
 const VALID_DIVISIONS = ["courses", "kindergarten"];
@@ -89,7 +99,13 @@ async function runDivisionAudit() {
   }
 
   const serviceAccountFlag = args.find((a) => a.startsWith("--service-account="))?.split("=")[1];
-  const serviceAccountPath = serviceAccountFlag || process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  const defaultKeyPath = resolve(process.cwd(), "serviceAccountKey.json");
+  const fallbackKeyPath = resolve(process.cwd(), "service-account.json");
+  const serviceAccountPath =
+    serviceAccountFlag ||
+    process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+    (existsSync(defaultKeyPath) ? defaultKeyPath : existsSync(fallbackKeyPath) ? fallbackKeyPath : null);
+
   const useAdc = args.includes("--adc");
 
   const appOptions = { projectId };
@@ -103,20 +119,22 @@ async function runDivisionAudit() {
     appOptions.credential = cert(serviceAccount);
     console.log(`[Auth] Using Service Account credentials: ${resolvedPath}`);
   } else if (useAdc) {
-    appOptions.credential = applicationDefault();
-    console.log("[Auth] Using Google Cloud Application Default Credentials (ADC)");
-  } else if (!process.env.FIRESTORE_EMULATOR_HOST) {
     try {
       appOptions.credential = applicationDefault();
+      console.log("[Auth] Using Google Cloud Application Default Credentials (ADC)");
     } catch {
-      console.error(
-        "\n[Error] Failed to initialize default administrative credentials. Please supply:\n" +
-          "  --service-account=path/to/key.json\n" +
-          "  --adc\n" +
-          "  --emulator\n"
-      );
+      console.error("\n[Error] ADC credentials failed to load. Please supply --service-account=path/to/key.json\n");
       process.exit(1);
     }
+  } else if (!process.env.FIRESTORE_EMULATOR_HOST) {
+    console.error(
+      "\n[Error] Administrative credentials required to run division audit.\n" +
+        "Please provide a Firebase Service Account key:\n" +
+        "  1. Place 'serviceAccountKey.json' in this folder (scripts automatically detects it), OR\n" +
+        "  2. Run with: node scripts/audit-and-backfill-division.js --projectId=" + projectId + " --service-account=path/to/key.json\n" +
+        "  3. Or run with --adc if Google Cloud CLI is authenticated on your machine.\n"
+    );
+    process.exit(1);
   }
 
   initializeApp(appOptions);
@@ -128,17 +146,48 @@ async function runDivisionAudit() {
   console.log(`\n================================================================================`);
   console.log(`  MYLIBERTY Division Audit & Backfill [Project: ${projectId}]`);
   console.log(`  Mode: ${isCommit ? "COMMIT (APPLYING WRITES)" : isAuditOnly ? "AUDIT ONLY" : "DRY RUN"}`);
+  console.log(`  Target Collections: ${targetCollections.join(", ")}`);
   console.log(`================================================================================\n`);
 
   const report = {
     timestamp: new Date().toISOString(),
     projectId,
-    mode: isCommit ? "commit" : isAuditOnly ? "audit_only" : "dry_run",
+    mode: isCommit ? "commit" : isAuditOnly ? "audit-only" : "dry-run",
     collections: {},
     staffProfilesWithInvalidDivision: [],
     unambiguousUpdates: [],
     ambiguousRecords: [],
   };
+
+  // Document caches to avoid repeated single-document reads (preserving Spark quota)
+  const userCache = new Map();
+  const classCache = new Map();
+
+  async function getUserCached(uid) {
+    if (!uid) return null;
+    if (userCache.has(uid)) return userCache.get(uid);
+    try {
+      const snap = await db.collection("users").doc(uid).get();
+      const val = snap.exists ? snap.data() : null;
+      userCache.set(uid, val);
+      return val;
+    } catch {
+      return null;
+    }
+  }
+
+  async function getClassCached(classId) {
+    if (!classId) return null;
+    if (classCache.has(classId)) return classCache.get(classId);
+    try {
+      const snap = await db.collection("classes").doc(classId).get();
+      const val = snap.exists ? snap.data() : null;
+      classCache.set(classId, val);
+      return val;
+    } catch {
+      return null;
+    }
+  }
 
   for (const collName of targetCollections) {
     console.log(`--> Auditing collection: "${collName}"...`);
@@ -188,25 +237,76 @@ async function runDivisionAudit() {
               issue: !div ? "missing_division" : `invalid_division_${div}`,
             });
           }
+          userCache.set(doc.id, data);
           continue;
         }
+        userCache.set(doc.id, data);
+      }
+
+      if (collName === "classes") {
+        classCache.set(doc.id, data);
       }
 
       const existingDiv = data.division;
-      if (existingDiv && VALID_DIVISIONS.includes(existingDiv)) {
+      if (existingDiv && (VALID_DIVISIONS.includes(existingDiv) || (collName === "todos" && existingDiv === "all"))) {
         continue; // Already has canonical division
       }
 
-      // Attempt to derive division from educational program or class metadata
-      const prog = data.programId || data.program || data.course || data.targetProgram;
-      const derived = deriveDivisionFromProgram(prog);
+      let derived = null;
+      let matchedSource = null;
+
+      // 1. Direct program metadata
+      const prog = data.programId || data.program || data.course || data.targetProgram || data.interest;
+      if (prog) {
+        derived = deriveDivisionFromProgram(prog);
+        if (derived) matchedSource = `program:${prog}`;
+      }
+
+      // 2. Collection-specific derivation
+      if (!derived && collName === "payments") {
+        if (data.studentId) {
+          const student = await getUserCached(data.studentId);
+          if (student) {
+            derived = student.division || deriveDivisionFromProgram(student.programId || student.program);
+            if (derived) matchedSource = `student:${data.studentId}`;
+          }
+        }
+      } else if (!derived && collName === "classAttendance") {
+        if (data.classId) {
+          const cls = await getClassCached(data.classId);
+          if (cls) {
+            derived = cls.division || deriveDivisionFromProgram(cls.programId || cls.program || cls.name);
+            if (derived) matchedSource = `class:${data.classId}`;
+          }
+        }
+      } else if (!derived && collName === "attendance") {
+        if (data.userId) {
+          const user = await getUserCached(data.userId);
+          if (user) {
+            derived = user.division || deriveDivisionFromProgram(user.programId || user.program);
+            if (derived) matchedSource = `user:${data.userId}`;
+          }
+        }
+      } else if (!derived && collName === "shifts") {
+        if (data.userId) {
+          const user = await getUserCached(data.userId);
+          if (user) {
+            derived = user.division;
+            if (derived) matchedSource = `staff:${data.userId}`;
+          }
+        }
+      } else if (!derived && collName === "todos") {
+        // Shared default "all" for legacy todos per Q8
+        derived = "all";
+        matchedSource = "directive_default_all";
+      }
 
       if (derived) {
         report.unambiguousUpdates.push({
           collection: collName,
           docId: doc.id,
           currentDivision: existingDiv || null,
-          program: prog || null,
+          matchedSource,
           derivedDivision: derived,
         });
       } else {
@@ -216,7 +316,7 @@ async function runDivisionAudit() {
           currentDivision: existingDiv || null,
           program: prog || null,
           role: data.role || null,
-          reason: "No programId/program metadata could be reliably matched to courses or kindergarten.",
+          reason: "Could not correlate with a known parent student, class, or program.",
         });
       }
     }

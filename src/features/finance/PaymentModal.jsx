@@ -17,6 +17,7 @@ import {
 import { normalizeWhatsAppNumber, buildWhatsAppReceiptMessage } from "./receiptMessages";
 import { fetchPaymentHistory, recordPayment, markPaymentPending } from "./paymentsRepository";
 import { branchToId } from "../../constants/branches";
+import { normalizeDivision, divisionOfProgram } from "../../constants/divisions";
 import RecordPaymentTab from "./RecordPaymentTab";
 import PaymentHistoryTab from "./PaymentHistoryTab";
 import DigitalReceiptTab from "./DigitalReceiptTab";
@@ -179,12 +180,17 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
         finalCoverageEnd = customEndDate ? customEndDate : null;
       }
 
+      const studentDivision = normalizeDivision(
+        student.division || divisionOfProgram(student.programId || student.program)
+      );
+
       const paymentRecord = {
         studentId: student.id,
         studentName: student.displayName || "Student",
         parentName: student.parentName || "",
         parentPhone: student.parentPhone || student.phone || "",
         branchId: studentBranchId,
+        division: studentDivision,
         amount: Number(amount),
         period: finalPeriod,
         planId: selectedPlan,

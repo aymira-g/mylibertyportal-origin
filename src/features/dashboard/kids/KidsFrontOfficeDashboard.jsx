@@ -284,6 +284,7 @@ export default function KidsFrontOfficeDashboard() {
         <PaymentCashierTab
           students={students}
           branchLabel="Kota Gorontalo"
+          division="kindergarten"
         />
       ),
     },

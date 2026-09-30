@@ -116,6 +116,7 @@ export async function fetchClassAttendanceForStudent(studentId, dateFrom, dateTo
  * @param {string} [params.studentName]
  * @param {string} [params.className]
  * @param {string} [params.branchId]
+ * @param {string} [params.division]
  * @returns {Promise<{ status: "created" | "exists", record: any }>}
  */
 export async function recordClassAttendanceScan({
@@ -127,10 +128,24 @@ export async function recordClassAttendanceScan({
   studentName = "",
   className = "",
   branchId = "",
+  division = "",
 }) {
   const docId = getClassAttendanceDocId(classId, studentId, attendanceDate);
   const docRef = doc(db, "classAttendance", docId);
   const nowIso = new Date().toISOString();
+
+  let finalDivision = division;
+  if (!finalDivision && classId) {
+    try {
+      const clsSnap = await getDoc(doc(db, "classes", classId));
+      if (clsSnap.exists()) {
+        finalDivision = clsSnap.data().division || "";
+      }
+    } catch (err) {
+      console.warn("Could not fetch class to derive division for class attendance:", err);
+    }
+  }
+
   const rawData = {
     classId,
     studentId,
@@ -143,6 +158,7 @@ export async function recordClassAttendanceScan({
     studentName,
     className,
     branchId,
+    division: finalDivision || "courses",
     note: "",
     createdAt: nowIso,
     updatedAt: nowIso,
@@ -177,6 +193,7 @@ export async function recordClassAttendanceScan({
  * @param {string} [params.studentName]
  * @param {string} [params.className]
  * @param {string} [params.branchId]
+ * @param {string} [params.division]
  * @returns {Promise<{ status: "updated" | "created", record: any }>}
  */
 export async function updateClassAttendanceManual({
@@ -190,11 +207,24 @@ export async function updateClassAttendanceManual({
   studentName = "",
   className = "",
   branchId = "",
+  division = "",
 }) {
   const docId = getClassAttendanceDocId(classId, studentId, attendanceDate);
   const docRef = doc(db, "classAttendance", docId);
   const existingSnap = await getDoc(docRef);
   const nowIso = new Date().toISOString();
+
+  let finalDivision = division;
+  if (!finalDivision && classId) {
+    try {
+      const clsSnap = await getDoc(doc(db, "classes", classId));
+      if (clsSnap.exists()) {
+        finalDivision = clsSnap.data().division || "";
+      }
+    } catch (err) {
+      console.warn("Could not fetch class to derive division for class attendance update:", err);
+    }
+  }
 
   if (existingSnap.exists()) {
     const updates = {
@@ -206,6 +236,9 @@ export async function updateClassAttendanceManual({
       markedAt: nowIso,
       updatedAt: nowIso,
     };
+    if (finalDivision) {
+      updates.division = finalDivision;
+    }
     // Validate merged document to keep the same guarantee as create paths
     const merged = { ...existingSnap.data(), ...updates };
     classAttendanceSchema.parse(merged);
@@ -228,6 +261,7 @@ export async function updateClassAttendanceManual({
     studentName,
     className,
     branchId,
+    division: finalDivision || "courses",
     note,
     createdAt: nowIso,
     updatedAt: nowIso,
@@ -257,6 +291,7 @@ export async function updateClassAttendanceManual({
  * @param {string} [params.markedByName]
  * @param {string} [params.className]
  * @param {string} [params.branchId]
+ * @param {string} [params.division]
  * @returns {Promise<{ createdCount: number, missingCount: number, alreadyClosed: boolean }>}
  */
 export async function closeOutClassAttendance({
@@ -268,9 +303,22 @@ export async function closeOutClassAttendance({
   markedByName = "",
   className = "",
   branchId = "",
+  division = "",
 }) {
   if (!classId || !attendanceDate || rosterStudentIds.length === 0) {
     return { createdCount: 0, missingCount: 0, alreadyClosed: true };
+  }
+
+  let finalDivision = division;
+  if (!finalDivision && classId) {
+    try {
+      const clsSnap = await getDoc(doc(db, "classes", classId));
+      if (clsSnap.exists()) {
+        finalDivision = clsSnap.data().division || "";
+      }
+    } catch (err) {
+      console.warn("Could not fetch class to derive division for class attendance close-out:", err);
+    }
   }
 
   const existing = await fetchClassAttendance(classId, attendanceDate);
@@ -319,6 +367,7 @@ export async function closeOutClassAttendance({
         studentName,
         className,
         branchId,
+        division: finalDivision || "courses",
         note: "Session closed out",
         createdAt: nowIso,
         updatedAt: nowIso,

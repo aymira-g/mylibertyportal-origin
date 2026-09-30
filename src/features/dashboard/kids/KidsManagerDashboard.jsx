@@ -92,6 +92,7 @@ export default function KidsManagerDashboard() {
       query(
         collection(db, "users"),
         where("branchId", "==", managerBranchId),
+        where("division", "==", "kindergarten"),
         where("role", "in", [
           "instructor",
           "instructorleader",
@@ -136,6 +137,7 @@ export default function KidsManagerDashboard() {
       query(
         collection(db, "shifts"),
         where("branchId", "==", managerBranchId),
+        where("division", "==", "kindergarten"),
         where("clockOut", "==", null)
       ),
       (snap) => setShifts(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
@@ -145,7 +147,9 @@ export default function KidsManagerDashboard() {
     const unsubTodos = onSnapshot(
       query(collection(db, "todos"), where("branchId", "in", [managerBranchId, "all"])),
       (snap) => {
-        setTodos(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        const list = snap.docs.map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }));
+        // Scope directives to kindergarten or shared company-wide "all"
+        setTodos(list.filter((t) => !t.division || t.division === "all" || t.division === "kindergarten"));
         setTodosPermission(true);
       },
       (err) => {
@@ -175,6 +179,7 @@ export default function KidsManagerDashboard() {
       await createTodo({
         ...todoData,
         branch: managerProfile?.branch || DEFAULT_BRANCH,
+        division: "kindergarten",
       });
       toast("Staff directive issued successfully.", "success");
     } catch (err) {

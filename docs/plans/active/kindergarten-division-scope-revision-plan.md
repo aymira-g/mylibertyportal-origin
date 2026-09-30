@@ -248,7 +248,8 @@ What this means for a person with two accounts:
 ## Coder Response
 
 **Date:** 2026-09-30  
-**Wave 1 Status:** **COMPLETED & VERIFIED** (all 6 Wave 1 items implemented in order). Ready for owner review before Wave 2.
+**Wave 1 Status:** **COMPLETED & VERIFIED** (all 6 Wave 1 items implemented in order). Confirmed functional by owner.  
+**Wave 2 Status:** **COMPLETED & VERIFIED** (all items implemented and verified across clients, workers, repositories, rules, and tests).
 
 ### 1. Verification of Section 9 Questions
 - **(a) Duplicate phone/name across two accounts:** Verified. Invites and Firebase Auth user creation are strictly keyed and checked by `email`. There is no unique index or blocking constraint on `phone` or `displayName` across multiple staff profiles. Two accounts with distinct emails (e.g. `teacher@myliberty.id` and `teacher+kids@myliberty.id`) can safely exist.
@@ -258,8 +259,8 @@ What this means for a person with two accounts:
 
 1. **R5 & R10 (Audit and Backfill Script)**:
    - Created `scripts/audit-and-backfill-division.js` supporting:
-     - `--audit-only`: executes lightweight aggregation counts (`.count().get()`) across `users`, `classes`, `applications`, `deskInquiries`, and `progressReports`.
-     - `--dry-run` (default): inspects documents, classifies them into unambiguous vs ambiguous, audits staff profiles for invalid divisions (such as `"studio"`), and generates `backfill-division-report.json`.
+     - `--audit-only`: executes lightweight aggregation counts (`.count().get()`) across collections.
+     - `--dry-run` (default): inspects documents, classifies them into unambiguous vs ambiguous, audits staff profiles for invalid divisions, and generates `backfill-division-report.json`.
      - `--commit`: applies unambiguous updates in chunks of 400 writes (preserving free-tier quotas).
    - Added `backfill-*.json` and `*-report.json` to `/.gitignore`.
 
@@ -288,27 +289,69 @@ What this means for a person with two accounts:
 4. **R7 (Indexes)**:
    - Added composite index for `deskInquiries` (`branchId` ASC, `division` ASC, `createdAt` DESC) in `firestore.indexes.json`.
 
-5. **R6 (Tests)**:
-   - Updated `src/features/shared/securityRulesMatrix.test.js`:
-     - Updated `isDivisionAllowedForBranchStaff` helper to cover both Manager and Front Office roles, strictly requiring `division == 'kindergarten'` for Kindergarten staff, and allowing non-kindergarten & legacy documents for Courses staff.
-     - Added `canCreateUser`, `canUpdateUser`, and `canDeleteUser` helper functions mirroring Front Office student write rules.
-     - Added **Section 17: Kids Front Office Branch + Division Security Matrix** (17 test cases covering student, class, application, progress report read/create/update/delete division isolation).
-     - Added **Section 18: Kids Instructor Branch + Division Security Matrix** (5 test cases covering assigned cohort and student isolation).
-   - Total vitest suite: **75 test files passed, 980 tests passed (0 failures)**.
+5. **R6 (Wave 1 Tests)**:
+   - Updated `src/features/shared/securityRulesMatrix.test.js` with Section 17 (Kids Front Office) and Section 18 (Kids Instructor).
 
-6. **R1 (Security Rules)**:
-   - Updated `firestore.rules`:
-     - Renamed/expanded division helper to `isDivisionAllowedForBranchStaff(data)`, covering `isManager() || isFrontOffice()`. Preserved `isDivisionAllowedForManager(data)` as alias.
-     - Enforced division check on student creation by Front Office (`(request.resource.data.role != 'student' || isDivisionAllowedForBranchStaff(request.resource.data))`).
-     - Enforced division check on student update and deletion by Front Office.
-     - Enforced division check on application update and deletion by Front Office.
-     - Enforced division check on class update by Front Office.
+6. **R1 (Wave 1 Security Rules)**:
+   - Updated `firestore.rules` for Front Office division gating.
 
-### 3. Build & Test Verification Results
-- `npm test`: **75 test files passed, 980 tests passed**
+### 3. Implementation Execution Summary (Wave 2)
+
+1. **Write-Path Stamping (R8.1, R9.3, R9.4)**:
+   - `src/features/staff/todosRepository.js`:
+     - Added `division = "all"` parameter to `createTodo`. Stored in payload as `division: division || "all"`.
+     - Added unit test in `todosRepository.test.js`.
+   - `src/features/attendance/kioskScanProcessor.js`:
+     - `executeStaffClockIn`: passed `division: userData.division` to `clockIn`.
+     - `handleKioskScan`: passed `division: userData.division` to `recordStudentAttendance`.
+   - `cloudflare-worker/worker.js`:
+     - Added `division: user.division === "kindergarten" ? "kindergarten" : "courses"` to `shiftPayload` and `newShiftPayload`.
+   - `src/features/dashboard/frontoffice/PaymentCashierTab.jsx` & `FrontDeskCashReconcile.jsx`:
+     - Added `division` prop to `PaymentCashierTab`. Passed `serverDivision` (`division === "kindergarten" ? "kindergarten" : null`) to `getRecentPayments` and `<FrontDeskCashReconcile />`.
+     - In `FrontDeskCashReconcile.jsx`: passed `division` to `getPaymentsForRecordedDay(new Date(), targetBranchId, division)`.
+   - `src/features/dashboard/kids/KidsFrontOfficeDashboard.jsx`:
+     - Passed `division="kindergarten"` to `<PaymentCashierTab />`.
+
+2. **Extended Audit and Backfill (R8.2, R9, R10)**:
+   - Extended `scripts/audit-and-backfill-division.js`:
+     - Added all 10 collections: `users`, `classes`, `applications`, `deskInquiries`, `progressReports`, `payments`, `classAttendance`, `attendance`, `shifts`, `todos`.
+     - Implemented document caching (`userCache`, `classCache`) to prevent repeated lookups and conserve free-tier Spark quota reads.
+     - Derives division for payments via student profile, class attendance via class doc, shifts/attendance via user profile, and todos via default `"all"`.
+     - Automatically searches for local `serviceAccountKey.json` or `service-account.json` to prevent ADC lookup timeouts on local dev machines.
+
+3. **Client Query & Scoping Changes (R8.3, R9.1, R4.2)**:
+   - `src/features/dashboard/kids/KidsManagerDashboard.jsx`:
+     - `unsubStaff`: added `where("division", "==", "kindergarten")`.
+     - `unsubShifts`: added `where("division", "==", "kindergarten")`.
+     - `unsubTodos`: scoped directives to `(!t.division || t.division === "all" || t.division === "kindergarten")`.
+     - `handleAddTodo`: passed `division: "kindergarten"`.
+   - `src/features/dashboard/ManagerDashboard.jsx` (Courses):
+     - Filtered out Kindergarten records from `users`, `classes`, `applications`, `shifts`, `todos`, and daily payments.
+     - `handleAddTodo`: passed `division: "courses"`.
+   - `src/features/staff/useStaffDirectives.js`:
+     - Filtered active directives by matching `userDivision`, `division === "all"`, or legacy missing division.
+   - `src/features/dashboard/useDashboardData.js`:
+     - Filtered todos by `division` when in Kindergarten context.
+     - `handleAddTodo`: stamped `division` from current dashboard scope.
+   - `src/features/reports/reportsRepository.js` (R4.2):
+     - Added division constraints to `fetchStaffShifts` (shifts & staff users), `fetchTodayScansData` (attendance), and `fetchStudentProgressData` (attendance).
+
+4. **Security Rules Hardening (R8.4, R9.1, R9.3)**:
+   - `firestore.rules`:
+     - `match /users/{userId}`: extended `isDivisionAllowedForBranchStaff(resource.data)` to staff roles when read or listed by Manager or Front Office (while allowing parent profiles).
+     - `match /payments/{paymentId}`: enforced `isDivisionAllowedForBranchStaff` on `get`, `list`, and `create`.
+     - `match /attendance/{attendanceId}`: enforced `isDivisionAllowedForBranchStaff` on `get`, `list`, `create`, and `update`.
+     - `match /classAttendance/{attendanceId}`: enforced `isDivisionAllowedForBranchStaff(classDoc(resource.data.classId))` on Manager/Front Office reads, preserving instructor assignment path.
+     - `match /shifts/{shiftId}`: enforced `isDivisionAllowedForBranchStaff` on `get`, `list`, and `create`.
+
+5. **Security Matrix Tests (R6 Extended)**:
+   - `src/features/shared/securityRulesMatrix.test.js`:
+     - Updated `canGetUser`, `canListUsers`, `canGetPayment`, `canListPayments`.
+     - Added helper functions for `attendance`, `shifts`, and `classAttendance`.
+     - Added **Section 19: Wave 2 Staff, Shifts, Attendance, and Payments Division Security Matrix** covering 17 granular authorization tests for payments, shifts, attendance, class attendance, and staff user division isolation.
+
+### 4. Build & Test Verification Results
+- `npm test`: **All tests passed**
 - `npm run lint`: **Passed (0 errors, 0 warnings)**
 - `npm run typecheck`: **Passed (0 errors)**
 - `npm run build`: **Compiled cleanly**
-
-### 4. Next Step: Handoff to Owner
-Per Section 6 of the plan, Wave 1 is complete. We stop here and await Kifry's confirmation that Wave 1 manual acceptance checks pass before commencing Wave 2 (R8, R9, R4.2, R10).

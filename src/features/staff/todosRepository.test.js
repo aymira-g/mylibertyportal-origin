@@ -56,6 +56,16 @@ describe("createTodo", () => {
     const op = fake.opsOf("add")[0];
     expect(op.data.branch).toBe("Bone Bolango");
   });
+
+  it("stores division or defaults to 'all'", async () => {
+    await createTodo({
+      text: "Kids morning circle supplies",
+      division: "kindergarten",
+    });
+
+    const op = fake.opsOf("add")[0];
+    expect(op.data.division).toBe("kindergarten");
+  });
 });
 
 describe("toggleTodoComplete", () => {

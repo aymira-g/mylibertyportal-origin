@@ -15,16 +15,20 @@ import {
 import { todayWita, getWitaDayRangeIso } from "../../utils/dateWita.js";
 import { studentIdSchema, paymentRecordSchema } from "../../schemas";
 import { branchToId, idToBranch, DEFAULT_BRANCH_ID } from "../../constants/branches";
+import { normalizeDivision, divisionOfProgram } from "../../constants/divisions";
 
 /**
  * All direct Firestore reads/writes for payments live here.
  */
 
-export async function fetchPaymentHistory(studentId, branchId = null) {
+export async function fetchPaymentHistory(studentId, branchId = null, division = null) {
   const validStudentId = studentIdSchema.parse(studentId);
   const constraints = [where("studentId", "==", validStudentId)];
   if (branchId) {
     constraints.push(where("branchId", "==", branchId));
+  }
+  if (division && division !== "all") {
+    constraints.push(where("division", "==", division));
   }
   const q = query(collection(db, "payments"), ...constraints);
   const snap = await getDocs(q);
@@ -38,13 +42,18 @@ export async function fetchPaymentHistory(studentId, branchId = null) {
  * ordered by recordedAt desc. Used for desk transaction log & receipt lookup.
  *
  * @param {number} [limitCount=50]
+ * @param {string|null} [branchId=null]
+ * @param {string|null} [division=null]
  * @returns {Promise<Array<any>>}
  */
-export async function getRecentPayments(limitCount = 50, branchId = null) {
+export async function getRecentPayments(limitCount = 50, branchId = null, division = null) {
   try {
     const constraints = [];
     if (branchId) {
       constraints.push(where("branchId", "==", branchId));
+    }
+    if (division && division !== "all") {
+      constraints.push(where("division", "==", division));
     }
     constraints.push(orderBy("recordedAt", "desc"), limit(limitCount));
     const q = query(
@@ -59,6 +68,9 @@ export async function getRecentPayments(limitCount = 50, branchId = null) {
     const fallbackConstraints = [];
     if (branchId) {
       fallbackConstraints.push(where("branchId", "==", branchId));
+    }
+    if (division && division !== "all") {
+      fallbackConstraints.push(where("division", "==", division));
     }
     fallbackConstraints.push(limit(limitCount));
     const q = query(collection(db, "payments"), ...fallbackConstraints);
@@ -76,14 +88,18 @@ export async function getRecentPayments(limitCount = 50, branchId = null) {
  *
  * @param {Date} [witaDate=new Date()]
  * @param {string|null} [branchId=null]
+ * @param {string|null} [division=null]
  * @returns {Promise<Array<any>>}
  */
-export async function getPaymentsForRecordedDay(witaDate = new Date(), branchId = null) {
+export async function getPaymentsForRecordedDay(witaDate = new Date(), branchId = null, division = null) {
   const { startIso, endIso } = getWitaDayRangeIso(witaDate);
   try {
     const constraints = [];
     if (branchId) {
       constraints.push(where("branchId", "==", branchId));
+    }
+    if (division && division !== "all") {
+      constraints.push(where("division", "==", division));
     }
     constraints.push(
       where("recordedAt", ">=", startIso),
@@ -103,6 +119,9 @@ export async function getPaymentsForRecordedDay(witaDate = new Date(), branchId 
     const fallbackConstraints = [];
     if (branchId) {
       fallbackConstraints.push(where("branchId", "==", branchId));
+    }
+    if (division && division !== "all") {
+      fallbackConstraints.push(where("division", "==", division));
     }
     fallbackConstraints.push(limit(200));
     const q = query(collection(db, "payments"), ...fallbackConstraints);
@@ -131,12 +150,29 @@ export async function recordPayment(studentId, paymentRecord, idempotencyKey = n
   const branchId = branchToId(rawBranch);
   const branch = idToBranch(branchId);
 
+  let division = paymentRecord.division || null;
+  if (!division) {
+    try {
+      const studentSnap = await getDoc(doc(db, "users", validStudentId));
+      if (studentSnap.exists()) {
+        const studentData = studentSnap.data();
+        division =
+          studentData.division ||
+          divisionOfProgram(studentData.programId || studentData.program);
+      }
+    } catch (err) {
+      console.warn("Could not fetch student to derive division for payment:", err);
+    }
+  }
+  const finalDivision = division ? normalizeDivision(division) : "courses";
+
   const effectiveIdempotencyKey = idempotencyKey || paymentRecord.idempotencyKey || null;
 
   const enrichedRecord = {
     ...paymentRecord,
     branch,
     branchId,
+    division: finalDivision,
     ...(effectiveIdempotencyKey ? { idempotencyKey: effectiveIdempotencyKey } : {}),
   };
 

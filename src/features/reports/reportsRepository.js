@@ -14,11 +14,13 @@ export async function fetchStaffShifts(isAdminView, since = null, branchId = nul
   const filters = [];
   if (!isSupervisor) filters.push(where("userId", "==", auth.currentUser?.uid));
   if (normalizedBranchId) filters.push(where("branchId", "==", normalizedBranchId));
+  if (division && division !== "all") filters.push(where("division", "==", division));
   if (since) filters.push(where("clockIn", ">=", since));
 
   const openFilters = [where("clockOut", "==", null)];
   if (!isSupervisor) openFilters.push(where("userId", "==", auth.currentUser?.uid));
   if (normalizedBranchId) openFilters.push(where("branchId", "==", normalizedBranchId));
+  if (division && division !== "all") openFilters.push(where("division", "==", division));
 
   const [shiftsSnap, openSnap] = await Promise.all([
     getDocs(filters.length ? query(shiftsRef, ...filters) : shiftsRef),
@@ -32,8 +34,11 @@ export async function fetchStaffShifts(isAdminView, since = null, branchId = nul
   const existingUsersMap = new Map();
 
   if (isSupervisor) {
-    const usersQuery = normalizedBranchId
-      ? query(collection(db, "users"), where("branchId", "==", normalizedBranchId))
+    const userConstraints = [];
+    if (normalizedBranchId) userConstraints.push(where("branchId", "==", normalizedBranchId));
+    if (division && division !== "all") userConstraints.push(where("division", "==", division));
+    const usersQuery = userConstraints.length
+      ? query(collection(db, "users"), ...userConstraints)
       : collection(db, "users");
     const usersSnap = await getDocs(usersQuery);
     usersSnap.docs.forEach((u) => existingUsersMap.set(u.id, { id: u.id, ...u.data() }));
@@ -85,6 +90,7 @@ export async function fetchTodayScansData(sinceWitaIso, isAdminView, isFrontOffi
 
   const attendanceFilters = [where("timestamp", ">=", sinceWitaIso)];
   if (normalizedBranchId) attendanceFilters.push(where("branchId", "==", normalizedBranchId));
+  if (division && division !== "all") attendanceFilters.push(where("division", "==", division));
   const attendanceQuery = query(collection(db, "attendance"), ...attendanceFilters);
 
   const classesFilters = [];
@@ -185,6 +191,9 @@ export async function fetchStudentProgressData(isAdminView, isFrontOffice, since
   }
   if (normalizedBranchId) {
     attendanceFilters.push(where("branchId", "==", normalizedBranchId));
+  }
+  if (division && division !== "all") {
+    attendanceFilters.push(where("division", "==", division));
   }
   const attendanceQuery = attendanceFilters.length
     ? query(collection(db, "attendance"), ...attendanceFilters)

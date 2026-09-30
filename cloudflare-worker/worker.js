@@ -751,12 +751,14 @@ async function handleShiftClockIn(request, env) {
 
   // 7. Create the shift with server-authoritative timestamp & branch
   const branchName = BRANCH_MAP[device.branchId] || "Kota Gorontalo";
+  const userDivision = user.division === "kindergarten" ? "kindergarten" : "courses";
   const shiftPayload = {
     userId: badgeToken,
     displayName: user.displayName || user.name || "Staff Member",
     role: normalizedRole,
     branch: branchName,
     branchId: device.branchId,
+    division: userDivision,
     classId: classId || "general",
     className: resolvedClassName,
     clockIn: serverTime,
@@ -1039,6 +1041,7 @@ async function handleShiftClassSwitch(request, env) {
     role: normalizeRole(user.role),
     branch: branchName,
     branchId: device.branchId,
+    division: user.division === "kindergarten" ? "kindergarten" : "courses",
     classId,
     className: resolvedClassName,
     clockIn: serverTime,

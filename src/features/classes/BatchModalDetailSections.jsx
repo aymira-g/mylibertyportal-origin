@@ -134,7 +134,7 @@ export function BatchInstructorFields({
         </label>
         <input
           type="text"
-          placeholder="e.g. Studio Lab 2"
+          placeholder="e.g. Room 2"
           value={classRoom}
           onChange={(e) => onClassRoomChange(e.target.value)}
           className="w-full p-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold bg-slate-50 focus:bg-white focus:border-[#1a3a8f] outline-none transition"

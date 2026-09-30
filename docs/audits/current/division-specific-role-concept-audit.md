@@ -53,35 +53,20 @@ No role contains a division suffix. The registry is pure role, no division coupl
 
 **File:** `src/features/auth/devPresets.js`
 
-The MODE 1 test accounts use informal UI labels that include division context:
+Initial finding: The MODE 1 test accounts previously used informal compound UI labels and legacy `"studio"` division values:
 
-| Account label | role | division |
-|---|---|---|
-| `"Manager (Studio)"` | `manager` | `"studio"` ← invalid |
-| **`"Manager (TK)"`** | `manager` | `"kindergarten"` |
-| `"Instructor (Studio)"` | `instructor` | `"studio"` ← invalid |
-| **`"Instructor (TK)"`** | `instructor` | `"kindergarten"` |
-| `"Front Office (Studio)"` | `frontoffice` | `"studio"` ← invalid |
-| **`"Front Office (TK)"`** | `frontoffice` | `"kindergarten"` |
+| Account label (Before) | Account label (Resolved) | role | division |
+|---|---|---|---|
+| `"Manager (Studio)"` | `"Manager · Courses"` | `manager` | `"courses"` |
+| `"Manager (TK)"` | `"Manager · Kindergarten"` | `manager` | `"kindergarten"` |
+| `"Instructor (Studio)"` | `"Instructor · Courses"` | `instructor` | `"courses"` |
+| `"Instructor (TK)"` | `"Instructor · Kindergarten"` | `instructor` | `"kindergarten"` |
+| `"Front Office (Studio)"` | `"Front Office · Courses"` | `frontoffice` | `"courses"` |
+| `"Front Office (TK)"` | `"Front Office · Kindergarten"` | `frontoffice` | `"kindergarten"` |
 
-**Classification of the TK labels:** UI label only.  
-The `label` field is purely for the dev switcher UI. The `role` field is canonical and correct.  
-`"Manager (TK)"` is display text — it does **not** define a role named `manager_tk`.
-
-However, the `(TK)` suffix notation is worth cleaning up because it visually collapses role and division into a single string, which is exactly the embedding pattern we want to prevent. The future label format should make the two dimensions explicit, for example:
-
-```
-// Current (ambiguous)
-label: "Manager (TK)"
-
-// Target (explicit)
-label: "Manager · Kindergarten"   // or structured as role + division badge in the UI
-```
-
-This does not affect runtime behavior. It only affects what developers read in devPresets and in the Quick Switcher UI.
-
-**Classification of `"studio"` division values:** ⚠️ Legacy invalid division value.  
-`"studio"` is not a valid division. Valid values are `"courses"`, `"kindergarten"`, `"all"`, or `null` (for facility-independent roles). The `normalizeDivision` alias table does not include `"studio"`, so these values silently fall back to `DEFAULT_DIVISION = "courses"` at runtime. This is pre-existing tech debt documented in `docs/plans/active/kindergarten-division-scope-revision-plan.md` (Finding F).
+**Resolution:**
+1. The `(TK)` and `(Studio)` suffixes have been replaced with the explicit `· Kindergarten` and `· Courses` convention. This makes role and division read as two distinct, independent dimensions (`ROLE · DIVISION`) at a glance.
+2. All 12 occurrences of `division: "studio"` in `devPresets.js` have been replaced with the canonical `division: "courses"`.
 
 ---
 
@@ -89,14 +74,14 @@ This does not affect runtime behavior. It only affects what developers read in d
 
 **File:** `src/features/auth/devPresets.test.js`
 
-Test assertions that reference TK concepts:
+Initial finding:
+- Test description previously used compound names ("Manager TK, Front Office TK, Instructor TK").
+- Test assertion at line 87 accepted `["studio", "kindergarten"]`.
 
-- Line 39: Test description uses "Manager TK, Front Office TK, Instructor TK" as informal shorthand for "division = kindergarten test accounts." The assertions themselves correctly check `a.role === "manager" && a.division === "kindergarten"` — role and division are separate.
-- Line 87: `expect(["studio", "kindergarten"]).toContain(account.division)` — accepts `"studio"` as a valid division, which is incorrect.
-
-**Classification of test descriptions:** Documentation terminology only. No role coupling.
-
-**Classification of the `"studio"` allowance:** ⚠️ Test validation gap. The assertion validates against a wrong invariant. Accepted values should be `["courses", "kindergarten", "all"]` (and `null` for officeboy), not `"studio"`.
+**Resolution:**
+- Test descriptions updated to reference "Kindergarten division testing".
+- Assertion at line 87 updated to `expect(["courses", "kindergarten"]).toContain(account.division)`.
+- Paired label test updated to assert canonical `· Courses` and `· Kindergarten` formats.
 
 ---
 
@@ -144,7 +129,7 @@ The router correctly keeps ROLE and DIVISION as separate inputs. The output is a
 **Classification: UI label.**  
 Display-only annotations derived from two independent fields. No compound role created.
 
-Minor issue: Desktop appends `"· Kindergarten"`, mobile appends `"· TK"` — inconsistent for the same concept.
+Minor issue (Resolved): Desktop previously appended `"· Kindergarten"` while mobile appended `"· TK"`. Mobile badge has been updated to `"· Kindergarten"`, unifying the badge terminology.
 
 ---
 
@@ -154,11 +139,10 @@ Minor issue: Desktop appends `"· Kindergarten"`, mobile appends `"· TK"` — i
 
 Uses `PREVIEW_ROLES` + a separate division toggle — correctly two separate dimensions. Division is not embedded in the role selector.
 
-Two issues:
-1. Uses `"studio"` as a fallback division value (line 280) — invalid against the canonical model. At runtime this silently becomes `"courses"` via `normalizeDivision`.
-2. The toggle button (line 501/508) and the preview mode banner (line 479) use `"Studio"` as the informal name for the Courses division.
-
-**Classification: Dev-tooling legacy — not a role.**
+Initial findings (Resolved):
+1. Used `"studio"` as a fallback division value — replaced with canonical `"courses"`.
+2. Toggle buttons and active preview banner used `"English Studio"` / `"Studio"` — updated to `"Courses"`.
+3. Redundant duplicate `TK` badge removed from account list rows since test account labels now explicitly include the division.
 
 ---
 
@@ -166,16 +150,9 @@ Two issues:
 
 **File:** `src/features/auth/devPresets.js` (lines 133–142)
 
-```js
-{ label: "Marketing", role: "marketing", supportsDivision: false },
-{ label: "Office Boy", role: "officeboy", supportsDivision: false },
-```
-
-`marketing` has `supportsDivision: false`, which hides the division toggle in Mode 2 preview. Now that marketing supports universal divisions, this is a dev tooling gap.
-
-`officeboy` has `supportsDivision: false` — correct, as officeboy is `DIVISION_INDEPENDENT_ROLE` with `null` division.
-
-**Classification: Dev-tooling metadata — not permission rules.**
+Initial finding (Resolved):
+- `marketing` previously had `supportsDivision: false`. Updated to `supportsDivision: true` to support universal division switching in Mode 2 preview.
+- `officeboy` remains `supportsDivision: false` — correct, as officeboy is `DIVISION_INDEPENDENT_ROLE` with `null` division.
 
 ---
 
@@ -233,23 +210,24 @@ These are correct implementations of genuine operational differences between div
 
 ## Complete Classification Matrix
 
-| Finding | Location | Classification | Risk |
-|---|---|---|---|
-| `"Manager (TK)"` label | `devPresets.js` | UI label (dev tooling) | Zero |
-| `"Instructor (TK)"` label | `devPresets.js` | UI label (dev tooling) | Zero |
-| `"Front Office (TK)"` label | `devPresets.js` | UI label (dev tooling) | Zero |
-| `division: "studio"` in devPresets | `devPresets.js` (×12) | Legacy invalid division value | Zero to fix |
-| `"studio"` fallback in DevQuickSwitcher | `DevQuickSwitcher.jsx` | Legacy invalid division value (dev only) | Zero to fix |
-| `["studio","kindergarten"]` assertion | `devPresets.test.js` line 87 | Test validation gap | Zero to fix |
-| `"English Studio"` toggle labels | `DevQuickSwitcher.jsx` | UI label (dev tooling) | Zero |
-| `supportsDivision: false` for marketing | `devPresets.js` | Dev tooling gap | Zero (UI only) |
-| `· TK` mobile header badge | `App.jsx` line 488 | UI label inconsistency | Zero |
-| `Kids*` component names | `App.jsx` + `kids/` | Component naming (internal only) | N/A — keep |
-| Division-based dashboard routing | `App.jsx` 548–598 | ✅ Correct routing pattern | N/A — keep |
-| Division-based UX branching | Various components | ✅ Correct workflow pattern | N/A — keep |
-| Canonical role registry | `roles.js` | ✅ Clean | None |
-| Firestore rules | `firestore.rules` | ✅ Clean | None |
-| Schemas | `inviteSchema.js` | ✅ Clean | None |
+| Finding | Location | Classification | Risk | Remediation Status |
+|---|---|---|---|---|
+| `"Manager (TK)"` label | `devPresets.js` | UI label (dev tooling) | Zero | ✅ Fixed → `"Manager · Kindergarten"` |
+| `"Instructor (TK)"` label | `devPresets.js` | UI label (dev tooling) | Zero | ✅ Fixed → `"Instructor · Kindergarten"` |
+| `"Front Office (TK)"` label | `devPresets.js` | UI label (dev tooling) | Zero | ✅ Fixed → `"Front Office · Kindergarten"` |
+| `division: "studio"` in devPresets | `devPresets.js` (×12) | Legacy invalid division value | Zero to fix | ✅ Fixed → `division: "courses"` |
+| `"studio"` fallback in DevQuickSwitcher | `DevQuickSwitcher.jsx` | Legacy invalid division value (dev only) | Zero to fix | ✅ Fixed → `"courses"` |
+| `["studio","kindergarten"]` assertion | `devPresets.test.js` line 87 | Test validation gap | Zero to fix | ✅ Fixed → `["courses","kindergarten"]` |
+| `"English Studio"` toggle labels | `DevQuickSwitcher.jsx` | UI label (dev tooling) | Zero | ✅ Fixed → `"Courses"` |
+| `"English Studio"` preview banner | `App.jsx` line 521 | UI label | Zero to fix | ✅ Fixed → `"Courses"` / `"All Divisions"` |
+| `supportsDivision: false` for marketing | `devPresets.js` | Dev tooling gap | Zero (UI only) | ✅ Fixed → `supportsDivision: true` |
+| `· TK` mobile header badge | `App.jsx` line 488 | UI label inconsistency | Zero | ✅ Fixed → `"· Kindergarten"` |
+| `Kids*` component names | `App.jsx` + `kids/` | Component naming (internal only) | N/A — keep | ✅ Kept (architecturally valid UX split) |
+| Division-based dashboard routing | `App.jsx` 548–598 | ✅ Correct routing pattern | N/A — keep | ✅ Kept |
+| Division-based UX branching | Various components | ✅ Correct workflow pattern | N/A — keep | ✅ Kept |
+| Canonical role registry | `roles.js` | ✅ Clean | None | ✅ Clean |
+| Firestore rules | `firestore.rules` | ✅ Clean | None | ✅ Clean |
+| Schemas | `inviteSchema.js` | ✅ Clean | None | ✅ Clean |
 
 ---
 

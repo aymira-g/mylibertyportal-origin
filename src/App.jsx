@@ -518,7 +518,7 @@ function App() {
               <AlertTriangle className="w-4 h-4 shrink-0 text-amber-100" />
               <span className="truncate">
                 <strong>UI Preview Mode:</strong> [{previewRole.toUpperCase()} ·{" "}
-                {effectiveDivision === "kindergarten" ? "Kindergarten" : "English Studio"}] — Layout only. Data &amp; writes belong to your real session ({user?.email || "user"}).
+                {effectiveDivision === "kindergarten" ? "Kindergarten" : effectiveDivision === "all" ? "All Divisions" : "Courses"}] — Layout only. Data &amp; writes belong to your real session ({user?.email || "user"}).
               </span>
             </div>
             <button

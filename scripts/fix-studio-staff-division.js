@@ -1,4 +1,4 @@
-﻿/**
+/**
  * One-shot fix: assign correct division values to staff profiles
  * that were flagged as invalid_division_studio or missing_division
  * by audit-and-backfill-division.js.
@@ -21,11 +21,11 @@ const STAFF_FIXES = [
   { uid: "GwDqsy9MQUQGMHurMjyA6f6yksL2", displayName: "Test Office Boy",                      role: "officeboy",        division: "all"     },
   { uid: "H1Bxio5cVtPGvo113geeBqklkWg1", displayName: "MYLIBERTY International English School", role: "admin",          division: "all"     },
   { uid: "LbzBeVbZxpVHEmjJJiy5Us33PsZ2", displayName: "Test Front Office Lead",                role: "opslead",         division: "all"     },
-  { uid: "PN9HoJV8GRX49PONdQAimdZDlv43", displayName: "Test Manager (Studio)",                 role: "manager",         division: "courses" },
+  { uid: "PN9HoJV8GRX49PONdQAimdZDlv43", displayName: "Test Manager · Courses",                 role: "manager",         division: "courses" },
   { uid: "UvAIuGfGBMgaQ0w9rCgqQdjBTf13", displayName: "Test Marketing",                        role: "marketing",       division: "courses" },
   { uid: "X3HCkUqU2eSETq7pmnqZwONsMsi2", displayName: "Test Admin",                            role: "admin",           division: "all"     },
-  { uid: "a3Tb7qr3TFc2LFYUQpJMpmBu0eI3", displayName: "Test Instructor (Studio)",               role: "instructor",      division: "courses" },
-  { uid: "eLiBKSmcJoOpMUAxkL8INsfre7l2", displayName: "Test Front Office (Studio)",             role: "frontoffice",     division: "courses" },
+  { uid: "a3Tb7qr3TFc2LFYUQpJMpmBu0eI3", displayName: "Test Instructor · Courses",               role: "instructor",      division: "courses" },
+  { uid: "eLiBKSmcJoOpMUAxkL8INsfre7l2", displayName: "Test Front Office · Courses",             role: "frontoffice",     division: "courses" },
 ];
 
 async function main() {

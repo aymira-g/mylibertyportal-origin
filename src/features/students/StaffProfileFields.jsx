@@ -133,15 +133,22 @@ export default function StaffProfileFields({
           <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
             Division (Divisi) *
           </label>
-          <select
-            value={normalizeStaffDivision(formData.division)}
-            onChange={(e) => handleDivisionChange(e.target.value)}
-            className="w-full p-2.5 border rounded-xl bg-white font-bold text-xs"
-          >
-            <option value="courses">Course Academy</option>
-            <option value="kindergarten">Kids School (Kindergarten)</option>
-            <option value="all">All Divisions (Cross-Divisional)</option>
-          </select>
+          {formData.role === "officeboy" ? (
+            <div className="w-full p-2.5 border rounded-xl bg-slate-100 font-bold text-xs text-slate-500 flex items-center justify-between">
+              <span>Campus Facility (Division-Independent)</span>
+              <span className="text-[10px] text-slate-400 font-mono">null</span>
+            </div>
+          ) : (
+            <select
+              value={normalizeStaffDivision(formData.division, formData.role)}
+              onChange={(e) => handleDivisionChange(e.target.value)}
+              className="w-full p-2.5 border rounded-xl bg-white font-bold text-xs"
+            >
+              <option value="courses">Course Academy</option>
+              <option value="kindergarten">Kids School (Kindergarten)</option>
+              <option value="all">All Divisions (Cross-Divisional)</option>
+            </select>
+          )}
         </div>
         <div>
           <label className="block text-[10px] font-bold text-[#1a3a8f] uppercase mb-1 flex items-center gap-1">
@@ -159,12 +166,8 @@ export default function StaffProfileFields({
             <option value="frontoffice">Front Office</option>
             <option value="opslead">Front Office Leader (Ops Lead)</option>
             <option value="manager">Manager</option>
-            {normalizeStaffDivision(formData.division) !== "kindergarten" && (
-              <>
-                <option value="marketing">Marketing Staff</option>
-                <option value="officeboy">Office Support (Office Boy)</option>
-              </>
-            )}
+            <option value="marketing">Marketing Staff</option>
+            <option value="officeboy">Office Support (Office Boy)</option>
           </select>
         </div>
         {editId && (

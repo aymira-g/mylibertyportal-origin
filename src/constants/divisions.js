@@ -10,6 +10,13 @@ import { normalizeProgram } from "./programs.js";
 export const DIVISIONS = ["courses", "kindergarten"];
 export const STAFF_DIVISIONS = ["courses", "kindergarten", "all"];
 
+export const DIVISION_INDEPENDENT_ROLES = ["officeboy"];
+
+export function isDivisionIndependentRole(role) {
+  if (!role || typeof role !== "string") return false;
+  return DIVISION_INDEPENDENT_ROLES.includes(role.trim().toLowerCase());
+}
+
 export const DEFAULT_DIVISION = "courses";
 
 export const DIVISION_LABELS = {
@@ -84,18 +91,29 @@ export function normalizeDivision(raw) {
 }
 
 /**
- * Normalizes staff division strings including "all" (cross-divisional).
- * Defaults safely to DEFAULT_DIVISION ("courses") for missing/legacy records.
+ * Normalizes staff division strings including "all" (cross-divisional) and null (division-independent).
+ * For division-independent roles (e.g. "officeboy"), returns null.
+ * Defaults safely to DEFAULT_DIVISION ("courses") for missing/legacy academic records.
  *
  * @param {any} [raw]
- * @returns {"courses" | "kindergarten" | "all"}
+ * @param {string|null} [role]
+ * @returns {"courses" | "kindergarten" | "all" | null}
  */
-export function normalizeStaffDivision(raw) {
+export function normalizeStaffDivision(raw, role = null) {
+  if (role && isDivisionIndependentRole(role)) {
+    return null;
+  }
   if (!raw || typeof raw !== "string") {
     return DEFAULT_DIVISION;
   }
   const clean = raw.trim().toLowerCase();
   if (!clean) {
+    return DEFAULT_DIVISION;
+  }
+  if (clean === "null" || clean === "none" || clean === "facility") {
+    if (role && isDivisionIndependentRole(role)) {
+      return null;
+    }
     return DEFAULT_DIVISION;
   }
   if (

@@ -3,9 +3,9 @@ import { auth } from "../../firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import schoolLogo from "../../assets/school-logo.webp";
 import { fetchInviteByToken, completeStaffSignup } from "./authRepository";
-import { AlertCircle, CheckCircle2, Mail, ArrowRight, Loader2 } from "lucide-react";
 import { normalizeBranch, branchToId } from "../../constants/branches";
 import { normalizeStaffDivision } from "../../constants/divisions";
+import { Loader2, AlertCircle, CheckCircle2, ArrowRight, Mail } from "lucide-react";
 
 /**
  * Runs `commit` and retries it on Firestore permission errors only. Right
@@ -136,7 +136,7 @@ export default function StaffSignup() {
         role: invite.role,
         branch: normalizeBranch(invite.branch),
         branchId: branchToId(invite.branchId || invite.branch),
-        division: normalizeStaffDivision(invite.division),
+        division: normalizeStaffDivision(invite.division, invite.role),
         status: "active",
         phone,
         dob: formData.dob,

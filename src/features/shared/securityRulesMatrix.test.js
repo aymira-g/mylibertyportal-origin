@@ -116,6 +116,7 @@ function isSameDivisionStrict(data, user) {
 function isDivisionAllowedForBranchStaff(data, user) {
   return (
     !(isManager(user) || isFrontOffice(user)) ||
+    userDivision(user) === "all" ||
     (userDivision(user) === "kindergarten"
       ? isSameDivisionStrict(data, user)
       : !("division" in data) || data.division !== "kindergarten")
@@ -2271,6 +2272,166 @@ describe("Security Rules Matrix & Branch Isolation", () => {
       expect(canGetUser(staffLegacy, coursesManager)).toBe(true);
       expect(canGetUser(parentUser, coursesManager)).toBe(true);
       expect(canGetUser(staffKids, coursesManager)).toBe(false);
+    });
+  });
+
+  describe("Section 21: Cross-Divisional (division='all') Authorization & Isolation Matrix", () => {
+    const admin = {
+      uid: "admin_super",
+      role: "admin",
+      branchId: "kota_gorontalo",
+    };
+
+    const allManagerGorontalo = {
+      uid: "all_mgr_gtlo",
+      role: "manager",
+      branchId: "kota_gorontalo",
+      division: "all",
+    };
+
+    const allFOGorontalo = {
+      uid: "all_fo_gtlo",
+      role: "frontoffice",
+      branchId: "kota_gorontalo",
+      division: "all",
+    };
+
+    const coursesManagerGorontalo = {
+      uid: "courses_mgr_gtlo",
+      role: "manager",
+      branchId: "kota_gorontalo",
+      division: "courses",
+    };
+
+    const kidsManagerGorontalo = {
+      uid: "kids_mgr_gtlo",
+      role: "manager",
+      branchId: "kota_gorontalo",
+      division: "kindergarten",
+    };
+
+    // Documents in Kota Gorontalo
+    const classKidsGtlo = { id: "c_k_gtlo", branchId: "kota_gorontalo", division: "kindergarten" };
+    const classCoursesGtlo = { id: "c_c_gtlo", branchId: "kota_gorontalo", division: "courses" };
+    const classLegacyGtlo = { id: "c_legacy_gtlo", branchId: "kota_gorontalo" };
+
+    const appKidsGtlo = { id: "a_k_gtlo", branchId: "kota_gorontalo", division: "kindergarten" };
+    const appCoursesGtlo = { id: "a_c_gtlo", branchId: "kota_gorontalo", division: "courses" };
+
+    const studentKidsGtlo = { id: "s_k_gtlo", role: "student", branchId: "kota_gorontalo", division: "kindergarten" };
+    const studentCoursesGtlo = { id: "s_c_gtlo", role: "student", branchId: "kota_gorontalo", division: "courses" };
+
+    const paymentKidsGtlo = { id: "p_k_gtlo", branchId: "kota_gorontalo", division: "kindergarten", studentId: "s_k_gtlo" };
+    const paymentCoursesGtlo = { id: "p_c_gtlo", branchId: "kota_gorontalo", division: "courses", studentId: "s_c_gtlo" };
+
+    // Foreign branch documents (Bone Bolango)
+    const classKidsBoba = { id: "c_k_boba", branchId: "bone_bolango", division: "kindergarten" };
+    const classCoursesBoba = { id: "c_c_boba", branchId: "bone_bolango", division: "courses" };
+    const studentKidsBoba = { id: "s_k_boba", role: "student", branchId: "bone_bolango", division: "kindergarten" };
+    const studentCoursesBoba = { id: "s_c_boba", role: "student", branchId: "bone_bolango", division: "courses" };
+
+    it("1. division='all' Manager can access BOTH Kindergarten and Courses docs in own branch", () => {
+      // Classes
+      expect(canGetClass(classKidsGtlo, allManagerGorontalo)).toBe(true);
+      expect(canGetClass(classCoursesGtlo, allManagerGorontalo)).toBe(true);
+      expect(canGetClass(classLegacyGtlo, allManagerGorontalo)).toBe(true);
+      expect(canListClasses({ branchId: "kota_gorontalo" }, allManagerGorontalo)).toBe(true);
+
+      // Applications
+      expect(canGetApplication(appKidsGtlo, allManagerGorontalo)).toBe(true);
+      expect(canGetApplication(appCoursesGtlo, allManagerGorontalo)).toBe(true);
+
+      // Progress Reports
+      expect(canGetProgressReport({ id: "pr_k", branchId: "kota_gorontalo", division: "kindergarten" }, allManagerGorontalo)).toBe(true);
+      expect(canGetProgressReport({ id: "pr_c", branchId: "kota_gorontalo", division: "courses" }, allManagerGorontalo)).toBe(true);
+
+      // Students
+      expect(canGetUser(studentKidsGtlo, allManagerGorontalo)).toBe(true);
+      expect(canGetUser(studentCoursesGtlo, allManagerGorontalo)).toBe(true);
+
+      // Shifts & Attendance
+      expect(canGetShift({ id: "sh_k", branchId: "kota_gorontalo", division: "kindergarten" }, allManagerGorontalo)).toBe(true);
+      expect(canGetShift({ id: "sh_c", branchId: "kota_gorontalo", division: "courses" }, allManagerGorontalo)).toBe(true);
+    });
+
+    it("2. division='all' Front Office can access and create BOTH Kindergarten and Courses docs in own branch", () => {
+      // Get students
+      expect(canGetUser(studentKidsGtlo, allFOGorontalo)).toBe(true);
+      expect(canGetUser(studentCoursesGtlo, allFOGorontalo)).toBe(true);
+
+      // Create students in both divisions
+      expect(
+        canCreateUser(
+          { role: "student", branchId: "kota_gorontalo", division: "kindergarten", displayName: "KG Child" },
+          allFOGorontalo
+        )
+      ).toBe(true);
+      expect(
+        canCreateUser(
+          { role: "student", branchId: "kota_gorontalo", division: "courses", displayName: "Course Teen" },
+          allFOGorontalo
+        )
+      ).toBe(true);
+
+      // Payments
+      expect(canGetPayment(paymentKidsGtlo, allFOGorontalo)).toBe(true);
+      expect(canGetPayment(paymentCoursesGtlo, allFOGorontalo)).toBe(true);
+    });
+
+    it("3. Branch isolation remains strictly enforced for division='all' users (CANNOT access foreign branch)", () => {
+      // Manager cannot access Bone Bolango classes or students
+      expect(canGetClass(classKidsBoba, allManagerGorontalo)).toBe(false);
+      expect(canGetClass(classCoursesBoba, allManagerGorontalo)).toBe(false);
+      expect(canGetUser(studentKidsBoba, allManagerGorontalo)).toBe(false);
+      expect(canGetUser(studentCoursesBoba, allManagerGorontalo)).toBe(false);
+
+      // Front Office cannot create or access Bone Bolango records
+      expect(canGetUser(studentKidsBoba, allFOGorontalo)).toBe(false);
+      expect(
+        canCreateUser(
+          { role: "student", branchId: "bone_bolango", division: "kindergarten", displayName: "KG Child" },
+          allFOGorontalo
+        )
+      ).toBe(false);
+    });
+
+    it("4. Single-division users CANNOT cross divisions (isolation preserved)", () => {
+      // Courses Manager cannot read Kindergarten
+      expect(canGetClass(classKidsGtlo, coursesManagerGorontalo)).toBe(false);
+      expect(canGetApplication(appKidsGtlo, coursesManagerGorontalo)).toBe(false);
+      expect(canGetUser(studentKidsGtlo, coursesManagerGorontalo)).toBe(false);
+
+      // Kindergarten Manager cannot read Courses
+      expect(canGetClass(classCoursesGtlo, kidsManagerGorontalo)).toBe(false);
+      expect(canGetApplication(appCoursesGtlo, kidsManagerGorontalo)).toBe(false);
+      expect(canGetUser(studentCoursesGtlo, kidsManagerGorontalo)).toBe(false);
+    });
+
+    it("5. Admin behavior remains completely unrestricted across branches and divisions", () => {
+      expect(canGetClass(classKidsGtlo, admin)).toBe(true);
+      expect(canGetClass(classCoursesGtlo, admin)).toBe(true);
+      expect(canGetClass(classKidsBoba, admin)).toBe(true);
+      expect(canGetClass(classCoursesBoba, admin)).toBe(true);
+      expect(canGetUser(studentKidsBoba, admin)).toBe(true);
+      expect(canGetUser(studentCoursesBoba, admin)).toBe(true);
+    });
+
+    it("6. Role hierarchy permissions remain intact for division='all' users", () => {
+      // Front Office with division='all' still CANNOT delete managers or instructors
+      expect(
+        canDeleteUser(
+          { role: "instructor", branchId: "kota_gorontalo", division: "courses" },
+          allFOGorontalo
+        )
+      ).toBe(false);
+
+      // Front Office with division='all' still CANNOT create staff users directly
+      expect(
+        canCreateUser(
+          { role: "instructor", branchId: "kota_gorontalo", division: "courses", displayName: "Instructor" },
+          allFOGorontalo
+        )
+      ).toBe(false);
     });
   });
 });

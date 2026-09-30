@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { normalizeBranch } from "../constants/branches.js";
-import { normalizeStaffDivision } from "../constants/divisions.js";
+import { normalizeStaffDivision, isDivisionIndependentRole } from "../constants/divisions.js";
 
 export const ALLOWED_STAFF_ROLES = [
   "admin",
@@ -35,19 +35,32 @@ export const inviteSchema = z
     division: z
       .string()
       .trim()
-      .optional()
-      .transform((d) => normalizeStaffDivision(d)),
+      .nullable()
+      .optional(),
+  })
+  .transform((data) => {
+    return {
+      ...data,
+      division: isDivisionIndependentRole(data.role)
+        ? null
+        : normalizeStaffDivision(data.division, data.role),
+    };
   })
   .refine(
     (data) => {
-      if (data.division === "kindergarten" && data.role === "marketing") {
+      // Academic staff cannot have division = null
+      if (
+        !isDivisionIndependentRole(data.role) &&
+        data.role !== "admin" &&
+        !data.division
+      ) {
         return false;
       }
       return true;
     },
     {
-      message: "Marketing role is not available for Kindergarten division.",
-      path: ["role"],
+      message: "An academic division (courses, kindergarten, or all) is required for this role.",
+      path: ["division"],
     }
   );
 

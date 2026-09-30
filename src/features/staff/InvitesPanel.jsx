@@ -103,27 +103,15 @@ export default function InvitesPanel({ invites = [], users = [], onCreateInvite,
     );
   }, [cleanEmail, invites]);
 
-  // Auto-sets division when role changes (can still be manually overridden)
-  const ROLE_DIVISION_MAP = {
-    instructorleader: "all",
-    manager: "all",
-    opslead: "all",
-    officeboy: "all",
-    marketing: "courses",
-  };
-
   const handleRoleChange = (newRole) => {
     setInviteRole(newRole);
-    if (ROLE_DIVISION_MAP[newRole] !== undefined) {
-      setInviteDivision(ROLE_DIVISION_MAP[newRole]);
+    if (newRole === "officeboy") {
+      setInviteDivision("all");
     }
   };
 
   const handleDivisionChange = (newDiv) => {
     setInviteDivision(newDiv);
-    if (newDiv === "kindergarten" && inviteRole === "marketing") {
-      setInviteRole("instructor");
-    }
   };
 
   const handleSubmit = async (e) => {
@@ -222,15 +210,22 @@ export default function InvitesPanel({ invites = [], users = [], onCreateInvite,
             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
               Division *
             </label>
-            <select
-              value={inviteDivision}
-              onChange={(e) => handleDivisionChange(e.target.value)}
-              className="w-full py-2.5 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:border-[#1a3a8f] outline-none cursor-pointer transition"
-            >
-              <option value="courses">Course Academy</option>
-              <option value="kindergarten">Kids School (Kindergarten)</option>
-              <option value="all">All Divisions (Cross-Divisional)</option>
-            </select>
+            {inviteRole === "officeboy" ? (
+              <div className="w-full py-2.5 px-3 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-500 flex items-center justify-between">
+                <span>Facility (Division-Independent)</span>
+                <span className="text-[10px] text-slate-400 font-mono">null</span>
+              </div>
+            ) : (
+              <select
+                value={inviteDivision}
+                onChange={(e) => handleDivisionChange(e.target.value)}
+                className="w-full py-2.5 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:border-[#1a3a8f] outline-none cursor-pointer transition"
+              >
+                <option value="courses">Course Academy</option>
+                <option value="kindergarten">Kids School (Kindergarten)</option>
+                <option value="all">All Divisions (Cross-Divisional)</option>
+              </select>
+            )}
           </div>
 
           <div>
@@ -247,12 +242,8 @@ export default function InvitesPanel({ invites = [], users = [], onCreateInvite,
               <option value="manager">Campus Manager</option>
               <option value="frontoffice">Front Office Staff</option>
               <option value="opslead">Front Office Leader (Ops Lead)</option>
-              {inviteDivision !== "kindergarten" && (
-                <>
-                  <option value="marketing">Marketing Specialist</option>
-                  <option value="officeboy">Office Support Staff</option>
-                </>
-              )}
+              <option value="marketing">Marketing Specialist</option>
+              <option value="officeboy">Office Support Staff</option>
             </select>
           </div>
 

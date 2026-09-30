@@ -66,8 +66,16 @@ export function useStaffDirectives(role, explicitBranch = null) {
     const uid = currentUser?.uid;
     const userDiv = profileDivision || null;
     return todos.filter((t) => {
-      // Division gating: must be "all", missing, or matching user's division
-      if (userDiv && t.division && t.division !== "all" && t.division !== userDiv) {
+      // Division gating:
+      // Staff with "all" or null (facility-wide) receive directives across all divisions.
+      // Staff bound to a specific division only receive directives matching their division, "all", or untagged directives.
+      if (
+        userDiv &&
+        userDiv !== "all" &&
+        t.division &&
+        t.division !== "all" &&
+        t.division !== userDiv
+      ) {
         return false;
       }
       if (t.assignee === "all") return true;

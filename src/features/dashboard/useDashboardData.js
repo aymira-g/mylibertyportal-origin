@@ -16,7 +16,7 @@ import { markInquiryConverted } from "./frontoffice/deskInquiriesRepository";
 import { DEFAULT_BRANCH, normalizeBranch, matchesBranchFilter, branchToId } from "../../constants/branches";
 import {
   DEFAULT_DIVISION,
-  normalizeDivision,
+  normalizeStaffDivision,
   divisionOfProgram,
   matchesDivisionFilter,
 } from "../../constants/divisions";
@@ -378,7 +378,7 @@ export function useDashboardData({
           educationLevel: formData.educationLevel,
           email: formData.email,
           branch: normalizeBranch(formData.branch),
-          division: normalizeDivision(formData.division),
+          division: normalizeStaffDivision(formData.division, formData.role),
           status: formData.status || "active",
           photoURL: formData.photoURL || "",
         };
@@ -478,8 +478,9 @@ export function useDashboardData({
       religion: user.religion || "",
       address: user.address || "",
       branch: normalizeBranch(user.branch),
-      division: normalizeDivision(
-        user.division || (user.role === "student" ? divisionOfProgram(canonicalProg?.id || user.programId || user.program) : "courses")
+      division: normalizeStaffDivision(
+        user.division || (user.role === "student" ? divisionOfProgram(canonicalProg?.id || user.programId || user.program) : "courses"),
+        user.role
       ),
       programId: canonicalProg?.id || user.programId || "",
       program: canonicalProg?.label || user.program || "",

@@ -60,14 +60,29 @@ describe("inviteSchema", () => {
     expect(allDiv.division).toBe("all");
   });
 
-  it("rejects marketing role for kindergarten division", () => {
-    expect(() =>
-      inviteSchema.parse({
-        email: "market@myliberty.id",
-        role: "marketing",
-        division: "kindergarten",
-      })
-    ).toThrow(/Marketing role is not available for Kindergarten division/);
+  it("allows marketing role across courses, kindergarten, and all divisions", () => {
+    const mktKids = inviteSchema.parse({
+      email: "market@myliberty.id",
+      role: "marketing",
+      division: "kindergarten",
+    });
+    expect(mktKids.division).toBe("kindergarten");
+
+    const mktAll = inviteSchema.parse({
+      email: "market-all@myliberty.id",
+      role: "marketing",
+      division: "all",
+    });
+    expect(mktAll.division).toBe("all");
+  });
+
+  it("normalizes officeboy role to division = null", () => {
+    const ob = inviteSchema.parse({
+      email: "ob@myliberty.id",
+      role: "officeboy",
+      division: "courses",
+    });
+    expect(ob.division).toBeNull();
   });
 
   it("rejects invalid emails", () => {

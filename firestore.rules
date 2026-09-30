@@ -92,6 +92,7 @@ service cloud.firestore {
 
     function isDivisionAllowedForBranchStaff(data) {
       return !(isManager() || isFrontOffice())
+        || (userDivision() == 'all')
         || (userDivision() == 'kindergarten'
           ? (data != null && 'division' in data && data.division == 'kindergarten')
           : (!('division' in data) || data.division != 'kindergarten'));

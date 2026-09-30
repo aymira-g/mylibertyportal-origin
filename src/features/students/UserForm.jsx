@@ -37,27 +37,14 @@ export default function UserForm({
 
   const handleDivisionChange = (newDiv) => {
     field("division", newDiv);
-    if (
-      newDiv === "kindergarten" &&
-      (formData.role === "marketing" || formData.role === "officeboy")
-    ) {
-      field("role", "instructor");
-    }
-  };
-
-  // Auto-selects division when role changes (user can still override division after)
-  const ROLE_DIVISION_MAP = {
-    instructorleader: "all",
-    manager: "all",
-    opslead: "all",
-    officeboy: "all",
-    marketing: "courses",
   };
 
   const handleRoleChange = (newRole) => {
     field("role", newRole);
-    if (ROLE_DIVISION_MAP[newRole] !== undefined) {
-      field("division", ROLE_DIVISION_MAP[newRole]);
+    if (newRole === "officeboy") {
+      field("division", null);
+    } else if (!formData.division) {
+      field("division", "courses");
     }
   };
 
@@ -143,9 +130,11 @@ export default function UserForm({
               {!isStudent && !isParent && (
                 <span className="px-3 py-1 bg-cyan-50 text-cyan-700 font-bold text-xs rounded-full uppercase">
                   Division:{" "}
-                  {normalizeStaffDivision(formData.division) === "kindergarten"
+                  {formData.role === "officeboy" || normalizeStaffDivision(formData.division, formData.role) === null
+                    ? "Facility (Division-Independent)"
+                    : normalizeStaffDivision(formData.division, formData.role) === "kindergarten"
                     ? "Kids School"
-                    : normalizeStaffDivision(formData.division) === "all"
+                    : normalizeStaffDivision(formData.division, formData.role) === "all"
                     ? "All Divisions"
                     : "Courses"}
                 </span>

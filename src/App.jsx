@@ -42,12 +42,13 @@ const KidsFrontOfficeDashboard = lazy(() =>
   import("./features/dashboard/kids/KidsFrontOfficeDashboard")
 );
 const KidsManagerDashboard = lazy(() => import("./features/dashboard/kids/KidsManagerDashboard"));
+const CrossDivDashboard = lazy(() => import("./features/dashboard/CrossDivDashboard"));
 const KidsInstructorDashboard = lazy(() =>
   import("./features/dashboard/kids/KidsInstructorDashboard")
 );
 const ParentDashboard = lazy(() => import("./features/dashboard/ParentDashboard"));
 
-import { normalizeDivision, DEFAULT_DIVISION } from "./constants/divisions";
+import { normalizeStaffDivision, DEFAULT_DIVISION } from "./constants/divisions";
 
 function LoadingFallback() {
   return (
@@ -170,8 +171,9 @@ function App() {
           );
           return false;
         }
-        setRole(normalizeRole(data.role) || "student");
-        setDivision(normalizeDivision(data.division));
+        const userRole = normalizeRole(data.role) || "student";
+        setRole(userRole);
+        setDivision(normalizeStaffDivision(data.division, userRole));
         setBranch(data.branchId || data.branch || "kota_gorontalo");
         setDisplayName(data.displayName || "");
         setNickname(data.nickname || data.displayName || "");
@@ -545,7 +547,9 @@ function App() {
               )}
               {effectiveRole === "manager" && (
                 <ErrorBoundary label="Manager dashboard">
-                  {effectiveDivision === "kindergarten" ? (
+                  {effectiveDivision === "all" ? (
+                    <CrossDivDashboard role="manager" />
+                  ) : effectiveDivision === "kindergarten" ? (
                     <KidsManagerDashboard />
                   ) : (
                     <ManagerDashboard />
@@ -568,7 +572,9 @@ function App() {
                 effectiveRole === "ops_lead" ||
                 effectiveRole === "frontofficelead") && (
                 <ErrorBoundary label="Front Office dashboard">
-                  {effectiveDivision === "kindergarten" ? (
+                  {effectiveDivision === "all" ? (
+                    <CrossDivDashboard role={effectiveRole} />
+                  ) : effectiveDivision === "kindergarten" ? (
                     <KidsFrontOfficeDashboard />
                   ) : (
                     <FrontOfficeDashboard role={effectiveRole} />

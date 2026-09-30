@@ -26,11 +26,14 @@ import {
  * Repository for Front Office walk-in visitor & prospect inquiries (/deskInquiries).
  */
 
-export async function fetchRecentDeskInquiries(limitCount = 50, branchId = null) {
+export async function fetchRecentDeskInquiries(limitCount = 50, branchId = null, division = null) {
   const normalizedBranchId = branchId ? branchToId(branchId) : null;
   const constraints = [];
   if (normalizedBranchId) {
     constraints.push(where("branchId", "==", normalizedBranchId));
+  }
+  if (division && division !== "all") {
+    constraints.push(where("division", "==", division));
   }
 
   try {
@@ -50,6 +53,9 @@ export async function fetchRecentDeskInquiries(limitCount = 50, branchId = null)
     const fallbackConstraints = [];
     if (normalizedBranchId) {
       fallbackConstraints.push(where("branchId", "==", normalizedBranchId));
+    }
+    if (division && division !== "all") {
+      fallbackConstraints.push(where("division", "==", division));
     }
     fallbackConstraints.push(limit(limitCount));
     const q = query(collection(db, "deskInquiries"), ...fallbackConstraints);

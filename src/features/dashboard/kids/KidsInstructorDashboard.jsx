@@ -5,15 +5,13 @@ import { KioskModal, KioskSidebarButton } from "../../attendance";
 import { TeachingMaterial, ClassPhotoShare } from "../../classes";
 import { ReportsDashboard } from "../../reports";
 import { useStaffDirectives, StaffDirectivesWidget } from "../../staff";
-import { db } from "../../../firebase";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
 import {
   InstructorOverview,
   InstructorClasses,
   InstructorProgress,
 } from "../instructor";
 import { matchesDivisionFilter, divisionOfProgram } from "../../../constants/divisions";
-import { DEFAULT_BRANCH, branchToId } from "../../../constants/branches";
+import { DEFAULT_BRANCH } from "../../../constants/branches";
 import { getUrlAction, clearUrlAction } from "../../../utils/urlAction.js";
 
 export default function KidsInstructorDashboard() {
@@ -46,8 +44,6 @@ export default function KidsInstructorDashboard() {
     error,
   } = useInstructorRoster();
 
-  const effectiveBranch = instructorBranch || DEFAULT_BRANCH;
-
   // Kindergarten instructors only see kindergarten learners and classes
   const classes = useMemo(
     () =>
@@ -65,16 +61,6 @@ export default function KidsInstructorDashboard() {
     [rawStudents]
   );
 
-  const [allClasses, setAllClasses] = useState([]);
-
-  // Merge branch classes with any assigned kindergarten classes (guarantees cross-branch classes are visible)
-  const combinedAllClasses = useMemo(() => {
-    const map = new Map();
-    allClasses.forEach((c) => map.set(c.id, c));
-    classes.forEach((c) => map.set(c.id, c));
-    return Array.from(map.values());
-  }, [allClasses, classes]);
-
   const {
     activeDirectives,
     completedDirectives,
@@ -82,27 +68,6 @@ export default function KidsInstructorDashboard() {
     loading: directivesLoading,
     handleToggle: handleToggleDirective,
   } = useStaffDirectives("instructor");
-
-  useEffect(() => {
-    const branchId = branchToId(effectiveBranch);
-    const unsub = onSnapshot(
-      query(
-        collection(db, "classes"),
-        where("branchId", "==", branchId),
-        where("status", "==", "active")
-      ),
-      (snap) => {
-        /** @type {any[]} */
-        const all = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        setAllClasses(
-          all.filter((c) =>
-            matchesDivisionFilter(c.division || divisionOfProgram(c.programId || c.program), "kindergarten")
-          )
-        );
-      }
-    );
-    return () => unsub();
-  }, [effectiveBranch]);
 
   const tabs = [
     {
@@ -116,7 +81,7 @@ export default function KidsInstructorDashboard() {
           onNavigate={setActiveTab}
           onOpenKiosk={() => setKioskOpen(true)}
           onSelectClass={(classId) => setSelectedClassFilter(classId)}
-          allClasses={combinedAllClasses}
+          allClasses={classes}
         />
       ),
     },
@@ -146,7 +111,7 @@ export default function KidsInstructorDashboard() {
           error={error}
           selectedClassFilter={selectedClassFilter}
           setSelectedClassFilter={setSelectedClassFilter}
-          allClasses={combinedAllClasses}
+          allClasses={classes}
         />
       ),
     },

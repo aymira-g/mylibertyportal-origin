@@ -156,10 +156,14 @@ export default function WalkInInquiryTab({
     }
   };
 
+  // For Kindergarten Front Office: query division == "kindergarten".
+  // Courses Front Office: do not add server filter until backfill (R5) is done to avoid hiding legacy records.
+  const serverDivision = division === "kindergarten" ? "kindergarten" : null;
+
   const loadInquiries = useCallback(async () => {
     setLoading(true);
     try {
-      const list = await fetchRecentDeskInquiries(50, branchLabel);
+      const list = await fetchRecentDeskInquiries(50, branchLabel, serverDivision);
       setInquiries(list);
       setHasPermission(true);
     } catch (err) {
@@ -177,11 +181,11 @@ export default function WalkInInquiryTab({
     } finally {
       setLoading(false);
     }
-  }, [branchLabel, toast]);
+  }, [branchLabel, serverDivision, toast]);
 
   useEffect(() => {
     let active = true;
-    fetchRecentDeskInquiries(50, branchLabel)
+    fetchRecentDeskInquiries(50, branchLabel, serverDivision)
       .then((list) => {
         if (!active) return;
         setInquiries(list);
@@ -207,7 +211,7 @@ export default function WalkInInquiryTab({
     return () => {
       active = false;
     };
-  }, [branchLabel, toast]);
+  }, [branchLabel, serverDivision, toast]);
 
   const filteredInquiries = useMemo(() => {
     return inquiries.filter((inq) => {

@@ -94,6 +94,33 @@ describe("deskInquiriesRepository statuses", () => {
     expect(allResults.length).toBe(2);
   });
 
+  it("fetches recent desk inquiries scoped to branchId and division when provided", async () => {
+    fake.seed("deskInquiries", [
+      {
+        id: "inq-kg",
+        studentName: "Kindergarten Student",
+        branchId: "kota_gorontalo",
+        division: "kindergarten",
+        createdAt: "2026-09-27T10:00:00.000Z",
+      },
+      {
+        id: "inq-courses",
+        studentName: "Courses Student",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        createdAt: "2026-09-27T11:00:00.000Z",
+      },
+    ]);
+
+    const kgResults = await fetchRecentDeskInquiries(50, "kota_gorontalo", "kindergarten");
+    expect(kgResults.length).toBe(1);
+    expect(kgResults[0].studentName).toBe("Kindergarten Student");
+
+    const coursesResults = await fetchRecentDeskInquiries(50, "kota_gorontalo", "courses");
+    expect(coursesResults.length).toBe(1);
+    expect(coursesResults[0].studentName).toBe("Courses Student");
+  });
+
   it("rejects updateDeskInquiryStatus to enrolled directly", async () => {
     await expect(updateDeskInquiryStatus("inq-1", "enrolled")).rejects.toThrow(
       "Cannot set inquiry status to 'enrolled' directly"

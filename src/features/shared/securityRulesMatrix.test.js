@@ -113,13 +113,63 @@ function isSameDivisionStrict(data, user) {
   return data != null && "division" in data && data.division === userDivision(user);
 }
 
-function isDivisionAllowedForManager(data, user) {
+function isDivisionAllowedForBranchStaff(data, user) {
   return (
-    !isManager(user) ||
-    (userDivision(user) == null
-      ? !("division" in data) || data.division !== "kindergarten"
-      : isSameDivisionStrict(data, user))
+    !(isManager(user) || isFrontOffice(user)) ||
+    (userDivision(user) === "kindergarten"
+      ? isSameDivisionStrict(data, user)
+      : !("division" in data) || data.division !== "kindergarten")
   );
+}
+
+function isDivisionAllowedForManager(data, user) {
+  return isDivisionAllowedForBranchStaff(data, user);
+}
+
+function canCreateUser(data, user) {
+  if (!user) return false;
+  if (isAdmin(user)) return true;
+  if (
+    isFrontOffice(user) &&
+    ["student", "parent"].includes(data.role) &&
+    isSameBranch(data, user) &&
+    (data.role !== "student" || isDivisionAllowedForBranchStaff(data, user)) &&
+    (data.role !== "parent" || !("childStudentIds" in data) || data.childStudentIds.length === 0)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function canUpdateUser(existing, incoming, user) {
+  if (!user) return false;
+  if (isAdmin(user)) return true;
+  if (
+    isFrontOffice(user) &&
+    existing.role === "student" &&
+    incoming.role === "student" &&
+    isSameBranch(existing, user) &&
+    isSameBranch(incoming, user) &&
+    isDivisionAllowedForBranchStaff(existing, user) &&
+    isDivisionAllowedForBranchStaff(incoming, user)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function canDeleteUser(existing, user) {
+  if (!user) return false;
+  if (isAdmin(user)) return true;
+  if (
+    isFrontOffice(user) &&
+    ["student", "parent"].includes(existing.role) &&
+    isSameBranch(existing, user) &&
+    (existing.role !== "student" || isDivisionAllowedForBranchStaff(existing, user))
+  ) {
+    return true;
+  }
+  return false;
 }
 
 function canGetClass(doc, user) {
@@ -1630,13 +1680,265 @@ describe("Security Rules Matrix & Branch Isolation", () => {
       expect(canListUsers({ role: "student", branchId: "kota_gorontalo" }, kidsManagerGorontalo)).toBe(false);
     });
 
-    it("Front Office staff in own branch can access both divisions", () => {
-      expect(canGetClass(classKidsGtlo, foStaff)).toBe(true);
+    it("Courses / Legacy Front Office staff in own branch is gated from Kindergarten documents", () => {
+      expect(canGetClass(classKidsGtlo, foStaff)).toBe(false);
       expect(canGetClass(classCoursesGtlo, foStaff)).toBe(true);
-      expect(canGetApplication(appKidsGtlo, foStaff)).toBe(true);
+      expect(canGetApplication(appKidsGtlo, foStaff)).toBe(false);
       expect(canGetApplication(appCoursesGtlo, foStaff)).toBe(true);
-      expect(canGetProgressReport(progKidsGtlo, foStaff)).toBe(true);
+      expect(canGetProgressReport(progKidsGtlo, foStaff)).toBe(false);
       expect(canGetProgressReport(progCoursesGtlo, foStaff)).toBe(true);
+      expect(canGetUser(studentKidsGtlo, foStaff)).toBe(false);
+      expect(canGetUser(studentCoursesGtlo, foStaff)).toBe(true);
+      expect(canGetUser(studentLegacyGtlo, foStaff)).toBe(true);
+    });
+  });
+
+  describe("Section 17: Kids Front Office Branch + Division Security Matrix", () => {
+    const kidsFOGorontalo = {
+      uid: "kids_fo_gtlo",
+      role: "frontoffice",
+      branchId: "kota_gorontalo",
+      division: "kindergarten",
+    };
+
+    const coursesFOGorontalo = {
+      uid: "courses_fo_gtlo",
+      role: "frontoffice",
+      branchId: "kota_gorontalo",
+      division: "courses",
+    };
+
+    const classKidsGtlo = { id: "c_k_gtlo", branchId: "kota_gorontalo", division: "kindergarten" };
+    const classCoursesGtlo = { id: "c_c_gtlo", branchId: "kota_gorontalo", division: "courses" };
+    const classKidsBoba = { id: "c_k_boba", branchId: "bone_bolango", division: "kindergarten" };
+    const classLegacyNoDiv = { id: "c_nodiv", branchId: "kota_gorontalo" };
+
+    const appKidsGtlo = { id: "a_k_gtlo", branchId: "kota_gorontalo", division: "kindergarten" };
+    const appCoursesGtlo = { id: "a_c_gtlo", branchId: "kota_gorontalo", division: "courses" };
+    const appKidsBoba = { id: "a_k_boba", branchId: "bone_bolango", division: "kindergarten" };
+
+    const studentKidsGtlo = { id: "std_k", role: "student", branchId: "kota_gorontalo", division: "kindergarten" };
+    const studentCoursesGtlo = { id: "std_c", role: "student", branchId: "kota_gorontalo", division: "courses" };
+    const studentKidsBoba = { id: "std_k_boba", role: "student", branchId: "bone_bolango", division: "kindergarten" };
+    const studentLegacyGtlo = { id: "std_legacy", role: "student", branchId: "kota_gorontalo" };
+
+    const progKidsGtlo = { id: "p_k_gtlo", branchId: "kota_gorontalo", division: "kindergarten", studentId: "std_k" };
+    const progCoursesGtlo = { id: "p_c_gtlo", branchId: "kota_gorontalo", division: "courses", studentId: "std_c" };
+
+    it("Kids Front Office, Kota Gorontalo -> Kindergarten class in own branch: ALLOW", () => {
+      expect(canGetClass(classKidsGtlo, kidsFOGorontalo)).toBe(true);
+      expect(canListClasses({ branchId: "kota_gorontalo", division: "kindergarten" }, kidsFOGorontalo)).toBe(true);
+    });
+
+    it("Kids Front Office, Kota Gorontalo -> Courses class in own branch: DENY", () => {
+      expect(canGetClass(classCoursesGtlo, kidsFOGorontalo)).toBe(false);
+      expect(canListClasses({ branchId: "kota_gorontalo", division: "courses" }, kidsFOGorontalo)).toBe(false);
+    });
+
+    it("Kids Front Office, Kota Gorontalo -> Kindergarten class in another branch: DENY", () => {
+      expect(canGetClass(classKidsBoba, kidsFOGorontalo)).toBe(false);
+      expect(canListClasses({ branchId: "bone_bolango", division: "kindergarten" }, kidsFOGorontalo)).toBe(false);
+    });
+
+    it("Kids Front Office -> legacy class without division: DENY", () => {
+      expect(canGetClass(classLegacyNoDiv, kidsFOGorontalo)).toBe(false);
+    });
+
+    it("Kids Front Office -> own branch Kindergarten applications: ALLOW", () => {
+      expect(canGetApplication(appKidsGtlo, kidsFOGorontalo)).toBe(true);
+      expect(canListApplications({ branchId: "kota_gorontalo", division: "kindergarten" }, kidsFOGorontalo)).toBe(true);
+    });
+
+    it("Kids Front Office -> own branch Courses applications: DENY", () => {
+      expect(canGetApplication(appCoursesGtlo, kidsFOGorontalo)).toBe(false);
+      expect(canListApplications({ branchId: "kota_gorontalo", division: "courses" }, kidsFOGorontalo)).toBe(false);
+    });
+
+    it("Kids Front Office -> foreign branch Kindergarten applications: DENY", () => {
+      expect(canGetApplication(appKidsBoba, kidsFOGorontalo)).toBe(false);
+      expect(canListApplications({ branchId: "bone_bolango", division: "kindergarten" }, kidsFOGorontalo)).toBe(false);
+    });
+
+    it("Kids Front Office -> read Kindergarten student in own branch: ALLOW", () => {
+      expect(canGetUser(studentKidsGtlo, kidsFOGorontalo)).toBe(true);
+      expect(canListUsers({ role: "student", branchId: "kota_gorontalo", division: "kindergarten" }, kidsFOGorontalo)).toBe(true);
+    });
+
+    it("Kids Front Office -> read Courses or legacy student in own branch: DENY", () => {
+      expect(canGetUser(studentCoursesGtlo, kidsFOGorontalo)).toBe(false);
+      expect(canGetUser(studentLegacyGtlo, kidsFOGorontalo)).toBe(false);
+      expect(canListUsers({ role: "student", branchId: "kota_gorontalo", division: "courses" }, kidsFOGorontalo)).toBe(false);
+    });
+
+    it("Kids Front Office -> foreign branch student: DENY", () => {
+      expect(canGetUser(studentKidsBoba, kidsFOGorontalo)).toBe(false);
+    });
+
+    it("Kids Front Office -> progress reports division isolation", () => {
+      expect(canGetProgressReport(progKidsGtlo, kidsFOGorontalo)).toBe(true);
+      expect(canListProgressReports({ branchId: "kota_gorontalo", division: "kindergarten" }, kidsFOGorontalo)).toBe(true);
+      expect(canGetProgressReport(progCoursesGtlo, kidsFOGorontalo)).toBe(false);
+      expect(canListProgressReports({ branchId: "kota_gorontalo", division: "courses" }, kidsFOGorontalo)).toBe(false);
+    });
+
+    it("Kids Front Office -> create Kindergarten student in own branch: ALLOW", () => {
+      const newKgStudent = {
+        role: "student",
+        branchId: "kota_gorontalo",
+        division: "kindergarten",
+        displayName: "New KG Student",
+      };
+      expect(canCreateUser(newKgStudent, kidsFOGorontalo)).toBe(true);
+    });
+
+    it("Kids Front Office -> create Courses student: DENY", () => {
+      const newCourseStudent = {
+        role: "student",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        displayName: "New Course Student",
+      };
+      expect(canCreateUser(newCourseStudent, kidsFOGorontalo)).toBe(false);
+    });
+
+    it("Kids Front Office -> create student in foreign branch: DENY", () => {
+      const foreignStudent = {
+        role: "student",
+        branchId: "bone_bolango",
+        division: "kindergarten",
+        displayName: "Foreign Student",
+      };
+      expect(canCreateUser(foreignStudent, kidsFOGorontalo)).toBe(false);
+    });
+
+    it("Kids Front Office -> update Kindergarten student in own branch: ALLOW", () => {
+      const existing = {
+        role: "student",
+        branchId: "kota_gorontalo",
+        division: "kindergarten",
+        displayName: "Existing KG",
+      };
+      const update = {
+        ...existing,
+        displayName: "Updated KG Name",
+      };
+      expect(canUpdateUser(existing, update, kidsFOGorontalo)).toBe(true);
+    });
+
+    it("Kids Front Office -> update Courses student: DENY", () => {
+      const existing = {
+        role: "student",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        displayName: "Courses Student",
+      };
+      const update = {
+        ...existing,
+        displayName: "Updated Name",
+      };
+      expect(canUpdateUser(existing, update, kidsFOGorontalo)).toBe(false);
+    });
+
+    it("Kids Front Office -> delete Kindergarten student in own branch: ALLOW", () => {
+      const student = {
+        role: "student",
+        branchId: "kota_gorontalo",
+        division: "kindergarten",
+      };
+      expect(canDeleteUser(student, kidsFOGorontalo)).toBe(true);
+    });
+
+    it("Kids Front Office -> delete Courses student in own branch: DENY", () => {
+      const student = {
+        role: "student",
+        branchId: "kota_gorontalo",
+        division: "courses",
+      };
+      expect(canDeleteUser(student, kidsFOGorontalo)).toBe(false);
+    });
+
+    it("Courses Front Office -> read Courses and legacy students, blocked from Kindergarten", () => {
+      expect(canGetUser(studentCoursesGtlo, coursesFOGorontalo)).toBe(true);
+      expect(canGetUser(studentLegacyGtlo, coursesFOGorontalo)).toBe(true);
+      expect(canGetUser(studentKidsGtlo, coursesFOGorontalo)).toBe(false);
+    });
+  });
+
+  describe("Section 18: Kids Instructor Branch + Division Security Matrix", () => {
+    const kidsInstructorGorontalo = {
+      uid: "ins_k_gtlo",
+      role: "instructor",
+      branchId: "kota_gorontalo",
+      division: "kindergarten",
+    };
+
+    const assignedClass = {
+      id: "class_assigned_k",
+      branchId: "kota_gorontalo",
+      division: "kindergarten",
+      instructorId: "ins_k_gtlo",
+      studentIds: ["std_k_1", "std_k_2"],
+    };
+
+    const crossBranchSubstituteClass = {
+      id: "class_sub_boba",
+      branchId: "bone_bolango",
+      division: "kindergarten",
+      instructorId: "ins_other",
+      substituteInstructorId: "ins_k_gtlo",
+      studentIds: ["std_boba_1"],
+    };
+
+    const unassignedClass = {
+      id: "class_unassigned_k",
+      branchId: "kota_gorontalo",
+      division: "kindergarten",
+      instructorId: "ins_other",
+      studentIds: ["std_other"],
+    };
+
+    it("Kids Instructor -> assigned class in own branch: ALLOW", () => {
+      expect(canGetClass(assignedClass, kidsInstructorGorontalo)).toBe(true);
+    });
+
+    it("Kids Instructor -> cross-branch substitute assigned class: ALLOW", () => {
+      expect(canGetClass(crossBranchSubstituteClass, kidsInstructorGorontalo)).toBe(true);
+    });
+
+    it("Kids Instructor -> unassigned class in own branch: not matched by assignment", () => {
+      expect(unassignedClass.instructorId).not.toBe(kidsInstructorGorontalo.uid);
+    });
+
+    it("Kids Instructor -> reads own students in assigned cohorts: ALLOW", () => {
+      const student1 = {
+        id: "std_k_1",
+        role: "student",
+        branchId: "kota_gorontalo",
+        division: "kindergarten",
+      };
+      expect(canGetUser(student1, kidsInstructorGorontalo)).toBe(true);
+    });
+
+    it("Kids Instructor -> progress report for own assigned student: ALLOW", () => {
+      const report = {
+        id: "rep_k_1",
+        instructorId: "ins_k_gtlo",
+        studentId: "std_k_1",
+        branchId: "kota_gorontalo",
+        division: "kindergarten",
+      };
+      expect(canGetProgressReport(report, kidsInstructorGorontalo)).toBe(true);
+    });
+
+    it("Kids Instructor -> progress report created by another instructor: DENY", () => {
+      const reportOther = {
+        id: "rep_k_other",
+        instructorId: "ins_different",
+        studentId: "std_other",
+        branchId: "kota_gorontalo",
+        division: "kindergarten",
+      };
+      expect(canGetProgressReport(reportOther, kidsInstructorGorontalo)).toBe(false);
     });
   });
 });

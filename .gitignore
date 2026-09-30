@@ -49,6 +49,8 @@ desktop.ini
 # Agent / Tooling Caches
 .gemini/
 .cache/
+backfill-*.json
+*-report.json
 
 # Legacy / Non-web Files
 Example Workflows/

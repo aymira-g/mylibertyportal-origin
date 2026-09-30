@@ -238,5 +238,27 @@ Executed Level 1 Light Regression Check per `docs/audits/Light Regression Check 
 | **Escalation Required** | No |
 | **Status** | **PASS** |
 
+---
+
+## 2026-09-30 — Light Regression Check: Kindergarten/TK Division Scope Revision (Wave 1)
+
+Executed Level 1 Light Regression Check per `docs/audits/Light Regression Check Playbook/`:
+
+| Field | Value |
+|---|---|
+| **Change** | Implemented Wave 1 of `docs/plans/active/kindergarten-division-scope-revision-plan.md` (R5 audit script, R2 division Front Office queries, R3 instructor assigned cohorts, R7 composite indexes, R6 tests, R1 security rules division gate) |
+| **Date** | 2026-09-30 |
+| **Section** | Division Isolation / Front Office / Instructor / Security Rules |
+| **Workflow** | Front Office Dashboard (Courses & Kindergarten), Kids Instructor Dashboard, Desk Inquiries, Student Roster |
+| **Normal Test** | Kids Front Office queries scoped to `division == 'kindergarten'`; Courses Front Office queries preserve legacy access before backfill; Kids Instructor accesses assigned/substitute cohorts only |
+| **Duplicate Test** | Kiosk and dual-account verification confirmed: separate email accounts for dual-division teachers operate on independent uids and do not collide |
+| **Failure Test** | Cross-division access attempts (Kids FO querying Courses students or vice-versa) blocked at query filter and Firestore rules layer |
+| **Boundary Test** | Security rules matrix verified across 104 matrix assertions including Section 16 (Kids Manager), Section 17 (Kids Front Office), and Section 18 (Kids Instructor) |
+| **Result Verification** | 75 test files (980 tests) passing; ESLint 0 errors, 0 warnings; Typecheck 0 errors; Vite build clean |
+| **Findings** | None. Wave 1 complete; ready for owner confirmation before Wave 2 |
+| **Escalation Required** | No |
+| **Status** | **PASS** |
+
+
 
 

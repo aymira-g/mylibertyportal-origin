@@ -123,19 +123,6 @@ export function useDashboardData({
         ? branchToId(effectiveTargetBranch)
         : null;
 
-    const usersConstraints = [];
-    if (restrictedRead) {
-      // In firestore.rules, staff can list 'student', 'instructor', 'instructorleader', and 'parent'.
-      // Front Office needs parents loaded to display linked parent accounts on the student roster.
-      usersConstraints.push(where("role", "in", ["student", "instructor", "parent"]));
-    }
-    if (targetBranchId) {
-      usersConstraints.push(where("branchId", "==", targetBranchId));
-    }
-    const usersQuery = usersConstraints.length
-      ? query(collection(db, "users"), ...usersConstraints)
-      : collection(db, "users");
-
     const handleListenerError = (name) => (err) => {
       if (err?.code === "permission-denied" || err?.message?.includes("insufficient permissions")) {
         console.warn(`${name} listener: permission denied by Firestore rules`, err.message);
@@ -144,15 +131,87 @@ export function useDashboardData({
       }
     };
 
-    const unsubUsers = onSnapshot(
-      usersQuery,
-      (snap) => setUsers(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
-      handleListenerError("users")
-    );
+    const isKindergarten = division === "kindergarten";
+
+    let unsubUsers;
+    if (isKindergarten) {
+      // Split user queries to satisfy Firestore rule proof for division isolation:
+      // (1) Students query: explicitly filtered by division == "kindergarten"
+      // (2) Staff/Parents query: role in ["instructor", "parent"], no division filter needed
+      const studentConstraints = [
+        where("role", "==", "student"),
+        where("division", "==", "kindergarten"),
+      ];
+      if (targetBranchId) {
+        studentConstraints.push(where("branchId", "==", targetBranchId));
+      }
+      const studentQuery = query(collection(db, "users"), ...studentConstraints);
+
+      const staffConstraints = [where("role", "in", ["instructor", "parent"])];
+      if (targetBranchId) {
+        staffConstraints.push(where("branchId", "==", targetBranchId));
+      }
+      const staffQuery = query(collection(db, "users"), ...staffConstraints);
+
+      let studentsMap = new Map();
+      let staffMap = new Map();
+
+      const syncMergedUsers = () => {
+        const merged = new Map([...staffMap, ...studentsMap]);
+        setUsers(Array.from(merged.values()));
+      };
+
+      const unsubStudents = onSnapshot(
+        studentQuery,
+        (snap) => {
+          studentsMap = new Map(snap.docs.map((d) => [d.id, { id: d.id, ...d.data() }]));
+          syncMergedUsers();
+        },
+        handleListenerError("users-students")
+      );
+
+      const unsubStaff = onSnapshot(
+        staffQuery,
+        (snap) => {
+          staffMap = new Map(snap.docs.map((d) => [d.id, { id: d.id, ...d.data() }]));
+          syncMergedUsers();
+        },
+        handleListenerError("users-staff")
+      );
+
+      unsubUsers = () => {
+        unsubStudents();
+        unsubStaff();
+      };
+    } else {
+      const usersConstraints = [];
+      if (restrictedRead) {
+        // In firestore.rules, staff can list 'student', 'instructor', 'instructorleader', and 'parent'.
+        // Front Office needs parents loaded to display linked parent accounts on the student roster.
+        usersConstraints.push(where("role", "in", ["student", "instructor", "parent"]));
+      }
+      if (targetBranchId) {
+        usersConstraints.push(where("branchId", "==", targetBranchId));
+      }
+      // Courses Front Office: do not add division server filter until backfill (R5) is done
+      const usersQuery = usersConstraints.length
+        ? query(collection(db, "users"), ...usersConstraints)
+        : collection(db, "users");
+
+      unsubUsers = onSnapshot(
+        usersQuery,
+        (snap) => setUsers(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+        handleListenerError("users")
+      );
+    }
     const classConstraints = [];
     if (targetBranchId) {
       classConstraints.push(where("branchId", "==", targetBranchId));
     }
+    if (isKindergarten) {
+      classConstraints.push(where("division", "==", "kindergarten"));
+    }
+    // Courses Front Office: do not add server filter until backfill (R5) is done
     const classesQuery = classConstraints.length
       ? query(collection(db, "classes"), ...classConstraints)
       : collection(db, "classes");
@@ -167,6 +226,10 @@ export function useDashboardData({
     if (targetBranchId) {
       appConstraints.push(where("branchId", "==", targetBranchId));
     }
+    if (isKindergarten) {
+      appConstraints.push(where("division", "==", "kindergarten"));
+    }
+    // Courses Front Office: do not add server filter until backfill (R5) is done
     const applicationsQuery = appConstraints.length
       ? query(collection(db, "applications"), ...appConstraints)
       : collection(db, "applications");
@@ -211,7 +274,7 @@ export function useDashboardData({
       unsubTodos();
       unsubInvites();
     };
-  }, [restrictedRead, branch, profileBranch, profileLoading]);
+  }, [restrictedRead, branch, profileBranch, profileLoading, division]);
 
   const handleSave = async (e) => {
     e.preventDefault();

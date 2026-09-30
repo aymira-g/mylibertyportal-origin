@@ -21,6 +21,7 @@
  *   --audit-only            Only report counts and distribution without preparing backfill payloads.
  *   --dry-run               (Default) Analyze and output changes to backfill-division-report.json without writing.
  *   --commit                Apply unambiguous updates in batched writes.
+ *   --fix-studio-staff      Include staff profiles with legacy "studio" division in unambiguous backfill to "courses".
  *   --collection=<name>     Restrict operation to a specific collection (users, classes, applications, deskInquiries, progressReports, payments, classAttendance, attendance, shifts, todos).
  *   --service-account=<path>Path to GCP service account key (or GOOGLE_APPLICATION_CREDENTIALS).
  *   --emulator[=<host>]     Run against local Firestore emulator (default: 127.0.0.1:8080).
@@ -78,6 +79,7 @@ async function runDivisionAudit() {
   const args = process.argv.slice(2);
   const isAuditOnly = args.includes("--audit-only");
   const isCommit = args.includes("--commit");
+  const isFixStudioStaff = args.includes("--fix-studio-staff");
 
   const projectIdArg = args.find((a) => a.startsWith("--projectId="))?.split("=")[1];
   const projectId = projectIdArg || process.env.FIREBASE_PROJECT_ID;
@@ -236,6 +238,16 @@ async function runDivisionAudit() {
               currentDivision: div || null,
               issue: !div ? "missing_division" : `invalid_division_${div}`,
             });
+
+            if (isFixStudioStaff && (div === "studio" || (!div && role === "admin"))) {
+              report.unambiguousUpdates.push({
+                collection: "users",
+                docId: doc.id,
+                currentDivision: div || null,
+                matchedSource: "staff_studio_normalization",
+                derivedDivision: "courses",
+              });
+            }
           }
           userCache.set(doc.id, data);
           continue;
@@ -283,16 +295,57 @@ async function runDivisionAudit() {
         if (data.userId) {
           const user = await getUserCached(data.userId);
           if (user) {
-            derived = user.division || deriveDivisionFromProgram(user.programId || user.program);
-            if (derived) matchedSource = `user:${data.userId}`;
+            const rawDiv = user.division;
+            if (rawDiv === "kindergarten") {
+              derived = "kindergarten";
+              matchedSource = `user:${data.userId}`;
+            } else if (rawDiv === "courses" || rawDiv === "studio" || !rawDiv) {
+              derived = "courses";
+              matchedSource = `user:${data.userId}`;
+            }
           }
         }
       } else if (!derived && collName === "shifts") {
         if (data.userId) {
           const user = await getUserCached(data.userId);
           if (user) {
-            derived = user.division;
-            if (derived) matchedSource = `staff:${data.userId}`;
+            const rawDiv = user.division;
+            if (rawDiv === "kindergarten") {
+              derived = "kindergarten";
+              matchedSource = `staff:${data.userId}`;
+            } else if (rawDiv === "courses" || rawDiv === "studio" || !rawDiv) {
+              derived = "courses";
+              matchedSource = `staff:${data.userId}`;
+            }
+          }
+        }
+      } else if (!derived && collName === "progressReports") {
+        if (data.studentId) {
+          const student = await getUserCached(data.studentId);
+          if (student) {
+            derived = (student.division && VALID_DIVISIONS.includes(student.division))
+              ? student.division
+              : deriveDivisionFromProgram(student.programId || student.program);
+            if (derived) matchedSource = `student:${data.studentId}`;
+          }
+        }
+        if (!derived && data.classId) {
+          const cls = await getClassCached(data.classId);
+          if (cls) {
+            derived = (cls.division && VALID_DIVISIONS.includes(cls.division))
+              ? cls.division
+              : deriveDivisionFromProgram(cls.programId || cls.program || cls.name);
+            if (derived) matchedSource = `class:${data.classId}`;
+          }
+        }
+      } else if (!derived && collName === "applications") {
+        if (data.classId) {
+          const cls = await getClassCached(data.classId);
+          if (cls) {
+            derived = (cls.division && VALID_DIVISIONS.includes(cls.division))
+              ? cls.division
+              : deriveDivisionFromProgram(cls.programId || cls.program || cls.name);
+            if (derived) matchedSource = `class:${data.classId}`;
           }
         }
       } else if (!derived && collName === "todos") {

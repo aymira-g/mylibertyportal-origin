@@ -339,3 +339,76 @@ The tested account already has canonical:
 `role = frontoffice`
 
 The alias issue may still be an architectural cleanup concern for legacy data, but it must not be used as the explanation for this incident.
+
+
+## 15. UPDATED STATUS — LOCAL FIX VERIFIED, LIVE VERIFICATION BLOCKED
+
+The coder-agent has completed the controlled local implementation and verification.
+
+### What is now proven
+
+The proposed Firestore Rules change is minimal:
+
+```
+allow get: if (signedIn() && userId == request.auth.uid)
+  || isAdmin()
+  || ...
+```
+
+The self-profile condition itself was not changed. Only its evaluation order was changed so that the authenticated user's own profile can be authorized before the more expensive role/branch checks consume the Firestore Rules expression budget.
+
+Local verification reported:
+
+- `npm run test:rules` -> **54 passed, 0 failed**.
+- Self-profile read -> allowed.
+- Same-branch Front Office reading another Front Office profile -> denied.
+- Unrelated role reading that profile -> denied.
+- Cross-branch profile read -> denied.
+- Focused ESLint -> passed.
+- `git diff --check` -> passed.
+
+### What is NOT yet proven
+
+The browser is connected to live Firebase, while the changed rules remain local.
+
+Therefore:
+
+- Kindergarten Front Office authentication progresses to profile loading but live `users/{uid}` read is still denied.
+- Courses Front Office behaves the same way.
+- Neither dashboard can be verified against live Firebase yet.
+- No production deployment has occurred.
+
+This is expected and does not invalidate the local rule test.
+
+### Current incident classification
+
+**PROFILE_READ_FAILURE caused by Firestore Rules expression-budget exhaustion in the pre-change rule evaluation order.**
+
+The earlier `front_office` versus `frontoffice` hypothesis remains a separate legacy-data concern, not the demonstrated cause of this incident.
+
+### Controlled next step
+
+The next step is no longer another code investigation.
+
+The coder-agent should:
+
+1. Commit the already-tested `firestore.rules` change and its regression tests.
+2. Show the exact commit and changed-file list.
+3. Deploy **only the Firestore Rules change** to the intended Firebase project.
+4. Do not modify React authentication, routing, roles, branch logic, or dashboard code.
+5. Immediately repeat browser verification using:
+   - Kindergarten Front Office -> `KidsFrontOfficeDashboard`
+   - Courses Front Office -> `FrontOfficeDashboard`
+6. Re-run the security-boundary checks after deployment.
+7. Report the exact deployment target/project, commit SHA, browser results, and any new console errors.
+8. Stop after verification; do not perform unrelated cleanup.
+
+### Deployment gate
+
+The rule deployment is justified only as a controlled verification of an already-tested minimal change.
+
+It must not be treated as permission to make additional auth or authorization changes.
+
+**Do not add aliases, broaden permissions, remove branch/division checks, or modify dashboard code during this step.**
+
+If the live browser test still fails after the exact tested rules are deployed, stop. That would be a new piece of evidence requiring a fresh diagnosis rather than another speculative patch.

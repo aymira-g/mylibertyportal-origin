@@ -468,3 +468,174 @@ Also record whether the listener is required for the Kindergarten dashboard's in
 ### Deployment warning
 
 Firebase reported an existing unused function warning for `isSameDivisionStrict`. This warning is not, by itself, evidence of the listener failure. Do not remove or refactor it as part of this incident unless a separate audit proves it is safe to do so.
+
+
+## 17. LOCAL FIX AUDIT — KINDERGARTEN STAFF QUERY SPLIT VERIFIED; DEPLOYMENT BLOCKED
+
+The follow-up diagnostic has now been converted into a controlled local implementation.
+
+### What was implemented
+
+The Kindergarten branch of `useDashboardData.js` previously used one `users` listener whose instructor portion was not constrained by division.
+
+The local implementation now separates the query scopes:
+
+1. **Kindergarten instructors**
+   - `role in ["instructor", "instructorleader", "instructor_leader"]`
+   - `division == "kindergarten"`
+   - `branchId == authenticated user's branch`
+
+2. **Kindergarten parents**
+   - `role == "parent"`
+   - `branchId == authenticated user's branch`
+
+3. **Kindergarten students**
+   - Existing student query remains unchanged.
+
+The resulting instructor, parent, and student records are merged back into the existing shared `users` data flow, so the change does not require a new dashboard data contract.
+
+### Audit assessment
+
+This is the correct security direction.
+
+The important point is that the Firestore rule already requires Kindergarten staff access to be compatible with branch and division policy. The old combined query did not provide enough query constraints for Firestore to prove that every possible instructor result satisfied that policy.
+
+The implementation therefore fixes the **query/rule compatibility problem at the query layer** instead of weakening the authorization rule.
+
+Do **not** change the `allow list` rule merely to make the old broad query work.
+
+### Role coverage
+
+The instructor query explicitly includes:
+
+- `instructor`
+- `instructorleader`
+- `instructor_leader`
+
+The reported tests confirm that these supported role forms are authorized when the required branch/division constraints are present.
+
+This is preferable to adding a new role alias or changing the canonical role model during this incident.
+
+### Local regression evidence
+
+Reported results:
+
+- `npm run test:rules` -> **59 passed, 0 failed**
+- ESLint on `useDashboardData.js` and `firestoreRules.emulator.test.js` -> passed
+- `npm run typecheck` -> passed
+- `git diff --check` -> passed
+
+The new security tests cover:
+
+1. Same-branch Kindergarten instructors are listable.
+2. Supported instructor-leader aliases are listable.
+3. An instructor query without the Kindergarten division filter is denied.
+4. Courses instructors are excluded from the Kindergarten instructor result.
+5. Same-branch parents can be listed through the separate parent query.
+6. Cross-branch instructor listing is denied.
+7. The separate Kindergarten student query remains constrained.
+8. Existing Courses Front Office query coverage remains green.
+
+This is sufficient evidence for the **authorization/query compatibility fix itself** at the emulator level.
+
+### Browser verification
+
+The live browser test reported:
+
+- Kindergarten Front Office dashboard loads.
+- The previous `users-staff listener: permission denied by Firestore rules` warning no longer appears.
+- Parent Directory displays one parent account.
+- Student roster remains functional and reports `0 Active Students` / `All Records 1`.
+- No instructor listener error was reported.
+
+However, instructor visibility is **not fully verified**.
+
+The Classes & Rooms view currently has zero cohorts and the schedule board has no scheduled classes. Therefore there is no actual instructor/class record available in the UI through which to prove that the instructor query result reaches the final presentation layer.
+
+This distinction matters:
+
+**Proven:**
+- the query is accepted by the security rules;
+- the query has the intended branch/division constraints;
+- the browser no longer reports the previous listener denial.
+
+**Not proven:**
+- an actual Kindergarten instructor record is rendered in the intended schedule/class-management UI.
+
+Do not mark instructor UI visibility as fully verified until representative Kindergarten instructor/cohort data exists or an equivalent controlled fixture can be used.
+
+### Separate pending-promotions error
+
+The browser also reported:
+
+`Error loading pending promotions: FirebaseError: Missing or insufficient permissions.`
+
+This is a separate Firestore authorization error.
+
+It must not be silently attributed to the staff-query fix, and it should not be fixed by broadening permissions without a separate query/rule audit.
+
+Current classification:
+
+**PENDING_PROMOTIONS_PERMISSION_FAILURE — SEPARATE / UNINVESTIGATED**
+
+Required future diagnostic:
+
+1. identify the exact collection/path;
+2. capture the exact query;
+3. identify the authenticated role/division/branch;
+4. identify the expected `allow get`/`allow list` policy;
+5. determine whether the widget/function is required for Kindergarten Front Office;
+6. add focused rules tests before changing authorization.
+
+### Files changed by the local implementation
+
+Reported:
+
+- `src/features/dashboard/useDashboardData.js`
+- `src/features/shared/firestoreRules.emulator.test.js`
+
+No Firestore Rules change was reported for this fix.
+
+The earlier production rule change that fixed the profile-read expression-budget failure remains a separate, already-deployed change.
+
+### Deployment decision
+
+**Do not deploy this query change yet.**
+
+The implementation is locally well-supported, but the live browser evidence is not complete enough to close the incident because instructor presentation cannot currently be exercised.
+
+The absence of the old `users-staff` permission error is strong positive evidence, but it is not equivalent to end-to-end instructor visibility.
+
+Before deployment, the coder should:
+
+1. show the exact working-tree diff for the two changed files;
+2. confirm no other files changed;
+3. rerun the reported tests;
+4. preferably identify or create a safe existing Kindergarten instructor/cohort fixture for browser verification without changing production authorization;
+5. verify that an instructor record reaches the schedule/class-management UI;
+6. leave the pending-promotions error untouched unless separately audited;
+7. deploy only after the diff and verification are reviewed.
+
+If representative instructor data cannot be made available without creating unrelated production changes, the query/rule fix may still be technically ready for deployment based on the 59 passing emulator tests and disappearance of the listener denial, but the deployment report must explicitly state that end-to-end instructor rendering remains unverified.
+
+### Final audit classification
+
+**Original profile-read failure:** FIXED AND LIVE-VERIFIED.
+
+**Kindergarten users-staff query/rule mismatch:** LOCALLY FIXED AND SECURITY-TEST VERIFIED; BROWSER AUTHORIZATION ERROR CLEARED; END-TO-END INSTRUCTOR UI VISIBILITY NOT YET VERIFIED.
+
+**Pending-promotions permission error:** SEPARATE / UNINVESTIGATED.
+
+### Guardrails
+
+Do not:
+
+- loosen the `users` list rule;
+- remove division filtering;
+- remove branch filtering;
+- merge the instructor and parent queries back into the old broad query;
+- change Courses behavior without regression evidence;
+- alter the already-fixed profile-read rule as part of this incident;
+- treat zero cohorts as proof that instructor data is working or broken;
+- treat the pending-promotions error as part of the staff-query fix;
+- deploy unrelated cleanup together with this change.

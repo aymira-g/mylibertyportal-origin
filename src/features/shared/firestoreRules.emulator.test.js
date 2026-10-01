@@ -28,6 +28,7 @@ const USERS = {
   mgrGto: { role: "manager", branchId: "kota_gorontalo" },
   mgrBoba: { role: "manager", branchId: "bone_bolango" },
   foGto: { role: "frontoffice", branchId: "kota_gorontalo" },
+  foKgGto: { role: "frontoffice", branchId: "kota_gorontalo", division: "kindergarten" },
   foBoba: { role: "frontoffice", branchId: "bone_bolango" },
   insGto: { role: "instructor", branchId: "kota_gorontalo" },
   mktGto: { role: "marketing", branchId: "kota_gorontalo" },
@@ -1068,5 +1069,3 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
     });
   });
 });
-
-

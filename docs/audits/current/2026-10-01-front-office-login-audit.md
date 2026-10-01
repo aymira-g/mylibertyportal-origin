@@ -412,3 +412,59 @@ It must not be treated as permission to make additional auth or authorization ch
 **Do not add aliases, broaden permissions, remove branch/division checks, or modify dashboard code during this step.**
 
 If the live browser test still fails after the exact tested rules are deployed, stop. That would be a new piece of evidence requiring a fresh diagnosis rather than another speculative patch.
+
+
+## 16. LIVE RESULT — LOGIN FIX CONFIRMED; KINDERGARTEN HAS A SECONDARY LISTENER DENIAL
+
+Production verification has now confirmed the original incident is fixed:
+
+- Firebase Authentication succeeds.
+- The Front Office profile loads successfully from live Firestore.
+- Kindergarten Front Office reaches `KidsFrontOfficeDashboard`.
+- Courses Front Office reaches `FrontOfficeDashboard`.
+- The deployed scope was Firestore Rules only.
+- Post-deployment rules tests remain green: **54 passed, 0 failed**.
+- Own-profile and cross-user/cross-branch security boundaries remain covered.
+
+### New finding
+
+The Kindergarten browser session produced one separate console error:
+
+`users-staff listener: permission denied by Firestore rules`
+
+This must be treated as a **new authorization/listener incident**, not as evidence that the original login fix failed.
+
+The Courses session did not reproduce that warning during the reported verification window.
+
+### Important distinction
+
+The current state is therefore:
+
+**Original PROFILE_READ_FAILURE: FIXED AND LIVE-VERIFIED.**
+
+**Kindergarten users-staff listener: UNCLASSIFIED / NOT YET FIXED.**
+
+Do not broaden Firestore permissions merely to remove the console warning. First identify:
+
+1. the exact Firestore collection/query used by the `users-staff` listener;
+2. the exact authenticated role/division/branch used by that listener;
+3. the exact query filters, especially branch and division filters;
+4. which `allow list` rule is expected to authorize it;
+5. whether the query is intentionally supposed to return Kindergarten staff;
+6. whether the denial is caused by a query/rule mismatch, a division policy mismatch, or an unintended listener.
+
+### Current rules observation
+
+The repository rules define a strict `users` list path using `isSameBranchStrict(resource.data)` and division filtering. Therefore a collection listener can be denied even though an individual profile `get` succeeds.
+
+The browser warning alone is not enough to choose a fix. The query and intended data scope must be captured first.
+
+### Required next diagnostic
+
+Ask the coder-agent to reproduce **only the Kindergarten `users-staff` listener** and report its exact query and first Firestore error. Do not change rules before that evidence is captured.
+
+Also record whether the listener is required for the Kindergarten dashboard's intended functionality or is merely a non-critical background listener.
+
+### Deployment warning
+
+Firebase reported an existing unused function warning for `isSameDivisionStrict`. This warning is not, by itself, evidence of the listener failure. Do not remove or refactor it as part of this incident unless a separate audit proves it is safe to do so.

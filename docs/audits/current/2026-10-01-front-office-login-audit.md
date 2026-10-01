@@ -232,3 +232,110 @@ Stop patching the Front Office login flow for now. Diagnose the failure layer fi
 9. Report evidence and the smallest proposed fix before modifying code.
 
 Current high-priority hypothesis to verify: frontend role normalization supports front_office -> frontoffice, but firestore.rules isFrontOffice() does not include front_office.
+
+## 14. UPDATED FINDING — PROFILE READ EXPRESSION LIMIT
+
+The coder-agent reproduced the failure locally with the actual built-in Front Office account.
+
+This supersedes the earlier role-alias hypothesis as the current primary diagnosis for this incident.
+
+### Evidence
+
+Observed authenticated profile:
+
+| Input | Value |
+|---|---|
+| Authenticated UID | `DGjtaGj1b4MOp9Vu00rogfgtqxr1` |
+| role | `frontoffice` |
+| division | `kindergarten` |
+| branchId | `kota_gorontalo` |
+| branch | `Kota Gorontalo` |
+| status | `active` |
+
+The failure sequence is:
+
+1. Firebase Authentication succeeds.
+2. App requests `users/{uid}`.
+3. Current Firestore rules fail this profile read with the Firestore rule expression limit: maximum 1,000 expressions.
+4. The existing `signedIn() && userId == request.auth.uid` condition is present, but it was evaluated after more expensive role/branch checks.
+5. Those earlier checks use `userProfile()`, which performs a lookup of the signed-in user's profile document.
+6. The local test established that evaluating the self-read condition first avoids exhausting the expression budget.
+
+Important distinction: the evidence does **not** show recursive re-authorization of the nested same-document lookup. The problem is that expensive rule evaluation occurs before the already-existing self-read authorization path can succeed.
+
+### Local fix tested
+
+The smallest tested change is:
+
+- keep the existing self-profile condition exactly as-is;
+- move it to the beginning of the `users/{userId}` `allow get` expression;
+- do not add new roles;
+- do not change branch/division permissions;
+- do not broaden access to other user profiles.
+
+The local emulator result changed from:
+
+- current rules: actual Front Office profile read fails with expression-limit error;
+- reordered self-read condition: the same actual UID/profile read succeeds.
+
+### Regression evidence
+
+The coder-agent reported:
+
+- baseline emulator: 51 existing tests passed, plus the new self-read test failed with the expression-limit error;
+- after the rule change: 52 tests passed using the actual observed profile;
+- final repository-safe fixture: 53 tests passed;
+- focused ESLint check passed;
+- `git diff --check` passed;
+- production/live Firestore rules were not deployed.
+
+### Security assessment
+
+The proposed rule ordering is acceptable for local testing because it does not create a new permission. It changes evaluation order so that a permission the user already has—reading their own profile—is checked before expensive authorization branches.
+
+The important security boundary remains:
+
+`userId == request.auth.uid`
+
+Therefore the change should not authorize one staff member to read another staff member's `users/{uid}` document.
+
+The added regression tests should explicitly preserve this boundary:
+
+1. signed-in user can read their own profile;
+2. signed-in user cannot read another user's profile merely because they have a Front Office role;
+3. cross-branch profile access remains denied where the existing policy requires it.
+
+### Decision
+
+**Do not change the Front Office React login/dashboard code.**
+
+**Do not change role aliases.**
+
+**Do not weaken or remove branch/division authorization.**
+
+The next implementation step may be to apply the already-tested rule-order change to the working branch, followed by a real browser login test using the affected Front Office account.
+
+Deployment should remain blocked until the working-tree diff is reviewed and the live account is verified after the rule change.
+
+### Required final verification after implementation
+
+The coder agent must demonstrate all of the following:
+
+- Front Office Auth succeeds.
+- `users/{uid}` profile read succeeds.
+- Kindergarten Front Office reaches `KidsFrontOfficeDashboard`.
+- Courses Front Office still reaches `FrontOfficeDashboard`.
+- Cross-division Front Office behavior is unchanged.
+- Another user's profile cannot be read merely by being Front Office.
+- Existing Firestore rules tests remain green.
+- No unrelated auth, role, branch, or division files were changed.
+
+### Superseded hypothesis
+
+The earlier hypothesis that the immediate cause was the `front_office` versus `frontoffice` role mismatch is **not the cause of this reproduced test account's login failure**.
+
+The tested account already has canonical:
+
+`role = frontoffice`
+
+The alias issue may still be an architectural cleanup concern for legacy data, but it must not be used as the explanation for this incident.

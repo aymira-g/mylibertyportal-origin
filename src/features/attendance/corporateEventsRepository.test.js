@@ -4,6 +4,9 @@ import {
   createCorporateEvent,
   updateCorporateEvent,
   cancelCorporateEvent,
+  fetchActiveCorporateEventsForDate,
+  fetchCorporateEvents,
+  subscribeCorporateEvents,
 } from "./corporateEventsRepository.js";
 
 vi.mock(
@@ -87,6 +90,77 @@ describe("corporateEventsRepository", () => {
         status: "cancelled",
         cancelledBy: "admin-uid",
       });
+    });
+  });
+
+  describe("query split and branch isolation", () => {
+    beforeEach(() => {
+      fake.seed("corporateEvents", [
+        {
+          id: "evt-all",
+          name: "Company Wide Assembly",
+          eventDate: "2026-10-15",
+          audienceType: "all",
+          status: "active",
+        },
+        {
+          id: "evt-gto",
+          name: "Kota Workshop",
+          eventDate: "2026-10-15",
+          audienceType: "branch",
+          branchId: "kota_gorontalo",
+          status: "active",
+        },
+        {
+          id: "evt-boba",
+          name: "Bone Bolango Retreat",
+          eventDate: "2026-10-15",
+          audienceType: "branch",
+          branchId: "bone_bolango",
+          status: "active",
+        },
+      ]);
+    });
+
+    it("fetchActiveCorporateEventsForDate returns company-wide and branch-scoped events for branch staff", async () => {
+      const events = await fetchActiveCorporateEventsForDate("2026-10-15", "kota_gorontalo");
+      const ids = events.map((e) => e.id);
+      expect(ids).toContain("evt-all");
+      expect(ids).toContain("evt-gto");
+      expect(ids).not.toContain("evt-boba");
+    });
+
+    it("fetchActiveCorporateEventsForDate returns only company-wide events if no branch resolved", async () => {
+      const events = await fetchActiveCorporateEventsForDate("2026-10-15", null);
+      const ids = events.map((e) => e.id);
+      expect(ids).toContain("evt-all");
+      expect(ids).not.toContain("evt-gto");
+      expect(ids).not.toContain("evt-boba");
+    });
+
+    it("fetchCorporateEvents merges and sorts events for branch staff", async () => {
+      const events = await fetchCorporateEvents("kota_gorontalo");
+      const ids = events.map((e) => e.id);
+      expect(ids).toContain("evt-all");
+      expect(ids).toContain("evt-gto");
+      expect(ids).not.toContain("evt-boba");
+    });
+
+    it("subscribeCorporateEvents invokes onData with merged results and unsubscribes cleanly", () => {
+      let received = [];
+      const unsub = subscribeCorporateEvents(
+        (data) => {
+          received = data;
+        },
+        null,
+        "kota_gorontalo"
+      );
+
+      expect(received.map((e) => e.id)).toContain("evt-all");
+      expect(received.map((e) => e.id)).toContain("evt-gto");
+      expect(received.map((e) => e.id)).not.toContain("evt-boba");
+      expect(typeof unsub).toBe("function");
+      unsub();
     });
   });
 });

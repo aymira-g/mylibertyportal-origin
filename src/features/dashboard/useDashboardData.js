@@ -13,7 +13,7 @@ import {
   updateParentRecord,
 } from "./usersRepository";
 import { markInquiryConverted } from "./frontoffice/deskInquiriesRepository";
-import { DEFAULT_BRANCH, normalizeBranch, matchesBranchFilter, branchToId } from "../../constants/branches";
+import { DEFAULT_BRANCH, normalizeBranch, matchesBranchFilter, branchToId, idToBranch } from "../../constants/branches";
 import {
   DEFAULT_DIVISION,
   normalizeStaffDivision,
@@ -21,7 +21,7 @@ import {
   matchesDivisionFilter,
 } from "../../constants/divisions";
 import { getProgram, normalizeProgram } from "../../constants/programs";
-import { isInstructorRole } from "../shared/roles";
+import { isInstructorRole, normalizeRole } from "../shared/roles";
 import { useUserProfile } from "../shared/useUserProfile";
 
 const emptyFormData = {
@@ -69,6 +69,34 @@ const emptyFormData = {
 };
 
 /**
+ * Resolves the canonical targetBranchId for dashboard queries and authorization.
+ *
+ * @param {object} params
+ * @param {string|null} [params.branch] - Explicit branch prop/argument
+ * @param {boolean} [params.restrictedRead] - Whether caller is Front Office / restricted
+ * @param {string|null} [params.role] - User's role (admin, manager, frontoffice, etc.)
+ * @param {string|null} [params.profileBranchId] - Canonical branchId from profile
+ * @param {string|null} [params.profileBranch] - Legacy branch from profile
+ * @returns {string|null} Canonical branchId slug, or null
+ */
+export function resolveTargetBranchId({
+  branch = null,
+  restrictedRead = false,
+  role = null,
+  profileBranchId = null,
+  profileBranch = null,
+} = {}) {
+  if (branch) {
+    return branch === "all" ? null : branchToId(branch);
+  }
+  const isExplicitAdmin = normalizeRole(role) === "admin";
+  if (restrictedRead || !isExplicitAdmin) {
+    return profileBranchId || (profileBranch ? branchToId(profileBranch) : null);
+  }
+  return null;
+}
+
+/**
  * Shared data + handlers used by both AdminDashboard and FrontOfficeDashboard.
  * This is everything that used to live inside one AdminDashboard.jsx guarded
  * by an `isFrontOffice` flag — pulled out so the two dashboards can each be
@@ -93,7 +121,7 @@ export function useDashboardData({
 } = {}) {
   const toast = useToast();
   const confirm = useConfirm(); // 👈 shadows native window.confirm on purpose — same call shape, styled modal, just needs "await"
-  const { branch: profileBranch, loading: profileLoading } = useUserProfile();
+  const { branch: profileBranch, branchId: profileBranchId, role: profileRole, loading: profileLoading } = useUserProfile();
 
   const [users, setUsers] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -111,17 +139,32 @@ export function useDashboardData({
   // per collection also means one collection's error (see invites below)
   // can't block the others from loading, unlike the old single try/catch.
   useEffect(() => {
-    // If restrictedRead is active and no explicit branch was provided, wait until
-    // profile loading finishes so we have the staff user's branch for branch isolation.
-    if (restrictedRead && !branch && profileLoading) {
+    const isAdminUser = normalizeRole(profileRole) === "admin";
+    const needsBranch = !isAdminUser;
+
+    // If a non-admin role requires a branch and no explicit branch prop was passed,
+    // wait until profile loading finishes so we have the staff user's branch for branch isolation.
+    if (needsBranch && !branch && profileLoading) {
       return () => {};
     }
 
-    const effectiveTargetBranch = branch || (restrictedRead ? profileBranch : null);
-    const targetBranchId =
-      effectiveTargetBranch && effectiveTargetBranch !== "all"
-        ? branchToId(effectiveTargetBranch)
-        : null;
+    // Resolve canonical targetBranchId:
+    // 1. Explicit branch prop/argument if provided (unless "all")
+    // 2. profileBranchId from useUserProfile (canonical authorization/query identifier)
+    // 3. Fallback to branchToId(profileBranch) for legacy compatibility
+    const targetBranchId = resolveTargetBranchId({
+      branch,
+      restrictedRead,
+      role: profileRole,
+      profileBranchId,
+      profileBranch,
+    });
+
+    // Fail closed: every non-admin role MUST have a resolved targetBranchId.
+    // Never fall back to an unscoped collection query for non-admin accounts.
+    if (needsBranch && !targetBranchId) {
+      return () => {};
+    }
 
     const handleListenerError = (name) => (err) => {
       if (err?.code === "permission-denied" || err?.message?.includes("insufficient permissions")) {
@@ -281,7 +324,7 @@ export function useDashboardData({
       unsubTodos();
       unsubInvites();
     };
-  }, [restrictedRead, branch, profileBranch, profileLoading, division]);
+  }, [restrictedRead, branch, profileBranch, profileBranchId, profileRole, profileLoading, division]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -609,7 +652,13 @@ export function useDashboardData({
     () => users.find((u) => u.id === auth.currentUser?.uid),
     [users]
   );
-  const effectiveBranch = branch || profileBranch || normalizeBranch(currentStaffProfile?.branch);
+  const activeBranchId = branch
+    ? (branch === "all" ? null : branchToId(branch))
+    : (profileBranchId || (profileBranch ? branchToId(profileBranch) : null));
+
+  const effectiveBranch = branch
+    ? (branch === "all" ? "all" : idToBranch(branchToId(branch)))
+    : (activeBranchId ? idToBranch(activeBranchId) : null);
 
   const scopedClasses = useMemo(() => {
     let list = classes;
@@ -710,6 +759,7 @@ export function useDashboardData({
     unenrolledStudents,
     pendingApplications,
     myBranch: effectiveBranch,
+    myBranchId: activeBranchId,
     currentStaffProfile,
     allClasses: classes,
     allUsers: users,

@@ -368,4 +368,56 @@ describe("updateClass", () => {
     expect(op.data).not.toHaveProperty("batchType");
     expect(op.data.className).toBe("New Title Only");
   });
+
+  it("synchronizes branchId and display branch when only branch is provided", async () => {
+    await updateClass("class-branch-only", {
+      branch: "Bone Bolango",
+    });
+    const op = fake.find("classes/class-branch-only");
+    expect(op.data.branchId).toBe("bone_bolango");
+    expect(op.data.branch).toBe("Bone Bolango");
+  });
+
+  it("synchronizes display branch when only branchId is provided", async () => {
+    await updateClass("class-branchId-only", {
+      branchId: "limboto",
+    });
+    const op = fake.find("classes/class-branchId-only");
+    expect(op.data.branchId).toBe("limboto");
+    expect(op.data.branch).toBe("Limboto");
+  });
+
+  it("preserves matching canonical branch and branchId pair", async () => {
+    await updateClass("class-matching-pair", {
+      branchId: "pohuwato",
+      branch: "Pohuwato",
+    });
+    const op = fake.find("classes/class-matching-pair");
+    expect(op.data.branchId).toBe("pohuwato");
+    expect(op.data.branch).toBe("Pohuwato");
+  });
+
+  it("resolves conflicting branch and branchId using canonical branchId authority", async () => {
+    // Conflict case: branchId says kota_gorontalo but branch says Bone Bolango
+    await updateClass("class-conflict-case", {
+      branchId: "kota_gorontalo",
+      branch: "Bone Bolango",
+    });
+    const op = fake.find("classes/class-conflict-case");
+    // branchId is authoritative; display branch is synchronized to match it
+    expect(op.data.branchId).toBe("kota_gorontalo");
+    expect(op.data.branch).toBe("Kota Gorontalo");
+  });
+
+  it("leaves branch fields untouched when neither branch nor branchId is in update payload", async () => {
+    await updateClass("class-no-branch", {
+      notes: "Updated syllabus notes only",
+      status: "open",
+    });
+    const op = fake.find("classes/class-no-branch");
+    expect(op.data).not.toHaveProperty("branch");
+    expect(op.data).not.toHaveProperty("branchId");
+    expect(op.data.notes).toBe("Updated syllabus notes only");
+    expect(op.data.status).toBe("open");
+  });
 });

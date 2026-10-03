@@ -13,12 +13,18 @@ service cloud.firestore {
     }
 
     function isActiveUser() {
+      let p = userProfile();
       return signedIn()
-        && (!('status' in userProfile()) || (userProfile().status != 'resigned' && userProfile().status != 'terminated'));
+        && p != null
+        && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'));
     }
 
     function hasRole(role) {
-      return signedIn() && isActiveUser() && userProfile().role == role;
+      let p = userProfile();
+      return signedIn()
+        && p != null
+        && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'))
+        && p.role == role;
     }
 
     function isAdmin() {
@@ -26,40 +32,55 @@ service cloud.firestore {
     }
 
     function isManager() {
-      return hasRole('manager') || hasRole('branch_manager');
+      let p = userProfile();
+      return signedIn()
+        && p != null
+        && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'))
+        && (p.role == 'manager' || p.role == 'branch_manager');
     }
 
     function isStaff() {
-      return signedIn() && isActiveUser() && userProfile().role in ['admin', 'manager', 'branch_manager', 'instructor', 'instructorleader', 'instructor_leader', 'marketing', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'officeboy'];
+      let p = userProfile();
+      return signedIn()
+        && p != null
+        && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'))
+        && p.role in ['admin', 'manager', 'branch_manager', 'instructor', 'instructorleader', 'instructor_leader', 'marketing', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'officeboy'];
     }
 
     function isFrontOffice() {
-      return signedIn() && isActiveUser() && userProfile().role in ['frontoffice', 'opslead', 'ops_lead', 'frontofficelead'];
+      let p = userProfile();
+      return signedIn()
+        && p != null
+        && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'))
+        && p.role in ['frontoffice', 'opslead', 'ops_lead', 'frontofficelead'];
     }
 
     function userBranch() {
-      return signedIn() && ('branchId' in userProfile())
-        ? userProfile().branchId
-        : (signedIn() && ('branch' in userProfile())
+      let p = userProfile();
+      return signedIn() && p != null && ('branchId' in p)
+        ? p.branchId
+        : (signedIn() && p != null && ('branch' in p)
           ? (
-            (userProfile().branch == 'Bone Bolango' ? 'bone_bolango' :
-            userProfile().branch == 'Pohuwato' ? 'pohuwato' :
-            userProfile().branch == 'Limboto' ? 'limboto' : 'kota_gorontalo')
+            (p.branch == 'Bone Bolango' ? 'bone_bolango' :
+            p.branch == 'Pohuwato' ? 'pohuwato' :
+            p.branch == 'Limboto' ? 'limboto' :
+            p.branch == 'Kota Gorontalo' || p.branch == 'Cabang Utama' ? 'kota_gorontalo' : null)
           )
-          : 'kota_gorontalo');
+          : null);
     }
 
     function isSameBranch(data) {
-      return isAdmin() || (signedIn() && (
-        (data != null && 'branchId' in data && data.branchId == userBranch()) ||
+      let ub = userBranch();
+      return isAdmin() || (signedIn() && ub != null && (
+        (data != null && 'branchId' in data && data.branchId == ub) ||
         (data != null && !('branchId' in data) && 'branch' in data && (
-          (data.branch == 'Bone Bolango' && userBranch() == 'bone_bolango') ||
-          (data.branch == 'Pohuwato' && userBranch() == 'pohuwato') ||
-          (data.branch == 'Limboto' && userBranch() == 'limboto') ||
-          (data.branch == 'Cabang Utama' && userBranch() == 'kota_gorontalo') ||
-          (data.branch == 'Kota Gorontalo' && userBranch() == 'kota_gorontalo')
+          (data.branch == 'Bone Bolango' && ub == 'bone_bolango') ||
+          (data.branch == 'Pohuwato' && ub == 'pohuwato') ||
+          (data.branch == 'Limboto' && ub == 'limboto') ||
+          (data.branch == 'Cabang Utama' && ub == 'kota_gorontalo') ||
+          (data.branch == 'Kota Gorontalo' && ub == 'kota_gorontalo')
         )) ||
-        (data != null && !('branchId' in data) && !('branch' in data) && userBranch() == 'kota_gorontalo')
+        (data != null && !('branchId' in data) && !('branch' in data) && ub == 'kota_gorontalo')
       ));
     }
 
@@ -71,19 +92,23 @@ service cloud.firestore {
     // get/update/delete keep the lenient form so legacy branchless docs stay
     // readable/writable to Kota Gorontalo staff.
     function isSameBranchStrict(data) {
-      return (data != null && 'branchId' in data && data.branchId == userBranch())
+      let ub = userBranch();
+      return signedIn() && ub != null && (
+        (data != null && 'branchId' in data && data.branchId == ub)
         || (data != null && !('branchId' in data) && 'branch' in data && (
-          (data.branch == 'Bone Bolango' && userBranch() == 'bone_bolango') ||
-          (data.branch == 'Pohuwato' && userBranch() == 'pohuwato') ||
-          (data.branch == 'Limboto' && userBranch() == 'limboto') ||
-          (data.branch == 'Cabang Utama' && userBranch() == 'kota_gorontalo') ||
-          (data.branch == 'Kota Gorontalo' && userBranch() == 'kota_gorontalo')
-        ));
+          (data.branch == 'Bone Bolango' && ub == 'bone_bolango') ||
+          (data.branch == 'Pohuwato' && ub == 'pohuwato') ||
+          (data.branch == 'Limboto' && ub == 'limboto') ||
+          (data.branch == 'Cabang Utama' && ub == 'kota_gorontalo') ||
+          (data.branch == 'Kota Gorontalo' && ub == 'kota_gorontalo')
+        ))
+      );
     }
 
     // Division scope helpers for branch staff (manager & front office)
     function userDivision() {
-      return signedIn() && ('division' in userProfile()) ? userProfile().division : null;
+      let p = userProfile();
+      return signedIn() && p != null && ('division' in p) ? p.division : null;
     }
 
     function isSameDivisionStrict(data) {
@@ -91,9 +116,13 @@ service cloud.firestore {
     }
 
     function isDivisionAllowedForBranchStaff(data) {
-      return !(isManager() || isFrontOffice())
-        || (userDivision() == 'all')
-        || (userDivision() == 'kindergarten'
+      let p = userProfile();
+      let role = p != null && 'role' in p ? p.role : '';
+      let isStaffRole = role in ['manager', 'branch_manager', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead'];
+      let uDiv = userDivision();
+      return !isStaffRole
+        || (uDiv == 'all')
+        || (uDiv == 'kindergarten'
           ? (data != null && 'division' in data && data.division == 'kindergarten')
           : (!('division' in data) || data.division != 'kindergarten'));
     }
@@ -207,7 +236,11 @@ service cloud.firestore {
     }
 
     function isParent() {
-      return signedIn() && isActiveUser() && userProfile().role == 'parent';
+      let p = userProfile();
+      return signedIn()
+        && p != null
+        && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'))
+        && p.role == 'parent';
     }
 
     function isParentOf(studentId) {
@@ -393,10 +426,14 @@ service cloud.firestore {
 
     match /corporateEvents/{eventId} {
       // Corporate events represent internal school calendar items (meetings, trainings, closures).
-      // All authenticated staff need read access so Kiosk and Front Office dashboards can query
-      // upcoming events without Firestore rejecting collection queries.
+      // Company-wide events (audienceType == 'all') are readable by staff across all branches.
+      // Branch events (audienceType == 'branch') are branch-isolated and strictly scoped to same-branch staff.
       // Students and parents cannot read corporate events.
-      allow read: if isStaff();
+      allow read: if isAdmin()
+        || (isStaff() && (
+              resource.data.audienceType == 'all'
+              || isSameBranchStrict(resource.data)
+           ));
       allow create: if (isAdmin() || isManager() || isFrontOffice())
         && request.resource.data.name is string
         && request.resource.data.eventDate is string

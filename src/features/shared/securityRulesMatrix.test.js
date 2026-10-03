@@ -92,15 +92,17 @@ function isSameBranch(data, user) {
 
 function isSameBranchStrict(data, user) {
   if (!user) return false;
+  const ub = userBranch(user);
+  if (!ub) return false;
   if (data && "branchId" in data && data.branchId) {
-    return userBranch(user) === data.branchId;
+    return ub === data.branchId;
   }
   if (data && "branch" in data && data.branch) {
     let docBranch = "kota_gorontalo";
     if (data.branch === "Bone Bolango") docBranch = "bone_bolango";
     else if (data.branch === "Pohuwato") docBranch = "pohuwato";
     else if (data.branch === "Limboto") docBranch = "limboto";
-    return userBranch(user) === docBranch;
+    return ub === docBranch;
   }
   return false;
 }

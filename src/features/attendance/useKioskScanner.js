@@ -14,8 +14,10 @@ import { handleKioskScan } from "./kioskScanProcessor";
 import { checkNetworkReachability } from "../../utils/networkReachability";
 import { todayWita } from "../../utils/dateWita.js";
 import { DEFAULT_BRANCH, branchToId } from "../../constants/branches.js";
+import { useUserProfile } from "../shared/useUserProfile";
 
 export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}) {
+  const { branchId: kioskBranchId } = useUserProfile();
   const [kioskScanning, setKioskScanning] = useState(false);
   const [pendingClockIn, setPendingClockIn] = useState(null);
   const [pendingTransition, setPendingTransition] = useState(null);
@@ -368,6 +370,7 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
           await handleKioskScan(uid, {
             studentsOnly,
             staffOnly,
+            kioskBranchId,
             showStatus,
             setLastScanned,
             setPendingClockIn,
@@ -389,7 +392,7 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
         // Safe unmount
       }
     };
-  }, [kioskScanning, studentsOnly, staffOnly]);
+  }, [kioskScanning, studentsOnly, staffOnly, kioskBranchId]);
 
   return {
     kioskScanning,

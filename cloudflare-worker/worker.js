@@ -277,7 +277,81 @@ async function fsCreateDocWithIdPrecondition(collectionPath, docId, data, token)
   if (!res.ok) {
     return { ok: false, status: res.status, error: await res.text() };
   }
+  const raw = await res.json();
+  return {
+    ok: true,
+    doc: fromFirestoreDocument(raw),
+    updateTime: raw.updateTime,
+  };
+}
+
+async function fsGetDocWithMetadata(collectionPath, docId, token) {
+  const url = `${FIRESTORE_BASE}/${collectionPath}/${encodeURIComponent(docId)}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    throw new Error(`Firestore GET failed: ${res.status} ${await res.text()}`);
+  }
+  const raw = await res.json();
+  return {
+    data: fromFirestoreDocument(raw),
+    updateTime: raw.updateTime,
+  };
+}
+
+async function fsDeleteDocWithPrecondition(collectionPath, docId, updateTime, token) {
+  const url = `${FIRESTORE_BASE}/${collectionPath}/${encodeURIComponent(docId)}?currentDocument.updateTime=${encodeURIComponent(updateTime)}`;
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 412 || res.status === 404 || res.status === 409) {
+    return { ok: false, status: res.status, error: "PRECONDITION_FAILED" };
+  }
+  if (!res.ok) {
+    throw new Error(`Firestore DELETE with precondition failed: ${res.status} ${await res.text()}`);
+  }
+  return { ok: true };
+}
+
+async function fsPatchDocWithPrecondition(collectionPath, docId, data, updateTime, token) {
+  const url = `${FIRESTORE_BASE}/${collectionPath}/${encodeURIComponent(docId)}?currentDocument.updateTime=${encodeURIComponent(updateTime)}`;
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ fields: toFirestoreFields(data) }),
+  });
+  if (res.status === 412 || res.status === 404 || res.status === 409) {
+    return { ok: false, status: res.status, error: "PRECONDITION_FAILED" };
+  }
+  if (!res.ok) {
+    throw new Error(`Firestore PATCH with precondition failed: ${res.status} ${await res.text()}`);
+  }
   return { ok: true, doc: fromFirestoreDocument(await res.json()) };
+}
+
+async function fsCommitWrites(writes, token) {
+  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents:commit`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ writes }),
+  });
+  if (res.status === 412 || res.status === 409 || res.status === 400) {
+    return { ok: false, status: res.status, error: "PRECONDITION_FAILED", details: await res.text() };
+  }
+  if (!res.ok) {
+    throw new Error(`Firestore COMMIT failed: ${res.status} ${await res.text()}`);
+  }
+  return { ok: true, data: await res.json() };
 }
 
 async function fsDeleteDoc(collectionPath, docId, token) {
@@ -584,6 +658,15 @@ async function handleKioskRevoke(request, env) {
   return json({ success: true }, 200, request, env);
 }
 
+function generateShiftId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return "shift_" + crypto.randomUUID().replace(/-/g, "").slice(0, 20);
+  }
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return "shift_" + Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 20);
+}
+
 async function handleShiftClockIn(request, env) {
   let body;
   try {
@@ -721,13 +804,22 @@ async function handleShiftClockIn(request, env) {
   );
 
   if (!lockResult.ok) {
-    const existingLock = await fsGetDoc("activeShifts", badgeToken, token);
+    const existingLockMeta = await fsGetDocWithMetadata("activeShifts", badgeToken, token);
+    if (!existingLockMeta) {
+      return json({ error: "Kiosk lock was cleared concurrently. Please scan again." }, 409, request, env);
+    }
+    const existingLock = existingLockMeta.data;
+    const lockUpdateTime = existingLockMeta.updateTime;
+
     if (existingLock && existingLock.shiftId) {
       const shiftCheck = await fsGetDoc("shifts", existingLock.shiftId, token);
       if (shiftCheck && shiftCheck.clockOut) {
-        // Stale lock detected, clean up
-        await fsDeleteDoc("activeShifts", badgeToken, token);
-        return json({ error: "A stale kiosk lock was cleared. Please scan again." }, 409, request, env);
+        // Stale lock detected, clean up with version precondition (no unconditional delete)
+        const deleteRes = await fsDeleteDocWithPrecondition("activeShifts", badgeToken, lockUpdateTime, token);
+        if (deleteRes.ok) {
+          return json({ error: "A stale kiosk lock was cleared. Please scan again." }, 409, request, env);
+        }
+        return json({ error: "Kiosk lock state updated concurrently. Please scan again." }, 409, request, env);
       } else {
         return json(
           {
@@ -740,14 +832,67 @@ async function handleShiftClockIn(request, env) {
         );
       }
     } else {
-      return json(
-        { error: "Staff member already has an active open shift." },
-        409,
-        request,
-        env
-      );
+      // Opening lock without shiftId (potential abandoned lock)
+      // Check if an open shift already exists for this staff member (Window B)
+      const openShift = await fsQueryOpenShift(badgeToken, token);
+      if (openShift) {
+        // Heal the unlinked lock with an atomic precondition
+        await fsPatchDocWithPrecondition(
+          "activeShifts",
+          badgeToken,
+          {
+            userId: badgeToken,
+            shiftId: openShift.id,
+            clockIn: existingLock?.clockIn || serverTime,
+            branchId: existingLock?.branchId || device.branchId,
+            status: "active",
+          },
+          lockUpdateTime,
+          token
+        );
+        return json(
+          {
+            error: "Staff member already has an active open shift.",
+            existingShiftId: openShift.id,
+          },
+          409,
+          request,
+          env
+        );
+      }
+
+      // No open shift exists (Window A)
+      const lockAgeMs = Date.now() - new Date(existingLock?.clockIn || 0).getTime();
+      if (lockAgeMs < 60000) {
+        return json(
+          { error: "A clock-in operation is currently processing. Please wait a few seconds and try again." },
+          409,
+          request,
+          env
+        );
+      }
+
+      // Lock is >= 60s old: safely recover with version-preconditioned delete
+      const deleteRes = await fsDeleteDocWithPrecondition("activeShifts", badgeToken, lockUpdateTime, token);
+      if (deleteRes.ok) {
+        await logKioskAudit(
+          "KIOSK_ORPHAN_LOCK_RECOVERED",
+          { userId: badgeToken, lockAgeMs, deviceId },
+          token
+        ).catch(() => {});
+        return json(
+          { error: "An abandoned kiosk lock was safely cleared. Please scan again to clock in." },
+          409,
+          request,
+          env
+        );
+      }
+      return json({ error: "Kiosk lock state changed concurrently. Please scan again." }, 409, request, env);
     }
   }
+
+  const lockUpdateTime = lockResult.updateTime;
+  const shiftId = generateShiftId();
 
   // 7. Create the shift with server-authoritative timestamp & branch
   const branchName = BRANCH_MAP[device.branchId] || "Kota Gorontalo";
@@ -775,45 +920,57 @@ async function handleShiftClockIn(request, env) {
     ...(eventId ? { eventId } : {}),
   };
 
-  let createdShift;
-  try {
-    createdShift = await fsCreateDoc("shifts", shiftPayload, token);
-  } catch (err) {
-    // Never leave an unresolvable opening lock after a failed shift write.
-    await fsDeleteDoc("activeShifts", badgeToken, token).catch(() => {});
-    throw err;
-  }
-
-  // Update activeShifts lock to point to the created shiftId
-  await fsSetDoc(
-    "activeShifts",
-    badgeToken,
+  // Execute Atomic Commit: Shift Creation + Lock Promotion in ONE atomic write batch (K-16)
+  const commitWrites = [
     {
-      userId: badgeToken,
-      shiftId: createdShift.id,
-      clockIn: serverTime,
-      branchId: device.branchId,
-      status: "active",
+      update: {
+        name: `${FIRESTORE_BASE}/shifts/${shiftId}`,
+        fields: toFirestoreFields(shiftPayload),
+      },
+      currentDocument: { exists: false },
     },
-    token
-  ).catch(() => {});
+    {
+      update: {
+        name: `${FIRESTORE_BASE}/activeShifts/${badgeToken}`,
+        fields: toFirestoreFields({
+          userId: badgeToken,
+          shiftId,
+          clockIn: serverTime,
+          branchId: device.branchId,
+          status: "active",
+        }),
+      },
+      currentDocument: { updateTime: lockUpdateTime },
+    },
+  ];
+
+  const commitRes = await fsCommitWrites(commitWrites, token);
+  if (!commitRes.ok) {
+    // If precondition failed, lock was cleared or touched; shift was NOT created.
+    return json(
+      { error: "Clock-in lock expired or was cleared concurrently. Please scan again." },
+      409,
+      request,
+      env
+    );
+  }
 
   await logKioskAudit(
     "SHIFT_CLOCK_IN_VERIFIED",
     {
-      shiftId: createdShift.id,
+      shiftId,
       userId: badgeToken,
       deviceId,
       branchId: device.branchId,
       clockIn: serverTime,
     },
     token
-  );
+  ).catch(() => {});
 
   return json(
     {
       success: true,
-      shiftId: createdShift.id,
+      shiftId,
       clockIn: serverTime,
       employee: {
         uid: badgeToken,

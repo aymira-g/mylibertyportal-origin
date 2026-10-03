@@ -45,7 +45,7 @@ import {
   UserCheck,
 } from "lucide-react";
 
-export default function FrontOfficeDashboard({ role = "frontoffice" }) {
+export default function FrontOfficeDashboard({ role = "frontoffice", branch = null }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [waPhone, setWaPhone] = useState("");
   const [paymentModalStudent, setPaymentModalStudent] = useState(null);
@@ -82,7 +82,7 @@ export default function FrontOfficeDashboard({ role = "frontoffice" }) {
     unenrolledStudents,
     pendingApplications,
     myBranch,
-  } = useDashboardData({ restrictedRead: true, setActiveTab, division: "courses" });
+  } = useDashboardData({ restrictedRead: true, setActiveTab, division: "courses", branch });
 
   const sendWhatsAppInvite = (phone) => {
     if (!phone) return toast("Please enter a phone number first.", "error");
@@ -497,6 +497,26 @@ export default function FrontOfficeDashboard({ role = "frontoffice" }) {
       ),
     },
   ];
+
+  if (!myBranch) {
+    return (
+      <div className="p-8 max-w-lg mx-auto my-12 bg-white rounded-3xl border border-amber-200 shadow-sm text-center space-y-4">
+        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto text-xl font-bold">
+          <AlertCircle className="w-6 h-6 text-amber-600" />
+        </div>
+        <div>
+          <h3 className="font-bold text-slate-800 text-base">Campus Branch Assignment Required</h3>
+          <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+            Your account has Front Office permissions, but no campus branch has been assigned to your profile.
+            Front desk operations require an assigned campus branch.
+          </p>
+        </div>
+        <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 text-xs text-amber-800 text-left">
+          Please contact an academy administrator to assign your campus branch. Once authorized, refresh this page to activate your desk.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-5 bg-[#f0f2f5] rounded-2xl min-h-[500px]">

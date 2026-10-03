@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fake } from "../../test/firestoreFake.js";
+import { fake, firestoreModule } from "../../test/firestoreFake.js";
 import {
   normalizePhoneDigits,
   buildPaymentSummary,
@@ -89,11 +89,22 @@ describe("getAuthenticatedParentBundle", () => {
 });
 
 describe("getChildAttendanceAndClasses", () => {
-  it("fetches enrolled open classes and attendance records for a student", async () => {
+  it("fails early and returns empty bundle if childId or branchId is missing", async () => {
+    const noChild = await getChildAttendanceAndClasses(null, "kota_gorontalo");
+    expect(noChild).toEqual({ classes: [], attendance: [] });
+
+    const noBranch = await getChildAttendanceAndClasses("child_1", null);
+    expect(noBranch).toEqual({ classes: [], attendance: [] });
+
+    const emptyBoth = await getChildAttendanceAndClasses("", "");
+    expect(emptyBoth).toEqual({ classes: [], attendance: [] });
+  });
+
+  it("fetches enrolled open classes and attendance records scoped to the canonical branch", async () => {
     fake.seed("classes", [
-      { id: "c1", className: "English 1", studentIds: ["child_1", "other"], status: "open" },
-      { id: "c2", className: "English 2", studentIds: ["other_only"], status: "open" },
-      { id: "c3", className: "English Archived", studentIds: ["child_1"], status: "closed" },
+      { id: "c1", className: "English 1", branchId: "kota_gorontalo", studentIds: ["child_1", "other"], status: "open" },
+      { id: "c2", className: "English 2 (Other Branch)", branchId: "bone_bolango", studentIds: ["child_1"], status: "open" },
+      { id: "c3", className: "English Archived", branchId: "kota_gorontalo", studentIds: ["child_1"], status: "closed" },
     ]);
 
     fake.seed("classAttendance", [
@@ -102,10 +113,18 @@ describe("getChildAttendanceAndClasses", () => {
       { id: "att3", studentId: "other", attendanceDate: "2026-09-26", status: "PRESENT" },
     ]);
 
-    const result = await getChildAttendanceAndClasses("child_1");
-    // Returns only open classes enrolled by child_1 (filters out c2 not enrolled and c3 closed)
+    // Pass display name "Kota Gorontalo" to verify branchToId normalization to "kota_gorontalo"
+    const result = await getChildAttendanceAndClasses("child_1", "Kota Gorontalo");
+
+    // Returns only open classes enrolled by child_1 in kota_gorontalo (filters out c2 other branch and c3 closed)
     expect(result.classes.length).toBe(1);
+    expect(result.classes[0].id).toBe("c1");
     expect(result.classes[0].className).toBe("English 1");
     expect(result.attendance.length).toBe(2);
+
+    // Verify exact Firestore query constraints constructed
+    expect(firestoreModule.where).toHaveBeenCalledWith("branchId", "==", "kota_gorontalo");
+    expect(firestoreModule.where).toHaveBeenCalledWith("studentIds", "array-contains", "child_1");
+    expect(firestoreModule.where).toHaveBeenCalledWith("status", "==", "open");
   });
 });

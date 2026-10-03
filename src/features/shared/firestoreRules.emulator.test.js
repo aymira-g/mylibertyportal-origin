@@ -29,6 +29,12 @@ const USERS = {
   mgrBoba: { role: "manager", branchId: "bone_bolango" },
   foGto: { role: "frontoffice", branchId: "kota_gorontalo" },
   foBoba: { role: "frontoffice", branchId: "bone_bolango" },
+  foResigned: { role: "frontoffice", branchId: "kota_gorontalo", status: "resigned" },
+  foTerminated: { role: "frontoffice", branchId: "kota_gorontalo", status: "terminated" },
+  foKg: { role: "frontoffice", branchId: "kota_gorontalo", division: "kindergarten" },
+  foUnassigned: { role: "frontoffice" },
+  mgrUnassigned: { role: "manager" },
+  insUnassigned: { role: "instructor" },
   insGto: { role: "instructor", branchId: "kota_gorontalo" },
   mktGto: { role: "marketing", branchId: "kota_gorontalo" },
   obGto: { role: "officeboy", branchId: "kota_gorontalo" },
@@ -143,6 +149,18 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       );
     });
 
+    it("blocks mutation of immutable payment fields (amount, studentId, branchId)", async () => {
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "payments", "pay1"), { amount: 500000 })
+      );
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "payments", "pay1"), { studentId: "student2" })
+      );
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "payments", "pay1"), { branchId: "bone_bolango" })
+      );
+    });
+
     it("allows a legitimate same-branch update", async () => {
       await assertSucceeds(
         updateDoc(doc(authed("foGto"), "payments", "pay1"), { notes: "Paid in cash" })
@@ -211,6 +229,15 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
     it("blocks other branches and staff without a cashier role", async () => {
       await assertFails(recordPaymentBatch(authed("foBoba")));
       await assertFails(recordPaymentBatch(authed("insGto")));
+    });
+
+    it("rejects payment creation by resigned or terminated front office staff", async () => {
+      await assertFails(recordPaymentBatch(authed("foResigned")));
+      await assertFails(recordPaymentBatch(authed("foTerminated")));
+    });
+
+    it("rejects payment creation across division boundary (Kindergarten FO -> Courses student)", async () => {
+      await assertFails(recordPaymentBatch(authed("foKg")));
     });
 
     it("still rejects summary writes that smuggle foreign fields", async () => {
@@ -343,6 +370,33 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
     it("blocks frontoffice from editing other branches' students or staff", async () => {
       await assertFails(updateDoc(doc(authed("foGto"), "users", "student2"), { status: "inactive" }));
       await assertFails(updateDoc(doc(authed("foGto"), "users", "insGto"), { status: "inactive" }));
+    });
+
+    it("rejects student status update by resigned or terminated front office staff", async () => {
+      await assertFails(
+        updateDoc(doc(authed("foResigned"), "users", "student1"), {
+          status: "inactive",
+          statusUpdatedAt: "2026-09-21T02:00:00.000Z",
+          statusUpdatedBy: "foResigned",
+        })
+      );
+      await assertFails(
+        updateDoc(doc(authed("foTerminated"), "users", "student1"), {
+          status: "inactive",
+          statusUpdatedAt: "2026-09-21T02:00:00.000Z",
+          statusUpdatedBy: "foTerminated",
+        })
+      );
+    });
+
+    it("rejects student status update across division boundary (Kindergarten FO -> Courses student)", async () => {
+      await assertFails(
+        updateDoc(doc(authed("foKg"), "users", "student1"), {
+          status: "inactive",
+          statusUpdatedAt: "2026-09-21T02:00:00.000Z",
+          statusUpdatedBy: "foKg",
+        })
+      );
     });
 
     it("lets a user edit only their own profile basics", async () => {
@@ -731,6 +785,144 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       );
     });
 
+    it("CE-BRANCH-SCOPE: enforces branch isolation for branch events and company-wide access for all events", async () => {
+      await seedDoc(["corporateEvents", "bobaEvent"], {
+        name: "Bone Bolango Gathering",
+        branchId: "bone_bolango",
+        audienceType: "branch",
+        audienceValue: "Bone Bolango",
+        eventDate: "2026-10-15",
+        status: "active",
+      });
+
+      await seedDoc(["corporateEvents", "kotaEvent"], {
+        name: "Kota Gorontalo Workshop",
+        branchId: "kota_gorontalo",
+        audienceType: "branch",
+        audienceValue: "Kota Gorontalo",
+        eventDate: "2026-10-15",
+        status: "active",
+      });
+
+      await seedDoc(["corporateEvents", "allEvent"], {
+        name: "Annual All-Staff Assembly",
+        audienceType: "all",
+        eventDate: "2026-10-15",
+        status: "active",
+      });
+
+      // 1. Kota Gorontalo manager lists audienceType == "all" events -> succeeds
+      await assertSucceeds(
+        getDocs(query(collection(authed("mgrGto"), "corporateEvents"), where("audienceType", "==", "all")))
+      );
+
+      // 2. Kota Gorontalo manager lists branchId == "kota_gorontalo" -> succeeds
+      await assertSucceeds(
+        getDocs(query(collection(authed("mgrGto"), "corporateEvents"), where("branchId", "==", "kota_gorontalo")))
+      );
+
+      // 3. Bone Bolango Front Office lists branchId == "kota_gorontalo" -> fails
+      await assertFails(
+        getDocs(query(collection(authed("foBoba"), "corporateEvents"), where("branchId", "==", "kota_gorontalo")))
+      );
+
+      // 4. Any non-admin staff lists events with no filter -> fails
+      await assertFails(
+        getDocs(collection(authed("foGto"), "corporateEvents"))
+      );
+      await assertFails(
+        getDocs(collection(authed("mgrGto"), "corporateEvents"))
+      );
+
+      // 5. Staff gets a single Bone Bolango branch event while belonging to Kota Gorontalo -> fails
+      await assertFails(
+        getDoc(doc(authed("foGto"), "corporateEvents", "bobaEvent"))
+      );
+
+      // 6. Staff gets a single company-wide event from any branch -> succeeds
+      await assertSucceeds(
+        getDoc(doc(authed("foGto"), "corporateEvents", "allEvent"))
+      );
+      await assertSucceeds(
+        getDoc(doc(authed("foBoba"), "corporateEvents", "allEvent"))
+      );
+
+      // 7. Marketing user lists branchId == own branch -> succeeds. Other branch -> fails
+      await assertSucceeds(
+        getDocs(query(collection(authed("mktGto"), "corporateEvents"), where("branchId", "==", "kota_gorontalo")))
+      );
+      await assertFails(
+        getDocs(query(collection(authed("mktGto"), "corporateEvents"), where("branchId", "==", "bone_bolango")))
+      );
+
+      // 8. Staff with no branchId and no branch lists branchId == "kota_gorontalo" -> fails
+      await assertFails(
+        getDocs(query(collection(authed("foUnassigned"), "corporateEvents"), where("branchId", "==", "kota_gorontalo")))
+      );
+
+      // 9. Admin lists with no filter -> succeeds
+      await assertSucceeds(
+        getDocs(collection(authed("admin"), "corporateEvents"))
+      );
+
+      // 10. Student and parent cannot list or get any corporate event -> fails
+      await assertFails(
+        getDoc(doc(authed("student1"), "corporateEvents", "allEvent"))
+      );
+      await assertFails(
+        getDocs(query(collection(authed("student1"), "corporateEvents"), where("audienceType", "==", "all")))
+      );
+      await assertFails(
+        getDoc(doc(authed("parent1"), "corporateEvents", "allEvent"))
+      );
+      await assertFails(
+        getDocs(query(collection(authed("parent1"), "corporateEvents"), where("audienceType", "==", "all")))
+      );
+
+      // 11. Resigned or terminated staff cannot list or read events -> fails
+      await assertFails(
+        getDoc(doc(authed("foResigned"), "corporateEvents", "allEvent"))
+      );
+      await assertFails(
+        getDoc(doc(authed("foTerminated"), "corporateEvents", "allEvent"))
+      );
+
+      // 12. Kiosk date query shape:
+      // Same branch succeeds
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(authed("foGto"), "corporateEvents"),
+            where("eventDate", "==", "2026-10-15"),
+            where("status", "==", "active"),
+            where("branchId", "==", "kota_gorontalo")
+          )
+        )
+      );
+      // Foreign branch fails
+      await assertFails(
+        getDocs(
+          query(
+            collection(authed("foGto"), "corporateEvents"),
+            where("eventDate", "==", "2026-10-15"),
+            where("status", "==", "active"),
+            where("branchId", "==", "bone_bolango")
+          )
+        )
+      );
+      // Company-wide succeeds
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(authed("foGto"), "corporateEvents"),
+            where("eventDate", "==", "2026-10-15"),
+            where("status", "==", "active"),
+            where("audienceType", "==", "all")
+          )
+        )
+      );
+    });
+
     it("INT-013: progress reports are branch-isolated for staff and parent-ready", async () => {
       await seedDoc(["progressReports", "bobaReport"], {
         instructorId: "insBoba",
@@ -766,9 +958,15 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         status: "open",
       });
 
-      // Parent1 has childStudentIds: ["student1"]. Query where studentIds array-contains student1:
+      // Parent1 has childStudentIds: ["student1"] and branchId: "kota_gorontalo". Query with canonical branchId:
       await assertSucceeds(
-        getDocs(query(collection(authed("parent1"), "classes"), where("studentIds", "array-contains", "student1")))
+        getDocs(
+          query(
+            collection(authed("parent1"), "classes"),
+            where("branchId", "==", "kota_gorontalo"),
+            where("studentIds", "array-contains", "student1")
+          )
+        )
       );
     });
 
@@ -910,6 +1108,68 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
           )
         )
       );
+
+      // 10. Front Office user with NO branch assigned (neither branchId nor branch)
+      // must NOT silently become kota_gorontalo and must be rejected from querying or reading
+      await assertFails(
+        getDocs(
+          query(
+            collection(authed("foUnassigned"), "users"),
+            where("role", "in", ["student", "instructor", "parent"]),
+            where("branchId", "==", "kota_gorontalo")
+          )
+        )
+      );
+      await assertFails(
+        getDoc(doc(authed("foUnassigned"), "payments", "pay1"))
+      );
+
+      // 11. Item B defense-in-depth: Unassigned staff (FO, Manager, Instructor with no branchId and no branch)
+      // attempting to query with branchId == null filter must be rejected across all branch-scoped collections
+      for (const unassignedUid of ["foUnassigned", "mgrUnassigned", "insUnassigned"]) {
+        const authedDb = authed(unassignedUid);
+
+        // users listing with branchId == null must fail
+        await assertFails(
+          getDocs(
+            query(
+              collection(authedDb, "users"),
+              where("role", "in", ["student", "instructor", "parent"]),
+              where("branchId", "==", null)
+            )
+          )
+        );
+
+        // payments listing with branchId == null must fail
+        await assertFails(
+          getDocs(
+            query(
+              collection(authedDb, "payments"),
+              where("branchId", "==", null)
+            )
+          )
+        );
+
+        // attendance listing with branchId == null must fail
+        await assertFails(
+          getDocs(
+            query(
+              collection(authedDb, "attendance"),
+              where("branchId", "==", null)
+            )
+          )
+        );
+
+        // classes listing with branchId == null must fail
+        await assertFails(
+          getDocs(
+            query(
+              collection(authedDb, "classes"),
+              where("branchId", "==", null)
+            )
+          )
+        );
+      }
     });
   });
 });

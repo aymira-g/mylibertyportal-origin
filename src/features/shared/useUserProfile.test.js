@@ -1,7 +1,7 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { useUserProfile } from "./useUserProfile";
+import { useUserProfile, resolveProfileBranch } from "./useUserProfile";
 import { normalizeRole } from "./roles";
 
 const unsubAuthMock = vi.fn();
@@ -40,6 +40,7 @@ describe("useUserProfile hook", () => {
     expect(hookState.profile).toBeNull();
     expect(hookState.role).toBeNull();
     expect(hookState.branchId).toBeNull();
+    expect(hookState.branch).toBeNull();
     expect(hookState.loading).toBe(false);
   });
 
@@ -49,5 +50,39 @@ describe("useUserProfile hook", () => {
     expect(normalizeRole("branch_manager")).toBe("manager");
     expect(normalizeRole("Parent")).toBe("parent");
     expect(normalizeRole("instructor_leader")).toBe("instructorleader");
+  });
+
+  describe("resolveProfileBranch matrix", () => {
+    it("resolves canonical branchId and derived display branch when only branchId is present", () => {
+      const result = resolveProfileBranch({ branchId: "bone_bolango" });
+      expect(result.branchId).toBe("bone_bolango");
+      expect(result.branch).toBe("Bone Bolango");
+    });
+
+    it("resolves canonical branchId and display branch when only legacy branch is present", () => {
+      const result = resolveProfileBranch({ branch: "Pohuwato" });
+      expect(result.branchId).toBe("pohuwato");
+      expect(result.branch).toBe("Pohuwato");
+    });
+
+    it("prioritizes canonical branchId when both branchId and branch are present but different", () => {
+      const result = resolveProfileBranch({
+        branchId: "bone_bolango",
+        branch: "Kota Gorontalo",
+      });
+      expect(result.branchId).toBe("bone_bolango");
+      expect(result.branch).toBe("Bone Bolango");
+    });
+
+    it("returns null for both branchId and branch when neither field is present", () => {
+      const result = resolveProfileBranch({});
+      expect(result.branchId).toBeNull();
+      expect(result.branch).toBeNull();
+    });
+
+    it("returns null when profile is null or undefined", () => {
+      expect(resolveProfileBranch(null)).toEqual({ branchId: null, branch: null });
+      expect(resolveProfileBranch(undefined)).toEqual({ branchId: null, branch: null });
+    });
   });
 });

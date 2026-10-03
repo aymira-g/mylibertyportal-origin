@@ -1,5 +1,6 @@
 import { db } from "../../firebase";
 import { collection, query, where, getDocs, limit, doc, getDoc, orderBy } from "firebase/firestore";
+import { branchToId } from "../../constants/branches.js";
 
 /**
  * Normalizes phone string to clean digit format for matching.
@@ -74,15 +75,21 @@ export async function getAuthenticatedParentBundle(parentUid) {
  * Query 3 & 5 from Parent+Student Roster Model v2 Section 27.
  *
  * @param {string} childId
+ * @param {string} branchId
  * @returns {Promise<{ classes: any[], attendance: any[] }>}
  */
-export async function getChildAttendanceAndClasses(childId) {
-  if (!childId) return { classes: [], attendance: [] };
+export async function getChildAttendanceAndClasses(childId, branchId) {
+  if (!childId || !branchId) {
+    console.warn("getChildAttendanceAndClasses: childId and canonical branchId are both required.");
+    return { classes: [], attendance: [] };
+  }
 
+  const canonicalBranchId = branchToId(branchId);
   let classes = [];
   try {
     const qClasses = query(
       collection(db, "classes"),
+      where("branchId", "==", canonicalBranchId),
       where("studentIds", "array-contains", childId),
       where("status", "==", "open"),
       limit(20)

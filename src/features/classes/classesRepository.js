@@ -12,6 +12,7 @@ import { getBatchAvailability } from "./batchAvailability";
 import { todayWita } from "../../utils/dateWita.js";
 import { batchSchema } from "../../schemas";
 import { normalizeBatchType } from "../../constants/batchTypes.js";
+import { branchToId, idToBranch } from "../../constants/branches.js";
 
 /**
  * All direct Firestore writes for the `classes` collection — and the
@@ -42,8 +43,18 @@ export async function createClass(classData) {
 }
 
 export function updateClass(classId, updateData) {
+  let branchPatch = {};
+  if (updateData.branchId || updateData.branch) {
+    const canonicalId = branchToId(updateData.branchId || updateData.branch);
+    branchPatch = {
+      branchId: canonicalId,
+      branch: idToBranch(canonicalId),
+    };
+  }
+
   const normalized = {
     ...updateData,
+    ...branchPatch,
     ...(Object.prototype.hasOwnProperty.call(updateData, "batchType")
       ? { batchType: normalizeBatchType(updateData.batchType) }
       : {}),

@@ -3,6 +3,32 @@ import { auth, db } from "../../firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
 import { normalizeRole } from "./roles";
+import { branchToId, idToBranch, normalizeBranch } from "../../constants/branches";
+
+/**
+ * Resolves the canonical branchId and display branch name from a user profile document.
+ * - branchId is the canonical authorization and query value.
+ * - When branchId is present, it is canonical and takes precedence.
+ * - When only legacy branch is present, branchId is derived via branchToId for compatibility.
+ * - When both are present but different, branchId takes precedence.
+ * - When neither is present, returns { branchId: null, branch: null }.
+ *
+ * @param {Record<string, any> | null | undefined} profile
+ * @returns {{ branchId: string | null, branch: string | null }}
+ */
+export function resolveProfileBranch(profile) {
+  const rawBranchId =
+    profile?.branchId && typeof profile.branchId === "string"
+      ? profile.branchId.trim().toLowerCase()
+      : null;
+  const rawBranch =
+    profile?.branch && typeof profile.branch === "string" ? profile.branch.trim() : null;
+
+  const branchId = rawBranchId || (rawBranch ? branchToId(rawBranch) : null);
+  const branch = branchId ? idToBranch(branchId) : (rawBranch ? normalizeBranch(rawBranch) : null);
+
+  return { branchId, branch };
+}
 
 /**
  * useUserProfile
@@ -73,8 +99,7 @@ export function useUserProfile() {
   }, []);
 
   const role = normalizeRole(profile?.role) || null;
-  const branchId = profile?.branchId || null;
-  const branch = profile?.branch || null;
+  const { branchId, branch } = resolveProfileBranch(profile);
 
   return {
     user,

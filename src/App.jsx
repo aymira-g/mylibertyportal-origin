@@ -49,6 +49,7 @@ const KidsInstructorDashboard = lazy(() =>
 const ParentDashboard = lazy(() => import("./features/dashboard/ParentDashboard"));
 
 import { normalizeStaffDivision, DEFAULT_DIVISION } from "./constants/divisions";
+import { branchToId } from "./constants/branches";
 
 function LoadingFallback() {
   return (
@@ -77,7 +78,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState("");
   const [division, setDivision] = useState(DEFAULT_DIVISION);
-  const [branch, setBranch] = useState("kota_gorontalo");
+  const [branch, setBranch] = useState(null);
   const [previewRole, setPreviewRole] = useState(null);
   const [previewDivision, setPreviewDivision] = useState(null);
   const [displayName, setDisplayName] = useState("");
@@ -106,7 +107,7 @@ function App() {
     setUser(null);
     setRole("");
     setDivision(DEFAULT_DIVISION);
-    setBranch("kota_gorontalo");
+    setBranch(null);
     setPreviewRole(null);
     setPreviewDivision(null);
     setDisplayName("");
@@ -172,9 +173,10 @@ function App() {
           return false;
         }
         const userRole = normalizeRole(data.role) || "student";
+        const canonicalBranchId = data.branchId || (data.branch ? branchToId(data.branch) : null);
         setRole(userRole);
         setDivision(normalizeStaffDivision(data.division, userRole));
-        setBranch(data.branchId || data.branch || "kota_gorontalo");
+        setBranch(canonicalBranchId);
         setDisplayName(data.displayName || "");
         setNickname(data.nickname || data.displayName || "");
         setPhotoURL(data.photoURL || "");
@@ -575,9 +577,9 @@ function App() {
                   {effectiveDivision === "all" ? (
                     <CrossDivDashboard role={effectiveRole} />
                   ) : effectiveDivision === "kindergarten" ? (
-                    <KidsFrontOfficeDashboard />
+                    <KidsFrontOfficeDashboard branch={branch} />
                   ) : (
-                    <FrontOfficeDashboard role={effectiveRole} />
+                    <FrontOfficeDashboard role={effectiveRole} branch={branch} />
                   )}
                 </ErrorBoundary>
               )}

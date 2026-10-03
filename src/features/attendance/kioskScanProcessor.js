@@ -87,6 +87,7 @@ async function executeStaffClockIn({
  * @param {((data: any) => void)|null} [options.setPendingClockIn]
  * @param {((data: any) => void)|null} [options.setPendingTransition]
  * @param {((cls: any) => void)|null} [options.onClassResolved]
+ * @param {string|null} [options.kioskBranchId]
  */
 export async function handleKioskScan(
   uid,
@@ -104,6 +105,7 @@ export async function handleKioskScan(
     setPendingClockIn = null,
     setPendingTransition = null,
     onClassResolved = null,
+    kioskBranchId = null,
   } = {}
 ) {
   const rawId = typeof uid === "string" ? uid.trim() : "";
@@ -276,7 +278,11 @@ export async function handleKioskScan(
     }
 
     const todayDate = todayWita();
-    const activeEvents = await fetchActiveCorporateEventsForDate(todayDate);
+    const studentEventBranchId =
+      kioskBranchId ||
+      userData?.branchId ||
+      (userData?.branch ? branchToId(userData.branch) : null);
+    const activeEvents = await fetchActiveCorporateEventsForDate(todayDate, studentEventBranchId);
     const matchingResult = findMatchingCorporateEvents(
       activeEvents,
       userData,
@@ -353,7 +359,11 @@ export async function handleKioskScan(
     const isKindergartenStaff = isKindergartenDivision(userData.division);
     const todayWitaDay = getTodayWitaWeekday();
     const todayDate = todayWita();
-    const activeEvents = await fetchActiveCorporateEventsForDate(todayDate);
+    const staffEventBranchId =
+      kioskBranchId ||
+      userData?.branchId ||
+      (userData?.branch ? branchToId(userData.branch) : null);
+    const activeEvents = await fetchActiveCorporateEventsForDate(todayDate, staffEventBranchId);
     const matchingResult = findMatchingCorporateEvents(
       activeEvents,
       userData,

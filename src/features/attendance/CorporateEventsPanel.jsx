@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useToast, useConfirm } from "../shared";
 import { auth } from "../../firebase";
+import { useUserProfile } from "../shared/useUserProfile";
+import { normalizeRole } from "../shared/roles";
 import {
   subscribeCorporateEvents,
   createCorporateEvent,
@@ -44,7 +46,11 @@ export default function CorporateEventsPanel() {
     audienceValue: "",
   });
 
+  const { branchId: userBranchId, role, loading: profileLoading } = useUserProfile();
+  const effectiveBranchId = normalizeRole(role) === "admin" ? "all" : userBranchId;
+
   useEffect(() => {
+    if (profileLoading) return;
     const unsubscribe = subscribeCorporateEvents(
       (data) => {
         setEvents(data);
@@ -54,10 +60,11 @@ export default function CorporateEventsPanel() {
         console.error("Error subscribing to corporate events:", err);
         toast("Failed to load corporate events: " + err.message, "error");
         setLoading(false);
-      }
+      },
+      effectiveBranchId
     );
     return () => unsubscribe();
-  }, [toast]);
+  }, [effectiveBranchId, profileLoading, toast]);
 
   const todayStr = useMemo(() => todayWita(), []);
 

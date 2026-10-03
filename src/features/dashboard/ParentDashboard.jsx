@@ -85,9 +85,9 @@ export default function ParentDashboard({ user = null }) {
   // 2. Load Selected Child's Classes and Attendance
   useEffect(() => {
     let active = true;
-    if (!selectedChildId) return;
+    if (!selectedChildId || !parentProfile?.branchId) return;
 
-    getChildAttendanceAndClasses(selectedChildId)
+    getChildAttendanceAndClasses(selectedChildId, parentProfile.branchId)
       .then((data) => {
         if (!active) return;
         setChildDetails(data);
@@ -105,7 +105,7 @@ export default function ParentDashboard({ user = null }) {
     return () => {
       active = false;
     };
-  }, [selectedChildId]);
+  }, [selectedChildId, parentProfile?.branchId]);
 
   const selectedChild = useMemo(() => {
     return children.find((c) => c.id === selectedChildId) || null;

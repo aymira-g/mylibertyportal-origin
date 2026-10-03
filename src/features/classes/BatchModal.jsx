@@ -15,7 +15,7 @@ import {
 } from "../shared";
 import { auth } from "../../firebase";
 import { createClass, updateClass } from "./classesRepository";
-import { DEFAULT_BRANCH, normalizeBranch } from "../../constants/branches";
+import { DEFAULT_BRANCH, normalizeBranch, branchToId, idToBranch } from "../../constants/branches";
 import {
   getBatchProgram,
   getEnabledPrograms,
@@ -211,6 +211,9 @@ function BatchForm({ batch, instructors, existingClasses = [], onClose, onSucces
         ? selectedSub.displayName || selectedSub.name || selectedSub.email || ""
         : "";
 
+      const canonicalBranchId = branchToId(branch || DEFAULT_BRANCH);
+      const canonicalBranch = idToBranch(canonicalBranchId);
+
       const payload = {
         className: className.trim(),
         programId: normalizeProgram(programId),
@@ -228,7 +231,8 @@ function BatchForm({ batch, instructors, existingClasses = [], onClose, onSucces
         endTime,
         schedule: scheduleFormatted,
         classRoom: classRoom.trim() || "Main Campus",
-        branch: branch ? normalizeBranch(branch) : DEFAULT_BRANCH,
+        branch: canonicalBranch,
+        branchId: canonicalBranchId,
         maxCapacity: Number(maxCapacity) || 15,
         minQuorum: Number(minQuorum) || 4,
         status: status || "open",
@@ -250,7 +254,7 @@ function BatchForm({ batch, instructors, existingClasses = [], onClose, onSucces
               name: currentUser?.displayName || currentUser?.email || "Staff",
               uid: currentUser?.uid,
               role: "frontoffice",
-              branchId: payload.branch,
+              branchId: canonicalBranchId,
             },
             {
               classId: batch.id,
@@ -274,7 +278,7 @@ function BatchForm({ batch, instructors, existingClasses = [], onClose, onSucces
               name: currentUser?.displayName || currentUser?.email || "Staff",
               uid: currentUser?.uid,
               role: "frontoffice",
-              branchId: payload.branch,
+              branchId: canonicalBranchId,
             },
             {
               classId: batch.id,

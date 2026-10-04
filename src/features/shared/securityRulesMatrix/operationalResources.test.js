@@ -629,6 +629,11 @@ describe("Operational Resources Security Rules Matrix", () => {
     });
 
     it("restricts branch-specific events to the same branch manager", () => {
+      // Creation: Bone Bolango manager cannot create Kota Gorontalo branch event
+      expect(canCreateCorporateEvent(branchEventKota, managerGorontalo)).toBe(true);
+      expect(canCreateCorporateEvent(branchEventKota, managerBoneBolango)).toBe(false);
+
+      // Update: Bone Bolango manager cannot update Kota Gorontalo branch event
       const updatedBranchEvent = { ...branchEventKota, name: "Gorontalo Emergency Briefing" };
       expect(canUpdateCorporateEvent(branchEventKota, updatedBranchEvent, managerGorontalo)).toBe(true);
       expect(canUpdateCorporateEvent(branchEventKota, updatedBranchEvent, managerBoneBolango)).toBe(false);

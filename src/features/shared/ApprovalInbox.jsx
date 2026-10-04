@@ -3,6 +3,7 @@ import {
   listenToPendingApprovals,
   approveApprovalRequest,
   rejectApprovalRequest,
+  markApprovalApplied,
 } from "./approvalsRepository";
 import { applyApprovedShiftCorrection } from "../attendance/shiftsRepository";
 import { updateStaffRecord } from "../dashboard/usersRepository";
@@ -63,6 +64,7 @@ export function ApprovalInbox({
   }, [userRole, branchId]);
 
   const handleApprove = async (approval) => {
+    if (processingId) return;
     const currentUid = auth.currentUser?.uid;
     if (approval.requestedByUid && approval.requestedByUid === currentUid) {
       toast("Dual-control restriction: You cannot approve a request you submitted yourself.", "error");
@@ -117,6 +119,11 @@ export function ApprovalInbox({
             roleUpdatedAt: new Date().toISOString(),
             roleUpdatedBy: currentUid || null,
           });
+          try {
+            await markApprovalApplied(approval.id, currentUid);
+          } catch (markErr) {
+            console.warn("markApprovalApplied error for elevation:", markErr);
+          }
           toast(
             `Staff role elevation applied! Role updated to ${approval.payload.targetRole}.`,
             "success"
@@ -146,6 +153,11 @@ export function ApprovalInbox({
             joinedDate: new Date().toISOString().split("T")[0],
             createdAt: new Date().toISOString(),
           });
+          try {
+            await markApprovalApplied(approval.id, currentUid);
+          } catch (markErr) {
+            console.warn("markApprovalApplied error for onboarding:", markErr);
+          }
           toast(
             `Staff account provisioned! Assigned ${assignedRole} at ${assignedBranchName}.`,
             "success"
@@ -167,6 +179,13 @@ export function ApprovalInbox({
   };
 
   const handleReject = async (approval) => {
+    if (processingId) return;
+    const currentUid = auth.currentUser?.uid;
+    if (approval.requestedByUid && approval.requestedByUid === currentUid) {
+      toast("Dual-control restriction: You cannot decide on a request you submitted yourself.", "error");
+      return;
+    }
+
     const isConfirmed = await confirm({
       title: "Reject Request",
       message: `Are you sure you want to reject "${approval.label}" requested by ${approval.requestedBy}?`,

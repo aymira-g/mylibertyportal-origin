@@ -150,6 +150,38 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
       };
       expect(canUpdateApproval(pendingApproval, backToPending, managerGorontalo)).toBe(false);
     });
+
+    it("rejects re-opening or tampering with an already decided approval", () => {
+      const incoming = {
+        ...pendingApproval,
+        status: "approved",
+        decidedBy: "Manager GTLO",
+        decidedByUid: "mgr_gtlo",
+        decidedAt: "2026-09-25T10:00:00.000Z",
+        decisionNotes: "Re-deciding",
+        updatedAt: "ts",
+      };
+      // Already rejected cannot be flipped to approved
+      expect(canUpdateApproval({ ...pendingApproval, status: "rejected" }, incoming, managerGorontalo)).toBe(false);
+      // Already approved cannot be re-decided
+      expect(canUpdateApproval({ ...pendingApproval, status: "approved" }, incoming, managerGorontalo)).toBe(false);
+    });
+
+    it("allows marking an approved ticket as applied to seal against replay", () => {
+      const approvedState = {
+        ...pendingApproval,
+        status: "approved",
+        decidedByUid: "mgr_gtlo",
+      };
+      const appliedUpdate = {
+        ...approvedState,
+        applied: true,
+        appliedAt: "2026-09-25T10:05:00.000Z",
+        appliedByUid: "mgr_gtlo",
+        updatedAt: "ts",
+      };
+      expect(canUpdateApproval(approvedState, appliedUpdate, managerGorontalo)).toBe(true);
+    });
   });
 
   describe("Approved Shift Self-Correction Gate (C4)", () => {
@@ -261,11 +293,16 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
       expect(canDecideApproval(promotionTicket, managerGorontalo)).toBe(false);
     });
 
+    it("strictly blocks Admins from approving staff role elevation (Director/Vice Director only)", () => {
+      expect(canDecideApproval(promotionTicket, adminUser)).toBe(false);
+    });
+
     it("validates isApprovedRoleElevation contract", () => {
       const approvedDoc = {
         actionId: "STAFF_ROLE_ELEVATION",
         status: "approved",
         applied: false,
+        approverRole: "director",
         requestedByUid: "director_1",
         decidedByUid: "vicedirector_1",
         payload: {
@@ -276,6 +313,11 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
 
       // Valid elevation ticket
       expect(isApprovedRoleElevation("ins_gtlo", approvedDoc, "instructorleader")).toBe(true);
+
+      // Subordinate spoofing violation: ticket routed to frontoffice or manager is rejected
+      expect(isApprovedRoleElevation("ins_gtlo", { ...approvedDoc, approverRole: "frontoffice" }, "instructorleader")).toBe(false);
+      expect(isApprovedRoleElevation("ins_gtlo", { ...approvedDoc, approverRole: "manager" }, "instructorleader")).toBe(false);
+      expect(isApprovedRoleElevation("ins_gtlo", { ...approvedDoc, approverRole: undefined }, "instructorleader")).toBe(false);
 
       // Replay attack: already applied ticket is rejected
       expect(isApprovedRoleElevation("ins_gtlo", { ...approvedDoc, applied: true }, "instructorleader")).toBe(false);

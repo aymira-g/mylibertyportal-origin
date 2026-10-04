@@ -166,7 +166,18 @@ export function canCreateUser(data, user) {
 
 export function canUpdateUser(existing, incoming, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isExecutive(user)) {
+    if (
+      ["director", "vice_director"].includes(existing.role) &&
+      incoming.status &&
+      ["resigned", "terminated"].includes(incoming.status) &&
+      !isDirector(user) &&
+      !isViceDirector(user)
+    ) {
+      return false;
+    }
+    return true;
+  }
   if (
     isFrontOffice(user) &&
     existing.role === "student" &&
@@ -339,16 +350,14 @@ export function canListUsers(queryData, user) {
 
 export function isApproverForDoc(data, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
 
   const targetRole = (data && data.approverRole) || "manager";
   let roleMatches = false;
 
-  if (
-    (targetRole === "director" || targetRole === "vice_director" || targetRole === "admin") &&
-    isExecutive(user)
-  ) {
-    roleMatches = true;
+  if (targetRole === "director" || targetRole === "vice_director") {
+    roleMatches = isDirector(user) || isViceDirector(user);
+  } else if (targetRole === "admin") {
+    roleMatches = isExecutive(user);
   } else if (targetRole === "manager" && isManager(user)) {
     roleMatches = true;
   } else if (
@@ -396,7 +405,9 @@ export function isApprovedRoleElevation(targetUserId, approvalDoc, targetRole) {
     approvalDoc.payload.targetUserId === targetUserId &&
     approvalDoc.payload.targetRole === targetRole &&
     approvalDoc.requestedByUid !== approvalDoc.decidedByUid &&
-    approvalDoc.decidedByUid !== targetUserId
+    approvalDoc.decidedByUid !== targetUserId &&
+    "approverRole" in approvalDoc &&
+    ["director", "vice_director"].includes(approvalDoc.approverRole)
   );
 }
 
@@ -486,10 +497,16 @@ export function canGetClassAttendance(doc, user, classDoc = null) {
 
 export function canCreateCorporateEvent(event, user) {
   if (!user) return false;
-  if (isExecutive(user) || isManager(user)) return true;
-  if (isFrontOffice(user)) {
+  if (isExecutive(user)) return true;
+  if (isManager(user) || isFrontOffice(user)) {
     if (event.audienceType !== "branch") return true;
-    return event.audienceValue === userBranch(user);
+    return (
+      event.audienceValue === userBranch(user) ||
+      (event.audienceValue === "Kota Gorontalo" && userBranch(user) === "kota_gorontalo") ||
+      (event.audienceValue === "Bone Bolango" && userBranch(user) === "bone_bolango") ||
+      (event.audienceValue === "Pohuwato" && userBranch(user) === "pohuwato") ||
+      (event.audienceValue === "Limboto" && userBranch(user) === "limboto")
+    );
   }
   return false;
 }
@@ -519,13 +536,20 @@ export const APPROVAL_DECISION_KEYS = [
 
 export function canUpdateApproval(existing, incoming, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isAdmin(user) && (!existing || existing.actionId !== "STAFF_ROLE_ELEVATION")) return true;
   if (!canDecideApproval(existing, user)) return false;
   if (incoming.requestedByUid !== existing.requestedByUid) return false;
-  if (!["approved", "rejected"].includes(incoming.status)) return false;
-  if (incoming.decidedByUid !== user.uid) return false;
-  const keys = Object.keys(incoming).filter((k) => existing[k] !== incoming[k]);
-  return keys.every((k) => APPROVAL_DECISION_KEYS.includes(k));
+  if (existing.status === "approved" && incoming.status === "approved" && incoming.applied === true) {
+    const keys = Object.keys(incoming).filter((k) => existing[k] !== incoming[k]);
+    return keys.every((k) => ["applied", "appliedAt", "appliedByUid", "updatedAt"].includes(k));
+  }
+  if (["approved", "rejected"].includes(incoming.status)) {
+    if (existing.status !== "pending") return false;
+    if (incoming.decidedByUid !== user.uid) return false;
+    const keys = Object.keys(incoming).filter((k) => existing[k] !== incoming[k]);
+    return keys.every((k) => APPROVAL_DECISION_KEYS.includes(k));
+  }
+  return false;
 }
 
 export function isApprovedShiftCorrection(approval, shiftId) {

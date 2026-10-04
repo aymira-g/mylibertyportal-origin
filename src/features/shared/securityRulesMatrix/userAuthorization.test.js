@@ -7,7 +7,10 @@ import {
   isParent,
   isParentOf,
   isSameBranch,
+  canUpdateUser,
+  canDeleteUser,
 } from "./securityRulesMatrix.helpers.js";
+import { directorUser } from "./securityRulesMatrix.fixtures.js";
 
 describe("User & Parent/Student Authorization Rules Matrix", () => {
   describe("Parent + Student Roster Authorization Rules Matrix", () => {
@@ -188,6 +191,35 @@ describe("User & Parent/Student Authorization Rules Matrix", () => {
       expect(canListUsers(null)).toBe(false);
       expect(canListUsers(foGto)).toBe(true);
       expect(canListUsers(adminUser)).toBe(true);
+    });
+  });
+
+  describe("Executive Account Protection against Deletion and Disabling", () => {
+    const adminActor = { uid: "admin_1", role: "admin", branchId: "kota_gorontalo" };
+    const directorDoc = { uid: "director_1", role: "director", branchId: "kota_gorontalo" };
+    const viceDirectorDoc = { uid: "vice_1", role: "vice_director", branchId: "kota_gorontalo" };
+    const regularStaffDoc = { uid: "ins_1", role: "instructor", branchId: "kota_gorontalo" };
+
+    it("prevents Admin from deleting Director, Vice Director, or Admin accounts", () => {
+      expect(canDeleteUser(directorDoc, adminActor)).toBe(false);
+      expect(canDeleteUser(viceDirectorDoc, adminActor)).toBe(false);
+      expect(canDeleteUser(adminActor, adminActor)).toBe(false);
+      expect(canDeleteUser(regularStaffDoc, adminActor)).toBe(true);
+    });
+
+    it("prevents Admin from disabling Director or Vice Director via status update", () => {
+      // Setting status to terminated or resigned on Director is blocked for Admin
+      expect(canUpdateUser(directorDoc, { status: "terminated" }, adminActor)).toBe(false);
+      expect(canUpdateUser(directorDoc, { status: "resigned" }, adminActor)).toBe(false);
+      expect(canUpdateUser(viceDirectorDoc, { status: "terminated" }, adminActor)).toBe(false);
+      expect(canUpdateUser(viceDirectorDoc, { status: "resigned" }, adminActor)).toBe(false);
+
+      // Normal field updates or non-executive staff updates are allowed for Admin
+      expect(canUpdateUser(directorDoc, { displayName: "Director Updated" }, adminActor)).toBe(true);
+      expect(canUpdateUser(regularStaffDoc, { status: "terminated" }, adminActor)).toBe(true);
+
+      // Director can manage executive statuses
+      expect(canUpdateUser(viceDirectorDoc, { status: "terminated" }, directorUser)).toBe(true);
     });
   });
 });

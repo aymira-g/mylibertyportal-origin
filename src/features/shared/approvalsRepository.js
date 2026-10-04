@@ -131,6 +131,28 @@ export async function rejectApprovalRequest(approvalId, decisionData = {}) {
 }
 
 /**
+ * Marks an approved approval request as applied, sealing the envelope against reuse/replay.
+ *
+ * @param {string} approvalId
+ * @param {string} [actorUid]
+ */
+export async function markApprovalApplied(approvalId, actorUid = null) {
+  if (!approvalId) throw new Error("Approval ID is required");
+  const currentUser = auth.currentUser;
+  const uid = actorUid || currentUser?.uid || "approver";
+
+  const updatePayload = {
+    applied: true,
+    appliedAt: new Date().toISOString(),
+    appliedByUid: uid,
+    updatedAt: serverTimestamp(),
+  };
+
+  await updateDoc(doc(db, COLLECTION_NAME, approvalId), updatePayload);
+  return { id: approvalId, ...updatePayload };
+}
+
+/**
  * Checks if the current authenticated user has an active pending staff onboarding request.
  *
  * @param {string} uid

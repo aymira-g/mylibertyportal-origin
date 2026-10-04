@@ -145,7 +145,8 @@ service cloud.firestore {
 
     function isApproverForDoc(data) {
       let targetRole = data != null && 'approverRole' in data ? data.approverRole : 'manager';
-      let roleMatches = ((targetRole == 'director' || targetRole == 'vice_director' || targetRole == 'admin') && isExecutive())
+      let roleMatches = ((targetRole == 'director' || targetRole == 'vice_director') && (isDirector() || isViceDirector()))
+        || (targetRole == 'admin' && isExecutive())
         || (targetRole == 'manager' && isManager())
         || ((targetRole == 'instructor_leader' || targetRole == 'instructorleader') && (hasRole('instructorleader') || hasRole('instructor_leader')))
         || ((targetRole == 'ops_lead' || targetRole == 'opslead' || targetRole == 'frontoffice') && isFrontOffice());
@@ -198,7 +199,9 @@ service cloud.firestore {
         && approval.payload.targetUserId == targetUserId
         && approval.payload.targetRole == targetRole
         && approval.requestedByUid != approval.decidedByUid
-        && approval.decidedByUid != targetUserId;
+        && approval.decidedByUid != targetUserId
+        && ('approverRole' in approval)
+        && (approval.approverRole in ['director', 'vice_director']);
     }
 
     function shiftMatchesCorrectionPayload(approvalId, reqData, resData) {
@@ -309,10 +312,18 @@ service cloud.firestore {
           && (
             request.resource.data.role != resource.data.role
               ? (
-                  request.resource.data.appliedFromApproval is string
+                  ('appliedFromApproval' in request.resource.data)
+                  && request.resource.data.appliedFromApproval is string
                   && isApprovedRoleElevation(userId, request.resource.data.appliedFromApproval, request.resource.data.role)
                 )
               : true
+          )
+          && (
+            // Admins cannot terminate or resign Director or Vice Director accounts
+            (isDirector() || isViceDirector())
+            || !(resource.data.role in ['director', 'vice_director'])
+            || !('status' in request.resource.data)
+            || !(request.resource.data.status in ['resigned', 'terminated'])
           )
         )
         || (isFrontOffice()
@@ -473,7 +484,7 @@ service cloud.firestore {
         && request.resource.data.name is string
         && request.resource.data.eventDate is string
         && request.resource.data.audienceType in ['all', 'branch', 'role', 'division']
-        && (isExecutive() || isManager() || (
+        && (isExecutive() || (
           request.resource.data.audienceType != 'branch'
           || request.resource.data.audienceValue == userBranch()
           || (request.resource.data.audienceValue == 'Kota Gorontalo' && userBranch() == 'kota_gorontalo')
@@ -594,6 +605,10 @@ service cloud.firestore {
             && 'payload' in request.resource.data
             && request.resource.data.payload.uid == request.auth.uid
           )
+        )
+        && (
+          request.resource.data.actionId != 'STAFF_ROLE_ELEVATION'
+          || (('approverRole' in request.resource.data) && request.resource.data.approverRole in ['director', 'vice_director'])
         );
       allow update: if (
           // Blanket admin bypass is blocked for STAFF_ROLE_ELEVATION so dual-control cannot be skipped
@@ -603,7 +618,8 @@ service cloud.firestore {
           && request.auth.uid != resource.data.requestedByUid
           && request.resource.data.requestedByUid == resource.data.requestedByUid
           && (
-            (request.resource.data.status in ['approved', 'rejected']
+            (resource.data.status == 'pending'
+              && request.resource.data.status in ['approved', 'rejected']
               && request.resource.data.decidedByUid == request.auth.uid
               && request.resource.data.diff(resource.data).affectedKeys()
                 .hasOnly(['status', 'decidedBy', 'decidedByUid', 'decidedAt', 'decisionNotes', 'rejectionReason', 'updatedAt']))

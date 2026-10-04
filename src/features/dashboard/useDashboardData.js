@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { auth, db } from "../../firebase";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
-import { useToast, useConfirm } from "../shared";
+import { useToast, useConfirm, createApprovalEnvelope, submitApprovalRequest } from "../shared";
 import { buildStudentRecord, isActiveStudent } from "../students";
 import { createInvite, deleteInvite, createTodo, deleteTodo, toggleTodoComplete } from "../staff";
 import {
@@ -21,7 +21,7 @@ import {
   matchesDivisionFilter,
 } from "../../constants/divisions";
 import { getProgram, normalizeProgram } from "../../constants/programs";
-import { isInstructorRole, normalizeRole } from "../shared/roles";
+import { isInstructorRole, normalizeRole, isExecutiveRole } from "../shared/roles";
 import { useUserProfile } from "../shared/useUserProfile";
 
 const emptyFormData = {
@@ -89,8 +89,8 @@ export function resolveTargetBranchId({
   if (branch) {
     return branch === "all" ? null : branchToId(branch);
   }
-  const isExplicitAdmin = normalizeRole(role) === "admin";
-  if (restrictedRead || !isExplicitAdmin) {
+  const isExecutive = isExecutiveRole(normalizeRole(role));
+  if (restrictedRead || !isExecutive) {
     return profileBranchId || (profileBranch ? branchToId(profileBranch) : null);
   }
   return null;
@@ -121,7 +121,14 @@ export function useDashboardData({
 } = {}) {
   const toast = useToast();
   const confirm = useConfirm(); // 👈 shadows native window.confirm on purpose — same call shape, styled modal, just needs "await"
-  const { branch: profileBranch, branchId: profileBranchId, role: profileRole, loading: profileLoading } = useUserProfile();
+  const {
+    user: authUser,
+    profile: currentProfile,
+    branch: profileBranch,
+    branchId: profileBranchId,
+    role: profileRole,
+    loading: profileLoading,
+  } = useUserProfile();
 
   const [users, setUsers] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -139,8 +146,8 @@ export function useDashboardData({
   // per collection also means one collection's error (see invites below)
   // can't block the others from loading, unlike the old single try/catch.
   useEffect(() => {
-    const isAdminUser = normalizeRole(profileRole) === "admin";
-    const needsBranch = !isAdminUser;
+    const isExecutiveUser = isExecutiveRole(normalizeRole(profileRole));
+    const needsBranch = !isExecutiveUser;
 
     // If a non-admin role requires a branch and no explicit branch prop was passed,
     // wait until profile loading finishes so we have the staff user's branch for branch isolation.
@@ -448,23 +455,65 @@ export function useDashboardData({
         };
 
         if (editId) {
-          await updateStaffRecord(editId, staffData);
-          savedRecord = { id: editId, ...staffData };
+          const originalUser = users.find((u) => u.id === editId || u.uid === editId);
+          const isRoleChange = Boolean(
+            originalUser &&
+            originalUser.role &&
+            normalizeRole(originalUser.role) !== normalizeRole(formData.role)
+          );
+
+          if (isRoleChange) {
+            const requester = {
+              uid: authUser?.uid || null,
+              name: currentProfile?.displayName || authUser?.displayName || "Staff Member",
+              role: profileRole || "admin",
+              branchId: profileBranchId || null,
+            };
+
+            const envelope = createApprovalEnvelope("STAFF_ROLE_ELEVATION", requester, {
+              reason: `Staff role change requested from ${originalUser.role} to ${formData.role} for ${staffDisplayName}`,
+              payload: {
+                targetUserId: editId,
+                targetRole: formData.role,
+                currentRole: originalUser.role,
+                targetName: staffDisplayName,
+              },
+            });
+
+            if (envelope) {
+              await submitApprovalRequest(envelope);
+            }
+
+            // Update remaining profile fields with the original role preserved so Firestore rules pass
+            const safeStaffData = { ...staffData, role: originalUser.role };
+            await updateStaffRecord(editId, safeStaffData);
+            savedRecord = { id: editId, ...safeStaffData };
+
+            toast(
+              "Profile updated! Role elevation request submitted for Director / Vice Director authorization.",
+              "info"
+            );
+          } else {
+            await updateStaffRecord(editId, staffData);
+            savedRecord = { id: editId, ...staffData };
+            toast("Profile updated!");
+          }
         } else {
           const newStaffUid = await createStaffAccount(formData.email, formData.password, staffData);
           savedRecord = { id: newStaffUid, ...staffData };
+          toast("Account created!");
         }
       }
 
-      toast(
-        editId
-          ? "Profile updated!"
-          : formData.role === "student"
+      if (!editId && (formData.role === "student" || formData.role === "parent")) {
+        toast(
+          formData.role === "student"
             ? "Student added to roster!"
-            : formData.role === "parent"
-              ? "Parent account created!"
-              : "Account created!"
-      );
+            : "Parent account created!"
+        );
+      } else if (editId && (formData.role === "student" || formData.role === "parent")) {
+        toast("Profile updated!");
+      }
       setEditId(null);
       setFormData(emptyFormData);
       setActiveTab?.(

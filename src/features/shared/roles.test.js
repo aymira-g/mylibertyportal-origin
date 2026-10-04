@@ -4,6 +4,9 @@ import {
   LEGACY_ROLE_ALIASES,
   normalizeRole,
   normalizeRoleAlias,
+  isExecutiveRole,
+  isDirectorRole,
+  isViceDirectorRole,
   isFrontOfficeRole,
   isInstructorRole,
   isManagerRole,
@@ -15,6 +18,8 @@ import {
 
 describe("roles.js - Centralized Role Normalization", () => {
   it("defines all expected canonical roles", () => {
+    expect(CANONICAL_ROLES.DIRECTOR).toBe("director");
+    expect(CANONICAL_ROLES.VICE_DIRECTOR).toBe("vice_director");
     expect(CANONICAL_ROLES.ADMIN).toBe("admin");
     expect(CANONICAL_ROLES.MANAGER).toBe("manager");
     expect(CANONICAL_ROLES.INSTRUCTOR).toBe("instructor");
@@ -25,6 +30,14 @@ describe("roles.js - Centralized Role Normalization", () => {
     expect(CANONICAL_ROLES.OFFICE_BOY).toBe("officeboy");
     expect(CANONICAL_ROLES.STUDENT).toBe("student");
     expect(CANONICAL_ROLES.PARENT).toBe("parent");
+  });
+
+  it("normalizes vice director aliases to vice_director", () => {
+    expect(normalizeRole("vicedirector")).toBe("vice_director");
+    expect(normalizeRole("vice-director")).toBe("vice_director");
+    expect(normalizeRole("vice_dir")).toBe("vice_director");
+    expect(normalizeRole("VICE_DIRECTOR")).toBe("vice_director");
+    expect(normalizeRole("  vicedirector  ")).toBe("vice_director");
   });
 
   it("normalizes all legacy front office lead aliases to opslead", () => {
@@ -47,6 +60,8 @@ describe("roles.js - Centralized Role Normalization", () => {
   });
 
   it("preserves canonical roles without modification", () => {
+    expect(normalizeRole("director")).toBe("director");
+    expect(normalizeRole("vice_director")).toBe("vice_director");
     expect(normalizeRole("admin")).toBe("admin");
     expect(normalizeRole("manager")).toBe("manager");
     expect(normalizeRole("instructor")).toBe("instructor");
@@ -124,12 +139,39 @@ describe("roles.js - Centralized Role Normalization", () => {
       expect(isStudentRole(undefined)).toBe(false);
     });
 
+    it("identifies executive roles correctly", () => {
+      expect(isDirectorRole("director")).toBe(true);
+      expect(isDirectorRole("DIRECTOR")).toBe(true);
+      expect(isDirectorRole("vice_director")).toBe(false);
+      expect(isDirectorRole("admin")).toBe(false);
+
+      expect(isViceDirectorRole("vice_director")).toBe(true);
+      expect(isViceDirectorRole("vicedirector")).toBe(true);
+      expect(isViceDirectorRole("vice-director")).toBe(true);
+      expect(isViceDirectorRole("director")).toBe(false);
+      expect(isViceDirectorRole("admin")).toBe(false);
+
+      expect(isExecutiveRole("director")).toBe(true);
+      expect(isExecutiveRole("vice_director")).toBe(true);
+      expect(isExecutiveRole("vicedirector")).toBe(true);
+      expect(isExecutiveRole("admin")).toBe(true);
+      expect(isExecutiveRole("manager")).toBe(false);
+      expect(isExecutiveRole("instructor")).toBe(false);
+      expect(isExecutiveRole("frontoffice")).toBe(false);
+      expect(isExecutiveRole(null)).toBe(false);
+    });
+
     it("identifies staff roles correctly and excludes parents and students", () => {
+      expect(STAFF_ROLES).toContain("director");
+      expect(STAFF_ROLES).toContain("vice_director");
       expect(STAFF_ROLES).toContain("admin");
       expect(STAFF_ROLES).toContain("instructor");
       expect(STAFF_ROLES).not.toContain("parent");
       expect(STAFF_ROLES).not.toContain("student");
 
+      expect(isStaffRole("director")).toBe(true);
+      expect(isStaffRole("vice_director")).toBe(true);
+      expect(isStaffRole("vicedirector")).toBe(true);
       expect(isStaffRole("admin")).toBe(true);
       expect(isStaffRole("manager")).toBe(true);
       expect(isStaffRole("branch_manager")).toBe(true);

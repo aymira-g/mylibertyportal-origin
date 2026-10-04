@@ -826,4 +826,37 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
       ).toBe(false);
     });
   });
+
+  describe("Section 3.1: Marketing Division Isolation (Strict Kindergarten Shielding)", () => {
+    const marketingCourseGorontalo = {
+      uid: "mkt_courses_gtlo",
+      role: "marketing",
+      branchId: "kota_gorontalo",
+      division: "courses",
+    };
+
+    const marketingLegacyGorontalo = {
+      uid: "mkt_legacy_gtlo",
+      role: "marketing",
+      branchId: "kota_gorontalo",
+    };
+
+    const appKidsGtlo = { id: "a_k_gtlo", branchId: "kota_gorontalo", division: "kindergarten" };
+    const appCoursesGtlo = { id: "a_c_gtlo", branchId: "kota_gorontalo", division: "courses" };
+
+    it("allows Course Marketing to access same-branch course applications", () => {
+      expect(canGetApplication(appCoursesGtlo, marketingCourseGorontalo)).toBe(true);
+      expect(canListApplications(appCoursesGtlo, marketingCourseGorontalo)).toBe(true);
+    });
+
+    it("strictly blocks Course Marketing from reading or listing Kindergarten applications", () => {
+      expect(canGetApplication(appKidsGtlo, marketingCourseGorontalo)).toBe(false);
+      expect(canListApplications(appKidsGtlo, marketingCourseGorontalo)).toBe(false);
+    });
+
+    it("strictly blocks Legacy/Default Marketing from reading or listing Kindergarten applications", () => {
+      expect(canGetApplication(appKidsGtlo, marketingLegacyGorontalo)).toBe(false);
+      expect(canListApplications(appKidsGtlo, marketingLegacyGorontalo)).toBe(false);
+    });
+  });
 });

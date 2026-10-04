@@ -11,10 +11,12 @@ import { normalizeRole } from "./roles";
  */
 
 export const APPROVAL_ROLES = {
+  DIRECTOR: "director",
+  VICE_DIRECTOR: "vice_director",
   ADMIN: "admin",
   BRANCH_MANAGER: "manager",
-  INSTRUCTOR_LEADER: "instructor_leader",
-  OPS_LEAD: "ops_lead",
+  INSTRUCTOR_LEADER: "instructorleader",
+  OPS_LEAD: "opslead",
 };
 
 export const APPROVAL_MODES = {
@@ -33,11 +35,11 @@ export const APPROVAL_STATUS = {
  * Locked entries are non-reassignable in config.
  */
 export const GATED_ACTIONS = Object.freeze({
-  // ── Admin Tier Gates (Owner / Director Tier — Staff Authority) ──
+  // ── Executive Tier Gates (Owner / Director Tier — Staff Authority) ──
   STAFF_ROLE_ELEVATION: Object.freeze({
     id: "STAFF_ROLE_ELEVATION",
     label: "Staff Role / Permission Elevation",
-    approverRole: APPROVAL_ROLES.ADMIN,
+    approverRole: APPROVAL_ROLES.DIRECTOR,
     mode: APPROVAL_MODES.BLOCKING,
     domain: "staff",
     locked: true, // Non-reassignable in config
@@ -45,7 +47,7 @@ export const GATED_ACTIONS = Object.freeze({
   NEW_STAFF_ACCOUNT: Object.freeze({
     id: "NEW_STAFF_ACCOUNT",
     label: "New Staff Account Creation",
-    approverRole: APPROVAL_ROLES.ADMIN,
+    approverRole: APPROVAL_ROLES.DIRECTOR,
     mode: APPROVAL_MODES.BLOCKING,
     domain: "staff",
     locked: true,
@@ -53,7 +55,7 @@ export const GATED_ACTIONS = Object.freeze({
   STAFF_DEACTIVATION: Object.freeze({
     id: "STAFF_DEACTIVATION",
     label: "Staff Deactivation / Termination",
-    approverRole: APPROVAL_ROLES.ADMIN,
+    approverRole: APPROVAL_ROLES.DIRECTOR,
     mode: APPROVAL_MODES.BLOCKING,
     domain: "staff",
     locked: true,
@@ -138,24 +140,29 @@ export const GATED_ACTIONS = Object.freeze({
 
 /**
  * Resolves the designated approver for self-correction actions based on the requester's role.
- * Principle 5: staff < opslead < manager < admin (admin is exempt).
+ * Principle 5: staff < opslead < manager < director / admin.
  *
  * Escalation ladder:
  * - General staff (instructor, marketing, officeboy, instructorleader) -> ops_lead (Front Office Lead)
  * - Front Office / Ops Lead's own record -> manager (Branch Manager)
- * - Branch Manager's own record -> admin (Owner / Director tier)
- * - Admin -> exempt (returns null)
+ * - Branch Manager's own record -> director (Owner / Director tier)
+ * - Executives (director, vice_director, admin) -> exempt (returns null)
  *
  * @param {string} requesterRole
  * @returns {string|null} Approver role key or null if exempt
  */
 export function getSelfCorrectionApprover(requesterRole) {
   const normalized = normalizeRole(requesterRole);
-  if (!normalized || normalized === "admin") {
-    return null; // Admin is exempt
+  if (
+    !normalized ||
+    normalized === "admin" ||
+    normalized === "director" ||
+    normalized === "vice_director"
+  ) {
+    return null; // Executives are exempt
   }
   if (normalized === "manager") {
-    return APPROVAL_ROLES.ADMIN;
+    return APPROVAL_ROLES.DIRECTOR;
   }
   if (normalized === "opslead" || normalized === "frontoffice") {
     return APPROVAL_ROLES.BRANCH_MANAGER;
@@ -173,8 +180,8 @@ export function getSelfCorrectionApprover(requesterRole) {
  * @returns {any} Canonical approval envelope
  */
 export function createApprovalEnvelope(actionId, requester = {}, context = {}) {
-  // Admin is fully exempt from dual-control gating
-  if (requester.role === "admin") {
+  // Admin is exempt from routine operational gates, but STAFF_ROLE_ELEVATION is strictly dual-controlled
+  if (requester.role === "admin" && actionId !== "STAFF_ROLE_ELEVATION") {
     return null;
   }
 
@@ -219,10 +226,10 @@ export function createApprovalEnvelope(actionId, requester = {}, context = {}) {
  * Evaluates whether a user's role satisfies the required approverRole.
  *
  * Role mapping:
- * - Admin satisfies all approval gates.
+ * - Admin, Director, and Vice Director satisfy all approval gates.
  * - Manager satisfies branch_manager and ops_lead.
- * - Instructor Leader / Head Teacher satisfies instructor_leader.
- * - Front Office / Operations Lead satisfies ops_lead.
+ * - Instructor Leader / Head Teacher satisfies instructorleader.
+ * - Front Office / Operations Lead satisfies opslead.
  */
 export function canApproveGate(userRole, approverRole) {
   if (!userRole) return false;
@@ -230,14 +237,41 @@ export function canApproveGate(userRole, approverRole) {
   if (normalized === "admin") return true;
 
   switch (approverRole) {
+    case APPROVAL_ROLES.DIRECTOR:
+    case APPROVAL_ROLES.VICE_DIRECTOR:
+    case "director":
+    case "vice_director":
     case APPROVAL_ROLES.ADMIN:
-      return normalized === "admin";
-    case APPROVAL_ROLES.BRANCH_MANAGER:
-      return normalized === "manager";
-    case APPROVAL_ROLES.INSTRUCTOR_LEADER:
-      return normalized === "manager" || normalized === "instructorleader";
-    case APPROVAL_ROLES.OPS_LEAD:
       return (
+        normalized === "director" ||
+        normalized === "vice_director" ||
+        normalized === "admin"
+      );
+    case APPROVAL_ROLES.BRANCH_MANAGER:
+    case "manager":
+      return (
+        normalized === "director" ||
+        normalized === "vice_director" ||
+        normalized === "admin" ||
+        normalized === "manager"
+      );
+    case APPROVAL_ROLES.INSTRUCTOR_LEADER:
+    case "instructorleader":
+    case "instructor_leader":
+      return (
+        normalized === "director" ||
+        normalized === "vice_director" ||
+        normalized === "admin" ||
+        normalized === "manager" ||
+        normalized === "instructorleader"
+      );
+    case APPROVAL_ROLES.OPS_LEAD:
+    case "opslead":
+    case "ops_lead":
+      return (
+        normalized === "director" ||
+        normalized === "vice_director" ||
+        normalized === "admin" ||
         normalized === "manager" ||
         normalized === "frontoffice" ||
         normalized === "opslead"

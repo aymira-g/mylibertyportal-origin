@@ -28,6 +28,22 @@ export function isAdmin(user) {
   return Boolean(user && isActiveUser(user) && user.role === "admin");
 }
 
+export function isDirector(user) {
+  return Boolean(user && isActiveUser(user) && user.role === "director");
+}
+
+export function isViceDirector(user) {
+  return Boolean(user && isActiveUser(user) && user.role === "vice_director");
+}
+
+export function isExecutive(user) {
+  return Boolean(
+    user &&
+      isActiveUser(user) &&
+      ["director", "vice_director", "admin"].includes(user.role)
+  );
+}
+
 export function isManager(user) {
   return Boolean(
     user && isActiveUser(user) && (user.role === "manager" || user.role === "branch_manager")
@@ -47,6 +63,8 @@ export function isStaff(user) {
     user &&
       isActiveUser(user) &&
       [
+        "director",
+        "vice_director",
         "admin",
         "manager",
         "branch_manager",
@@ -76,7 +94,7 @@ export function isParentOf(studentId, user) {
 }
 
 export function isSameBranch(data, user) {
-  if (isAdmin(user)) return true;
+  if (isExecutive(user)) return true;
   if (!user) return false;
 
   let docBranch = "kota_gorontalo";
@@ -119,7 +137,7 @@ export function isSameDivisionStrict(data, user) {
 
 export function isDivisionAllowedForBranchStaff(data, user) {
   return (
-    !(isManager(user) || isFrontOffice(user)) ||
+    !(isManager(user) || isFrontOffice(user) || (user && user.role === "marketing")) ||
     userDivision(user) === "all" ||
     (userDivision(user) === "kindergarten"
       ? isSameDivisionStrict(data, user)
@@ -133,7 +151,7 @@ export function isDivisionAllowedForManager(data, user) {
 
 export function canCreateUser(data, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isExecutive(user)) return true;
   if (
     isFrontOffice(user) &&
     ["student", "parent"].includes(data.role) &&
@@ -165,7 +183,7 @@ export function canUpdateUser(existing, incoming, user) {
 
 export function canDeleteUser(existing, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isAdmin(user) && !["director", "vice_director", "admin"].includes(existing.role)) return true;
   if (
     isFrontOffice(user) &&
     ["student", "parent"].includes(existing.role) &&
@@ -179,7 +197,7 @@ export function canDeleteUser(existing, user) {
 
 export function canGetClass(doc, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isExecutive(user)) return true;
   if (isStaff(user) && isSameBranch(doc, user) && isDivisionAllowedForManager(doc, user)) return true;
   if (
     isStaff(user) &&
@@ -201,7 +219,7 @@ export function canGetClass(doc, user) {
 
 export function canListClasses(queryData, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isExecutive(user)) return true;
   if (isStaff(user) && isSameBranchStrict(queryData, user) && isDivisionAllowedForManager(queryData, user))
     return true;
   if (
@@ -224,7 +242,7 @@ export function canListClasses(queryData, user) {
 
 export function canGetApplication(doc, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isExecutive(user)) return true;
   if (
     (isFrontOffice(user) || isManager(user) || user.role === "marketing") &&
     isSameBranch(doc, user) &&
@@ -236,7 +254,7 @@ export function canGetApplication(doc, user) {
 
 export function canListApplications(queryData, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isExecutive(user)) return true;
   if (
     (isFrontOffice(user) || isManager(user) || user.role === "marketing") &&
     isSameBranchStrict(queryData, user) &&
@@ -248,7 +266,7 @@ export function canListApplications(queryData, user) {
 
 export function canGetProgressReport(doc, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isExecutive(user)) return true;
   if (
     (isManager(user) || isFrontOffice(user)) &&
     isSameBranch(doc, user) &&
@@ -262,7 +280,7 @@ export function canGetProgressReport(doc, user) {
 
 export function canListProgressReports(queryData, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isExecutive(user)) return true;
   if (
     (isManager(user) || isFrontOffice(user)) &&
     isSameBranchStrict(queryData, user) &&
@@ -281,7 +299,7 @@ export function canListProgressReports(queryData, user) {
 
 export function canGetUser(doc, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isExecutive(user)) return true;
   if (doc.uid === user.uid || doc.id === user.uid) return true;
   if (
     (isManager(user) || isFrontOffice(user)) &&
@@ -302,7 +320,7 @@ export function canGetUser(doc, user) {
 
 export function canListUsers(queryData, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isExecutive(user)) return true;
   if (
     isManager(user) &&
     isSameBranchStrict(queryData, user) &&
@@ -326,7 +344,10 @@ export function isApproverForDoc(data, user) {
   const targetRole = (data && data.approverRole) || "manager";
   let roleMatches = false;
 
-  if (targetRole === "admin" && isAdmin(user)) {
+  if (
+    (targetRole === "director" || targetRole === "vice_director" || targetRole === "admin") &&
+    isExecutive(user)
+  ) {
     roleMatches = true;
   } else if (targetRole === "manager" && isManager(user)) {
     roleMatches = true;
@@ -343,26 +364,45 @@ export function isApproverForDoc(data, user) {
   }
 
   const branchMatches =
-    data && "approverBranchId" in data
+    isExecutive(user) ||
+    (data && "approverBranchId" in data
       ? data.approverBranchId === userBranch(user)
-      : isSameBranch(data, user);
+      : isSameBranch(data, user));
 
   return roleMatches && branchMatches;
 }
 
 export function canDecideApproval(doc, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
   // Requester cannot approve their own request (Maker-Checker invariant)
   if (doc && doc.requestedByUid === user.uid) {
     return false;
   }
+  // Target user cannot approve their own role elevation
+  if (doc && doc.actionId === "STAFF_ROLE_ELEVATION" && doc.payload?.targetUserId === user.uid) {
+    return false;
+  }
+  if (isAdmin(user) && (!doc || doc.actionId !== "STAFF_ROLE_ELEVATION")) return true;
   return isApproverForDoc(doc, user);
+}
+
+export function isApprovedRoleElevation(targetUserId, approvalDoc, targetRole) {
+  if (!approvalDoc) return false;
+  return (
+    approvalDoc.actionId === "STAFF_ROLE_ELEVATION" &&
+    approvalDoc.status === "approved" &&
+    approvalDoc.applied !== true &&
+    approvalDoc.payload != null &&
+    approvalDoc.payload.targetUserId === targetUserId &&
+    approvalDoc.payload.targetRole === targetRole &&
+    approvalDoc.requestedByUid !== approvalDoc.decidedByUid &&
+    approvalDoc.decidedByUid !== targetUserId
+  );
 }
 
 export function canGetPayment(doc, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isExecutive(user)) return true;
   if (
     (isManager(user) || isFrontOffice(user)) &&
     isSameBranch(doc, user) &&
@@ -374,7 +414,7 @@ export function canGetPayment(doc, user) {
 
 export function canListPayments(queryData, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isExecutive(user)) return true;
   if (
     (isManager(user) || isFrontOffice(user)) &&
     isSameBranchStrict(queryData, user) &&
@@ -386,21 +426,21 @@ export function canListPayments(queryData, user) {
 
 export function canGetAttendance(doc, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isExecutive(user)) return true;
   if (isStaff(user) && isSameBranch(doc, user) && isDivisionAllowedForBranchStaff(doc, user)) return true;
   return false;
 }
 
 export function canListAttendance(queryData, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isExecutive(user)) return true;
   if (isStaff(user) && isSameBranchStrict(queryData, user) && isDivisionAllowedForBranchStaff(queryData, user)) return true;
   return false;
 }
 
 export function canGetShift(doc, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isExecutive(user)) return true;
   if (doc.userId === user.uid) return true;
   if (
     (isManager(user) || isFrontOffice(user)) &&
@@ -413,7 +453,7 @@ export function canGetShift(doc, user) {
 
 export function canListShifts(queryData, user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isExecutive(user)) return true;
   if (queryData.userId === user.uid) return true;
   if (
     (isManager(user) || isFrontOffice(user)) &&
@@ -426,7 +466,7 @@ export function canListShifts(queryData, user) {
 
 export function canGetClassAttendance(doc, user, classDoc = null) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isExecutive(user)) return true;
   const targetClass = classDoc || { branchId: doc.branchId, division: doc.division };
   if (
     (isManager(user) || isFrontOffice(user)) &&
@@ -441,6 +481,29 @@ export function canGetClassAttendance(doc, user, classDoc = null) {
     return true;
   if (doc.studentId === user.uid) return true;
   if (isParent(user) && Array.isArray(user.childStudentIds) && user.childStudentIds.includes(doc.studentId)) return true;
+  return false;
+}
+
+export function canCreateCorporateEvent(event, user) {
+  if (!user) return false;
+  if (isExecutive(user) || isManager(user)) return true;
+  if (isFrontOffice(user)) {
+    if (event.audienceType !== "branch") return true;
+    return event.audienceValue === userBranch(user);
+  }
+  return false;
+}
+
+export function canUpdateCorporateEvent(existing, incoming, user) {
+  if (!user) return false;
+  if (isExecutive(user)) return true;
+  if (isManager(user) && existing.audienceType === "all" && incoming.audienceType === "all") {
+    return true;
+  }
+  if ((isManager(user) || isFrontOffice(user)) && isSameBranch(existing, user)) {
+    if (incoming.audienceType !== "branch") return true;
+    return incoming.audienceValue === userBranch(user);
+  }
   return false;
 }
 

@@ -7,9 +7,16 @@ import {
   isSameBranch,
   userBranch,
   canGetPayment,
+  canGetClass,
+  canGetShift,
+  canGetAttendance,
+  canCreateCorporateEvent,
+  canUpdateCorporateEvent,
 } from "./securityRulesMatrix.helpers.js";
 import {
   adminUser,
+  directorUser,
+  viceDirectorUser,
   managerGorontalo,
   managerBoneBolango,
   foGorontalo,
@@ -562,6 +569,69 @@ describe("Operational Resources Security Rules Matrix", () => {
       expect(canDeletePayment(foGorontalo)).toBe(false);
       expect(canDeletePayment(managerGorontalo)).toBe(false);
       expect(canDeletePayment(adminUser)).toBe(true);
+    });
+  });
+
+  describe("Executive Province-Wide Read Authority (Director & Vice Director)", () => {
+    const paymentPohuwato = { id: "pay_phw", branchId: "pohuwato", studentId: "std_phw" };
+    const classPohuwato = { id: "cls_phw", branchId: "pohuwato", capacity: 15, studentIds: ["s1"] };
+    const shiftPohuwato = { id: "shf_phw", branchId: "pohuwato", userId: "usr_phw" };
+    const attendancePohuwato = { id: "att_phw", branchId: "pohuwato", userId: "std_phw" };
+
+    it("grants Director and Vice Director province-wide read access across all branch resources", () => {
+      expect(canGetPayment(paymentPohuwato, directorUser)).toBe(true);
+      expect(canGetPayment(paymentPohuwato, viceDirectorUser)).toBe(true);
+      expect(canGetClass(classPohuwato, directorUser)).toBe(true);
+      expect(canGetClass(classPohuwato, viceDirectorUser)).toBe(true);
+      expect(canGetShift(shiftPohuwato, directorUser)).toBe(true);
+      expect(canGetShift(shiftPohuwato, viceDirectorUser)).toBe(true);
+      expect(canGetAttendance(attendancePohuwato, directorUser)).toBe(true);
+      expect(canGetAttendance(attendancePohuwato, viceDirectorUser)).toBe(true);
+    });
+
+    it("still confines branch managers to their own branch", () => {
+      expect(canGetPayment(paymentPohuwato, managerGorontalo)).toBe(false);
+      expect(canGetClass(classPohuwato, managerGorontalo)).toBe(false);
+      expect(canGetShift(shiftPohuwato, managerGorontalo)).toBe(false);
+      expect(canGetAttendance(attendancePohuwato, managerGorontalo)).toBe(false);
+    });
+  });
+
+  describe("Corporate Events Management Authority (Section 3.1)", () => {
+    const companyWideEvent = {
+      id: "evt_all",
+      name: "All-Branch Annual Conference",
+      eventDate: "2026-10-15",
+      audienceType: "all",
+    };
+
+    const branchEventKota = {
+      id: "evt_branch_kt",
+      name: "Gorontalo Staff Meeting",
+      eventDate: "2026-10-15",
+      audienceType: "branch",
+      audienceValue: "kota_gorontalo",
+      branchId: "kota_gorontalo",
+    };
+
+    it("allows Managers to create company-wide corporate events", () => {
+      expect(canCreateCorporateEvent(companyWideEvent, managerGorontalo)).toBe(true);
+      expect(canCreateCorporateEvent(companyWideEvent, managerBoneBolango)).toBe(true);
+      expect(canCreateCorporateEvent(companyWideEvent, directorUser)).toBe(true);
+      expect(canCreateCorporateEvent(companyWideEvent, viceDirectorUser)).toBe(true);
+    });
+
+    it("allows Managers to update company-wide corporate events", () => {
+      const updatedCompanyWide = { ...companyWideEvent, name: "All-Branch Q4 Strategy Meet" };
+      expect(canUpdateCorporateEvent(companyWideEvent, updatedCompanyWide, managerGorontalo)).toBe(true);
+      expect(canUpdateCorporateEvent(companyWideEvent, updatedCompanyWide, managerBoneBolango)).toBe(true);
+      expect(canUpdateCorporateEvent(companyWideEvent, updatedCompanyWide, directorUser)).toBe(true);
+    });
+
+    it("restricts branch-specific events to the same branch manager", () => {
+      const updatedBranchEvent = { ...branchEventKota, name: "Gorontalo Emergency Briefing" };
+      expect(canUpdateCorporateEvent(branchEventKota, updatedBranchEvent, managerGorontalo)).toBe(true);
+      expect(canUpdateCorporateEvent(branchEventKota, updatedBranchEvent, managerBoneBolango)).toBe(false);
     });
   });
 });

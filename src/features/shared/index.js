@@ -74,12 +74,16 @@ export {
   CANONICAL_ROLES,
   LEGACY_ROLE_ALIASES,
   normalizeRole,
+  isExecutiveRole,
+  isDirectorRole,
+  isViceDirectorRole,
   isFrontOfficeRole,
   isInstructorRole,
   isManagerRole,
   isParentRole,
   isStudentRole,
   isStaffRole,
+  STAFF_ROLES,
 } from "./roles";
 export { useUserProfile } from "./useUserProfile";
 export { useOverlayHistory } from "./useOverlayHistory";

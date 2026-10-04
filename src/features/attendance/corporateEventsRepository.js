@@ -15,11 +15,11 @@ import {
 } from "firebase/firestore";
 import { corporateEventSchema } from "../../schemas/corporateEventSchema.js";
 import { branchToId, idToBranch } from "../../constants/branches.js";
-import { normalizeRole } from "../shared/roles.js";
+import { normalizeRole, isExecutiveRole } from "../shared/roles.js";
 
 /**
  * Resolves the staff user's target branchId for corporate events queries.
- * - Explicit branchId argument if provided (or "all" for admin)
+ * - Explicit branchId argument if provided (or "all" for admin/executive)
  * - Otherwise fetches users/{uid} for the signed-in user
  *
  * @param {string|null} [explicitBranchId]
@@ -35,7 +35,8 @@ export async function resolveCurrentStaffBranchId(explicitBranchId = null) {
     const snap = await getDoc(doc(db, "users", user.uid));
     if (snap.exists()) {
       const data = snap.data();
-      if (normalizeRole(data.role) === "admin") return "all";
+      const normRole = normalizeRole(data.role);
+      if (normRole === "admin" || isExecutiveRole(normRole)) return "all";
       return data.branchId || (data.branch ? branchToId(data.branch) : null);
     }
   } catch {

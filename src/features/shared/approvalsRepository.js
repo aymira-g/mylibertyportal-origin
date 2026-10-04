@@ -11,7 +11,7 @@ import {
 } from "firebase/firestore";
 import { APPROVAL_STATUS, APPROVAL_ROLES } from "./approvalGates";
 import { branchToId, DEFAULT_BRANCH_ID } from "../../constants/branches";
-import { normalizeRole } from "./roles";
+import { normalizeRole, isExecutiveRole } from "./roles";
 
 const COLLECTION_NAME = "approvals";
 
@@ -39,7 +39,8 @@ export async function submitApprovalRequest(envelope) {
 
 /**
  * Subscribes to pending approval requests matching the approver's role and branch.
- * Admin receives all pending approvals; Branch Managers receive approvals scoped to their branch.
+ * Executives (Director, Vice Director, Admin) receive all pending approvals province-wide;
+ * Branch Managers receive approvals scoped to their branch.
  *
  * @param {string} userRole
  * @param {string} branchId
@@ -53,15 +54,15 @@ export function listenToPendingApprovals(userRole, branchId, onData, onError) {
 
   const constraints = [where("status", "==", APPROVAL_STATUS.PENDING)];
 
-  if (normalizedRole !== "admin") {
+  if (!isExecutiveRole(normalizedRole)) {
     if (normalizedRole === "manager") {
-      constraints.push(where("approverRole", "in", [APPROVAL_ROLES.BRANCH_MANAGER, APPROVAL_ROLES.OPS_LEAD]));
+      constraints.push(where("approverRole", "in", [APPROVAL_ROLES.BRANCH_MANAGER, APPROVAL_ROLES.OPS_LEAD, "ops_lead"]));
       constraints.push(where("approverBranchId", "==", normalizedBranch));
     } else if (normalizedRole === "instructorleader") {
-      constraints.push(where("approverRole", "==", APPROVAL_ROLES.INSTRUCTOR_LEADER));
+      constraints.push(where("approverRole", "in", [APPROVAL_ROLES.INSTRUCTOR_LEADER, "instructor_leader"]));
       constraints.push(where("approverBranchId", "==", normalizedBranch));
     } else if (normalizedRole === "frontoffice" || normalizedRole === "opslead") {
-      constraints.push(where("approverRole", "==", APPROVAL_ROLES.OPS_LEAD));
+      constraints.push(where("approverRole", "in", [APPROVAL_ROLES.OPS_LEAD, "ops_lead"]));
       constraints.push(where("approverBranchId", "==", normalizedBranch));
     }
   }

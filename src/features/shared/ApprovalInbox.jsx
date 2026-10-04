@@ -10,6 +10,7 @@ import { useToast } from "./useToast";
 import { useConfirm } from "./useConfirm";
 import { idToBranch, BRANCH_MAP } from "../../constants/branches";
 import { checkNetworkReachability } from "../../utils/networkReachability";
+import { auth } from "../../firebase";
 import {
   CheckCircle2,
   XCircle,
@@ -62,6 +63,20 @@ export function ApprovalInbox({
   }, [userRole, branchId]);
 
   const handleApprove = async (approval) => {
+    const currentUid = auth.currentUser?.uid;
+    if (approval.requestedByUid && approval.requestedByUid === currentUid) {
+      toast("Dual-control restriction: You cannot approve a request you submitted yourself.", "error");
+      return;
+    }
+    if (
+      approval.actionId === "STAFF_ROLE_ELEVATION" &&
+      approval.payload?.targetUserId &&
+      approval.payload.targetUserId === currentUid
+    ) {
+      toast("Dual-control restriction: You cannot approve your own role elevation.", "error");
+      return;
+    }
+
     const isConfirmed = await confirm({
       title: "Authorize Operational Action",
       message: `Are you sure you want to approve "${approval.label}" requested by ${approval.requestedBy}?`,
@@ -92,6 +107,24 @@ export function ApprovalInbox({
           toast(
             `Approved, but the correction could not be applied (${applyErr.message}). An admin can apply it from Staff Duty Reports.`,
             "warning"
+          );
+        }
+      } else if (approval.actionId === "STAFF_ROLE_ELEVATION" && approval.payload?.targetUserId) {
+        try {
+          await updateStaffRecord(approval.payload.targetUserId, {
+            role: approval.payload.targetRole,
+            appliedFromApproval: approval.id,
+            roleUpdatedAt: new Date().toISOString(),
+            roleUpdatedBy: currentUid || null,
+          });
+          toast(
+            `Staff role elevation applied! Role updated to ${approval.payload.targetRole}.`,
+            "success"
+          );
+        } catch (elevationErr) {
+          toast(
+            `Approved ticket, but failed to update user profile: ${elevationErr.message}`,
+            "error"
           );
         }
       } else if (approval.actionId === "NEW_STAFF_ACCOUNT" && approval.payload?.uid) {
@@ -267,6 +300,17 @@ export function ApprovalInbox({
                   <p className="text-xs text-slate-600 bg-white p-2.5 rounded-xl border border-slate-200/60 font-medium">
                     <strong className="text-slate-800">Reason:</strong> {req.reason}
                   </p>
+                )}
+
+                {req.actionId === "STAFF_ROLE_ELEVATION" && (
+                  <div className="bg-indigo-50/70 border border-indigo-200/80 rounded-xl p-3 text-xs space-y-1">
+                    <div className="font-bold text-slate-800">
+                      Staff Member: <span className="font-semibold text-indigo-700">{req.payload?.targetName || req.payload?.targetEmail || req.payload?.targetUserId || "Staff"}</span>
+                    </div>
+                    <div className="text-slate-600">
+                      Role Elevation: <span className="font-semibold text-slate-700">{req.payload?.currentRole || "Current Role"}</span> ➔ <strong className="text-indigo-800 font-bold uppercase">{req.payload?.targetRole || "Elevated Role"}</strong>
+                    </div>
+                  </div>
                 )}
 
                 {req.actionId === "NEW_STAFF_ACCOUNT" && (

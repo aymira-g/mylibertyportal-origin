@@ -97,16 +97,14 @@ describe("useDashboardData branch resolution & query safety", () => {
       expect(wouldFailClosed).toBe(true);
     });
 
-    it("Item A: allows admin to run branchless cross-branch queries", () => {
-      const targetBranchId = resolveTargetBranchId({
-        role: "admin",
-        profileBranchId: null,
-      });
-      expect(targetBranchId).toBeNull();
+    it("Item A: allows admin, director, and vice_director to run branchless cross-branch queries", () => {
+      expect(resolveTargetBranchId({ role: "admin", profileBranchId: null })).toBeNull();
+      expect(resolveTargetBranchId({ role: "director", profileBranchId: null })).toBeNull();
+      expect(resolveTargetBranchId({ role: "vice_director", profileBranchId: null })).toBeNull();
 
       const isAdmin = true;
       const needsBranch = !isAdmin;
-      const wouldFailClosed = needsBranch && !targetBranchId;
+      const wouldFailClosed = needsBranch && !resolveTargetBranchId({ role: "admin", profileBranchId: null });
       expect(wouldFailClosed).toBe(false); // Admin is allowed to be branchless
     });
   });

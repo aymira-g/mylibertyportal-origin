@@ -7,8 +7,11 @@ import {
   canDecideApproval,
   canUpdateApproval,
   isApprovedShiftCorrection,
+  isApprovedRoleElevation,
 } from "./securityRulesMatrix.helpers.js";
 import {
+  directorUser,
+  viceDirectorUser,
   adminUser,
   managerGorontalo,
   managerBoneBolango,
@@ -211,6 +214,83 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
     it("rejects modifying other fields under the reviewStatus permission", () => {
       const tampered = { ...closedShift, reviewStatus: "reviewed", clockOut: "2026-09-27T05:00:00.000Z" };
       expect(canReviewShift(closedShift, tampered, foGorontalo)).toBe(false);
+    });
+  });
+
+  describe("Executive Tier Gates & Staff Role Elevation Dual-Control (D3)", () => {
+    const promotionTicket = {
+      id: "appr_elev_1",
+      actionId: "STAFF_ROLE_ELEVATION",
+      approverRole: "director",
+      approverBranchId: null, // Province-wide
+      requestedByUid: "director_1",
+      status: "pending",
+      payload: {
+        targetUserId: "ins_gtlo",
+        targetRole: "instructorleader",
+        currentRole: "instructor",
+      },
+    };
+
+    it("allows Vice Director to cross-check and sign Director's elevation request", () => {
+      expect(canDecideApproval(promotionTicket, viceDirectorUser)).toBe(true);
+    });
+
+    it("strictly blocks the requester (Director) from self-approving their own request (D3.1)", () => {
+      // Maker cannot be signer!
+      expect(canDecideApproval(promotionTicket, directorUser)).toBe(false);
+    });
+
+    it("strictly blocks target user from self-promoting even if they hold executive role (D3.2)", () => {
+      const selfElevationTicket = {
+        ...promotionTicket,
+        requestedByUid: "admin_1",
+        payload: {
+          targetUserId: "director_1",
+          targetRole: "director",
+        },
+      };
+
+      // Director is the target of the elevation -> cannot sign their own promotion
+      expect(canDecideApproval(selfElevationTicket, directorUser)).toBe(false);
+      // Vice Director can sign it
+      expect(canDecideApproval(selfElevationTicket, viceDirectorUser)).toBe(true);
+    });
+
+    it("blocks Branch Managers from approving staff role elevation", () => {
+      expect(canDecideApproval(promotionTicket, managerGorontalo)).toBe(false);
+    });
+
+    it("validates isApprovedRoleElevation contract", () => {
+      const approvedDoc = {
+        actionId: "STAFF_ROLE_ELEVATION",
+        status: "approved",
+        applied: false,
+        requestedByUid: "director_1",
+        decidedByUid: "vicedirector_1",
+        payload: {
+          targetUserId: "ins_gtlo",
+          targetRole: "instructorleader",
+        },
+      };
+
+      // Valid elevation ticket
+      expect(isApprovedRoleElevation("ins_gtlo", approvedDoc, "instructorleader")).toBe(true);
+
+      // Replay attack: already applied ticket is rejected
+      expect(isApprovedRoleElevation("ins_gtlo", { ...approvedDoc, applied: true }, "instructorleader")).toBe(false);
+
+      // Wrong target user is rejected
+      expect(isApprovedRoleElevation("other_user", approvedDoc, "instructorleader")).toBe(false);
+
+      // Wrong target role is rejected
+      expect(isApprovedRoleElevation("ins_gtlo", approvedDoc, "manager")).toBe(false);
+
+      // Dual-control violation: decidedByUid === requestedByUid is rejected
+      expect(isApprovedRoleElevation("ins_gtlo", { ...approvedDoc, decidedByUid: "director_1" }, "instructorleader")).toBe(false);
+
+      // Self-promotion violation: decidedByUid === targetUserId is rejected
+      expect(isApprovedRoleElevation("ins_gtlo", { ...approvedDoc, decidedByUid: "ins_gtlo" }, "instructorleader")).toBe(false);
     });
   });
 });

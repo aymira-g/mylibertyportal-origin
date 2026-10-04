@@ -5,6 +5,8 @@
  */
 
 export const CANONICAL_ROLES = {
+  DIRECTOR: "director",
+  VICE_DIRECTOR: "vice_director",
   ADMIN: "admin",
   MANAGER: "manager",
   INSTRUCTOR: "instructor",
@@ -20,12 +22,16 @@ export const CANONICAL_ROLES = {
 /**
  * Legacy role aliases mapping to canonical operational roles.
  * Supports legacy Firestore documents and historical role representations:
+ * - "vicedirector", "vice-director", "vice_dir" -> "vice_director"
  * - "ops_lead", "frontofficelead", "front_office_lead" -> "opslead"
  * - "instructor_leader", "head_instructor" -> "instructorleader"
  * - "branch_manager" -> "manager"
  * - "front_office" -> "frontoffice"
  */
 export const LEGACY_ROLE_ALIASES = {
+  vicedirector: "vice_director",
+  "vice-director": "vice_director",
+  vice_dir: "vice_director",
   ops_lead: "opslead",
   frontofficelead: "opslead",
   front_office_lead: "opslead",
@@ -52,6 +58,41 @@ export function normalizeRole(role) {
  * Alias for normalizeRole for backward compatibility with devPresets.
  */
 export const normalizeRoleAlias = normalizeRole;
+
+/**
+ * Checks whether a role represents the executive Director.
+ *
+ * @param {string | any} role
+ * @returns {boolean}
+ */
+export function isDirectorRole(role) {
+  return normalizeRole(role) === CANONICAL_ROLES.DIRECTOR;
+}
+
+/**
+ * Checks whether a role represents the executive Vice Director.
+ *
+ * @param {string | any} role
+ * @returns {boolean}
+ */
+export function isViceDirectorRole(role) {
+  return normalizeRole(role) === CANONICAL_ROLES.VICE_DIRECTOR;
+}
+
+/**
+ * Checks whether a role belongs to executive leadership (Director, Vice Director, or Admin).
+ *
+ * @param {string | any} role
+ * @returns {boolean}
+ */
+export function isExecutiveRole(role) {
+  const normalized = normalizeRole(role);
+  return (
+    normalized === CANONICAL_ROLES.DIRECTOR ||
+    normalized === CANONICAL_ROLES.VICE_DIRECTOR ||
+    normalized === CANONICAL_ROLES.ADMIN
+  );
+}
 
 /**
  * Checks whether a role belongs to Front Office staff or leadership.
@@ -119,6 +160,8 @@ export function isStudentRole(role) {
  * List of all operational staff roles.
  */
 export const STAFF_ROLES = [
+  CANONICAL_ROLES.DIRECTOR,
+  CANONICAL_ROLES.VICE_DIRECTOR,
   CANONICAL_ROLES.ADMIN,
   CANONICAL_ROLES.MANAGER,
   CANONICAL_ROLES.INSTRUCTOR,

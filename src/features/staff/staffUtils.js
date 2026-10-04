@@ -9,6 +9,8 @@ import { matchesDivisionFilter } from "../../constants/divisions.js";
 import { isStaffRole } from "../shared/roles.js";
 
 export const STAFF_ROLES = [
+  "director",
+  "vice_director",
   "instructor",
   "instructorleader",
   "frontoffice",
@@ -20,6 +22,8 @@ export const STAFF_ROLES = [
 ];
 
 export const STAFF_ROLE_LABELS = {
+  director: "Director",
+  vice_director: "Vice Director",
   instructor: "Instructor",
   instructorleader: "Instructor Leader",
   frontoffice: "Front Office",

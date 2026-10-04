@@ -3,6 +3,8 @@ import { normalizeBranch } from "../constants/branches.js";
 import { normalizeStaffDivision, isDivisionIndependentRole } from "../constants/divisions.js";
 
 export const ALLOWED_STAFF_ROLES = [
+  "director",
+  "vice_director",
   "admin",
   "manager",
   "instructor",
@@ -48,10 +50,12 @@ export const inviteSchema = z
   })
   .refine(
     (data) => {
-      // Academic staff cannot have division = null
+      // Academic staff cannot have division = null (executives and facility staff exempt)
       if (
         !isDivisionIndependentRole(data.role) &&
         data.role !== "admin" &&
+        data.role !== "director" &&
+        data.role !== "vice_director" &&
         !data.division
       ) {
         return false;

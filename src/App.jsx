@@ -16,7 +16,7 @@ import {
   DevQuickSwitcher,
   PreviewModeProvider,
 } from "./features/shared";
-import { normalizeRole } from "./features/shared/roles";
+import { normalizeRole, isExecutiveRole } from "./features/shared/roles";
 import { InstallButton, PwaUpdateBanner } from "./features/pwa";
 import { AlertTriangle } from "lucide-react";
 import schoolLogo from "./assets/school-logo.webp";
@@ -93,7 +93,7 @@ function App() {
   const [requestingAccess, setRequestingAccess] = useState(false);
 
   const isPreviewAllowed = Boolean(isDevSwitcherEnabled);
-  const canUseDevSwitcher = Boolean(isDevSwitcherEnabled || normalizeRole(role) === "admin");
+  const canUseDevSwitcher = Boolean(isDevSwitcherEnabled || isExecutiveRole(role));
 
   const effectiveRole = (isPreviewAllowed && previewRole) || role;
   const effectiveDivision = (isPreviewAllowed && previewDivision) || division;
@@ -542,7 +542,9 @@ function App() {
             exitPreview={handleClearPreview}
           >
             <Suspense fallback={<LoadingFallback />}>
-              {effectiveRole === "admin" && (
+              {(effectiveRole === "admin" ||
+                effectiveRole === "director" ||
+                effectiveRole === "vice_director") && (
                 <ErrorBoundary label="Admin dashboard">
                   <AdminDashboard />
                 </ErrorBoundary>
@@ -599,6 +601,8 @@ function App() {
                 </ErrorBoundary>
               )}
               {![
+                "director",
+                "vice_director",
                 "admin",
                 "manager",
                 "instructor",

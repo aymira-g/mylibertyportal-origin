@@ -136,6 +136,8 @@ export const MODE_1_TEST_ACCOUNTS = [
  * Fully aligned with MODE_1_TEST_ACCOUNTS (including Parent).
  */
 export const PREVIEW_ROLES = [
+  { label: "Director", role: "director", supportsDivision: false },
+  { label: "Vice Director", role: "vice_director", supportsDivision: false },
   { label: "Admin", role: "admin", supportsDivision: false },
   { label: "Manager", role: "manager", supportsDivision: true },
   { label: "Instructor", role: "instructor", supportsDivision: true },

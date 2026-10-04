@@ -12,17 +12,17 @@ import {
 
 describe("Maker-Checker Approval Gates", () => {
   it("defines all locked actions correctly with domains and modes", () => {
-    // Admin escalated staff authority actions (Principle 1)
+    // Executive escalated staff authority actions (Principle 1)
     expect(GATED_ACTIONS.STAFF_ROLE_ELEVATION.locked).toBe(true);
-    expect(GATED_ACTIONS.STAFF_ROLE_ELEVATION.approverRole).toBe(APPROVAL_ROLES.ADMIN);
+    expect(GATED_ACTIONS.STAFF_ROLE_ELEVATION.approverRole).toBe(APPROVAL_ROLES.DIRECTOR);
     expect(GATED_ACTIONS.STAFF_ROLE_ELEVATION.mode).toBe(APPROVAL_MODES.BLOCKING);
 
     expect(GATED_ACTIONS.NEW_STAFF_ACCOUNT.locked).toBe(true);
-    expect(GATED_ACTIONS.NEW_STAFF_ACCOUNT.approverRole).toBe(APPROVAL_ROLES.ADMIN);
+    expect(GATED_ACTIONS.NEW_STAFF_ACCOUNT.approverRole).toBe(APPROVAL_ROLES.DIRECTOR);
     expect(GATED_ACTIONS.NEW_STAFF_ACCOUNT.mode).toBe(APPROVAL_MODES.BLOCKING);
 
     expect(GATED_ACTIONS.STAFF_DEACTIVATION.locked).toBe(true);
-    expect(GATED_ACTIONS.STAFF_DEACTIVATION.approverRole).toBe(APPROVAL_ROLES.ADMIN);
+    expect(GATED_ACTIONS.STAFF_DEACTIVATION.approverRole).toBe(APPROVAL_ROLES.DIRECTOR);
     expect(GATED_ACTIONS.STAFF_DEACTIVATION.mode).toBe(APPROVAL_MODES.BLOCKING);
 
     // Branch manager actions
@@ -59,11 +59,13 @@ describe("Maker-Checker Approval Gates", () => {
     expect(getSelfCorrectionApprover("ops_lead")).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
     expect(getSelfCorrectionApprover("frontofficelead")).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
 
-    // 3. Branch Manager's own record -> Admin (Owner / Director tier)
-    expect(getSelfCorrectionApprover("manager")).toBe(APPROVAL_ROLES.ADMIN);
+    // 3. Branch Manager's own record -> Director (Owner / Director tier)
+    expect(getSelfCorrectionApprover("manager")).toBe(APPROVAL_ROLES.DIRECTOR);
 
-    // 4. Admin -> Exempt (null)
+    // 4. Executives -> Exempt (null)
     expect(getSelfCorrectionApprover("admin")).toBeNull();
+    expect(getSelfCorrectionApprover("director")).toBeNull();
+    expect(getSelfCorrectionApprover("vice_director")).toBeNull();
   });
 
   it("creates standard approval envelopes with branchId and self-correction resolution", () => {
@@ -82,9 +84,14 @@ describe("Maker-Checker Approval Gates", () => {
     expect(envelope.reason).toBe("Family discount 10%");
     expect(envelope.decidedBy).toBeNull();
 
-    // Admin requester is fully exempt -> returns null
+    // Admin requester is exempt from routine branch actions -> returns null
     const adminAction = createApprovalEnvelope("DISCOUNT_OR_REFUND", { role: "admin" });
     expect(adminAction).toBeNull();
+
+    // STAFF_ROLE_ELEVATION is strictly dual-controlled even when initiated by admin
+    const adminElevation = createApprovalEnvelope("STAFF_ROLE_ELEVATION", { role: "admin", uid: "admin-1" });
+    expect(adminElevation).not.toBeNull();
+    expect(adminElevation.approverRole).toBe(APPROVAL_ROLES.DIRECTOR);
 
     // Self correction for Front Office Lead -> routes to Branch Manager
     const foSelfCorrection = createApprovalEnvelope(
@@ -107,14 +114,26 @@ describe("Maker-Checker Approval Gates", () => {
   });
 
   it("evaluates role authority correctly", () => {
+    // Admin, Director, and Vice Director approve executive gates
+    expect(canApproveGate("director", APPROVAL_ROLES.DIRECTOR)).toBe(true);
+    expect(canApproveGate("vice_director", APPROVAL_ROLES.DIRECTOR)).toBe(true);
+    expect(canApproveGate("admin", APPROVAL_ROLES.DIRECTOR)).toBe(true);
+    expect(canApproveGate("manager", APPROVAL_ROLES.DIRECTOR)).toBe(false);
+
+    // Director and Vice Director can approve branch gates
+    expect(canApproveGate("director", APPROVAL_ROLES.BRANCH_MANAGER)).toBe(true);
+    expect(canApproveGate("vice_director", APPROVAL_ROLES.BRANCH_MANAGER)).toBe(true);
+    expect(canApproveGate("director", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
+    expect(canApproveGate("vice_director", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
+
     // Admin approves all
     expect(canApproveGate("admin", APPROVAL_ROLES.ADMIN)).toBe(true);
     expect(canApproveGate("admin", APPROVAL_ROLES.BRANCH_MANAGER)).toBe(true);
     expect(canApproveGate("admin", APPROVAL_ROLES.INSTRUCTOR_LEADER)).toBe(true);
     expect(canApproveGate("admin", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
 
-    // Branch manager cannot approve Admin escalated actions, but can approve Manager and OpsLead
-    expect(canApproveGate("manager", APPROVAL_ROLES.ADMIN)).toBe(false);
+    // Branch manager cannot approve Director escalated actions, but can approve Manager and OpsLead
+    expect(canApproveGate("manager", APPROVAL_ROLES.DIRECTOR)).toBe(false);
     expect(canApproveGate("manager", APPROVAL_ROLES.BRANCH_MANAGER)).toBe(true);
     expect(canApproveGate("manager", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
 
@@ -123,6 +142,7 @@ describe("Maker-Checker Approval Gates", () => {
     expect(canApproveGate("instructor", APPROVAL_ROLES.INSTRUCTOR_LEADER)).toBe(false);
     expect(canApproveGate("head_instructor", APPROVAL_ROLES.INSTRUCTOR_LEADER)).toBe(true);
     expect(canApproveGate("instructor_leader", APPROVAL_ROLES.INSTRUCTOR_LEADER)).toBe(true);
+    expect(canApproveGate("instructorleader", APPROVAL_ROLES.INSTRUCTOR_LEADER)).toBe(true);
 
     // Front office / Ops Lead (covers canonical opslead and legacy aliases ops_lead, frontofficelead)
     expect(canApproveGate("frontoffice", APPROVAL_ROLES.BRANCH_MANAGER)).toBe(false);

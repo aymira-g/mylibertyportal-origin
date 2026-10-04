@@ -686,12 +686,12 @@ function App() {
           <div className="flex flex-col gap-0.5 text-left">
             <span>&copy; {new Date().getFullYear()} MY LIBERTY International English School</span>
             <a
-              href="https://github.com/aymira-git/mylibertyportal-public"
+              href="https://github.com/aymira-g/mylibertyportal-origin"
               target="_blank"
               rel="noreferrer"
               className="text-[10px] text-slate-400 hover:text-[#1a3a8f] underline font-mono transition"
             >
-              https://github.com/aymira-git/mylibertyportal-public
+              https://github.com/aymira-g/mylibertyportal-origin
             </a>
           </div>
           <div className="flex items-center gap-3">

@@ -207,12 +207,12 @@ export default function LoginPage({ onLogin, onGoogleLogin = null, loading = fal
           <div className="flex flex-col gap-0.5">
             <span>&copy; {new Date().getFullYear()} MY LIBERTY International English School</span>
             <a
-              href="https://github.com/aymira-git/mylibertyportal-public"
+              href="https://github.com/aymira-g/mylibertyportal-origin"
               target="_blank"
               rel="noreferrer"
               className="text-[10px] text-indigo-300/60 hover:text-indigo-200 underline font-mono transition"
             >
-              https://github.com/aymira-git/mylibertyportal-public
+              https://github.com/aymira-g/mylibertyportal-origin
             </a>
           </div>
           <span className="flex items-center gap-1.5 font-medium text-emerald-300">
@@ -456,12 +456,12 @@ export default function LoginPage({ onLogin, onGoogleLogin = null, loading = fal
 
           <div className="lg:hidden text-center pt-2">
             <a
-              href="https://github.com/aymira-git/mylibertyportal-public"
+              href="https://github.com/aymira-g/mylibertyportal-origin"
               target="_blank"
               rel="noreferrer"
               className="text-[11px] text-slate-400 hover:text-[#1a3a8f] underline font-mono transition"
             >
-              https://github.com/aymira-git/mylibertyportal-public
+              https://github.com/aymira-g/mylibertyportal-origin
             </a>
           </div>
         </div>

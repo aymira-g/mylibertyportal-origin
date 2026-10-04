@@ -1,0 +1,193 @@
+import { describe, it, expect } from "vitest";
+import {
+  isAdmin,
+  isManager,
+  isFrontOffice,
+  isStaff,
+  isParent,
+  isParentOf,
+  isSameBranch,
+} from "./securityRulesMatrix.helpers.js";
+
+describe("User & Parent/Student Authorization Rules Matrix", () => {
+  describe("Parent + Student Roster Authorization Rules Matrix", () => {
+    const parentA = {
+      uid: "parent_a",
+      role: "parent",
+      branchId: "kota_gorontalo",
+      childStudentIds: ["student_1", "student_2"],
+    };
+
+    const parentB = {
+      uid: "parent_b",
+      role: "parent",
+      branchId: "bone_bolango",
+      childStudentIds: ["student_3"],
+    };
+
+    const adminUser = { uid: "admin_1", role: "admin", branchId: "kota_gorontalo" };
+    const foGto = { uid: "fo_1", role: "frontoffice", branchId: "kota_gorontalo" };
+    const foBoba = { uid: "fo_2", role: "frontoffice", branchId: "bone_bolango" };
+
+    function canReadAttendance(attendanceDoc, user) {
+      if (!user) return false;
+      if (isAdmin(user)) return true;
+      if (attendanceDoc.studentId === user.uid) return true;
+      return isParentOf(attendanceDoc.studentId, user);
+    }
+
+    function canReadClass(classDoc, user) {
+      if (!user) return false;
+      if (isStaff(user)) return true;
+      if (classDoc.studentIds?.includes(user.uid)) return true;
+      if (isParent(user) && Array.isArray(user.childStudentIds)) {
+        return user.childStudentIds.some((id) => classDoc.studentIds?.includes(id));
+      }
+      return false;
+    }
+
+    function canUpdateParentProfileKeys(targetDoc, affectedKeys, updater) {
+      if (!updater) return false;
+      if (isAdmin(updater)) return true;
+
+      // Front Office for same branch can update parent profile and childStudentIds
+      if (isFrontOffice(updater) && isSameBranch(targetDoc, updater)) {
+        const allowed = ["displayName", "phone", "childStudentIds", "updatedAt", "status", "branch"];
+        return affectedKeys.every((k) => allowed.includes(k));
+      }
+
+      // Parent updating own profile (childStudentIds MUST NOT be permitted)
+      if (updater.uid === targetDoc.id) {
+        const allowedSelf = ["displayName", "phone", "dob", "photoURL", "nickname"];
+        return affectedKeys.every((k) => allowedSelf.includes(k));
+      }
+
+      return false;
+    }
+
+    it("allows parent to read attendance of linked children only", () => {
+      const attChild1 = { studentId: "student_1", classId: "c1" };
+      const attChild2 = { studentId: "student_2", classId: "c1" };
+      const attChild3 = { studentId: "student_3", classId: "c2" };
+
+      expect(canReadAttendance(attChild1, parentA)).toBe(true);
+      expect(canReadAttendance(attChild2, parentA)).toBe(true);
+      expect(canReadAttendance(attChild3, parentA)).toBe(false); // child of parentB
+
+      expect(canReadAttendance(attChild3, parentB)).toBe(true);
+      expect(canReadAttendance(attChild1, parentB)).toBe(false);
+    });
+
+    it("allows parent to read class documents containing enrolled linked children", () => {
+      const classWithChild1 = { studentIds: ["student_1", "other_student"] };
+      const classWithChild3 = { studentIds: ["student_3"] };
+      const classUnrelated = { studentIds: ["stranger_1", "stranger_2"] };
+
+      expect(canReadClass(classWithChild1, parentA)).toBe(true);
+      expect(canReadClass(classWithChild3, parentA)).toBe(false);
+      expect(canReadClass(classUnrelated, parentA)).toBe(false);
+
+      expect(canReadClass(classWithChild3, parentB)).toBe(true);
+    });
+
+    it("prevents parents from mutating childStudentIds on their own user document", () => {
+      const parentDoc = { id: "parent_a", role: "parent", branchId: "kota_gorontalo" };
+
+      // Parent changing their own name or phone is allowed
+      expect(canUpdateParentProfileKeys(parentDoc, ["displayName", "phone"], parentA)).toBe(true);
+
+      // Parent attempting to add childStudentIds to their own doc is REJECTED
+      expect(canUpdateParentProfileKeys(parentDoc, ["childStudentIds"], parentA)).toBe(false);
+      expect(canUpdateParentProfileKeys(parentDoc, ["displayName", "childStudentIds"], parentA)).toBe(false);
+    });
+
+    it("allows Front Office of the same branch to manage parent childStudentIds", () => {
+      const parentDocGto = { id: "parent_a", role: "parent", branchId: "kota_gorontalo" };
+      const parentDocBoba = { id: "parent_b", role: "parent", branchId: "bone_bolango" };
+
+      // FO Kota Gorontalo updating Kota Gorontalo parent's childStudentIds: ALLOWED
+      expect(canUpdateParentProfileKeys(parentDocGto, ["childStudentIds", "updatedAt"], foGto)).toBe(true);
+
+      // FO Kota Gorontalo updating Bone Bolango parent's childStudentIds: BLOCKED (branch isolation)
+      expect(canUpdateParentProfileKeys(parentDocBoba, ["childStudentIds", "updatedAt"], foGto)).toBe(false);
+
+      // FO Bone Bolango updating Bone Bolango parent: ALLOWED
+      expect(canUpdateParentProfileKeys(parentDocBoba, ["childStudentIds", "updatedAt"], foBoba)).toBe(true);
+
+      // Admin updating any parent: ALLOWED
+      expect(canUpdateParentProfileKeys(parentDocBoba, ["childStudentIds", "updatedAt"], adminUser)).toBe(true);
+    });
+
+    function canGetUser(targetUserDoc, requester) {
+      if (!requester) return false;
+      if (isAdmin(requester)) return true;
+      if (isManager(requester) && isSameBranch(targetUserDoc, requester)) return true;
+      if (
+        isStaff(requester) &&
+        ["student", "instructor", "instructorleader", "instructor_leader", "parent"].includes(targetUserDoc.role) &&
+        isSameBranch(targetUserDoc, requester)
+      ) {
+        return true;
+      }
+      if (requester.uid && targetUserDoc.id === requester.uid) return true;
+      if (isParentOf(targetUserDoc.id, requester) && targetUserDoc.role === "student") return true;
+      return false;
+    }
+
+    function canListUsers(requester) {
+      if (!requester) return false;
+      if (isAdmin(requester)) return true;
+      if (isManager(requester)) return true;
+      if (isStaff(requester)) return true;
+      return false;
+    }
+
+    it("restricts /users/{userId} get so parents can only read own doc and linked children", () => {
+      // 1. Parent self-read: allowed
+      expect(canGetUser({ id: "parent_a", role: "parent" }, parentA)).toBe(true);
+      expect(canGetUser({ id: "parent_b", role: "parent" }, parentB)).toBe(true);
+
+      // 2. Parent-to-parent reads: strictly blocked
+      expect(canGetUser({ id: "parent_b", role: "parent" }, parentA)).toBe(false);
+      expect(canGetUser({ id: "parent_a", role: "parent" }, parentB)).toBe(false);
+
+      // 3. Parent reading linked children: allowed
+      expect(canGetUser({ id: "student_1", role: "student" }, parentA)).toBe(true);
+      expect(canGetUser({ id: "student_2", role: "student" }, parentA)).toBe(true);
+      expect(canGetUser({ id: "student_3", role: "student" }, parentB)).toBe(true);
+
+      // 4. Parent reading arbitrary unlinked students: strictly blocked
+      expect(canGetUser({ id: "student_3", role: "student" }, parentA)).toBe(false);
+      expect(canGetUser({ id: "student_1", role: "student" }, parentB)).toBe(false);
+      expect(canGetUser({ id: "student_2", role: "student" }, parentB)).toBe(false);
+
+      // 5. Parent reading other roles (e.g. staff): strictly blocked
+      expect(canGetUser({ id: "ins_1", role: "instructor", branchId: "kota_gorontalo" }, parentA)).toBe(false);
+
+      // 6. Student reads: student can read self, but cannot read other students or parents
+      const student1 = { uid: "student_1", role: "student" };
+      expect(canGetUser({ id: "student_1", role: "student" }, student1)).toBe(true);
+      expect(canGetUser({ id: "student_2", role: "student" }, student1)).toBe(false);
+      expect(canGetUser({ id: "parent_a", role: "parent" }, student1)).toBe(false);
+
+      // 7. Unauthenticated reads: strictly blocked
+      expect(canGetUser({ id: "student_1", role: "student" }, null)).toBe(false);
+      expect(canGetUser({ id: "parent_a", role: "parent" }, null)).toBe(false);
+
+      // 8. Staff reads with branch isolation
+      expect(canGetUser({ id: "student_1", role: "student", branchId: "kota_gorontalo" }, foGto)).toBe(true);
+      expect(canGetUser({ id: "parent_a", role: "parent", branchId: "kota_gorontalo" }, foGto)).toBe(true);
+      expect(canGetUser({ id: "parent_b", role: "parent", branchId: "bone_bolango" }, foGto)).toBe(false);
+      expect(canGetUser({ id: "parent_b", role: "parent", branchId: "bone_bolango" }, adminUser)).toBe(true);
+    });
+
+    it("ensures parents and students cannot list /users collection", () => {
+      expect(canListUsers(parentA)).toBe(false);
+      expect(canListUsers(parentB)).toBe(false);
+      expect(canListUsers({ uid: "student_1", role: "student" })).toBe(false);
+      expect(canListUsers(null)).toBe(false);
+      expect(canListUsers(foGto)).toBe(true);
+      expect(canListUsers(adminUser)).toBe(true);
+    });
+  });
+});

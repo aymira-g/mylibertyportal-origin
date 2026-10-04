@@ -22,7 +22,7 @@ import {
 import { db, getSecondaryAuth } from "../../firebase";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
-import { normalizeRole, isParentRole } from "./roles";
+import { normalizeRole, isParentRole, isExecutiveRole } from "./roles";
 import BranchHealthAuditCard from "../dashboard/BranchHealthAuditCard";
 
 /**
@@ -698,8 +698,8 @@ export default function DevQuickSwitcher({
                   </div>
                 </div>
 
-                {/* ── 1-Click Provisioning (For Admins — collapsed once done) ── */}
-                {normalizeRole(realRole) === "admin" && (
+                {/* ── 1-Click Provisioning (For Executives / Admins — collapsed once done) ── */}
+                {isExecutiveRole(realRole) && (
                   <details
                     open={!accountsProvisioned}
                     className="rounded-xl bg-indigo-50/70 border border-indigo-200 text-xs overflow-hidden"
@@ -707,7 +707,7 @@ export default function DevQuickSwitcher({
                     <summary className="p-2.5 cursor-pointer select-none flex items-center justify-between list-none">
                       <span className="font-bold text-[11px] text-indigo-950 flex items-center gap-1.5">
                         <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                        {accountsProvisioned ? "Test Accounts Ready ✓" : "Admin: First-Time Test Accounts Setup"}
+                        {accountsProvisioned ? "Test Accounts Ready ✓" : "Executive: First-Time Test Accounts Setup"}
                       </span>
                       <span className="text-[10px] text-indigo-600 font-semibold">▼</span>
                     </summary>

@@ -15,6 +15,24 @@ export const DEV_TEST_PASSWORD = import.meta.env.VITE_DEV_TEST_PASSWORD || "";
  */
 export const MODE_1_TEST_ACCOUNTS = [
   {
+    label: "Director",
+    shortLabel: "Director",
+    email: "director.test@myliberty.id",
+    role: "director",
+    division: "courses",
+    branch: "kota_gorontalo",
+    badgeColor: "bg-indigo-100 text-indigo-900 border-indigo-200",
+  },
+  {
+    label: "Vice Director",
+    shortLabel: "Vice Dir",
+    email: "vicedirector.test@myliberty.id",
+    role: "vice_director",
+    division: "courses",
+    branch: "kota_gorontalo",
+    badgeColor: "bg-violet-100 text-violet-900 border-violet-200",
+  },
+  {
     label: "Admin",
     shortLabel: "Admin",
     email: "admin.test@myliberty.id",

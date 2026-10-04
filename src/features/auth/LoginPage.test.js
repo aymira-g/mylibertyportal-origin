@@ -40,6 +40,8 @@ describe("LoginPage - Production Security & Mode 1 Gating", () => {
     expect(html).toContain("1-click sign in via real Firebase Auth");
 
     // Verify test accounts are rendered
+    expect(html).toContain("Director");
+    expect(html).toContain("Vice Dir");
     expect(html).toContain("Admin");
     expect(html).toContain("Manager");
     expect(html).toContain("Instructor");

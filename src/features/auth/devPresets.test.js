@@ -25,6 +25,8 @@ describe("DevPresets configuration", () => {
 
   it("covers all required roles in Mode 1 test accounts", () => {
     const roles = MODE_1_TEST_ACCOUNTS.map((a) => a.role);
+    expect(roles).toContain("director");
+    expect(roles).toContain("vice_director");
     expect(roles).toContain("admin");
     expect(roles).toContain("manager");
     expect(roles).toContain("instructor");
@@ -34,6 +36,18 @@ describe("DevPresets configuration", () => {
     expect(roles).toContain("marketing");
     expect(roles).toContain("officeboy");
     expect(roles).toContain("parent");
+  });
+
+  it("includes Director and Vice Director executive test accounts", () => {
+    const director = MODE_1_TEST_ACCOUNTS.find((a) => a.role === "director");
+    expect(director).toBeDefined();
+    expect(director?.email).toBe("director.test@myliberty.id");
+    expect(director?.label).toBe("Director");
+
+    const viceDirector = MODE_1_TEST_ACCOUNTS.find((a) => a.role === "vice_director");
+    expect(viceDirector).toBeDefined();
+    expect(viceDirector?.email).toBe("vicedirector.test@myliberty.id");
+    expect(viceDirector?.label).toBe("Vice Director");
   });
 
   it("includes separate Manager, Front Office, and Instructor test accounts for Kindergarten division testing", () => {
@@ -106,6 +120,8 @@ describe("DevPresets configuration", () => {
 
   it("covers all dashboard-routable roles in Mode 2 preview roles", () => {
     const roleKeys = PREVIEW_ROLES.map((r) => r.role);
+    expect(roleKeys).toContain("director");
+    expect(roleKeys).toContain("vice_director");
     expect(roleKeys).toContain("admin");
     expect(roleKeys).toContain("manager");
     expect(roleKeys).toContain("instructor");
@@ -122,6 +138,8 @@ describe("DevPresets configuration", () => {
     const mode2Roles = new Set(PREVIEW_ROLES.map((r) => r.role));
 
     const requiredOperationalRoles = [
+      "director",
+      "vice_director",
       "admin",
       "manager",
       "instructor",

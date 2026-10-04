@@ -44,6 +44,26 @@ describe("DevQuickSwitcher Component", () => {
     expect(html).toContain("admin");
   });
 
+  it("renders trigger button when closed for director and vice_director users", () => {
+    const directorHtml = renderToStaticMarkup(
+      React.createElement(DevQuickSwitcher, {
+        currentUser: { email: "director.test@myliberty.id" },
+        realRole: "director",
+      })
+    );
+    expect(directorHtml).toContain("Dev Switcher");
+    expect(directorHtml).toContain("director");
+
+    const viceDirectorHtml = renderToStaticMarkup(
+      React.createElement(DevQuickSwitcher, {
+        currentUser: { email: "vicedirector.test@myliberty.id" },
+        realRole: "vice_director",
+      })
+    );
+    expect(viceDirectorHtml).toContain("Dev Switcher");
+    expect(viceDirectorHtml).toContain("vice_director");
+  });
+
   it("purges stale localStorage password on mount", () => {
     localStorage.setItem("myliberty_dev_test_password", "old-unsafe-password");
     renderToStaticMarkup(

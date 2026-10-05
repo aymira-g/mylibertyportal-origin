@@ -15,6 +15,8 @@ import {
   Layers,
   Settings,
   Megaphone,
+  ShieldCheck,
+  Calendar,
 } from "lucide-react";
 
 export function getCleanLabel(label = "") {
@@ -48,6 +50,9 @@ export function getTabIcon(tab) {
     return CheckSquare;
   }
   if (id === "reports" || label.includes("report")) return BarChart3;
+  if (id === "approvals" || label.includes("approval")) return ShieldCheck;
+  if (id === "events" || label.includes("event")) return Calendar;
+  if (id === "terminals" || label.includes("terminal")) return ScanLine;
   if (id === "ai" || id === "aiassistant" || /\bai\b/i.test(label)) return Sparkles;
   if (id === "settings" || label.includes("setting")) return Settings;
 
@@ -61,13 +66,14 @@ export function getTabCategory(tab) {
 
   if (id === "overview") return "Main";
 
-  // Academic: Classes, Attendance, Students, Progress, Materials
+  // Academic: Classes, Attendance, Students, Progress, Materials, Events
   if (
-    ["classes", "kiosk", "attendance", "students", "progress", "materials"].includes(id) ||
+    ["classes", "kiosk", "attendance", "students", "progress", "materials", "events"].includes(id) ||
     label.includes("class") ||
     label.includes("attendance") ||
     label.includes("student") ||
-    label.includes("material")
+    label.includes("material") ||
+    label.includes("event")
   ) {
     return "Academic";
   }
@@ -94,10 +100,12 @@ export function getTabCategory(tab) {
     return "Operations";
   }
 
-  // System: Reports, Settings, AI Assistant
+  // System: Reports, Settings, AI Assistant, Approvals, Terminals
   if (
-    ["reports", "ai", "aiassistant", "settings"].includes(id) ||
+    ["reports", "ai", "aiassistant", "settings", "approvals", "terminals"].includes(id) ||
     label.includes("report") ||
+    label.includes("approval") ||
+    label.includes("terminal") ||
     /\bai\b/i.test(label) ||
     label.includes("setting")
   ) {

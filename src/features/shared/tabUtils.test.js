@@ -1,4 +1,4 @@
-import { BookOpen, Layers, LayoutDashboard, Sparkles } from "lucide-react";
+import { BookOpen, Layers, LayoutDashboard, Sparkles, ShieldCheck, Calendar, ScanLine } from "lucide-react";
 import { describe, expect, it } from "vitest";
 import { getCleanLabel, getTabCategory, getTabIcon, groupTabsByCategory } from "./tabUtils.js";
 
@@ -27,6 +27,9 @@ describe("getTabCategory", () => {
     ["invites", "Operations"],
     ["tasks", "Operations"],
     ["reports", "System"],
+    ["approvals", "System"],
+    ["terminals", "System"],
+    ["events", "Academic"],
     ["aiAssistant", "System"],
     ["settings", "System"],
   ])("puts tab id '%s' under %s", (id, category) => {
@@ -53,6 +56,9 @@ describe("getTabIcon", () => {
   it("maps known ids and falls back to a generic icon", () => {
     expect(getTabIcon({ id: "overview" })).toBe(LayoutDashboard);
     expect(getTabIcon({ id: "classes" })).toBe(BookOpen);
+    expect(getTabIcon({ id: "approvals" })).toBe(ShieldCheck);
+    expect(getTabIcon({ id: "events" })).toBe(Calendar);
+    expect(getTabIcon({ id: "terminals" })).toBe(ScanLine);
     expect(getTabIcon({ id: "zzz", label: "Something" })).toBe(Layers);
   });
 

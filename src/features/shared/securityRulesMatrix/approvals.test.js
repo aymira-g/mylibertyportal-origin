@@ -34,7 +34,8 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
       expect(canDecideApproval(approvalDoc, managerBoneBolango)).toBe(false);
       expect(canDecideApproval(approvalDoc, foGorontalo)).toBe(false);
       expect(canDecideApproval(approvalDoc, instructorLeaderGorontalo)).toBe(false);
-      expect(canDecideApproval(approvalDoc, adminUser)).toBe(true);
+      // System Admin cannot decide business approvals (Blueprint §7.3, §7.4)
+      expect(canDecideApproval(approvalDoc, adminUser)).toBe(false);
     });
 
     it("routes Pedagogy approvals strictly to Instructor Leader of that branch", () => {
@@ -48,7 +49,8 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
       expect(canDecideApproval(approvalDoc, instructorLeaderGorontalo)).toBe(true);
       expect(canDecideApproval(approvalDoc, managerGorontalo)).toBe(false);
       expect(canDecideApproval(approvalDoc, foGorontalo)).toBe(false);
-      expect(canDecideApproval(approvalDoc, adminUser)).toBe(true);
+      // System Admin cannot decide pedagogy approvals
+      expect(canDecideApproval(approvalDoc, adminUser)).toBe(false);
     });
 
     it("routes Operational approvals strictly to Front Office / Ops Lead of that branch", () => {
@@ -62,7 +64,8 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
       expect(canDecideApproval(approvalDoc, foGorontalo)).toBe(true);
       expect(canDecideApproval(approvalDoc, foBoneBolango)).toBe(false);
       expect(canDecideApproval(approvalDoc, instructorLeaderGorontalo)).toBe(false);
-      expect(canDecideApproval(approvalDoc, adminUser)).toBe(true);
+      // System Admin cannot decide operational attendance approvals
+      expect(canDecideApproval(approvalDoc, adminUser)).toBe(false);
     });
 
     it("strictly blocks self-approval: requester cannot approve their own request", () => {
@@ -75,8 +78,11 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
 
       // Even though managerGorontalo is Manager of kota_gorontalo, they cannot self-approve!
       expect(canDecideApproval(managerSelfShiftCorrection, managerGorontalo)).toBe(false);
-      // Admin can approve it
-      expect(canDecideApproval(managerSelfShiftCorrection, adminUser)).toBe(true);
+      // Admin CANNOT approve it (Blueprint §7: Admin is technical maintenance, not business management)
+      expect(canDecideApproval(managerSelfShiftCorrection, adminUser)).toBe(false);
+      // Executive Director or Vice Director can approve escalated manager corrections (§6.1, §6.2)
+      expect(canDecideApproval(managerSelfShiftCorrection, directorUser)).toBe(true);
+      expect(canDecideApproval(managerSelfShiftCorrection, viceDirectorUser)).toBe(true);
     });
 
     it("blocks Ops Lead self-approving their own shift self-correction", () => {

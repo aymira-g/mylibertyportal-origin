@@ -146,13 +146,12 @@ service cloud.firestore {
     function isApproverForDoc(data) {
       let targetRole = data != null && 'approverRole' in data ? data.approverRole : 'manager';
       let roleMatches = ((targetRole == 'director' || targetRole == 'vice_director') && (isDirector() || isViceDirector()))
-        || (targetRole == 'admin' && isExecutive())
-        || (targetRole == 'manager' && isManager())
+        || (targetRole == 'manager' && (isManager() || isDirector() || isViceDirector()))
         || ((targetRole == 'instructor_leader' || targetRole == 'instructorleader') && (hasRole('instructorleader') || hasRole('instructor_leader')))
         || ((targetRole == 'ops_lead' || targetRole == 'opslead' || targetRole == 'frontoffice') && isFrontOffice());
       // Approval docs route by approverBranchId (see approvalGates.js); fall back
       // to the generic branch fields for legacy docs.
-      let branchMatches = isExecutive() || (data != null && 'approverBranchId' in data
+      let branchMatches = (isDirector() || isViceDirector()) || (data != null && 'approverBranchId' in data
         ? data.approverBranchId == userBranch()
         : isSameBranch(data));
       return roleMatches && branchMatches;
@@ -610,11 +609,7 @@ service cloud.firestore {
           request.resource.data.actionId != 'STAFF_ROLE_ELEVATION'
           || (('approverRole' in request.resource.data) && request.resource.data.approverRole in ['director', 'vice_director'])
         );
-      allow update: if (
-          // Blanket admin bypass is blocked for STAFF_ROLE_ELEVATION so dual-control cannot be skipped
-          isAdmin() && resource.data.actionId != 'STAFF_ROLE_ELEVATION'
-        )
-        || (isApproverForDoc(resource.data)
+      allow update: if isApproverForDoc(resource.data)
           && request.auth.uid != resource.data.requestedByUid
           && request.resource.data.requestedByUid == resource.data.requestedByUid
           && (

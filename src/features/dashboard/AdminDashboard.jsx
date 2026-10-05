@@ -61,7 +61,6 @@ export default function AdminDashboard() {
     handleCreateInvite,
     handleDeleteInvite,
     instructors,
-    students,
   } = useDashboardData({ setActiveTab: handleTabChange });
 
   const activeStaffCount = useMemo(() => {
@@ -303,12 +302,10 @@ export default function AdminDashboard() {
           setFormData={setFormData}
           editId={editId}
           onSubmit={handleSave}
-          onSaveAndCollectPayment={() => {}}
           onCancel={() => {
             setEditId(null);
             setActiveTab("overview");
           }}
-          students={students}
         />
       ),
     },

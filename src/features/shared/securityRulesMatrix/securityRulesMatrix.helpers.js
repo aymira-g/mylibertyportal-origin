@@ -356,9 +356,7 @@ export function isApproverForDoc(data, user) {
 
   if (targetRole === "director" || targetRole === "vice_director") {
     roleMatches = isDirector(user) || isViceDirector(user);
-  } else if (targetRole === "admin") {
-    roleMatches = isExecutive(user);
-  } else if (targetRole === "manager" && isManager(user)) {
+  } else if (targetRole === "manager" && (isManager(user) || isDirector(user) || isViceDirector(user))) {
     roleMatches = true;
   } else if (
     (targetRole === "instructor_leader" || targetRole === "instructorleader") &&
@@ -373,7 +371,8 @@ export function isApproverForDoc(data, user) {
   }
 
   const branchMatches =
-    isExecutive(user) ||
+    isDirector(user) ||
+    isViceDirector(user) ||
     (data && "approverBranchId" in data
       ? data.approverBranchId === userBranch(user)
       : isSameBranch(data, user));
@@ -391,7 +390,6 @@ export function canDecideApproval(doc, user) {
   if (doc && doc.actionId === "STAFF_ROLE_ELEVATION" && doc.payload?.targetUserId === user.uid) {
     return false;
   }
-  if (isAdmin(user) && (!doc || doc.actionId !== "STAFF_ROLE_ELEVATION")) return true;
   return isApproverForDoc(doc, user);
 }
 

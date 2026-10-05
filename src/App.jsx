@@ -33,6 +33,7 @@ const ParentPortalPage = lazy(() =>
   import("./features/students").then((m) => ({ default: m.ParentPortalPage }))
 );
 const AdminDashboard = lazy(() => import("./features/dashboard/AdminDashboard"));
+const ExecutiveDashboard = lazy(() => import("./features/dashboard/ExecutiveDashboard"));
 const FrontOfficeDashboard = lazy(() => import("./features/dashboard/FrontOfficeDashboard"));
 const ManagerDashboard = lazy(() => import("./features/dashboard/ManagerDashboard"));
 const InstructorDashboard = lazy(() => import("./features/dashboard/InstructorDashboard"));
@@ -542,11 +543,15 @@ function App() {
             exitPreview={handleClearPreview}
           >
             <Suspense fallback={<LoadingFallback />}>
-              {(effectiveRole === "admin" ||
-                effectiveRole === "director" ||
-                effectiveRole === "vice_director") && (
+              {effectiveRole === "admin" && (
                 <ErrorBoundary label="Admin dashboard">
                   <AdminDashboard />
+                </ErrorBoundary>
+              )}
+              {(effectiveRole === "director" ||
+                effectiveRole === "vice_director") && (
+                <ErrorBoundary label="Executive dashboard">
+                  <ExecutiveDashboard role={effectiveRole} />
                 </ErrorBoundary>
               )}
               {effectiveRole === "manager" && (

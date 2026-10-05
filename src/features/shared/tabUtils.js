@@ -78,7 +78,7 @@ export function getTabCategory(tab) {
     return "Academic";
   }
 
-  // Operations: Staff, Finance, Marketing, Applications, Invites, Tasks
+  // Operations: Staff, Finance, Marketing, Applications, Invites, Tasks, Approvals
   if (
     [
       "directory",
@@ -89,22 +89,23 @@ export function getTabCategory(tab) {
       "tasks",
       "misc",
       "campaigns",
+      "approvals",
     ].includes(id) ||
     label.includes("staff") ||
     label.includes("finance") ||
     label.includes("application") ||
     label.includes("invite") ||
     label.includes("task") ||
-    label.includes("directive")
+    label.includes("directive") ||
+    label.includes("approval")
   ) {
     return "Operations";
   }
 
-  // System: Reports, Settings, AI Assistant, Approvals, Terminals
+  // System: Reports, Settings, AI Assistant, Terminals
   if (
-    ["reports", "ai", "aiassistant", "settings", "approvals", "terminals"].includes(id) ||
+    ["reports", "ai", "aiassistant", "settings", "terminals"].includes(id) ||
     label.includes("report") ||
-    label.includes("approval") ||
     label.includes("terminal") ||
     /\bai\b/i.test(label) ||
     label.includes("setting")

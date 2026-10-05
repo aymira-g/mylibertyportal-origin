@@ -4,6 +4,9 @@
 >
 > **Purpose:** This document describes the architecture that the repository currently implements or intentionally protects. It is not a coding-assistant prompt.
 >
+> **Authoritative Governance Baseline:** [`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](./governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md)  
+> Defines the organization's durable organizational and governance model (roles, responsibilities, authority boundaries, separation of duties). This architecture guide defines HOW that model is technically implemented.
+>
 > **Agent behavior:** `AGENTS.md`
 >
 > **Audit & verification procedures:**

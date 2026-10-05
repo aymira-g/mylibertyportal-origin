@@ -12,6 +12,5 @@ These are **not** audit findings or results; they are reusable instructions and 
 
 ## Active Audit Prompts
 
-| Prompt | Focus Area |
-|---|---|
-| [`cross-feature-integration-audit.md`](./cross-feature-integration-audit.md) | Standardized instructions for full cross-feature integration, lifecycle tracing, and workflow coherence audits. |
+*No active prompt templates currently in use. Prompts are maintained in the permanent audit playbooks under [`../audits/`](../audits/README.md) and historical prompts are preserved in [`../archive/audit-prompts/`](../archive/audit-prompts/).*
+

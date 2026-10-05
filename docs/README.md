@@ -6,28 +6,32 @@ Welcome to the central documentation directory for **MyLiberty Portal**.
 
 When working on this codebase as an engineer or AI coding assistant, orient yourself in this sequence:
 
-1. **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** — Canonical system architecture and structure.
-2. **[`decisions/`](./decisions/README.md)** — Accepted business and architectural policies.
-3. **[`specs/`](./specs/README.md)** — Intended behavior and technical contracts for subsystems.
-4. **[`plans/active/`](./plans/README.md)** — Active implementation and remediation plans.
-5. **[`audits/current/`](./audits/current/README.md)** — Reconciled audit findings and current verification baselines.
+1. **[`governance/`](./governance/README.md)** — Authoritative Governance Blueprint: organizational identity, authority boundaries, roles, separation of duties, and access principles (**defines WHAT is true**).
+2. **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** — Canonical system architecture and structure (**defines HOW it is implemented**).
+3. **[`decisions/`](./decisions/README.md)** — Accepted business and architectural policies (**binding policy; must not contradict governance**).
+4. **[`specs/`](./specs/README.md)** — Intended behavior and technical contracts for subsystems.
+5. **[`plans/active/`](./plans/README.md)** — Active implementation and remediation plans (**proposed work; not authority**).
+6. **[`audits/current/`](./audits/current/README.md)** — Reconciled audit findings and current verification baselines (**identifies gaps; findings do not silently become rules**).
 
 ---
 
 ## Documentation Authority & Work Lifecycle
 
 ```text
-1. PERMANENT SYSTEM KNOWLEDGE (The System)
+1. AUTHORITATIVE GOVERNANCE (What IS True)
+   └── governance/        Canonical organizational blueprint (roles, authority, separation of duties).
+
+2. PERMANENT SYSTEM KNOWLEDGE (How It Is Implemented)
    ├── ARCHITECTURE.md    Describes current canonical system architecture (protected).
    ├── decisions/         Contains accepted business and architectural policies.
    └── specs/             Contains intended subsystem behaviors, contracts, and schemas.
 
-2. WORK LIFECYCLE (Pre-Execution & Post-Execution)
-   ├── PRE-EXECUTION (The Plans)
+3. WORK LIFECYCLE (Pre-Execution & Post-Execution)
+   ├── PRE-EXECUTION (The Plans — Not Authority)
    │     ├── plans/active/     Active plans: scope, affected files, cost/risk check, verification plan.
    │     └── proposals/        Ideas and designs under consideration awaiting decision.
    │
-   └── POST-EXECUTION (The Reports & Proof)
+   └── POST-EXECUTION (The Reports & Proof — Evidence, Not Policy)
          ├── plans/completed/  Completed execution reports and verified implementation history.
          ├── audits/current/   Active verified audit baselines and investigation findings.
          └── audits/archive/   Historical audit logs and past verification passes.
@@ -42,6 +46,10 @@ tests, or verified runtime behavior.
 
 ```text
 docs/
+├── governance/              # Authoritative organizational & authority baseline
+│   ├── README.md
+│   └── MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md
+│
 ├── ARCHITECTURE.md          # Protected canonical architecture guide
 ├── README.md                # Documentation index and authority guide (this file)
 │
@@ -83,27 +91,36 @@ docs/
 
 ---
 
-## Current Audit Baseline & Procedures
+## Permanent Audit Procedures
 
-The authoritative audit suites and verification baselines:
+The authoritative audit suites and verification playbooks:
 
-* **Level 1 (Targeted Regression):** [`audits/Light Regression Check Playbook/`](./audits/Light%20Regression%20Check%20Playbook/00-README.md)
-* **Level 2 (Section Deep Audits):** [`audits/Comprehensive Hidden-Bug Audit Strategy/`](./audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md)
-* **Level 3 (Architecture & Scalability):** [`audits/Full System Architecture & Scalability Audit Procedure/`](./audits/Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md)
-* **Consolidated Reconciled Baseline:** [`audits/current/2026-09-27-reconciled-full-audit.md`](./audits/current/2026-09-27-reconciled-full-audit.md)
-* **Cross-Feature Handoff Baseline:** [`audits/current/cross-feature-integration-audit-revised.md`](./audits/current/cross-feature-integration-audit-revised.md)
-* **Attendance & Kiosk Deep Audit:** [`audits/current/MyLiberty_Portal_Attendance_Kiosk_Deep_Audit_and_Trigger_Map.md`](./audits/current/MyLiberty_Portal_Attendance_Kiosk_Deep_Audit_and_Trigger_Map.md)
-* **Corporate Events Kiosk Report:** [`audits/current/2026-09-28-corporate-events-kiosk-investigation-report.md`](./audits/current/2026-09-28-corporate-events-kiosk-investigation-report.md)
-* **Broader Findings & Continuation:** [`audits/current/2026-09-27-claude-audit-broader-findings.md`](./audits/current/2026-09-27-claude-audit-broader-findings.md) & [`audits/current/2026-09-27-claude-audit-continuation.md`](./audits/current/2026-09-27-claude-audit-continuation.md)
+* **Level 1 (Targeted Regression):** [`audits/Light Regression Check Playbook/`](./audits/Light%20Regression%20Check%20Playbook/00-README.md) — 5-minute targeted regression checks following any code change.
+* **Level 2 (Section Deep Audits):** [`audits/Comprehensive Hidden-Bug Audit Strategy/`](./audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md) — Section deep dives, 5-pass workflow tracing, and failure matrices.
+* **Level 3 (Architecture & Scalability):** [`audits/Full System Architecture & Scalability Audit Procedure/`](./audits/Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md) — Architectural drift, database growth, and high-load stress testing.
+* **Running Operational Audit Log:** [`audits/audit-log.md`](./audits/audit-log.md)
+
+---
+
+## Authoritative Governance
+
+The foundational governance baseline that defines the organization, roles, authority boundaries, and operating principles:
+
+* **[`governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](./governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md)**  
+  **Authoritative Organizational, Authority & Rebuild Blueprint (v3.0):** Defines 4 branches, 2 divisions (Course & Kindergarten), organizational roles, strict separation of System Admin from organizational roles, data scope, simplified Maker-Checker / Signer governance, and safe rebuild doctrine.
 
 ---
 
 ## Current Decisions
 
-Formally accepted policies that govern ongoing implementation and security rules:
+Formally accepted policies that govern ongoing implementation and operational procedures. These must align with the Authoritative Governance Blueprint:
 
 * **[`decisions/2026-09-24-multi-branch-data-isolation.md`](./decisions/2026-09-24-multi-branch-data-isolation.md)**  
-  Multi-branch data isolation policy (`branchId` scoping across Firestore collections, repository normalizers, and Maker-Checker dual-control routing).
+  Multi-branch data isolation policy (`branchId` scoping across Firestore collections, repository normalizers, and Maker-Checker dual-control routing). *(Note: Provisional representation of executive roles by technical `admin` is superseded by Blueprint v3 and executive bootstrap decisions below).*
+* **[`decisions/2026-10-04-executive-account-migration-bootstrap-runbook.md`](./decisions/2026-10-04-executive-account-migration-bootstrap-runbook.md)**  
+  Executive Account Migration & Bootstrapping: Separation of Director and Vice Director roles from technical admin, with one-time Firebase Console bootstrap procedure.
+* **[`decisions/2026-10-04-executive-break-glass-procedure.md`](./decisions/2026-10-04-executive-break-glass-procedure.md)**  
+  Executive Deadlock Break-Glass Procedure: Console-level recovery runbook when dual-control in-app approvals cannot proceed.
 
 ---
 
@@ -111,6 +128,7 @@ Formally accepted policies that govern ongoing implementation and security rules
 
 Intended technical contracts and behavioral rules:
 
+* **Authorization Scope Contract:** [`specs/authorization-contract.md`](./specs/authorization-contract.md)
 * **Attendance Subsystem:** [`specs/attendance/attendance-module-v4-myliberty-integration-spec.md`](./specs/attendance/attendance-module-v4-myliberty-integration-spec.md)
 * **Parent & Student Subsystem:** [`specs/parent/myliberty-parent-student-roster-data-model.md`](./specs/parent/myliberty-parent-student-roster-data-model.md) & [`specs/parent/myliberty-parent-student-link-fix.md`](./specs/parent/myliberty-parent-student-link-fix.md)
 * **Developer Tools:** [`specs/dev-tools/hybrid-quick-switch-user-spec.md`](./specs/dev-tools/hybrid-quick-switch-user-spec.md)
@@ -118,37 +136,11 @@ Intended technical contracts and behavioral rules:
 
 ---
 
-## Active Plans
+## Work Lifecycle & Archives (Refinement Workspace)
 
-Actionable implementation and remediation sequences currently in progress:
+To prepare for the upcoming project refinement:
+- **Active Plans (`plans/active/`):** Cleared for incoming refinement plans. Past sprint plans safely archived under [`plans/archive/`](./plans/README.md).
+- **Proposals (`proposals/`):** Cleared for incoming RFCs. Past proposals archived under [`proposals/archive/`](./proposals/README.md).
+- **Audit Findings Baseline (`audits/current/`):** Prior cycle investigation reports moved to [`audits/archive/`](./audits/archive/README.md) to make way for the new refinement verification baseline.
+- **Historical Material & Archives:** All historical documents are preserved in [`archive/`](./archive/README.md), [`audits/archive/`](./audits/archive/README.md), and [`plans/archive/`](./plans/archive/).
 
-* **School Outreach Remediation:** [`plans/active/outreach-manager-marketing-remediation-plan.md`](./plans/active/outreach-manager-marketing-remediation-plan.md)
-* **Operational Audit Execution Plan:** [`plans/active/operational-audit-execution-plan.md`](./plans/active/operational-audit-execution-plan.md)
-* **File Splitting Plan (>1000 lines):** [`plans/active/large-file-splitting-plan.md`](./plans/active/large-file-splitting-plan.md)
-* **SPA vs MPA Architecture Brief:** [`plans/active/MyLiberty_Portal_SPA_vs_MPA_Architecture_Brief_revised.md`](./plans/active/MyLiberty_Portal_SPA_vs_MPA_Architecture_Brief_revised.md)
-* **UX Usability Remediation Plan:** [`plans/active/MyLiberty_Portal_UX_Usability_Remediation_Plan.md`](./plans/active/MyLiberty_Portal_UX_Usability_Remediation_Plan.md)
-* **PWA Round 2 Review & Plan:** [`plans/active/myliberty-pwa-system-review-round2.md`](./plans/active/myliberty-pwa-system-review-round2.md)
-* **Operational Execution Brief:** [`plans/active/myliberty-revision-brief.md`](./plans/active/myliberty-revision-brief.md)
-* **Corporate Event Attendance:** [`plans/active/corporate-event-attendance-plan.md`](./plans/active/corporate-event-attendance-plan.md)
-* **Private/TOEFL vs Event Clock-in Fix:** [`plans/active/private-toefl-vs-corporate-event-clock-in-plan.md`](./plans/active/private-toefl-vs-corporate-event-clock-in-plan.md)
-* **Gorontalo School Outreach Map:** [`plans/active/gorontalo-school-outreach-plan.md`](./plans/active/gorontalo-school-outreach-plan.md)
-* **Scale & Log Retention:** [`plans/active/spark-scale-and-log-retention-plan.md`](./plans/active/spark-scale-and-log-retention-plan.md)
-
----
-
-## Proposals Under Consideration
-
-Design proposals that have not yet been formally accepted as binding policy:
-
-* **Front Office Operations Enhancement:** [`proposals/2026-09-23-front-office-operations-enhancement.md`](./proposals/2026-09-23-front-office-operations-enhancement.md)
-* **Kiosk Clock-in Options Comparison:** [`proposals/2026-09-25-kiosk-clock-in-audit-comparison.md`](./proposals/2026-09-25-kiosk-clock-in-audit-comparison.md)
-* **Kiosk Security Hardening:** [`proposals/2026-09-25-kiosk-clock-in-security-hardening.md`](./proposals/2026-09-25-kiosk-clock-in-security-hardening.md)
-* **Available Batches Roadmap:** [`proposals/myliberty-available-batches-roadmap.md`](./proposals/myliberty-available-batches-roadmap.md)
-
----
-
-## Historical Material & Archives
-
-* **Historical Audits:** Retained under [`audits/archive/`](./audits/archive/README.md) for verification provenance and audit trail.
-* **Completed Implementation Plans:** Moved to [`plans/completed/`](./plans/README.md) upon full verification.
-* **Archived Proposals:** Preserved in [`proposals/archive/`](./proposals/README.md).

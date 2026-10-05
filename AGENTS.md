@@ -21,26 +21,66 @@
 
 ## Authority Chain
 
-MYLIBERTY uses three related tiers of governance:
+MYLIBERTY uses a subject-specific, multi-tier governance structure:
 
 ```text
-CLAUDE.md / GEMINI.md
-  ↓
-How the coding assistant should behave
+AUTHORITATIVE GOVERNANCE BLUEPRINT (docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md)
+            ↓
+     defines WHAT is true (organization, roles, authority boundaries, separation of duties)
+            ↓
+TECHNICAL ARCHITECTURE / SPECS (docs/ARCHITECTURE.md, docs/specs/)
+            ↓
+     defines HOW it is implemented (technical structure, schemas, contracts)
+            ↓
+ACCEPTED DECISIONS (docs/decisions/)
+            ↓
+     defines BINDING POLICIES & RUNBOOKS (must align with governance; superseded parts marked)
+            ↓
+PLANS / IMPLEMENTATION WORK (docs/plans/)
+            ↓
+     defines WHAT is being changed now (plans are proposals, not authority)
+            ↓
+AUDITS (docs/audits/)
+            ↓
+     identify gaps between approved model and implementation (findings are evidence, not rules)
 
-docs/ARCHITECTURE.md
-  ↓
-What the current application architecture is
-
-docs/audits/
-  ├── Light Regression Check Playbook/                        (Level 1: Post-change targeted regression)
-  ├── Comprehensive Hidden-Bug Audit Strategy/                (Level 2: Section deep dives & failure matrix)
-  └── Full System Architecture & Scalability Audit Procedure/  (Level 3: Architecture drift & scalability)
-  ↓
-How to challenge, verify, and stress-test the system
+CLAUDE.md / GEMINI.md / CODEX.md / AGENTS.md
+            ↓
+How coding assistants behave while operating within this governed structure
 ```
 
-These documents have different responsibilities and should not be merged.
+These tiers have distinct responsibilities and must not be merged or bypass one another.
+
+### Governance authority (Authoritative Blueprint)
+
+[`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](./docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md) is the canonical source of truth for **organizational and governance matters**.
+
+Before making decisions concerning:
+- organizational structure;
+- organizational roles and reporting lines;
+- organizational responsibilities;
+- authority boundaries;
+- governance principles;
+- approval / separation-of-duties principles;
+- data-scope principles;
+- or other durable organizational rules:
+
+**Consult the MyLiberty Authoritative Blueprint.**
+
+#### Mandatory Governance Rules for Agents
+
+1. **Flag Conflicts, Do Not Invent Reconciliations:** If implementation requirements conflict with the authoritative governance blueprint, do not invent a reconciliation. Flag the conflict and require an approved governance decision or amendment where appropriate.
+2. **Prohibition on Inferring Authority:** Agents must **not** infer new organizational authority merely because:
+   - an existing UI exposes a feature or button;
+   - existing code permits an action;
+   - a technical Admin role has access;
+   - a previous implementation decision says so;
+   - a role sounds senior;
+   - or a feature appears to require a permission.
+3. **Separation of System Admin from the Organization:** System Admin is a technical system-access role, not an organizational position. It does not inherit Director, Vice Director, Branch Manager, or business approval authority. Technical access must never be used to bypass organizational approval chains or self-privilege-escalate.
+4. **Current Implementation as a Reconciliation Target:** The existing application is the starting implementation to be reconciled to the blueprint through controlled, evidence-based change — not the authority that defines the desired organizational model. Do not assume every existing permission is correct merely because it exists, nor assume it is wrong merely because it differs from v3.
+5. **Preserve Explicit Governance Gaps:** Where the blueprint records an unresolved decision (e.g. §26 Owner Decision Register), preserve that open state. An undefined governance rule is a governance gap, not permission for an implementation agent to invent a rule.
+6. **No Unilateral Blueprint Implementation:** Do not redesign dashboards, change Firestore rules, or alter role permissions based on the blueprint unless explicitly instructed in an approved, scoped implementation task.
 
 ### Architecture authority
 

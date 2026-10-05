@@ -1,7 +1,8 @@
 # MY LIBERTY — Role × Branch × Division Authorization Contract
 
-> **Document Type:** Canonical Specification & Authorization Contract  
-> **Status:** Formalized & Authoritative  
+> **Document Type:** Canonical Specification & Technical Authorization Contract  
+> **Status:** Formalized Technical Contract  
+> **Governing Baseline:** [`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](../governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md) (Organizational authority and roles are defined by the Authoritative Blueprint; this spec defines technical enforcement rules across backend layers).  
 > **Applies to:** Backend Security Rules, Data Access Repositories, Schemas, State Normalization, and UI Routing.
 
 ---

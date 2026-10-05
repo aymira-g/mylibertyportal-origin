@@ -4,6 +4,8 @@
 
 The active architecture guide lives at [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
+For durable organizational identity, authority boundaries, roles, and separation of duties, see the Authoritative Governance Blueprint at [`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](./docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md).
+
 For agent behavior and working rules, see [`AGENTS.md`](./AGENTS.md).
 
 For the three modular audit tiers and procedures, see:
@@ -12,3 +14,4 @@ For the three modular audit tiers and procedures, see:
 - Level 3 (Architecture & Scalability): [`docs/audits/Full System Architecture & Scalability Audit Procedure/`](./docs/audits/Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md)
 
 For an overview of project documentation, specifications, and roadmaps, see [`docs/README.md`](./docs/README.md).
+

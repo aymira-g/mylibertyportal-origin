@@ -1,7 +1,8 @@
 # Audits & Verification Baseline
 
 > **Authority Level:** Diagnostic / Verification (`audits/`)  
-> This directory contains the system audit procedure, running audit logs, current verification baselines, and historical audit records.
+> This directory contains the system audit procedure, running audit logs, current verification baselines, and historical audit records.  
+> **Key Principle:** Audits identify discrepancies between the approved model (governed by the [Authoritative Governance Blueprint](../governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md) and [System Architecture](../ARCHITECTURE.md)) and the current implementation. An audit finding provides diagnostic evidence, but does not silently or automatically become a governance rule or policy without an explicit, approved decision.
 
 ## Structure
 
@@ -34,11 +35,12 @@ docs/audits/
 
 ## Current Audit Baseline (`audits/current/`)
 
-For the latest confirmed findings, verification evidence, and baseline gaps, consult [`audits/current/`](./current/README.md).
+For the upcoming refinement cycle, active baseline findings will be recorded in [`audits/current/`](./current/README.md).
 
-- **Primary Consolidated Baseline:** [`current/2026-09-27-reconciled-full-audit.md`](./current/2026-09-27-reconciled-full-audit.md)
-- **Supporting Broader Findings:** [`current/2026-09-27-claude-audit-broader-findings.md`](./current/2026-09-27-claude-audit-broader-findings.md)
-- **Supporting Continuation Log:** [`current/2026-09-27-claude-audit-continuation.md`](./current/2026-09-27-claude-audit-continuation.md)
+Past baseline reports from prior development cycles have been archived to [`audits/archive/`](./archive/README.md):
+- **Primary Consolidated Baseline:** [`archive/2026-09-27-reconciled-full-audit.md`](./archive/2026-09-27-reconciled-full-audit.md)
+- **Supporting Broader Findings:** [`archive/2026-09-27-claude-audit-broader-findings.md`](./archive/2026-09-27-claude-audit-broader-findings.md)
+- **Supporting Continuation Log:** [`archive/2026-09-27-claude-audit-continuation.md`](./archive/2026-09-27-claude-audit-continuation.md)
 
 ## Historical Audits (`audits/archive/`)
 

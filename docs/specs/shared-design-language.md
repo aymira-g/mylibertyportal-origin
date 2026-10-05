@@ -2,7 +2,7 @@
 
 > **Status:** Active  
 > **Scope:** UI Typography, Hierarchy, Shells, Navigation, Button Systems, and Spacing  
-> **Related:** [`docs/plans/active/myliberty-pwa-system-review.md`](../plans/active/myliberty-pwa-system-review.md)
+> **Related:** [`docs/plans/archive/myliberty-pwa-system-review-round2.md`](../plans/archive/myliberty-pwa-system-review-round2.md)
 
 ---
 

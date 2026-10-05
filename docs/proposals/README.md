@@ -12,15 +12,14 @@ Proposals do **not** represent approved system policy or binding design until fo
 
 ## Active Proposals
 
-| Proposal | Date | Scope |
-|---|---|---|
-| [`2026-09-23-front-office-operations-enhancement.md`](./2026-09-23-front-office-operations-enhancement.md) | 2026-09-23 | Front Office operations enhancement and reception flow |
-| [`2026-09-25-kiosk-clock-in-audit-comparison.md`](./2026-09-25-kiosk-clock-in-audit-comparison.md) | 2026-09-25 | Comparison of kiosk clock-in security alternatives |
-| [`2026-09-25-kiosk-clock-in-security-hardening.md`](./2026-09-25-kiosk-clock-in-security-hardening.md) | 2026-09-25 | Security hardening options for kiosk attendance scans |
-| [`myliberty-available-batches-roadmap.md`](./myliberty-available-batches-roadmap.md) | Roadmap | Roadmap for class batch availability and scheduling |
+*No active proposals currently under consideration. Future RFCs and design proposals will be placed here.*
 
 ## Archived Proposals (`proposals/archive/`)
 
-| Proposal | Date | Reason |
-|---|---|---|
-| [`archive/2026-09-24-multi-branch-data-isolation.md`](./archive/2026-09-24-multi-branch-data-isolation.md) | 2026-09-24 | Formally accepted and converted into active decision [`docs/decisions/2026-09-24-multi-branch-data-isolation.md`](../decisions/2026-09-24-multi-branch-data-isolation.md) |
+Past design proposals and RFCs have been archived to [`proposals/archive/`](./archive/):
+- `2026-09-23-front-office-operations-enhancement.md`
+- `2026-09-24-multi-branch-data-isolation.md` (Accepted into `docs/decisions/`)
+- `2026-09-25-kiosk-clock-in-audit-comparison.md`
+- `2026-09-25-kiosk-clock-in-security-hardening.md`
+- `myliberty-available-batches-roadmap.md`
+

@@ -6,11 +6,16 @@ created: 2026-09-24
 accepted: 2026-09-24
 last_verified: 2026-09-28
 supersedes: null
-superseded_by: null
+superseded_by: Partially superseded by docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md and docs/decisions/2026-10-04-executive-account-migration-bootstrap-runbook.md (provisional admin representation of executive roles and global admin routing)
 related_proposal: docs/proposals/archive/2026-09-24-multi-branch-data-isolation.md
 ---
 
 # Decision: Multi-Branch Data Isolation (`branchId` Scoping)
+
+> [!NOTE]
+> **Governance Alignment Notice (2026-10-05):**  
+> The multi-branch data isolation policy (`branchId` scoping across Firestore collections, repository normalizers, and Maker-Checker branch routing) remains **active and binding**.  
+> However, the provisional statements in §1.1 and §2.1 that Owner / Director / Vice Director are "provisionally represented by the `admin` role" and that escalated actions route to `admin` are **superseded** by the Authoritative Governance Blueprint ([`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](../governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md), §6–§7) and the Executive Bootstrap runbook ([`docs/decisions/2026-10-04-executive-account-migration-bootstrap-runbook.md`](./2026-10-04-executive-account-migration-bootstrap-runbook.md)). Technical System Admin is not an organizational role; executive authority is held by Director and Vice Director under dual-control governance.
 
 ## 1. Selected Policy
 

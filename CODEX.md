@@ -6,6 +6,10 @@ The canonical project instructions are in:
 
 Read and follow `AGENTS.md` before working on this repository.
 
+For organizational identity, roles, responsibilities, authority boundaries, and separation of duties, read the Authoritative Governance Blueprint:
+
+[`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](./docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md)
+
 For architecture decisions, read:
 
 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)

@@ -98,4 +98,3 @@ ONE PERMISSION / DATA-INTEGRITY CHECK (Wrong Role / Wrong Branch)
 | [`05-evidence-logging-and-status.md`](./05-evidence-logging-and-status.md) | §§ 22–24 | Regression Evidence Schema & Example, Status Codes (PASS/FAIL/BLOCKED/ESCALATE), Regression Log |
 | [`06-agent-workflow-and-mistakes.md`](./06-agent-workflow-and-mistakes.md) | §§ 25–29, 31 | 10-Step Coding Agent Workflow, Handoff Template, Time Budgets, 7 Common Mistakes, Completion Criteria |
 
-*(Monolithic single-file reference preserved at [`MyLiberty_Portal_Light_Regression_Check_Playbook.md`](./MyLiberty_Portal_Light_Regression_Check_Playbook.md)).*

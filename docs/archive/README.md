@@ -9,5 +9,10 @@ To prevent clutter in active documentation folders while preserving complete pro
 
 ## Policy
 
-- Before moving any file here, verify if it belongs in `docs/audits/archive/`, `docs/plans/completed/`, or `docs/proposals/archive/`.
+- Before moving any file here, verify if it belongs in `docs/audits/archive/`, `docs/plans/archive/`, or `docs/proposals/archive/`.
 - Documents placed here are preserved for historical context and must not be used as current implementation instructions.
+
+## Contents
+
+- `audit-prompts/`: Historical audit prompt templates.
+

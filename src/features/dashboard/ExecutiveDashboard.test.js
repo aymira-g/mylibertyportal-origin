@@ -80,7 +80,7 @@ describe("ExecutiveDashboard Component", () => {
     expect(html).toContain("Executive Leadership Portal");
     expect(html).toContain("Executive Director");
     expect(html).toContain("Pending Approvals");
-    expect(html).toContain("Active Students");
+    expect(html).toContain("Province Learners");
     expect(html).toContain("Executive Action Required");
     expect(html).toContain("Review Approvals");
   });
@@ -100,5 +100,43 @@ describe("ExecutiveDashboard Component", () => {
 
     expect(html).toContain("Vice Director");
     expect(html).toContain("Review Approvals");
+  });
+
+  it("renders multi-branch strategic performance cards for all 4 campuses", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(
+        ToastProvider,
+        null,
+        React.createElement(
+          ConfirmProvider,
+          null,
+          React.createElement(ExecutiveDashboard, { role: "director" })
+        )
+      )
+    );
+
+    expect(html).toContain("Multi-Branch Strategic Performance");
+    expect(html).toContain("Kota Gorontalo");
+    expect(html).toContain("Bone Bolango");
+    expect(html).toContain("Pohuwato");
+    expect(html).toContain("Limboto");
+    expect(html).toContain("Capacity Utilization");
+  });
+
+  it("renders executive branch scope filter bar", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(
+        ToastProvider,
+        null,
+        React.createElement(
+          ConfirmProvider,
+          null,
+          React.createElement(ExecutiveDashboard, { role: "director" })
+        )
+      )
+    );
+
+    expect(html).toContain("Executive Branch Scope");
+    expect(html).toContain("All Branches");
   });
 });

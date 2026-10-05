@@ -19,6 +19,9 @@ import {
   ShieldCheck,
   Users,
   BarChart3,
+  Building2,
+  X,
+  Compass,
 } from "lucide-react";
 import { ReportsDashboard } from "../reports";
 import { StudentApplications, UserForm, StudentRoster, BadgeModal } from "../students";
@@ -26,13 +29,19 @@ import { CorporateEventsPanel } from "../attendance";
 import { ClassManager, AvailableBatches } from "../classes";
 import { StaffDirectory, InvitesPanel, TasksPanel } from "../staff";
 import { TuitionDueWidget } from "./frontoffice";
+import { BRANCHES, branchToId, matchesBranchFilter } from "../../constants/branches";
 
 /**
  * ExecutiveDashboard: Dedicated high-level leadership dashboard for Director and Vice Director roles.
- * Governs school-wide dual-control authorizations, cross-branch capacity, admissions, and financial oversight.
+ * Satisfies Authoritative Blueprint §5, §6.1, §6.2, §10, §14, §15, §16:
+ * - Multi-branch province-wide strategic oversight (the 4 physical campuses)
+ * - Executive branch drill-down scope selector
+ * - Dual-control Maker-Checker authorizations & separation of duties
+ * - Academic capacity, admissions, and executive reporting
  */
 export default function ExecutiveDashboard({ role = "director" }) {
   const [activeTab, setActiveTab] = useState("overview");
+  const [selectedBranch, setSelectedBranch] = useState("all");
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -69,6 +78,28 @@ export default function ExecutiveDashboard({ role = "director" }) {
 
   const pendingApprovalsCount = usePendingApprovalsCount(role);
 
+  // Scoped datasets based on selected branch
+  const filteredStudents = useMemo(() => {
+    if (selectedBranch === "all") return students;
+    return students.filter((s) =>
+      matchesBranchFilter(s.branchId || s.branch, selectedBranch)
+    );
+  }, [students, selectedBranch]);
+
+  const filteredClasses = useMemo(() => {
+    if (selectedBranch === "all") return classes;
+    return classes.filter((c) =>
+      matchesBranchFilter(c.branchId || c.branch, selectedBranch)
+    );
+  }, [classes, selectedBranch]);
+
+  const filteredApplications = useMemo(() => {
+    if (selectedBranch === "all") return applications;
+    return applications.filter((app) =>
+      matchesBranchFilter(app.branchId || app.branch, selectedBranch)
+    );
+  }, [applications, selectedBranch]);
+
   const activeStaffCount = useMemo(() => {
     return users.filter(
       (user) => isStaffRole(user.role) && (user.status || "active") === "active"
@@ -76,8 +107,59 @@ export default function ExecutiveDashboard({ role = "director" }) {
   }, [users]);
 
   const activeStudentsCount = useMemo(() => {
-    return students.filter((s) => (s.status || "active") === "active").length;
-  }, [students]);
+    return filteredStudents.filter((s) => (s.status || "active") === "active").length;
+  }, [filteredStudents]);
+
+  // Strategic performance metrics across all 4 physical branches
+  const branchStats = useMemo(() => {
+    return BRANCHES.map((branchName) => {
+      const branchId = branchToId(branchName);
+
+      const bStudents = students.filter((s) =>
+        matchesBranchFilter(s.branchId || s.branch, branchName)
+      );
+      const bActiveStudents = bStudents.filter(
+        (s) => (s.status || "active") === "active"
+      ).length;
+
+      const bClasses = classes.filter((c) =>
+        matchesBranchFilter(c.branchId || c.branch, branchName)
+      );
+
+      let totalCapacity = 0;
+      let enrolledSeats = 0;
+      bClasses.forEach((cls) => {
+        const cap = Number(cls.capacity) || 12;
+        totalCapacity += cap;
+        const enrolled = Array.isArray(cls.studentIds) ? cls.studentIds.length : 0;
+        enrolledSeats += enrolled;
+      });
+      const capacityPct = totalCapacity > 0 ? Math.round((enrolledSeats / totalCapacity) * 100) : 0;
+
+      const bStaff = users.filter((u) =>
+        isStaffRole(u.role) &&
+        (u.status || "active") === "active" &&
+        matchesBranchFilter(u.branchId || u.branch, branchName)
+      ).length;
+
+      const bApps = applications.filter((app) =>
+        (app.status || "pending") === "pending" &&
+        matchesBranchFilter(app.branchId || app.branch, branchName)
+      ).length;
+
+      return {
+        branchName,
+        branchId,
+        activeStudents: bActiveStudents,
+        activeClasses: bClasses.length,
+        totalCapacity,
+        enrolledSeats,
+        capacityPct,
+        branchStaff: bStaff,
+        branchApps: bApps,
+      };
+    });
+  }, [students, classes, users, applications]);
 
   const roleTitle = role === "vice_director" ? "Vice Director" : "Executive Director";
 
@@ -88,7 +170,7 @@ export default function ExecutiveDashboard({ role = "director" }) {
         portalLabel="Executive Leadership Portal"
         roleLabel={roleTitle}
         fallbackName="Director"
-        subtitle="School-wide dual-control authorizations, cross-branch enrollment health, academic capacity, and executive reports."
+        subtitle="Province-wide strategic analytics, multi-branch performance oversight, and dual-control authorizations."
         stats={[
           {
             label: "Pending Approvals",
@@ -97,14 +179,14 @@ export default function ExecutiveDashboard({ role = "director" }) {
             onClick: () => handleTabChange("approvals"),
           },
           {
-            label: "Active Students",
+            label: selectedBranch === "all" ? "Province Learners" : "Branch Learners",
             value: activeStudentsCount,
             icon: GraduationCap,
             onClick: () => handleTabChange("students"),
           },
           {
-            label: "Active Cohorts",
-            value: classes.length,
+            label: selectedBranch === "all" ? "Province Cohorts" : "Branch Cohorts",
+            value: filteredClasses.length,
             icon: BookOpen,
             onClick: () => handleTabChange("classes"),
           },
@@ -116,6 +198,153 @@ export default function ExecutiveDashboard({ role = "director" }) {
           },
         ]}
       />
+
+      {/* Executive Branch Scope Filter Bar */}
+      <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#1a3a8f] flex items-center justify-center font-bold shrink-0">
+            <Compass className="w-4 h-4" />
+          </div>
+          <div>
+            <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+              Executive Branch Scope: {selectedBranch === "all" ? "Province-Wide (All Branches)" : selectedBranch}
+            </h4>
+            <p className="text-[11px] text-slate-500 font-medium">
+              Select a branch to focus rosters, cohorts, and tuition alerts, or view province-wide.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => setSelectedBranch("all")}
+            className={`min-h-11 px-3 py-1.5 rounded-xl transition cursor-pointer text-xs font-bold ${
+              selectedBranch === "all"
+                ? "bg-[#1a3a8f] text-white shadow-xs"
+                : "bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200/80"
+            }`}
+          >
+            All Branches
+          </button>
+          {BRANCHES.map((bName) => (
+            <button
+              key={bName}
+              type="button"
+              onClick={() => setSelectedBranch(bName)}
+              className={`min-h-11 px-3 py-1.5 rounded-xl transition cursor-pointer text-xs font-bold ${
+                selectedBranch === bName
+                  ? "bg-[#1a3a8f] text-white shadow-xs"
+                  : "bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200/80"
+              }`}
+            >
+              {bName}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Multi-Branch Strategic Snapshot Card */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div>
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-[#1a3a8f]" />
+              Multi-Branch Strategic Performance (4 Campuses)
+            </h3>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Click any campus card below to filter the dashboard to that specific branch.
+            </p>
+          </div>
+          {selectedBranch !== "all" && (
+            <button
+              type="button"
+              onClick={() => setSelectedBranch("all")}
+              className="text-xs font-bold text-[#1a3a8f] bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition self-start sm:self-auto cursor-pointer flex items-center gap-1.5"
+            >
+              <span>Reset to All Branches</span>
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {branchStats.map((branch) => {
+            const isSelected = selectedBranch === branch.branchName;
+            return (
+              <button
+                key={branch.branchId}
+                type="button"
+                onClick={() => setSelectedBranch(isSelected ? "all" : branch.branchName)}
+                className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  isSelected
+                    ? "bg-blue-50/70 border-[#1a3a8f] ring-2 ring-[#1a3a8f]/20 shadow-xs"
+                    : "bg-slate-50/60 border-slate-200/80 hover:bg-slate-100/70 hover:border-slate-300"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-900 tracking-tight">
+                      {branch.branchName}
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                        isSelected ? "bg-[#1a3a8f] text-white" : "bg-slate-200/70 text-slate-600"
+                      }`}
+                    >
+                      {isSelected ? "Active Filter" : "Drill Down"}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-[10px] text-slate-500 font-semibold block uppercase">
+                        Learners
+                      </span>
+                      <span className="text-base font-extrabold text-slate-900">
+                        {branch.activeStudents}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-500 font-semibold block uppercase">
+                        Cohorts
+                      </span>
+                      <span className="text-base font-extrabold text-slate-900">
+                        {branch.activeClasses}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 pt-2.5 border-t border-slate-200/60">
+                  <div className="flex items-center justify-between text-[11px] mb-1">
+                    <span className="text-slate-500 font-medium">Capacity Utilization</span>
+                    <span className="font-bold text-slate-700">{branch.capacityPct}%</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        branch.capacityPct > 90
+                          ? "bg-amber-500"
+                          : branch.capacityPct > 70
+                          ? "bg-emerald-500"
+                          : "bg-[#1a3a8f]"
+                      }`}
+                      style={{ width: `${Math.min(100, branch.capacityPct)}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-[10px] text-slate-500 font-medium">
+                    <span>{branch.branchStaff} Staff</span>
+                    {branch.branchApps > 0 && (
+                      <span className="text-amber-700 font-bold">{branch.branchApps} New Apps</span>
+                    )}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Needs Attention Alert Bar */}
       {(pendingApplications > 0 || unenrolledStudents.length > 0 || pendingApprovalsCount > 0) && (
@@ -131,17 +360,20 @@ export default function ExecutiveDashboard({ role = "director" }) {
               <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs font-medium text-amber-800">
                 {pendingApprovalsCount > 0 && (
                   <span>
-                    • <strong>{pendingApprovalsCount}</strong> pending authorization{pendingApprovalsCount > 1 ? "s" : ""} awaiting executive review
+                    • <strong>{pendingApprovalsCount}</strong> pending authorization
+                    {pendingApprovalsCount > 1 ? "s" : ""} awaiting executive review
                   </span>
                 )}
                 {pendingApplications > 0 && (
                   <span>
-                    • <strong>{pendingApplications}</strong> pending application{pendingApplications > 1 ? "s" : ""} awaiting review
+                    • <strong>{pendingApplications}</strong> pending application
+                    {pendingApplications > 1 ? "s" : ""} awaiting review
                   </span>
                 )}
                 {unenrolledStudents.length > 0 && (
                   <span>
-                    • <strong>{unenrolledStudents.length}</strong> active student{unenrolledStudents.length > 1 ? "s" : ""} unassigned to a class
+                    • <strong>{unenrolledStudents.length}</strong> active student
+                    {unenrolledStudents.length > 1 ? "s" : ""} unassigned to a class
                   </span>
                 )}
               </div>
@@ -182,7 +414,7 @@ export default function ExecutiveDashboard({ role = "director" }) {
       {/* Quick Launchers & Leadership Snapshot */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-          <h4 className="font-bold text-slate-800 text-sm">Executive Actions</h4>
+          <h4 className="font-bold text-slate-800 text-sm">Executive Command</h4>
           <div className="grid grid-cols-2 gap-2 mt-3">
             <button
               onClick={() => handleTabChange("approvals")}
@@ -230,7 +462,7 @@ export default function ExecutiveDashboard({ role = "director" }) {
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
-              <h4 className="font-bold text-slate-800 text-sm">Academy Operations Snapshot</h4>
+              <h4 className="font-bold text-slate-800 text-sm">Strategic Governance Summary</h4>
               <button
                 type="button"
                 onClick={() => handleTabChange("reports")}
@@ -240,14 +472,14 @@ export default function ExecutiveDashboard({ role = "director" }) {
               </button>
             </div>
             <p className="text-xs text-slate-600 mt-2 font-medium">
-              {activeStudentsCount} enrolled learners across 4 physical branches
+              {students.filter((s) => (s.status || "active") === "active").length} total learners registered across Gorontalo Province
             </p>
             <p className="text-xs text-slate-500 mt-1 font-medium">
-              {classes.length} active classes · {instructors.filter((i) => (i.status || "active") === "active").length} active instructors
+              {classes.length} active classes · {instructors.filter((i) => (i.status || "active") === "active").length} faculty instructors
             </p>
           </div>
           <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Governance: <strong>Dual-Control Active</strong></span>
+            <span>Governance: <strong>Dual-Control Enforced</strong></span>
             <button
               type="button"
               onClick={() => handleTabChange("events")}
@@ -261,25 +493,34 @@ export default function ExecutiveDashboard({ role = "director" }) {
 
       {/* Academy Operations & Capacity Section */}
       <div className="space-y-4 pt-2">
-        <div>
-          <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-[#1a3a8f]" />
-            Academy Operations &amp; Capacity
-          </h3>
-          <p className="text-xs text-slate-500 font-medium">
-            Overdue tuition alerts, batch availability, and cohort capacity oversight.
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-[#1a3a8f]" />
+              Academy Operations &amp; Capacity
+            </h3>
+            <p className="text-xs text-slate-500 font-medium">
+              {selectedBranch === "all"
+                ? "Province-wide tuition renewal alerts, batch availability, and cohort capacity."
+                : `Focused view for ${selectedBranch}: tuition renewal alerts and cohort capacity.`}
+            </p>
+          </div>
+          {selectedBranch !== "all" && (
+            <span className="text-xs font-bold bg-blue-50 text-[#1a3a8f] px-2.5 py-1 rounded-lg border border-blue-200">
+              Scoping: {selectedBranch}
+            </span>
+          )}
         </div>
 
         {/* Tuition Due / Expiry Alerts */}
         <TuitionDueWidget
-          students={students}
+          students={filteredStudents}
           onNavigateToStudents={() => handleTabChange("students")}
         />
 
         {/* Available Batches & Capacity Overview */}
         <AvailableBatches
-          classes={classes}
+          classes={filteredClasses}
           instructors={instructors}
           users={users}
           canEdit={true}
@@ -305,8 +546,8 @@ export default function ExecutiveDashboard({ role = "director" }) {
         <ErrorBoundary label="Approvals queue">
           <ApprovalInbox
             userRole={role}
-            title="Academy Maker-Checker Authorization Registry"
-            subtitle="Dual-control operational authorization queue for sensitive transactions, discounts, cash discrepancy, and data overrides."
+            title="Executive Dual-Control Authorization Registry"
+            subtitle="Dual-control executive sign-off queue for staff role elevations, branch manager exceptions, large discounts, and financial discrepancies."
           />
         </ErrorBoundary>
       ),
@@ -317,11 +558,11 @@ export default function ExecutiveDashboard({ role = "director" }) {
       id: "applications",
       label: "Applications",
       category: "Academic",
-      badge: pendingApplications > 0 ? pendingApplications : null,
+      badge: filteredApplications.filter((a) => (a.status || "pending") === "pending").length || null,
       component: (
         <StudentApplications
-          applications={applications}
-          classes={classes}
+          applications={filteredApplications}
+          classes={filteredClasses}
           users={users}
           onApproveAndEdit={handleEdit}
           onViewStudent={handleEdit}
@@ -334,8 +575,8 @@ export default function ExecutiveDashboard({ role = "director" }) {
       category: "Academic",
       component: (
         <StudentRoster
-          students={students}
-          classes={classes}
+          students={filteredStudents}
+          classes={filteredClasses}
           users={users}
           getStudentClasses={getStudentClasses}
           setSelectedStudent={setSelectedStudent}
@@ -344,6 +585,7 @@ export default function ExecutiveDashboard({ role = "director" }) {
           handleAddStudent={handleAddStudent}
           isAdmin={true}
           userRole={role}
+          branchId={selectedBranch === "all" ? null : branchToId(selectedBranch)}
           canViewParents={true}
         />
       ),
@@ -354,7 +596,7 @@ export default function ExecutiveDashboard({ role = "director" }) {
       category: "Academic",
       component: (
         <ClassManager
-          classes={classes}
+          classes={filteredClasses}
           users={users}
           instructors={instructors}
           unenrolledStudents={unenrolledStudents}
@@ -445,7 +687,6 @@ export default function ExecutiveDashboard({ role = "director" }) {
           setFormData={setFormData}
           editId={editId}
           onSubmit={handleSave}
-          onSaveAndCollectPayment={() => {}}
           onCancel={() => {
             setEditId(null);
             setActiveTab("overview");
@@ -462,7 +703,7 @@ export default function ExecutiveDashboard({ role = "director" }) {
         tabs={tabs}
         activeTab={activeTab}
         onTabChange={handleTabChange}
-        title={`${roleTitle} Panel`}
+        title={`${roleTitle} Strategic Command`}
         primaryTabIds={["overview", "approvals", "students", "classes", "reports"]}
       />
 

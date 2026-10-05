@@ -1,18 +1,45 @@
-# MyLiberty Portal — Audit Strategy
+# MyLiberty Portal — Level 2: Deep Functional & Workflow Conformance Audit
 
-Canonical operating model for finding hidden bugs in the MyLiberty Portal.
+Canonical operating model for deep functional verification and workflow conformance in the MyLiberty Portal.
 
-**Loop:** Build → Change → Targeted Regression → Continue Building → Section Deep Audit → Cross-Feature Audit → Release Verification → Periodic Full Audit
+**Context:** Level 2 Verification Mechanism of the canonical audit system.  
+**Canonical Governance Authority:** [`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](../../governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md)  
+**Technical Architecture:** [`docs/ARCHITECTURE.md`](../../ARCHITECTURE.md)  
+**Conformance Baseline:** [`docs/audits/blueprint-conformance-matrix.md`](../blueprint-conformance-matrix.md)  
 
-Don't repeat one giant audit after every change. Make QA part of the development lifecycle.
+---
+
+## Purpose & Refinement Role
+
+Level 2 is the **detailed conformance verification layer** and the **primary audit level for the role-by-role and dashboard-by-dashboard refinement effort**.
+
+The goal is not merely:
+> *"Does the feature work?"*
+
+Instead, Level 2 proves:
+> **"Does the implemented workflow correctly realize the authority, scope, permissions, and business rules derived from the approved Authoritative Blueprint?"**
+
+## Verification Scope
+
+Level 2 audits explicitly inspect and verify:
+- **Role Authority:** Does the user hold genuine organizational authority for this action?
+- **Workflow Correctness:** Are business stages, states, and prerequisites strictly enforced?
+- **Permission Boundaries:** Can the operation be triggered directly from an unauthorized client?
+- **State Transitions:** Can closed or terminal states (e.g. signed-off shifts, approved records) be re-opened?
+- **Branch & Division Scope:** Are physical branch (`branchId`) and division boundaries strictly isolated?
+- **Cross-Feature Interactions:** Do changes in one domain (e.g. shifts) corrupt another (e.g. cash discrepancy approvals)?
+- **Failure & Retry Paths:** Does the system fail closed when network, authentication, or validation fails?
+- **Data Scope & Privacy:** Is personal, student, or staff data exposed beyond legitimate need?
+- **Separation of Duties:** Does the workflow enforce independent human review (Maker-Checker) without self-approval?
+- **Dashboard Behavior:** Does the dashboard present only already-authorized capabilities without assuming permission?
+- **Business-Rule Implementation:** Are calculation rules (tuition, discounts, punctuality, attendance) accurate?
 
 ## Core Insight
 
 Serious defects rarely sit in the happy path. They live at **boundaries**:
-
 UI → client logic → repository → Firestore · client → Worker/API → Firestore · Firestore → security rules · one workflow → another · one role → another · one branch → another · an operation → its retry/failure path.
 
-So audit **section by section**, trace each section as a **complete business workflow**, and finish with a **cross-feature attack audit**.
+So audit **section by section**, trace each section as a **complete business workflow** through the 5-pass method, and finish with a **cross-feature attack audit**.
 
 ## Files
 
@@ -27,8 +54,5 @@ So audit **section by section**, trace each section as a **complete business wor
 
 ## Goal
 
-Not "find some bugs." Instead: **demonstrate, with evidence, that every important workflow behaves correctly** under normal use, misuse, failure, concurrency, retry, network loss, permission and branch boundaries, and cross-feature handoffs.
-
-Move from *"I think the Portal works"* to *"We tested the important workflows and know what works, what's broken, and what still needs verification."*
-
-The Kiosk audit is the template for the rest of the Portal: deep vertical audits per section, then cross-feature attack audits, then runtime verification.
+Move from *"I think the Portal works"* to:
+**"We tested the important workflows against the Authoritative Blueprint and know what conforms, what's broken, and what still needs owner decisions."**

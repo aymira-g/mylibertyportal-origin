@@ -21,35 +21,42 @@
 
 ## Authority Chain
 
-MYLIBERTY uses a subject-specific, multi-tier governance structure:
+MYLIBERTY operates under a strict canonical documentation hierarchy:
 
 ```text
-AUTHORITATIVE GOVERNANCE BLUEPRINT (docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md)
-            ↓
-     defines WHAT is true (organization, roles, authority boundaries, separation of duties)
-            ↓
-TECHNICAL ARCHITECTURE / SPECS (docs/ARCHITECTURE.md, docs/specs/)
-            ↓
-     defines HOW it is implemented (technical structure, schemas, contracts)
-            ↓
-ACCEPTED DECISIONS (docs/decisions/)
-            ↓
-     defines BINDING POLICIES & RUNBOOKS (must align with governance; superseded parts marked)
-            ↓
-PLANS / IMPLEMENTATION WORK (docs/plans/)
-            ↓
-     defines WHAT is being changed now (plans are proposals, not authority)
-            ↓
-AUDITS (docs/audits/)
-            ↓
-     identify gaps between approved model and implementation (findings are evidence, not rules)
+AUTHORITATIVE BLUEPRINT (docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md)
+        ↓
+    defines WHAT is true (organizational identity, authority boundaries, separation of duties)
+        ↓
+ACCEPTED OWNER DECISIONS / EXCEPTIONS (docs/decisions/)
+        ↓
+    defines BINDING POLICIES & FORMAL EXCEPTIONS (must align with governance; superseded parts marked)
+        ↓
+TECHNICAL ARCHITECTURE (docs/ARCHITECTURE.md)
+        ↓
+    defines HOW it is implemented (technical structure, contracts, boundaries, conventions)
+        ↓
+SUBSYSTEM SPECS & PLANS (docs/specs/, docs/plans/)
+        ↓
+    defines SPECIFIC CONTRACTS & PROPOSED WORK (specs are behavioral; plans are proposals, not authority)
+        ↓
+CODE & SECURITY RULES (src/, firestore.rules)
+        ↓
+    realizes the software behavior
+        ↓
+VERIFICATION / AUDIT EVIDENCE (docs/audits/)
+        ↓
+    verifies that implementation matches approved truth and architecture (findings are evidence, not rules)
 
 CLAUDE.md / GEMINI.md / CODEX.md / AGENTS.md
-            ↓
+        ↓
 How coding assistants behave while operating within this governed structure
 ```
 
-These tiers have distinct responsibilities and must not be merged or bypass one another.
+These levels have distinct responsibilities and must not be merged or bypass one another:
+- **The Blueprint** defines organizational truth, roles, and authority.
+- **Technical Architecture** defines how the software implements that truth.
+- **Audits** are **verification mechanisms**, not governance authorities. An audit finding does not itself redefine policy or organizational truth; it identifies divergence, defects, risks, or evidence gaps. A governance change requires an appropriate owner decision and an explicit update to the canonical source.
 
 ### Governance authority (Authoritative Blueprint)
 
@@ -185,10 +192,24 @@ firestore.indexes.json
 
 The agent must not claim that a repository control exists unless it has verified the repository configuration.
 
-### Audit trigger
+### Audit & Verification System
+
+Audits in MYLIBERTY are **verification mechanisms**, not governance authorities. An audit finding does not redefine policy or truth; it identifies gaps, defects, or divergence between the approved model (Authoritative Blueprint + Architecture) and the running software.
+
+The verification system operates across three modular levels and one cross-cutting baseline:
+
+- **Level 1 — Light Regression Check Playbook** ([`docs/audits/Light Regression Check Playbook/00-README.md`](./docs/audits/Light%20Regression%20Check%20Playbook/00-README.md)):
+  Targeted post-change verification. Answers: Did this change break the affected workflow, regress permissions, compromise data integrity, break nearby dependencies, or violate established invariants? Fast, repeatable, and run after every code change.
+- **Level 2 — Deep Functional / Workflow Audit Strategy** ([`docs/audits/Comprehensive Hidden-Bug Audit Strategy/00-README.md`](./docs/audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md)):
+  Detailed conformance layer. Systematically verifies role authority, workflow correctness, permission boundaries, state transitions, branch/division isolation, cross-feature interactions, failure paths, data scope, separation of duties, dashboard behavior, and business rules. This is the **primary audit level for role-by-role and dashboard-by-dashboard refinement**.
+- **Level 3 — Full System Architecture & Scalability Audit Procedure** ([`docs/audits/Full System Architecture & Scalability Audit Procedure/00-README.md`](./docs/audits/Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md)):
+  Highest technical/system verification level. Verifies the entire implemented system against the Authoritative Blueprint, accepted owner decisions, Technical Architecture, security rules, data architecture, scalability (10 to 10k users), resilience, performance, zero-budget Spark retention, and deployment integrity. Detects both **technical architecture drift** and **governance/implementation divergence**.
+- **Cross-Cutting Blueprint Conformance Matrix** ([`docs/audits/blueprint-conformance-matrix.md`](./docs/audits/blueprint-conformance-matrix.md)):
+  Continuous baseline mapping Blueprint invariants against technical architecture, code implementation, and audit coverage.
+
+### Audit Trigger & Audit Mode
 
 When Kifry says:
-
 - “full audit”
 - “architecture audit”
 - “audit the whole project”
@@ -198,12 +219,11 @@ When Kifry says:
 switch from feature-development mode to **audit mode**.
 
 In audit mode:
-
 - do not modify production code unless explicitly instructed;
 - read [`docs/audits/Full System Architecture & Scalability Audit Procedure/00-README.md`](./docs/audits/Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md);
-- read `docs/ARCHITECTURE.md`;
+- read `docs/ARCHITECTURE.md` and [`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](./docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md);
 - inspect the whole repository;
-- compare declared architecture with actual implementation;
+- compare declared architecture and blueprint invariants with actual implementation;
 - produce an evidence-based report before proposing implementation changes.
 
 For section deep dives, workflow tracing, and edge-case attack audits:

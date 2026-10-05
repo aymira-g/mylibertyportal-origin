@@ -2,55 +2,57 @@
 
 Canonical operating playbook for performing the **Light Regression Check** (Level 1 Audit) across the MyLiberty Portal.
 
-**Context:** Level 1 of the canonical audit strategy (`docs/audits/Comprehensive Hidden-Bug Audit Strategy/`).  
-**Core Purpose:** Answer one focused question after any change:  
-> **"Did this change break the feature, its immediate workflow, or an important nearby dependency?"**
+**Context:** Level 1 Verification Mechanism of the canonical audit system.  
+**Canonical Governance Authority:** [`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](../../governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md)  
+**Technical Architecture:** [`docs/ARCHITECTURE.md`](../../ARCHITECTURE.md)  
+**Conformance Baseline:** [`docs/audits/blueprint-conformance-matrix.md`](../blueprint-conformance-matrix.md)  
+
+**Core Purpose:** Fast, targeted verification after a change. It answers five focused questions:
+1. **Did the change break the affected workflow?**
+2. **Did permissions regress?**
+3. **Did data integrity regress?**
+4. **Did dependent functionality break?**
+5. **Did the change violate an established Blueprint invariant?**
 
 ---
 
 ## 1. Where Light Regression Fits
 
-The canonical audit lifecycle is:
+The canonical verification lifecycle is:
 
 ```text
-BUILD
+AUTHORITATIVE BLUEPRINT → TECHNICAL ARCHITECTURE
   ↓
-CHANGE
+BUILD / CODE CHANGE
   ↓
-TARGETED / LIGHT REGRESSION (This Playbook)
+LEVEL 1: TARGETED / LIGHT REGRESSION (This Playbook)
   ↓
-CONTINUE BUILDING
+CONTINUE BUILDING / REFINING
   ↓
-SECTION DEEP AUDIT (Periodic)
+LEVEL 2: DEEP FUNCTIONAL & WORKFLOW CONFORMANCE AUDIT (Periodic / Per-Role)
   ↓
-CROSS-FEATURE AUDIT (Pre-Milestone)
-  ↓
-RELEASE VERIFICATION
-  ↓
-PERIODIC FULL PORTAL AUDIT (Architecture & Scalability)
+LEVEL 3: FULL SYSTEM ARCHITECTURE & SCALABILITY AUDIT (Milestones)
 ```
 
-- **Light regression check:** happens **frequently** (after every meaningful change).
-- **Section deep audit:** happens **periodically** (every 1–2 months).
-- **Full system audit:** happens at **major milestones** (every 3–6 months).
+- **Level 1 (Light Regression Check):** happens **frequently** (after every bug fix, feature addition, or rule edit).
+- **Level 2 (Deep Conformance Audit):** happens **per role and dashboard** during systematic refinement.
+- **Level 3 (Full System Audit):** happens at **major architecture milestones** (every 3–6 months or upon request).
 
 ---
 
 ## 2. What a Light Regression Check Is & Is NOT
 
 ### What It IS:
-A focused verification pass over:
-1. The exact thing that changed;
-2. The workflow immediately affected by the change;
-3. The most important dependency directly connected to it;
-4. The primary failure, permission, or data-integrity path.
-
-It must be **fast, repeatable, evidence-based, limited in scope, and triggered by a specific change.**
+A fast, lightweight, and repeatable verification pass over:
+1. The exact code or rule that changed;
+2. The immediate workflow and permissions affected by the change;
+3. Direct dependencies and data contracts connected to it;
+4. Established invariants (from [`blueprint-conformance-matrix.md`](../blueprint-conformance-matrix.md)) governing the touched domain.
 
 ### What It Is NOT:
-It is **not** a full security audit, complete rules audit, branch isolation audit, concurrency audit, or a substitute for a Section Deep Audit or Full Portal Audit.
+It is **not** a miniature full-system audit, complete database stress-test, or a substitute for Level 2 or Level 3 audits.
 
-*Rule:* When a light regression discovers a serious defect, **escalate it into a deeper audit** rather than trying to cram an entire deep audit into a quick regression check.
+*Rule:* When a light regression check discovers a systemic defect or governance divergence, **record it and escalate to Level 2 or Level 3** rather than turning Level 1 into an uncontrolled deep audit.
 
 ---
 

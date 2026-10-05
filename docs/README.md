@@ -6,39 +6,52 @@ Welcome to the central documentation directory for **MyLiberty Portal**.
 
 When working on this codebase as an engineer or AI coding assistant, orient yourself in this sequence:
 
-1. **[`governance/`](./governance/README.md)** — Authoritative Governance Blueprint: organizational identity, authority boundaries, roles, separation of duties, and access principles (**defines WHAT is true**).
-2. **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** — Canonical system architecture and structure (**defines HOW it is implemented**).
-3. **[`decisions/`](./decisions/README.md)** — Accepted business and architectural policies (**binding policy; must not contradict governance**).
-4. **[`specs/`](./specs/README.md)** — Intended behavior and technical contracts for subsystems.
-5. **[`plans/active/`](./plans/README.md)** — Active implementation and remediation plans (**proposed work; not authority**).
-6. **[`audits/current/`](./audits/current/README.md)** — Reconciled audit findings and current verification baselines (**identifies gaps; findings do not silently become rules**).
+1. **[`governance/`](./governance/README.md)** — **Authoritative Governance Blueprint:** organizational identity, authority boundaries, roles, separation of duties, and access principles (**defines WHAT is true**).
+2. **[`decisions/`](./decisions/README.md)** — **Accepted Business & Architectural Decisions:** binding owner policies, formal exceptions, and migration runbooks (**must align with governance**).
+3. **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** — **Canonical Technical Architecture:** technical implementation authority for structure, persistence, boundaries, and dependencies (**defines HOW it is implemented**).
+4. **[`specs/`](./specs/README.md)** — **Subsystem Specifications:** concrete behavioral contracts and schemas for subsystems.
+5. **[`plans/active/`](./plans/README.md)** — **Active Execution Plans:** current proposed work, scope, and verification steps (**proposals, not authority**).
+6. **[`audits/`](./audits/README.md)** — **Verification & Conformance Evidence:** 3 modular audit levels and the Blueprint Conformance Matrix (**verifies implementation matches truth; findings are evidence, not rules**).
 
 ---
 
-## Documentation Authority & Work Lifecycle
+## Canonical Documentation Hierarchy
 
 ```text
-1. AUTHORITATIVE GOVERNANCE (What IS True)
-   └── governance/        Canonical organizational blueprint (roles, authority, separation of duties).
+1. AUTHORITATIVE BLUEPRINT (What IS True)
+   └── governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md
+       Canonical organizational truth, roles, authority boundaries, and invariants.
 
-2. PERMANENT SYSTEM KNOWLEDGE (How It Is Implemented)
-   ├── ARCHITECTURE.md    Describes current canonical system architecture (protected).
-   ├── decisions/         Contains accepted business and architectural policies.
-   └── specs/             Contains intended subsystem behaviors, contracts, and schemas.
+2. ACCEPTED OWNER DECISIONS / EXCEPTIONS (Binding Policies)
+   └── decisions/
+       Formally accepted owner policies, runbooks, and explicit exceptions.
 
-3. WORK LIFECYCLE (Pre-Execution & Post-Execution)
-   ├── PRE-EXECUTION (The Plans — Not Authority)
-   │     ├── plans/active/     Active plans: scope, affected files, cost/risk check, verification plan.
-   │     └── proposals/        Ideas and designs under consideration awaiting decision.
-   │
-   └── POST-EXECUTION (The Reports & Proof — Evidence, Not Policy)
-         ├── plans/completed/  Completed execution reports and verified implementation history.
-         ├── audits/current/   Active verified audit baselines and investigation findings.
-         └── audits/archive/   Historical audit logs and past verification passes.
+3. TECHNICAL ARCHITECTURE (How It Is Implemented)
+   └── ARCHITECTURE.md
+       Protected technical implementation authority (derived from & constrained by Blueprint).
 
-Historical documents do not override current source code, Firestore rules,
-tests, or verified runtime behavior.
+4. SUBSYSTEM CONTRACTS & EXECUTION PLANS (Concrete Behavior & Proposed Work)
+   ├── specs/            Behavioral contracts, interfaces, and schemas.
+   ├── plans/active/     Proposed implementation and remediation work (not authority).
+   └── proposals/        Designs and RFCs under evaluation.
+
+5. CODE & SECURITY RULES (Software Behavior)
+   ├── src/              Application logic, React components, repositories.
+   ├── firestore.rules   Server-side database access boundaries.
+   └── cloudflare-worker/ Edge security verification and cryptographic validation.
+
+6. VERIFICATION / AUDIT EVIDENCE (Testing Implementation Against Authority)
+   ├── audits/blueprint-conformance-matrix.md  Cross-cutting Blueprint conformance baseline.
+   ├── audits/Light Regression Check Playbook/  Level 1: Fast post-change checks.
+   ├── audits/Comprehensive Hidden-Bug Audit/  Level 2: Deep functional & workflow QA.
+   ├── audits/Full System Architecture Audit/  Level 3: Architecture drift & scalability.
+   └── audits/current/                         Active verification findings & baselines.
 ```
+
+The key principle is:
+> **The Blueprint defines organizational truth and authority.**  
+> **Technical Architecture defines how the software implements that truth.**  
+> **Audits verify that the implementation matches the approved truth and architecture.** (Audits are verification mechanisms, not governance authorities).
 
 ---
 
@@ -70,9 +83,10 @@ docs/
 │
 ├── audits/                  # System audits, procedures, and findings
 │   ├── README.md
+│   ├── blueprint-conformance-matrix.md                         # Cross-cutting Blueprint conformance baseline
 │   ├── Light Regression Check Playbook/                        # Level 1: Post-change checks
-│   ├── Comprehensive Hidden-Bug Audit Strategy/                # Level 2: Section deep dives
-│   ├── Full System Architecture & Scalability Audit Procedure/  # Level 3: Architecture drift
+│   ├── Comprehensive Hidden-Bug Audit Strategy/                # Level 2: Section deep dives & workflow QA
+│   ├── Full System Architecture & Scalability Audit Procedure/  # Level 3: Architecture drift & scalability
 │   ├── audit-log.md                                            # Running operational items log
 │   ├── current/                                                # Latest reconciled findings & verification baselines
 │   └── archive/                                                # Historical audit reports
@@ -91,13 +105,14 @@ docs/
 
 ---
 
-## Permanent Audit Procedures
+## Permanent Audit Verification System
 
-The authoritative audit suites and verification playbooks:
+Audits are **verification mechanisms**, not governance authorities. They verify that the running system conforms to the Authoritative Blueprint and Technical Architecture:
 
-* **Level 1 (Targeted Regression):** [`audits/Light Regression Check Playbook/`](./audits/Light%20Regression%20Check%20Playbook/00-README.md) — 5-minute targeted regression checks following any code change.
-* **Level 2 (Section Deep Audits):** [`audits/Comprehensive Hidden-Bug Audit Strategy/`](./audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md) — Section deep dives, 5-pass workflow tracing, and failure matrices.
-* **Level 3 (Architecture & Scalability):** [`audits/Full System Architecture & Scalability Audit Procedure/`](./audits/Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md) — Architectural drift, database growth, and high-load stress testing.
+* **Cross-Cutting Conformance Baseline:** [`audits/blueprint-conformance-matrix.md`](./audits/blueprint-conformance-matrix.md) — Maps Blueprint invariants (INV-01 through INV-08) across architecture, implementation, and audit coverage.
+* **Level 1 (Targeted Regression):** [`audits/Light Regression Check Playbook/`](./audits/Light%20Regression%20Check%20Playbook/00-README.md) — 5-minute targeted post-change regression checks following any code change.
+* **Level 2 (Deep Functional & Workflow Conformance):** [`audits/Comprehensive Hidden-Bug Audit Strategy/`](./audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md) — Section deep dives, 5-pass workflow tracing, and failure matrices. Primary audit level for role-by-role and dashboard-by-dashboard refinement.
+* **Level 3 (Architecture & Scalability):** [`audits/Full System Architecture & Scalability Audit Procedure/`](./audits/Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md) — Verifies system against Blueprint, decisions, architecture, security rules, scalability, and detects architecture drift and governance divergence.
 * **Running Operational Audit Log:** [`audits/audit-log.md`](./audits/audit-log.md)
 
 ---

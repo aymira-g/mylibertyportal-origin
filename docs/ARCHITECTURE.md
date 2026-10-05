@@ -1,22 +1,71 @@
 # MYLIBERTY Architecture Guide — V2
 
-> **Status:** Current architecture reference.
+> **Status:** Canonical Technical Implementation Authority.
 >
-> **Purpose:** This document describes the architecture that the repository currently implements or intentionally protects. It is not a coding-assistant prompt.
+> **Purpose:** This document establishes the technical implementation authority for MyLiberty Portal, derived from and strictly constrained by the Authoritative Governance Blueprint.
 >
-> **Authoritative Governance Baseline:** [`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](./governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md)  
-> Defines the organization's durable organizational and governance model (roles, responsibilities, authority boundaries, separation of duties). This architecture guide defines HOW that model is technically implemented.
+> **Authority Relationship:**
+> ```text
+> Blueprint    = WHAT the organization & system are authorized to do (truth, roles, boundaries)
+> Architecture = HOW the software technically implements that authorized model
+> Audits       = VERIFICATION mechanisms that test implementation against blueprint & architecture
+> ```
 >
-> **Agent behavior:** `AGENTS.md`
+> **Canonical Governance Authority:** [`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](./governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md)  
+> Defines durable organizational identity, authority boundaries, roles, separation of duties, and data-scope principles.
 >
-> **Audit & verification procedures:**
+> **Binding Policies & Owner Decisions:** [`docs/decisions/`](./decisions/README.md)  
+>
+> **Agent Working Rules:** [`AGENTS.md`](../AGENTS.md)
+>
+> **Audit & Verification System:**
 > - Level 1 (Targeted Regression): [`docs/audits/Light Regression Check Playbook/`](./audits/Light%20Regression%20Check%20Playbook/00-README.md)
-> - Level 2 (Section Deep Audits): [`docs/audits/Comprehensive Hidden-Bug Audit Strategy/`](./audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md)
+> - Level 2 (Section Deep Audits & Workflow Conformance): [`docs/audits/Comprehensive Hidden-Bug Audit Strategy/`](./audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md)
 > - Level 3 (Architecture & Scalability): [`docs/audits/Full System Architecture & Scalability Audit Procedure/`](./audits/Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md)
+> - Cross-Cutting Conformance: [`docs/audits/blueprint-conformance-matrix.md`](./audits/blueprint-conformance-matrix.md)
 >
-> This guide was refreshed against the current repository snapshot on **2026-09-23**. When code and documentation disagree, the discrepancy must be investigated rather than silently ignored.
+> When code, architecture, and governance disagree, the discrepancy must be investigated rather than silently choosing an ad-hoc reconciliation.
 
-## 1. Architecture Goals
+---
+
+## 0. Governance Anchor & Technical Authority Boundary
+
+### 0.1 Technical implementation authority
+
+This document is the repository's **technical implementation authority**. It specifies *how* the system realizes the requirements, workflows, and invariants established by the Authoritative Blueprint.
+
+Architecture is authoritative for technical decisions and system design, including:
+- application structure, folder organization, and domain boundaries;
+- repositories, data-access modules, and caching layers;
+- persistence architecture (Firestore collection structure, document schemas, growth classes);
+- routing, shell composition, lazy loading, and code-splitting boundaries;
+- frontend, edge Cloudflare Worker, and backend service structure;
+- infrastructure, hosting paths, and cloud resource provisioning;
+- testing architecture (unit, component, Firestore emulator, e2e);
+- deployment pipelines, environment configuration, and secrets management;
+- observability, logging, and error-boundary architecture;
+- technical dependencies, third-party libraries, and zero-budget free-tier Spark compliance;
+- concurrency, transactions, and scalability patterns;
+- engineering conventions and implementation patterns.
+
+### 0.2 Conformance to the Authoritative Blueprint
+
+Where any technical decision intersects with an organizational authority boundary, permission, scope, workflow, or separation-of-duties rule, **the technical architecture must explicitly conform to the Authoritative Blueprint**:
+
+1. **Organizational Truth Precedes Technical Implementation:**  
+   The Blueprint defines who holds authority ([`Blueprint §5–6`](./governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md#5-organizational-hierarchy)). Technical architecture must not infer authority from UI layout, convenience, or legacy code patterns.
+2. **System Administration Is Separate from Business Authority:**  
+   Technical system administration is an operational access role, not an executive position ([`Blueprint §7`](./governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md#7-system-administration-is-separate-from-the-organization)). The architecture maintains separate portals: an `ExecutiveDashboard` for business leadership (`director`, `vice_director`) and an `AdminDashboard` strictly for technical maintenance, account provisioning, terminal pairing, and diagnostics.
+3. **No Authority Collapse (`isAdmin = true`):**  
+   The architecture strictly distinguishes Role, System Access, Capability, and Workflow Authority ([`Blueprint §8`](./governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md#8-organizational-role-vs-system-access-vs-capability-vs-workflow-authority)). Technical permissions are not collapsed into blanket boolean flags.
+4. **Data Scope & Branch Isolation:**  
+   Technical queries, repositories, and Firestore security rules must enforce physical branch and division boundaries ([`Blueprint §10–11`](./governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md#10-organizational-scope-principles)). Cross-branch visibility is restricted to executive roles.
+5. **Separation of Duties (Maker-Checker):**  
+   High-risk operations (tuition discounts, cash reconciliation discrepancies, staff departure, role elevation) require dual-control authorization ([`Blueprint §14–16`](./governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md#14-workflow-governance)). The architecture provides dedicated approval queues and prevents self-approval.
+6. **Dashboard Authority Rule:**  
+   Dashboards are presentation interfaces, not authority sources ([`Blueprint §13`](./governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md#13-dashboard-authority-rule)). Backend security rules and repositories must enforce authorization independently of whether a UI element is visible.
+
+---
 
 MYLIBERTY uses a **domain-centered, feature-oriented architecture**.
 
@@ -87,15 +136,18 @@ The main domain areas currently live under `src/features/`:
   - dashboard-specific orchestration;
   - role-specific dashboard workflows.
 
-### Dashboard subdomains
+### Dashboard subdomains and entry points
 
-The dashboard area currently contains role/workflow-specific modules, including:
+The dashboard area contains role-specific portal entry points that realize the governance boundaries:
 
-- `dashboard/manager`
-- `dashboard/marketing`
-- `dashboard/instructor`
-- `dashboard/kids`
-- `ParentDashboard.jsx` (authenticated parent portal with multi-child switching, attendance tracking, and schedule visibility)
+- `ExecutiveDashboard.jsx` (dedicated executive portal for `director` and `vice_director`: province-wide analytics, dual-control approvals, tuition oversight, class capacity, and admissions);
+- `AdminDashboard.jsx` (technical administration portal for `admin`: account provisioning, staff onboarding invites, kiosk terminal setup, branch isolation diagnostics, and Firestore Spark log retention);
+- `ManagerDashboard.jsx` / `dashboard/manager` (branch manager operational oversight and course division management);
+- `FrontOfficeDashboard.jsx` / `KidsFrontOfficeDashboard.jsx` (branch reception, front desk inquiry intake, payment collection, and daily operational coordination);
+- `InstructorDashboard.jsx` / `KidsInstructorDashboard.jsx` / `dashboard/instructor` / `dashboard/kids` (academic delivery, class attendance, student grades, and parent-instructor engagement);
+- `MarketingDashboard.jsx` / `dashboard/marketing` (school outreach, marketing campaigns, and prospect tracking);
+- `OfficeBoyDashboard.jsx` (facility readiness and operational maintenance tasks);
+- `ParentDashboard.jsx` (authenticated parent portal with multi-child switching, attendance tracking, and schedule visibility).
 
 The dashboard area is an orchestration and role-entry layer. It should not become a substitute for domain ownership when logic clearly belongs to another domain.
 

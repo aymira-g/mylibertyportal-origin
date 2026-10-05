@@ -8,10 +8,11 @@ For durable organizational identity, authority boundaries, roles, and separation
 
 For agent behavior and working rules, see [`AGENTS.md`](./AGENTS.md).
 
-For the three modular audit tiers and procedures, see:
+For the three modular audit verification levels, see:
 - Level 1 (Targeted Regression): [`docs/audits/Light Regression Check Playbook/`](./docs/audits/Light%20Regression%20Check%20Playbook/00-README.md)
-- Level 2 (Section Deep Audits): [`docs/audits/Comprehensive Hidden-Bug Audit Strategy/`](./docs/audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md)
+- Level 2 (Section Deep Audits & Workflow Conformance): [`docs/audits/Comprehensive Hidden-Bug Audit Strategy/`](./docs/audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md)
 - Level 3 (Architecture & Scalability): [`docs/audits/Full System Architecture & Scalability Audit Procedure/`](./docs/audits/Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md)
+- Cross-Cutting Conformance: [`docs/audits/blueprint-conformance-matrix.md`](./docs/audits/blueprint-conformance-matrix.md)
 
 For an overview of project documentation, specifications, and roadmaps, see [`docs/README.md`](./docs/README.md).
 

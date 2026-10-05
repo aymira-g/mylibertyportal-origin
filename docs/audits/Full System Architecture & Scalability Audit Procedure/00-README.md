@@ -1,18 +1,30 @@
 # Full System Architecture & Scalability Audit
 
-Canonical procedure for auditing architecture drift, structural coherence, and scalability in the MyLiberty Portal.
+Canonical procedure for auditing architecture drift, structural coherence, scalability, and governance conformance across the MyLiberty Portal.
 
-**Declared architecture:** `docs/ARCHITECTURE.md`  
-**Agent working rules:** `AGENTS.md` / `CLAUDE.md`  
-**Complementary functional bug audit:** `docs/audits/Comprehensive Hidden-Bug Audit Strategy/`
+**Context:** Level 3 Verification Mechanism of the canonical audit system (Highest technical/system verification level).  
+**Canonical Governance Authority:** [`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](../../governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md)  
+**Accepted Decisions:** [`docs/decisions/`](../../decisions/README.md)  
+**Technical Architecture:** [`docs/ARCHITECTURE.md`](../../ARCHITECTURE.md)  
+**Conformance Baseline:** [`docs/audits/blueprint-conformance-matrix.md`](../blueprint-conformance-matrix.md)  
+**Agent Working Rules:** [`AGENTS.md`](../../AGENTS.md) / [`CLAUDE.md`](../../CLAUDE.md) / [`GEMINI.md`](../../GEMINI.md)  
 
 ---
 
 ## Purpose
 
-This audit is specifically designed to detect not only code defects, but also **architecture drift**: places where the documented architecture, implemented architecture, and real operational behavior no longer agree.
+Level 3 is the **highest technical and system verification level**. It verifies the entire implemented system against:
+- **The Authoritative Blueprint:** organizational roles, authority boundaries, Maker-Checker rules, and data scope;
+- **Accepted Owner Decisions & Exceptions:** formal runbooks, policies, and recorded exceptions;
+- **Technical Architecture:** domain structure, repository layer, and boundaries;
+- **Security & Authorization Model:** Firestore rules, edge Cloudflare Worker authentication, and failure modes;
+- **Data Architecture & Firestore Scalability:** schema design, bounded queries, and growth classes;
+- **Zero-Budget Spark Compliance:** log retention, read/write volume, and elimination of paid dependencies;
+- **Resilience & Failure Modes:** fail-closed behavior, network reachability, and disaster recovery;
+- **System-Wide Workflow Integrity:** multi-role end-to-end operational chains;
+- **Technical Debt & Dependencies:** unmaintained packages, dead code, and test coverage.
 
-It also stress-tests system scalability, database growth limits, and concurrency boundaries under the project's zero-budget constraint.
+Its primary mission is to detect both **technical architecture drift** and **governance/implementation divergence**.
 
 ## Audit Mode
 

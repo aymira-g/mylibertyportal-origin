@@ -1,47 +1,62 @@
 # Audits & Verification Baseline
 
-> **Authority Level:** Diagnostic / Verification (`audits/`)  
-> This directory contains the system audit procedure, running audit logs, current verification baselines, and historical audit records.  
-> **Key Principle:** Audits identify discrepancies between the approved model (governed by the [Authoritative Governance Blueprint](../governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md) and [System Architecture](../ARCHITECTURE.md)) and the current implementation. An audit finding provides diagnostic evidence, but does not silently or automatically become a governance rule or policy without an explicit, approved decision.
+> **Authority Level:** Verification & Diagnostic Evidence (`docs/audits/`)  
+> **Canonical Blueprint:** [`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](../governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md)  
+> **Technical Architecture:** [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md)  
+>
+> **Key Principle:**  
+> Audits are **verification mechanisms**, not governance authorities. They verify that the running implementation adheres to the approved organizational truth (governed by the Authoritative Blueprint) and technical architecture (governed by `docs/ARCHITECTURE.md`).  
+>
+> An audit finding provides diagnostic evidence of divergence, defects, or gaps, but does **not** silently or automatically redefine policy or organizational truth without an explicit owner decision.
 
 ## Structure
 
 ```text
 docs/audits/
-├── Full System Architecture & Scalability Audit Procedure/  ← Modular deep architecture & drift audit (Level 3)
-├── Comprehensive Hidden-Bug Audit Strategy/                ← Modular functional edge-case & QA strategy (Level 2)
-├── Light Regression Check Playbook/                        ← Modular fast post-change regression checks (Level 1)
-├── audit-log.md                                            ← Running operational and product audit log
-├── current/                                                ← Current verification baseline & active findings
-│   ├── 2026-09-27-reconciled-full-audit.md
-│   ├── 2026-09-27-claude-audit-broader-findings.md
-│   └── 2026-09-27-claude-audit-continuation.md
-└── archive/                                                ← Historical audit results & previous passes
+├── blueprint-conformance-matrix.md                         ← Cross-cutting Blueprint conformance matrix & baseline
+├── Light Regression Check Playbook/                        ← Level 1: Targeted post-change regression checks
+├── Comprehensive Hidden-Bug Audit Strategy/                ← Level 2: Deep functional & workflow conformance QA
+├── Full System Architecture & Scalability Audit Procedure/  ← Level 3: System architecture drift & scalability
+├── current/                                                ← Current cycle findings & active verification baselines
+├── archive/                                                ← Historical audit results & previous passes
+└── audit-log.md                                            ← Running operational and product audit log
 ```
 
-## Permanent Audit Procedures
+---
 
-1. **[`Full System Architecture & Scalability Audit Procedure/`](./Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md)**  
-   The authoritative full system architecture & scalability audit procedure (modularized into 7 categorized files). Defines how to challenge, test, and verify the architecture against drift, database growth, and high traffic (Level 3 Audit). Governed under the core authority chain in `AGENTS.md`.
+## 1. Cross-Cutting Conformance Baseline
 
-2. **[`Comprehensive Hidden-Bug Audit Strategy/`](./Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md)**  
-   The operational functional QA and hidden-defect audit strategy (7 categorized files). Defines how to trace business workflows through 5 passes, edge-case triggers, and runtime verification (Level 2 Deep Audit).
+* **[`blueprint-conformance-matrix.md`](./blueprint-conformance-matrix.md)**  
+  Continuous cross-cutting baseline mapping Authoritative Blueprint invariants (INV-01 through INV-08) across Technical Architecture, concrete implementation (UI components, repositories, and `firestore.rules`), and verification coverage.
 
-3. **[`Light Regression Check Playbook/`](./Light%20Regression%20Check%20Playbook/00-README.md)**  
-   The fast, targeted post-change regression check playbook (7 categorized files). Provides the 5-minute core check, domain recipes (kiosk, payments, rules, etc.), and coding-agent handoff templates for daily development (Level 1 Targeted Regression).
+---
 
-4. **[`audit-log.md`](./audit-log.md)**  
-   Running chronological record of operational items, owner decisions, and status flags across development sessions.
+## 2. Permanent Audit Verification Levels
 
-## Current Audit Baseline (`audits/current/`)
+1. **[`Light Regression Check Playbook/`](./Light%20Regression%20Check%20Playbook/00-README.md) (Level 1 — Targeted Post-Change Regression)**  
+   Fast, repeatable 5-minute verification pass executed after any code change, patch, or rule edit.  
+   **Focus Questions:** Did this change break the affected workflow? Did permissions regress? Did data integrity regress? Did dependent functionality break? Did the change violate an established invariant?
 
-For the upcoming refinement cycle, active baseline findings will be recorded in [`audits/current/`](./current/README.md).
+2. **[`Comprehensive Hidden-Bug Audit Strategy/`](./Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md) (Level 2 — Deep Functional & Workflow Conformance)**  
+   Detailed conformance layer and operational functional QA. Systematically traces 5 passes through business workflows, failure matrices, and boundary triggers.  
+   **Verification Scope:** Role authority, workflow correctness, permission boundaries, state transitions, physical branch/division isolation, cross-feature interactions, failure paths, data scope, separation of duties, dashboard behavior, and business-rule implementation.  
+   *Note: This is the **primary audit level** for the active role-by-role and dashboard-by-dashboard refinement effort.*
 
-Past baseline reports from prior development cycles have been archived to [`audits/archive/`](./archive/README.md):
-- **Primary Consolidated Baseline:** [`archive/2026-09-27-reconciled-full-audit.md`](./archive/2026-09-27-reconciled-full-audit.md)
-- **Supporting Broader Findings:** [`archive/2026-09-27-claude-audit-broader-findings.md`](./archive/2026-09-27-claude-audit-broader-findings.md)
-- **Supporting Continuation Log:** [`archive/2026-09-27-claude-audit-continuation.md`](./archive/2026-09-27-claude-audit-continuation.md)
+3. **[`Full System Architecture & Scalability Audit Procedure/`](./Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md) (Level 3 — System Architecture & Scalability Audit)**  
+   Highest technical and system-wide verification level.  
+   **Verification Scope:** Verifies the entire implemented system against the Authoritative Blueprint, accepted owner decisions, Technical Architecture, security rules, data architecture, scalability (10 to 10k users), resilience, performance, zero-budget Spark retention, and deployment integrity. Detects both **technical architecture drift** and **governance/implementation divergence**.
 
-## Historical Audits (`audits/archive/`)
+4. **[`audit-log.md`](./audit-log.md) (Running Operational Audit Log)**  
+   Chronological record of operational items, owner decisions, and status flags across development sessions.
 
-Older audit reports and previous remediation walkthroughs are retained in [`audits/archive/`](./archive/README.md) to preserve verification history and audit trails.
+---
+
+## 3. Current Audit Baseline (`audits/current/`)
+
+Active verification baselines and findings from ongoing refinement work are maintained in [`audits/current/`](./current/README.md).
+
+---
+
+## 4. Historical Audits (`audits/archive/`)
+
+Prior cycle audit reports (September – early October 2026) are preserved in [`audits/archive/`](./archive/README.md) to maintain an auditable verification trail.

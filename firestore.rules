@@ -606,7 +606,7 @@ service cloud.firestore {
           )
         )
         && (
-          request.resource.data.actionId != 'STAFF_ROLE_ELEVATION'
+          (request.resource.data.actionId != 'STAFF_ROLE_ELEVATION' && request.resource.data.actionId != 'DISCOUNT_OR_REFUND')
           || (('approverRole' in request.resource.data) && request.resource.data.approverRole in ['director', 'vice_director'])
         );
       allow update: if isApproverForDoc(resource.data)

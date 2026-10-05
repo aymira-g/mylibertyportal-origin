@@ -1,5 +1,5 @@
 import { WelcomeBanner } from "../../shared";
-import { GraduationCap, BookOpen, UserPlus, Users, MapPin } from "lucide-react";
+import { GraduationCap, BookOpen, UserPlus, Users, MapPin, ShieldCheck } from "lucide-react";
 import { AvailableBatches } from "../../classes";
 import { TuitionDueWidget } from "../frontoffice";
 import { formatTime, formatPunctuality } from "./managerUtils";
@@ -28,6 +28,7 @@ export function ManagerOverview({
   unenrolledStudents,
   classesWithIssues,
   activeShifts,
+  pendingApprovalsCount = 0,
   onNavigate = () => {},
   classes = [],
   users = [],
@@ -39,8 +40,6 @@ export function ManagerOverview({
   branchPayments = [],
   paymentsLoading = false,
   onRefreshPayments = null,
-  isScopedToBranch = true,
-  onToggleBranchScope = null,
 }) {
   const totalBottlenecks =
     pendingApplications.length + unenrolledStudents.length + classesWithIssues.length;
@@ -53,14 +52,18 @@ export function ManagerOverview({
 
   return (
     <div className="w-full space-y-6">
-      {/* Executive Command & Welcome Banner */}
+      {/* Branch Operations Command & Welcome Banner */}
       <WelcomeBanner
-        portalLabel="Executive Command"
-        roleLabel="Operations Manager"
-        fallbackName="Manager"
-        subtitle="High-level operational overview: student enrollments, scheduled classes, staff allocations, and pending leads."
+        portalLabel="Branch Operations Command"
+        roleLabel="Branch Manager & Course Division Head"
+        fallbackName="Branch Manager"
+        subtitle={`Branch operational leadership, course programs, classroom coverage, and daily cash intake for ${myBranch}.`}
         extraPills={
           <>
+            <span className="text-[10px] font-bold text-blue-200 bg-blue-950/50 px-2.5 py-0.5 rounded-full border border-blue-500/30 flex items-center gap-1.5">
+              <MapPin className="w-3 h-3 text-blue-400" />
+              {myBranch} Campus
+            </span>
             <span className="text-[10px] font-bold text-emerald-300 bg-emerald-950/40 px-2.5 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               {activeShifts.length} On Duty
@@ -110,14 +113,38 @@ export function ManagerOverview({
         }
       />
 
+      {/* Pending Branch Approvals Alert Bar */}
+      {pendingApprovalsCount > 0 && (
+        <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 font-bold">
+              <ShieldCheck className="w-5 h-5 text-amber-700" />
+            </div>
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-amber-900">
+                Branch Dual-Control Action Required
+              </h4>
+              <p className="text-xs font-medium text-amber-800 mt-0.5">
+                <strong>{pendingApprovalsCount}</strong> pending authorization{pendingApprovalsCount > 1 ? "s" : ""} (cash drawer discrepancy, schedule transfer) awaiting your branch sign-off.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onNavigate("approvals")}
+            className="min-h-11 px-3.5 py-2 bg-[#1a3a8f] hover:bg-[#132c6d] text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-xs shrink-0"
+          >
+            Review Branch Approvals
+          </button>
+        </div>
+      )}
+
       {/* Daily Cash Drawer & Intake Summary Scoped to Branch */}
       <ManagerCashSummary
         branch={myBranch}
         payments={branchPayments}
         loading={paymentsLoading}
         onRefresh={onRefreshPayments}
-        isScopedToBranch={isScopedToBranch}
-        onToggleBranchScope={onToggleBranchScope}
       />
 
       {/* Tuition Due / Expiry Alerts */}

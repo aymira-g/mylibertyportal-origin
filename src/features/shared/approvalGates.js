@@ -35,7 +35,7 @@ export const APPROVAL_STATUS = {
  * Locked entries are non-reassignable in config.
  */
 export const GATED_ACTIONS = Object.freeze({
-  // ── Executive Tier Gates (Owner / Director Tier — Staff Authority) ──
+  // ── Executive Tier Gates (Owner / Director Tier — Staff Authority & Pricing Policy) ──
   STAFF_ROLE_ELEVATION: Object.freeze({
     id: "STAFF_ROLE_ELEVATION",
     label: "Staff Role / Permission Elevation",
@@ -60,15 +60,16 @@ export const GATED_ACTIONS = Object.freeze({
     domain: "staff",
     locked: true,
   }),
-
-  // ── Branch Manager Gates (Financial & Status Oversight) ──
   DISCOUNT_OR_REFUND: Object.freeze({
     id: "DISCOUNT_OR_REFUND",
     label: "Discounts & Refunds",
-    approverRole: APPROVAL_ROLES.BRANCH_MANAGER,
+    approverRole: APPROVAL_ROLES.DIRECTOR,
     mode: APPROVAL_MODES.BLOCKING,
     domain: "finance",
+    locked: true,
   }),
+
+  // ── Branch Manager Gates (Branch Operations & Status Oversight) ──
   CASH_DISCREPANCY: Object.freeze({
     id: "CASH_DISCREPANCY",
     label: "Cash Discrepancy Escalation",

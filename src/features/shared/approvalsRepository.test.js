@@ -30,7 +30,7 @@ describe("approvalsRepository", () => {
     const envelope = {
       actionId: "DISCOUNT_OR_REFUND",
       label: "Discounts & Refunds",
-      approverRole: "manager",
+      approverRole: "director",
       approverBranchId: "Kota Gorontalo",
       requestedBy: "Staff Member",
     };

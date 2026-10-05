@@ -795,6 +795,8 @@ Actions such as the following are candidates for controlled approval:
 
 The exact approval thresholds and authorized approvers remain governance decisions.
 
+*(Approved Owner Decision 2026-10-05 — G-009-DECISION-01: All tuition discounts, fee waivers, promotional price reductions, and refunds are strictly delegated to Executive Director and Vice Director dual-control oversight. Branch Managers retain cash drawer reconciliation authority only; see [`docs/decisions/2026-10-05-delegation-of-discounts-and-refunds-to-executives.md`](../decisions/2026-10-05-delegation-of-discounts-and-refunds-to-executives.md).)*
+
 No technical implementation may invent monetary thresholds.
 
 The financial workflow should preserve enough information to trace:
@@ -1011,7 +1013,7 @@ The following questions are intentionally **not answered by technical agents**.
 | G-006 | Which actions are formally classified as sensitive? | **OPEN — candidate list exists in §17** |
 | G-007 | Who may approve each sensitive action? | **OPEN** |
 | G-008 | What is the limited-staff / absence / emergency approval procedure? | **OPEN — later phase** |
-| G-009 | What are the operational boundaries for financial correction, refund, discount, and price changes? | **OPEN** |
+| G-009 | What are the operational boundaries for financial correction, refund, discount, and price changes? | **RESOLVED (2026-10-05):** Tuition discounts, fee waivers, and refunds require Executive Director or Vice Director approval ([Decision G-009-DECISION-01](../decisions/2026-10-05-delegation-of-discounts-and-refunds-to-executives.md)); Branch Managers retain cash discrepancy reconciliation only. |
 | G-010 | Which governance changes require preservation as superseded historical decisions? | **OPEN — process principle established** |
 
 ### Rule for open decisions

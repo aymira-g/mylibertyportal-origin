@@ -9,18 +9,21 @@ export default function TasksPanel({
   users = [],
   currentUser = null,
   userRole = "manager",
-  onAddTodo,
-  onDeleteTodo,
-  onToggleTodo,
+  branchLabel = null,
+  onAddTodo = null,
+  onDeleteTodo = null,
+  onToggleTodo = null,
 }) {
   const confirm = useConfirm();
   const toast = useToast();
 
-  const isManagerOrAdmin =
-    userRole === "manager" ||
-    userRole === "admin" ||
+  const isExecutive =
     userRole === "director" ||
+    userRole === "vice_director" ||
+    userRole === "admin" ||
     userRole === "owner";
+
+  const isManagerOrAdmin = userRole === "manager" || isExecutive;
 
   // Form State
   const [newText, setNewText] = useState("");
@@ -37,14 +40,42 @@ export default function TasksPanel({
   const [targetFilter, setTargetFilter] = useState("all"); // "all" | "frontoffice" | etc.
   const [priorityFilter, setPriorityFilter] = useState("all");
 
-  // Staff members eligible for individual assignment
+  // Staff members eligible for individual assignment based on organizational reporting authority:
+  // - Executives (Director, Vice Director, Admin) can assign to all active staff across the academy.
+  // - Branch Managers can only delegate to branch subordinates (instructors, front office, marketing, office boy) and themselves.
+  // - Branch Managers cannot assign directives upward to the Director, Vice Director, or System Admin, or to peer managers.
   const staffMembers = useMemo(() => {
     return users
-      .filter((u) => isStaffRole(u.role) && (u.status || "active") === "active")
+      .filter((u) => {
+        if (!isStaffRole(u.role) || (u.status || "active") !== "active") return false;
+        if (!isExecutive) {
+          // Exclude executive leadership from subordinate delegation list
+          if (u.role === "director" || u.role === "vice_director" || u.role === "admin") {
+            return false;
+          }
+          // Exclude peer branch managers unless it is the manager themselves
+          if (u.role === "manager" && u.id !== currentUser?.uid) {
+            return false;
+          }
+        }
+        return true;
+      })
       .sort((a, b) =>
         (a.displayName || a.email || "").localeCompare(b.displayName || b.email || "")
       );
-  }, [users]);
+  }, [users, isExecutive, currentUser?.uid]);
+
+  const availableRoleOptions = useMemo(() => {
+    return ROLE_OPTIONS.map((opt) => {
+      if (opt.value === "all") {
+        if (!isExecutive) {
+          const label = branchLabel ? `All Branch Staff (${branchLabel})` : "All Branch Staff";
+          return { ...opt, label };
+        }
+      }
+      return opt;
+    });
+  }, [isExecutive, branchLabel]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -55,7 +86,11 @@ export default function TasksPanel({
 
     let assignee = newAssigneeValue;
     let assigneeType = "role";
-    let assigneeName = "All Academy Staff";
+    let assigneeName = isExecutive
+      ? "All Academy Staff"
+      : branchLabel
+      ? `All Branch Staff (${branchLabel})`
+      : "All Branch Staff";
 
     if (newAssigneeValue.startsWith("user:")) {
       const uid = newAssigneeValue.replace("user:", "");
@@ -64,7 +99,7 @@ export default function TasksPanel({
       assigneeType = "individual";
       assigneeName = staff?.displayName || staff?.email || "Staff Member";
     } else {
-      const match = ROLE_OPTIONS.find((r) => r.value === newAssigneeValue);
+      const match = availableRoleOptions.find((r) => r.value === newAssigneeValue);
       if (match) assigneeName = match.label;
     }
 
@@ -263,8 +298,8 @@ export default function TasksPanel({
                 onChange={(e) => setNewAssigneeValue(e.target.value)}
                 className="w-full min-h-11 px-2.5 py-1.5 border border-slate-200 rounded-xl bg-white font-bold text-xs text-slate-800"
               >
-                <optgroup label="Departments / Broadcast">
-                  {ROLE_OPTIONS.map((r) => (
+                <optgroup label={isExecutive ? "Departments / Broadcast" : "Branch Departments / Broadcast"}>
+                  {availableRoleOptions.map((r) => (
                     <option key={r.value} value={r.value}>
                       {r.label}
                     </option>

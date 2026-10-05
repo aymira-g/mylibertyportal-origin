@@ -33,6 +33,13 @@ export function getAssigneeBadge(assignee, assigneeType, assigneeName) {
       color: "bg-indigo-50 text-indigo-800 border-indigo-200 font-bold",
     };
   }
+  if (assigneeName && assigneeName !== "Everyone" && assigneeName !== "All Academy Staff") {
+    const match = ROLE_OPTIONS.find((r) => r.value === assignee);
+    return {
+      label: assigneeName,
+      color: match ? match.color : "bg-slate-100 text-slate-700 border-slate-200",
+    };
+  }
   const match = ROLE_OPTIONS.find((r) => r.value === assignee);
   if (match) {
     return { label: match.label, color: match.color };

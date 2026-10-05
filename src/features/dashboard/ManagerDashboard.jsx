@@ -65,7 +65,6 @@ export default function ManagerDashboard() {
   // Daily cash drawer state for manager's branch
   const [dailyPayments, setDailyPayments] = useState([]);
   const [dailyPaymentsLoading, setDailyPaymentsLoading] = useState(true);
-  const [isScopedToBranch, setIsScopedToBranch] = useState(true);
   const [managerProfile, setManagerProfile] = useState(null);
 
   // Directly subscribe to logged in manager's own user doc to discover their branchId
@@ -265,6 +264,13 @@ export default function ManagerDashboard() {
     };
   }, [managerBranchId, outreachRetryKey, toast]);
 
+  // Derived branch for the logged-in manager
+  const currentStaffProfile = useMemo(
+    () => managerProfile || users.find((u) => u.id === auth.currentUser?.uid),
+    [managerProfile, users]
+  );
+  const myBranch = normalizeBranch(currentStaffProfile?.branch || DEFAULT_BRANCH);
+
   // Load today's payments for daily cash drawer summary (WITA)
   const fetchTodayPayments = useCallback(async () => {
     setDailyPaymentsLoading(true);
@@ -301,15 +307,24 @@ export default function ManagerDashboard() {
     };
   }, [managerBranchId, toast]);
 
-  const handleAddTodo = async (todoData) => {
+  const handleAddTodo = useCallback(async (todoData) => {
     try {
-      await createTodo({ ...todoData, division: "courses" });
+      await createTodo({
+        ...todoData,
+        division: "courses",
+        branch: myBranch,
+        branchId: managerBranchId,
+      });
       toast("Staff directive issued successfully.", "success");
     } catch (err) {
       if (err?.code === "permission-denied" || err?.message?.includes("insufficient permissions")) {
+        const timestamp = Date.now();
         const localTodo = {
-          id: "local-" + Date.now(),
+          id: "local-" + timestamp,
           ...todoData,
+          division: "courses",
+          branch: myBranch,
+          branchId: managerBranchId,
           createdAt: new Date().toISOString(),
           isLocal: true,
         };
@@ -322,7 +337,7 @@ export default function ManagerDashboard() {
         toast("Error creating directive: " + err.message, "error");
       }
     }
-  };
+  }, [myBranch, managerBranchId, toast]);
 
   const handleDeleteTodo = async (todoId) => {
     try {
@@ -366,13 +381,6 @@ export default function ManagerDashboard() {
     }
   };
 
-  // Derived branch for the logged-in manager
-  const currentStaffProfile = useMemo(
-    () => managerProfile || users.find((u) => u.id === auth.currentUser?.uid),
-    [managerProfile, users]
-  );
-  const myBranch = normalizeBranch(currentStaffProfile?.branch || DEFAULT_BRANCH);
-
   // Fast O(1) studentId -> branch lookup map for payment join
   const studentBranchMap = useMemo(() => {
     const map = new Map();
@@ -386,28 +394,24 @@ export default function ManagerDashboard() {
 
   // Branch-filtered daily payments (client-side join with zero additional reads)
   const branchDailyPayments = useMemo(() => {
-    if (!isScopedToBranch) return dailyPayments;
     return dailyPayments.filter((p) => {
       const studentBranch = studentBranchMap.get(p.studentId);
       return matchesBranchFilter(studentBranch, myBranch);
     });
-  }, [dailyPayments, isScopedToBranch, studentBranchMap, myBranch]);
+  }, [dailyPayments, studentBranchMap, myBranch]);
 
-  // Branch-scoped vs company-wide datasets
+  // Branch-scoped datasets
   const scopedUsers = useMemo(() => {
-    if (!isScopedToBranch) return users;
     return users.filter((u) => matchesBranchFilter(u.branch, myBranch));
-  }, [users, isScopedToBranch, myBranch]);
+  }, [users, myBranch]);
 
   const scopedClasses = useMemo(() => {
-    if (!isScopedToBranch) return classes;
     return classes.filter((c) => matchesBranchFilter(c.branch, myBranch));
-  }, [classes, isScopedToBranch, myBranch]);
+  }, [classes, myBranch]);
 
   const scopedApplications = useMemo(() => {
-    if (!isScopedToBranch) return applications;
     return applications.filter((a) => matchesBranchFilter(a.branch, myBranch));
-  }, [applications, isScopedToBranch, myBranch]);
+  }, [applications, myBranch]);
 
   // Derived datasets
   const students = useMemo(() => scopedUsers.filter((u) => u.role === "student"), [scopedUsers]);
@@ -454,10 +458,10 @@ export default function ManagerDashboard() {
   }, [scopedClasses, users]);
 
   const activeShifts = useMemo(() => {
-    const raw = shifts.filter((s) => getShiftStatus(s) === "on_duty");
-    if (!isScopedToBranch) return raw;
-    return raw.filter((s) => matchesBranchFilter(s.branch, myBranch));
-  }, [shifts, isScopedToBranch, myBranch]);
+    return shifts
+      .filter((s) => getShiftStatus(s) === "on_duty")
+      .filter((s) => matchesBranchFilter(s.branch, myBranch));
+  }, [shifts, myBranch]);
 
   const stats = {
     students: activeStudents.length,
@@ -504,8 +508,7 @@ export default function ManagerDashboard() {
           branchPayments={branchDailyPayments}
           paymentsLoading={dailyPaymentsLoading}
           onRefreshPayments={fetchTodayPayments}
-          isScopedToBranch={isScopedToBranch}
-          onToggleBranchScope={() => setIsScopedToBranch((prev) => !prev)}
+          pendingApprovalsCount={pendingApprovalsCount}
         />
       ),
     },
@@ -561,6 +564,7 @@ export default function ManagerDashboard() {
           todos={todos}
           users={users}
           currentUser={auth.currentUser}
+          branchLabel={myBranch}
           onAddTodo={handleAddTodo}
           onDeleteTodo={handleDeleteTodo}
           onToggleTodo={handleToggleTodo}
@@ -576,8 +580,8 @@ export default function ManagerDashboard() {
         <ApprovalInbox
           userRole="manager"
           branchId={myBranch}
-          title={`Dual-Control Approvals (${myBranch})`}
-          subtitle="Review and authorize branch fee exceptions, cash reconciliations, schedule overrides, and shift self-corrections."
+          title={`Branch Dual-Control Approvals (${myBranch})`}
+          subtitle="Review and authorize branch cash drawer reconciliations, student schedule transfers, and operational exceptions."
         />
       ),
     },
@@ -618,7 +622,7 @@ export default function ManagerDashboard() {
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
-      title="Manager Portal"
+      title={`Branch Manager & Course Division Head — ${myBranch}`}
       primaryTabIds={["overview", "students", "approvals", "classes", "reports"]}
     />
   );

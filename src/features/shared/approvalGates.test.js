@@ -25,9 +25,9 @@ describe("Maker-Checker Approval Gates", () => {
     expect(GATED_ACTIONS.STAFF_DEACTIVATION.approverRole).toBe(APPROVAL_ROLES.DIRECTOR);
     expect(GATED_ACTIONS.STAFF_DEACTIVATION.mode).toBe(APPROVAL_MODES.BLOCKING);
 
-    // Branch manager actions
+    // Executive pricing actions (Owner Decision G-009)
     expect(GATED_ACTIONS.DISCOUNT_OR_REFUND.mode).toBe(APPROVAL_MODES.BLOCKING);
-    expect(GATED_ACTIONS.DISCOUNT_OR_REFUND.approverRole).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
+    expect(GATED_ACTIONS.DISCOUNT_OR_REFUND.approverRole).toBe(APPROVAL_ROLES.DIRECTOR);
 
     expect(GATED_ACTIONS.CASH_DISCREPANCY.mode).toBe(APPROVAL_MODES.BLOCKING);
     expect(GATED_ACTIONS.CASH_DISCREPANCY.approverRole).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
@@ -77,12 +77,19 @@ describe("Maker-Checker Approval Gates", () => {
 
     expect(envelope.status).toBe(APPROVAL_STATUS.PENDING);
     expect(envelope.mode).toBe(APPROVAL_MODES.BLOCKING);
-    expect(envelope.approverRole).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
+    expect(envelope.approverRole).toBe(APPROVAL_ROLES.DIRECTOR);
     expect(envelope.approverBranchId).toBe("branch_gorontalo_main");
     expect(envelope.requestedBy).toBe("Alice Frontdesk");
     expect(envelope.requestedByUid).toBe("u-123");
     expect(envelope.reason).toBe("Family discount 10%");
     expect(envelope.decidedBy).toBeNull();
+
+    // Branch manager retains cash discrepancy escalation
+    const cashEnv = createApprovalEnvelope("CASH_DISCREPANCY", {
+      role: "frontoffice",
+      branchId: "branch_gorontalo_main",
+    });
+    expect(cashEnv.approverRole).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
 
     // Admin requester is exempt from routine branch actions -> returns null
     const adminAction = createApprovalEnvelope("DISCOUNT_OR_REFUND", { role: "admin" });

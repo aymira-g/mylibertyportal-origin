@@ -47,7 +47,12 @@ export default function CorporateEventsPanel() {
   });
 
   const { branchId: userBranchId, role, loading: profileLoading } = useUserProfile();
-  const effectiveBranchId = normalizeRole(role) === "admin" ? "all" : userBranchId;
+  const normalizedRole = normalizeRole(role);
+  const isExecutiveRole =
+    normalizedRole === "admin" ||
+    normalizedRole === "director" ||
+    normalizedRole === "vice_director";
+  const effectiveBranchId = isExecutiveRole ? "all" : userBranchId;
 
   useEffect(() => {
     if (profileLoading) return;

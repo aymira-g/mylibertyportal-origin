@@ -5,6 +5,7 @@ export function StaffDirectivesTab({
   todos,
   users = [],
   currentUser = null,
+  branchLabel = null,
   onAddTodo,
   onDeleteTodo,
   onToggleTodo,
@@ -26,8 +27,7 @@ export function StaffDirectivesTab({
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
         <h2 className="text-2xl font-black text-[#1a3a8f]">Staff Directives &amp; Delegation</h2>
         <p className="text-sm text-slate-500">
-          Issue actionable directives, target specific departments, and track operational execution
-          across the school.
+          Issue actionable directives to branch departments, coordinate classroom support, and track operational execution for {branchLabel ? `${branchLabel} Campus` : "your branch"}.
         </p>
 
         {!todosPermission && (
@@ -80,6 +80,7 @@ export function StaffDirectivesTab({
         users={users}
         currentUser={currentUser}
         userRole="manager"
+        branchLabel={branchLabel}
         onAddTodo={onAddTodo}
         onDeleteTodo={onDeleteTodo}
         onToggleTodo={onToggleTodo}

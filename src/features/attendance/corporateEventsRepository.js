@@ -10,7 +10,6 @@ import {
   updateDoc,
   serverTimestamp,
   onSnapshot,
-  orderBy,
   limit,
 } from "firebase/firestore";
 import { corporateEventSchema } from "../../schemas/corporateEventSchema.js";
@@ -107,15 +106,17 @@ export async function fetchCorporateEvents(branchId = null) {
   const targetBranchId = await resolveCurrentStaffBranchId(branchId);
 
   if (targetBranchId === "all") {
-    const q = query(collection(db, "corporateEvents"), orderBy("eventDate", "desc"), limit(100));
+    const q = query(collection(db, "corporateEvents"), limit(100));
     const snap = await getDocs(q);
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    return items.sort((a, b) =>
+      String(b["eventDate"] || "").localeCompare(String(a["eventDate"] || ""))
+    );
   }
 
   const qAll = query(
     collection(db, "corporateEvents"),
     where("audienceType", "==", "all"),
-    orderBy("eventDate", "desc"),
     limit(100)
   );
   const promises = [getDocs(qAll)];
@@ -124,7 +125,6 @@ export async function fetchCorporateEvents(branchId = null) {
     const qBranch = query(
       collection(db, "corporateEvents"),
       where("branchId", "==", targetBranchId),
-      orderBy("eventDate", "desc"),
       limit(100)
     );
     promises.push(getDocs(qBranch));
@@ -153,11 +153,14 @@ export async function fetchCorporateEvents(branchId = null) {
  */
 export function subscribeCorporateEvents(onData, onError, branchId = null) {
   if (branchId === "all") {
-    const q = query(collection(db, "corporateEvents"), orderBy("eventDate", "desc"), limit(100));
+    const q = query(collection(db, "corporateEvents"), limit(100));
     return onSnapshot(
       q,
       (snap) => {
         const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        items.sort((a, b) =>
+          String(b["eventDate"] || "").localeCompare(String(a["eventDate"] || ""))
+        );
         onData(items);
       },
       (err) => {
@@ -181,11 +184,10 @@ export function subscribeCorporateEvents(onData, onError, branchId = null) {
     onData(merged);
   };
 
-  // Listener A: Company-wide events
+  // Listener A: Company-wide events (single equality filter, no composite index needed)
   const qAll = query(
     collection(db, "corporateEvents"),
     where("audienceType", "==", "all"),
-    orderBy("eventDate", "desc"),
     limit(100)
   );
   unsubs.push(
@@ -201,12 +203,11 @@ export function subscribeCorporateEvents(onData, onError, branchId = null) {
     )
   );
 
-  // Listener B: Branch-scoped events (if targetBranchId present)
+  // Listener B: Branch-scoped events (single equality filter, no composite index needed)
   if (targetBranchId) {
     const qBranch = query(
       collection(db, "corporateEvents"),
       where("branchId", "==", targetBranchId),
-      orderBy("eventDate", "desc"),
       limit(100)
     );
     unsubs.push(

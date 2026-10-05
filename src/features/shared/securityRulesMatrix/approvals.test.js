@@ -24,7 +24,7 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
   describe("Dual-Control Maker-Checker Approval Isolation & 4 Inboxes", () => {
     it("routes Manager approvals strictly to Branch Manager of that branch", () => {
       const approvalDoc = {
-        actionId: "DISCOUNT_OR_REFUND",
+        actionId: "CASH_DISCREPANCY",
         approverRole: "manager",
         branchId: "kota_gorontalo",
         requestedByUid: "fo_gtlo",
@@ -36,6 +36,26 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
       expect(canDecideApproval(approvalDoc, instructorLeaderGorontalo)).toBe(false);
       // System Admin cannot decide business approvals (Blueprint §7.3, §7.4)
       expect(canDecideApproval(approvalDoc, adminUser)).toBe(false);
+    });
+
+    it("routes Discount & Refund approvals exclusively to Executive Director / Vice Director (G-009)", () => {
+      const discountDoc = {
+        actionId: "DISCOUNT_OR_REFUND",
+        approverRole: "director",
+        branchId: "kota_gorontalo",
+        requestedByUid: "fo_gtlo",
+      };
+
+      // Executives can decide discounts province-wide
+      expect(canDecideApproval(discountDoc, directorUser)).toBe(true);
+      expect(canDecideApproval(discountDoc, viceDirectorUser)).toBe(true);
+      // Branch Manager cannot approve discounts under G-009!
+      expect(canDecideApproval(discountDoc, managerGorontalo)).toBe(false);
+      // Front office & instructor leader cannot approve
+      expect(canDecideApproval(discountDoc, foGorontalo)).toBe(false);
+      expect(canDecideApproval(discountDoc, instructorLeaderGorontalo)).toBe(false);
+      // System Admin cannot decide business discounts
+      expect(canDecideApproval(discountDoc, adminUser)).toBe(false);
     });
 
     it("routes Pedagogy approvals strictly to Instructor Leader of that branch", () => {

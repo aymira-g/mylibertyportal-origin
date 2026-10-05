@@ -34,8 +34,6 @@ export function ManagerCashSummary({
   payments = [],
   loading = false,
   onRefresh = null,
-  isScopedToBranch = true,
-  onToggleBranchScope = null,
 }) {
   const toast = useToast();
   const [copied, setCopied] = useState(false);
@@ -44,11 +42,13 @@ export function ManagerCashSummary({
     return summarizePaymentsByMethod(payments);
   }, [payments]);
 
+  const todayStr = todayWita();
+
   const handleCopySummary = () => {
     const lines = [
       `*MY LIBERTY MANAGER DAILY CASH REPORT*`,
       `Date: ${todayStr} (WITA)`,
-      `Branch: ${isScopedToBranch ? branch : "All Branches (Consolidated)"}`,
+      `Branch: ${branch} Campus`,
       `---------------------------------`,
       `💵 Cash (Drawer Intake): ${formatIDR(summary.cashTotal)}`,
       `🏦 Bank Transfer: ${formatIDR(summary.transferTotal)}`,
@@ -65,8 +65,6 @@ export function ManagerCashSummary({
     setTimeout(() => setCopied(false), 2200);
   };
 
-  const todayStr = todayWita();
-
   return (
     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
@@ -81,7 +79,7 @@ export function ManagerCashSummary({
               </h3>
               <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-emerald-100/80 text-emerald-800 flex items-center gap-1">
                 <Building2 className="w-3 h-3" />
-                {isScopedToBranch ? branch : "All Branches"}
+                {branch} Campus
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -91,14 +89,6 @@ export function ManagerCashSummary({
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          {onToggleBranchScope && (
-            <button
-              onClick={onToggleBranchScope}
-              className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition cursor-pointer"
-            >
-              {isScopedToBranch ? "View All Branches" : `Scope to ${branch}`}
-            </button>
-          )}
           {onRefresh && (
             <button
               onClick={onRefresh}

@@ -78,11 +78,10 @@ describe("Executive Dashboard Architecture (Director & Vice Director Split)", ()
       )
     );
 
-    expect(html).toContain("Executive Leadership Portal");
+    expect(html).toContain("Strategic Executive Cockpit");
     expect(html).toContain("Executive Director");
-    expect(html).toContain("Pending Approvals");
+    expect(html).toContain("Pending Decisions");
     expect(html).toContain("Province Learners");
-    expect(html).toContain("Review Approvals");
     expect(html).toContain("Multi-Branch Strategic Performance");
     expect(html).toContain("Executive Branch Scope");
     expect(html).toContain("Academic Division Enrollment Distribution");
@@ -122,7 +121,7 @@ describe("Executive Dashboard Architecture (Director & Vice Director Split)", ()
       )
     );
 
-    expect(html).toContain("Executive Director Strategic Command");
+    expect(html).toContain("Strategic Executive Cockpit");
     expect(html).toContain("Strategic Command &amp; Oversight");
     expect(html).toContain("Kota Gorontalo");
     expect(html).toContain("Bone Bolango");

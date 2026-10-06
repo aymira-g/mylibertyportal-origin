@@ -7,3 +7,5 @@ export { RiskExceptionPanel } from "./RiskExceptionPanel";
 export { BranchOperationalHealthPanel } from "./BranchOperationalHealthPanel";
 export { DivisionBalanceCard } from "./DivisionBalanceCard";
 export { ExecutiveTuitionHealthCard } from "./ExecutiveTuitionHealthCard";
+export { ExecutiveAnalyticsPanel } from "./ExecutiveAnalyticsPanel";
+export { BranchPerformancePanel } from "./BranchPerformancePanel";

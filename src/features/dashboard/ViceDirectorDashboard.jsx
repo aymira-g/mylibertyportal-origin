@@ -16,7 +16,6 @@ import {
   BookOpen,
   ArrowRight,
   ShieldCheck,
-  Users,
   BarChart3,
   Activity,
 } from "lucide-react";
@@ -65,7 +64,6 @@ export default function ViceDirectorDashboard() {
     handleSave,
     handleEdit,
     handleAddStaff,
-    handleAddStudent,
     handleDelete,
     handleAddTodo,
     handleDeleteTodo,
@@ -112,6 +110,17 @@ export default function ViceDirectorDashboard() {
   const activeStudentsCount = useMemo(() => {
     return filteredStudents.filter((s) => (s.status || "active") === "active").length;
   }, [filteredStudents]);
+
+  // Overall classroom seat capacity fill rate for selected branch scope
+  const overallCapacityPct = useMemo(() => {
+    let totalCap = 0;
+    let enrolled = 0;
+    filteredClasses.forEach((cls) => {
+      totalCap += Number(cls.capacity) || 12;
+      enrolled += Array.isArray(cls.studentIds) ? cls.studentIds.length : 0;
+    });
+    return totalCap > 0 ? Math.round((enrolled / totalCap) * 100) : 0;
+  }, [filteredClasses]);
 
   // Operational performance metrics across all 4 physical branches
   const branchStats = useMemo(() => {
@@ -192,10 +201,10 @@ export default function ViceDirectorDashboard() {
             onClick: () => handleTabChange("classes"),
           },
           {
-            label: "Academy Staff",
-            value: activeStaffCount,
-            icon: Users,
-            onClick: () => handleTabChange("directory"),
+            label: "Seat Fill Rate",
+            value: `${overallCapacityPct}%`,
+            icon: Activity,
+            onClick: () => handleTabChange("operations"),
           },
         ]}
       />
@@ -224,7 +233,7 @@ export default function ViceDirectorDashboard() {
         onNavigateToApprovals={() => handleTabChange("approvals")}
         onNavigateToApplications={() => handleTabChange("applications")}
         onNavigateToStudents={() => handleTabChange("students")}
-        onNavigateToRisk={() => handleTabChange("risk")}
+        onNavigateToRisk={() => handleTabChange("operations")}
         title="Operational Action Required"
       />
 
@@ -292,7 +301,7 @@ export default function ViceDirectorDashboard() {
               {students.filter((s) => (s.status || "active") === "active").length} total active learners across 4 campuses
             </p>
             <p className="text-xs text-slate-500 mt-1 font-medium">
-              {classes.length} active cohorts · {instructors.filter((i) => (i.status || "active") === "active").length} active instructors
+              {classes.length} active cohorts · {activeStaffCount} active staff across 4 campuses
             </p>
           </div>
           <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
@@ -371,13 +380,32 @@ export default function ViceDirectorDashboard() {
       category: "Academic",
       badge: filteredApplications.filter((a) => (a.status || "pending") === "pending").length || null,
       component: (
-        <StudentApplications
-          applications={filteredApplications}
-          classes={filteredClasses}
-          users={users}
-          onApproveAndEdit={handleEdit}
-          onViewStudent={handleEdit}
-        />
+        <div className="space-y-4">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                Admissions &amp; Intake Pipeline Oversight
+              </h4>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Executive admissions monitoring across all 4 campuses. Front Office teams process daily walk-in inquiries and registrations, while Vice Director monitors pipeline volume and branch conversions.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleTabChange("reports")}
+              className="text-xs font-bold text-[#1a3a8f] bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition self-start sm:self-auto cursor-pointer shrink-0"
+            >
+              Admissions Analytics →
+            </button>
+          </div>
+          <StudentApplications
+            applications={filteredApplications}
+            classes={filteredClasses}
+            users={users}
+            onApproveAndEdit={handleEdit}
+            onViewStudent={handleEdit}
+          />
+        </div>
       ),
     },
     {
@@ -385,20 +413,39 @@ export default function ViceDirectorDashboard() {
       label: "Students",
       category: "Academic",
       component: (
-        <StudentRoster
-          students={filteredStudents}
-          classes={filteredClasses}
-          users={users}
-          getStudentClasses={getStudentClasses}
-          setSelectedStudent={setSelectedStudent}
-          handleEdit={handleEdit}
-          handleDelete={handleDelete}
-          handleAddStudent={handleAddStudent}
-          isAdmin={true}
-          userRole="vice_director"
-          branchId={selectedBranch === "all" ? null : branchToId(selectedBranch)}
-          canViewParents={true}
-        />
+        <div className="space-y-4">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                Academic Learner Roster &amp; Profile Directory
+              </h4>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Executive inspection and audit view. Front desk staff execute day-to-day enrollment and intake, while Executive Directorate oversees academic policy, retention, and authorizations.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleTabChange("reports")}
+              className="text-xs font-bold text-[#1a3a8f] bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition self-start sm:self-auto cursor-pointer shrink-0"
+            >
+              Academic Reports →
+            </button>
+          </div>
+          <StudentRoster
+            students={filteredStudents}
+            classes={filteredClasses}
+            users={users}
+            getStudentClasses={getStudentClasses}
+            setSelectedStudent={setSelectedStudent}
+            handleEdit={handleEdit}
+            handleDelete={handleDelete}
+            handleAddStudent={null}
+            isAdmin={true}
+            userRole="vice_director"
+            branchId={selectedBranch === "all" ? null : branchToId(selectedBranch)}
+            canViewParents={true}
+          />
+        </div>
       ),
     },
     {
@@ -406,14 +453,33 @@ export default function ViceDirectorDashboard() {
       label: "Classes",
       category: "Academic",
       component: (
-        <ClassManager
-          classes={filteredClasses}
-          users={users}
-          instructors={instructors}
-          unenrolledStudents={unenrolledStudents}
-          role="vice_director"
-          isAdmin={true}
-        />
+        <div className="space-y-4">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                Academic Cohort Scheduling &amp; Capacity Utilization
+              </h4>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Executive cohort inspection. Division Managers manage day-to-day batch schedules, while Vice Director monitors seat fill rates, room allocation, and expansion readiness.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleTabChange("operations")}
+              className="text-xs font-bold text-[#1a3a8f] bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition self-start sm:self-auto cursor-pointer shrink-0"
+            >
+              Branch Fill Rates →
+            </button>
+          </div>
+          <ClassManager
+            classes={filteredClasses}
+            users={users}
+            instructors={instructors}
+            unenrolledStudents={unenrolledStudents}
+            role="vice_director"
+            isAdmin={true}
+          />
+        </div>
       ),
     },
     {
@@ -423,29 +489,48 @@ export default function ViceDirectorDashboard() {
       component: <CorporateEventsPanel />,
     },
 
-    // Operations & Staff
+    // Staff & Personnel Oversight
     {
       id: "directory",
       label: "Staff Directory",
-      category: "Operations",
+      category: "Staff",
       component: (
-        <StaffDirectory
-          users={users}
-          classes={classes}
-          invites={invites}
-          currentUserId={auth.currentUser?.uid}
-          onAddStaff={handleAddStaff}
-          onEditStaff={handleEdit}
-          onPrintBadge={setSelectedStudent}
-          onDeleteStaff={handleDelete}
-          onNavigateToInvites={() => handleTabChange("invites")}
-        />
+        <div className="space-y-4">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                Province-Wide Staff Roster &amp; Allocation
+              </h4>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Executive personnel directory across all 4 campuses. Staff role elevation and onboarding requests require dual-control sign-off via the Approvals queue.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleTabChange("invites")}
+              className="text-xs font-bold text-[#1a3a8f] bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition self-start sm:self-auto cursor-pointer shrink-0"
+            >
+              Staff Invites +
+            </button>
+          </div>
+          <StaffDirectory
+            users={users}
+            classes={classes}
+            invites={invites}
+            currentUserId={auth.currentUser?.uid}
+            onAddStaff={handleAddStaff}
+            onEditStaff={handleEdit}
+            onPrintBadge={setSelectedStudent}
+            onDeleteStaff={handleDelete}
+            onNavigateToInvites={() => handleTabChange("invites")}
+          />
+        </div>
       ),
     },
     {
       id: "invites",
       label: "Invites",
-      category: "Operations",
+      category: "Staff",
       component: (
         <InvitesPanel
           invites={invites}
@@ -458,7 +543,7 @@ export default function ViceDirectorDashboard() {
     {
       id: "misc",
       label: "Directives",
-      category: "Operations",
+      category: "Staff",
       badge: todos.filter((t) => !t.completed).length || null,
       component: (
         <TasksPanel

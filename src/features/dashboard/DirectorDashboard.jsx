@@ -1,8 +1,6 @@
 import { useState, useMemo } from "react";
-import { auth } from "../../firebase";
 import { useDashboardData } from "./useDashboardData";
 import {
-  AIAssistant,
   DashboardShell,
   WelcomeBanner,
   ApprovalInbox,
@@ -12,19 +10,17 @@ import {
 } from "../shared";
 import {
   GraduationCap,
-  BookOpen,
   ArrowRight,
   ShieldCheck,
   Users,
   BarChart3,
   Target,
   ShieldAlert,
+  Building2,
+  TrendingUp,
+  LayoutDashboard,
 } from "lucide-react";
 import { ReportsDashboard } from "../reports";
-import { StudentRoster, BadgeModal } from "../students";
-import { CorporateEventsPanel } from "../attendance";
-import { ClassManager } from "../classes";
-import { StaffDirectory, TasksPanel } from "../staff";
 import { BRANCHES, branchToId, matchesBranchFilter } from "../../constants/branches";
 import {
   ExecutiveBranchScopeBar,
@@ -35,28 +31,28 @@ import {
   RiskExceptionPanel,
   DivisionBalanceCard,
   ExecutiveTuitionHealthCard,
+  ExecutiveAnalyticsPanel,
+  BranchPerformancePanel,
 } from "./executive";
 
 /**
- * DirectorDashboard: Dedicated high-level strategic leadership dashboard for Executive Director.
- * Authoritative Blueprint §6.1:
- * - Strategic leadership & province-wide multi-branch performance analytics
- * - Strategic planning, division balance, and long-term academic expansion
- * - High-level tuition & financial health indicators
- * - High-risk operational & financial exception oversight
+ * DirectorDashboard: Strategic Executive Cockpit for the Executive Director.
+ * Authoritative Blueprint §6.1 & Section 1-15:
+ * - Strategic direction, institutional health synthesis, and province-wide performance
+ * - Dedicated signature modules: Strategic Plan, Executive Analytics, Branch Performance, Decision Center, Strategic Risks, Reports
  * - Dual-control Maker-Checker executive authorizations & separation of duties
- * - Executive inspection & audit of learners, cohorts, and faculty (operational intake delegated to Front Office)
+ * - Clean executive navigation free of routine front-desk CRUD operations
  */
 export default function DirectorDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedBranch, setSelectedBranch] = useState("all");
-  const [reportsSubTab, setReportsSubTab] = useState("staff");
+  const [reportsSubTab, setReportsSubTab] = useState("overview");
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
   };
 
-  const handleNavigateToReports = (targetSubTab = "staff") => {
+  const handleNavigateToReports = (targetSubTab = "overview") => {
     setReportsSubTab(targetSubTab);
     setActiveTab("reports");
   };
@@ -65,15 +61,6 @@ export default function DirectorDashboard() {
     users,
     classes,
     applications,
-    todos,
-    selectedStudent,
-    setSelectedStudent,
-    handleEdit,
-    handleDelete,
-    handleAddTodo,
-    handleDeleteTodo,
-    handleToggleTodo,
-    getStudentClasses,
     instructors,
     students,
     unenrolledStudents,
@@ -106,6 +93,16 @@ export default function DirectorDashboard() {
   const activeStudentsCount = useMemo(() => {
     return filteredStudents.filter((s) => (s.status || "active") === "active").length;
   }, [filteredStudents]);
+
+  const activeFacultyCount = useMemo(() => {
+    return instructors.filter((i) => (i.status || "active") === "active").length;
+  }, [instructors]);
+
+  const overallRatio = useMemo(() => {
+    return activeFacultyCount > 0
+      ? (activeStudentsCount / activeFacultyCount).toFixed(1)
+      : "0";
+  }, [activeStudentsCount, activeFacultyCount]);
 
   // Strategic performance metrics across all 4 physical branches
   const branchStats = useMemo(() => {
@@ -158,38 +155,39 @@ export default function DirectorDashboard() {
     });
   }, [students, classes, users, applications]);
 
+  // ── 1. Strategic Executive Cockpit Landing View ──
   const overviewTab = (
     <div className="space-y-6 w-full">
-      {/* Executive Leadership Welcome Banner */}
+      {/* Strategic Leadership Welcome Banner */}
       <WelcomeBanner
-        portalLabel="Executive Leadership Portal"
+        portalLabel="Strategic Executive Cockpit"
         roleLabel="Executive Director"
         fallbackName="Director"
-        subtitle="Province-wide strategic leadership, multi-branch performance analytics, strategic planning, and dual-control authorizations."
+        subtitle="Province-wide strategic leadership, institutional health synthesis, major risk exceptions, and dual-control executive governance."
         stats={[
           {
-            label: "Pending Approvals",
+            label: "Strategic Health",
+            value: "Optimal",
+            icon: Target,
+            onClick: () => handleTabChange("strategic"),
+          },
+          {
+            label: "Pending Decisions",
             value: pendingApprovalsCount,
             icon: ShieldCheck,
-            onClick: () => handleTabChange("approvals"),
+            onClick: () => handleTabChange("decisions"),
           },
           {
             label: selectedBranch === "all" ? "Province Learners" : "Branch Learners",
             value: activeStudentsCount,
             icon: GraduationCap,
-            onClick: () => handleTabChange("students"),
+            onClick: () => handleTabChange("analytics"),
           },
           {
-            label: selectedBranch === "all" ? "Province Cohorts" : "Branch Cohorts",
-            value: filteredClasses.length,
-            icon: BookOpen,
-            onClick: () => handleTabChange("classes"),
-          },
-          {
-            label: "Academy Staff",
-            value: activeStaffCount,
+            label: "Faculty Ratio",
+            value: `${overallRatio} : 1`,
             icon: Users,
-            onClick: () => handleTabChange("directory"),
+            onClick: () => handleTabChange("analytics"),
           },
         ]}
       />
@@ -206,7 +204,7 @@ export default function DirectorDashboard() {
         selectedBranch={selectedBranch}
         onSelectBranch={setSelectedBranch}
         title="Multi-Branch Strategic Performance (4 Campuses)"
-        subtitle="Click any campus card below to filter the dashboard to that specific branch."
+        subtitle="Click any campus card below to inspect branch performance metrics."
       />
 
       {/* High-Priority Attention Alert Bar */}
@@ -215,10 +213,10 @@ export default function DirectorDashboard() {
         pendingApplications={pendingApplications}
         unenrolledStudentsCount={unenrolledStudents.length}
         riskAlertCount={0}
-        onNavigateToApprovals={() => handleTabChange("approvals")}
-        onNavigateToApplications={() => handleTabChange("applications")}
-        onNavigateToStudents={() => handleTabChange("students")}
-        onNavigateToRisk={() => handleTabChange("risk")}
+        onNavigateToApprovals={() => handleTabChange("decisions")}
+        onNavigateToApplications={() => handleTabChange("analytics")}
+        onNavigateToStudents={() => handleTabChange("analytics")}
+        onNavigateToRisk={() => handleTabChange("risks")}
         title="Executive Strategic Action Required"
       />
 
@@ -228,42 +226,42 @@ export default function DirectorDashboard() {
           <h4 className="font-bold text-slate-800 text-sm">Strategic Command &amp; Oversight</h4>
           <div className="grid grid-cols-2 gap-2 mt-3">
             <button
-              onClick={() => handleTabChange("approvals")}
-              className="p-3 min-h-12 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-bold text-slate-700 hover:bg-slate-100 transition text-left flex items-center justify-between cursor-pointer"
-            >
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-[#1a3a8f]" />
-                <span>Approvals</span>
-              </div>
-              <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-            </button>
-            <button
               onClick={() => handleTabChange("strategic")}
               className="p-3 min-h-12 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-bold text-slate-700 hover:bg-slate-100 transition text-left flex items-center justify-between cursor-pointer"
             >
               <div className="flex items-center gap-2">
-                <Target className="w-4 h-4 text-emerald-600" />
-                <span>Planning</span>
+                <Target className="w-4 h-4 text-[#1a3a8f]" />
+                <span>Strategic Plan</span>
               </div>
               <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
             </button>
             <button
-              onClick={() => handleTabChange("risk")}
+              onClick={() => handleTabChange("analytics")}
               className="p-3 min-h-12 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-bold text-slate-700 hover:bg-slate-100 transition text-left flex items-center justify-between cursor-pointer"
             >
               <div className="flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-rose-600" />
-                <span>Risk &amp; Exceptions</span>
+                <TrendingUp className="w-4 h-4 text-emerald-600" />
+                <span>Analytics</span>
               </div>
               <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
             </button>
             <button
-              onClick={() => handleNavigateToReports("staff")}
+              onClick={() => handleTabChange("branches")}
               className="p-3 min-h-12 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-bold text-slate-700 hover:bg-slate-100 transition text-left flex items-center justify-between cursor-pointer"
             >
               <div className="flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-amber-600" />
-                <span>Reports</span>
+                <Building2 className="w-4 h-4 text-indigo-600" />
+                <span>Branches</span>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+            </button>
+            <button
+              onClick={() => handleTabChange("decisions")}
+              className="p-3 min-h-12 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-bold text-slate-700 hover:bg-slate-100 transition text-left flex items-center justify-between cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-amber-600" />
+                <span>Decisions ({pendingApprovalsCount})</span>
               </div>
               <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
             </button>
@@ -276,36 +274,36 @@ export default function DirectorDashboard() {
               <h4 className="font-bold text-slate-800 text-sm">Strategic Governance Summary</h4>
               <button
                 type="button"
-                onClick={() => handleNavigateToReports("staff")}
-                className="text-xs text-[#1a3a8f] font-bold hover:underline"
+                onClick={() => handleTabChange("reports")}
+                className="text-xs text-[#1a3a8f] font-bold hover:underline cursor-pointer"
               >
                 Executive Reports →
               </button>
             </div>
             <p className="text-xs text-slate-600 mt-2 font-medium">
-              {students.filter((s) => (s.status || "active") === "active").length} total learners registered across Gorontalo Province
+              {students.filter((s) => (s.status || "active") === "active").length} total active learners registered across Gorontalo Province
             </p>
             <p className="text-xs text-slate-500 mt-1 font-medium">
-              {classes.length} active classes · {instructors.filter((i) => (i.status || "active") === "active").length} faculty instructors
+              {classes.length} active cohorts · {activeFacultyCount} faculty instructors · {activeStaffCount} total personnel
             </p>
             <p className="text-xs text-slate-400 mt-1 font-medium">
-              Admissions: <strong>{pendingApplications}</strong> application{pendingApplications !== 1 ? "s" : ""} in front-office intake queue
+              Admissions: <strong>{pendingApplications}</strong> application{pendingApplications !== 1 ? "s" : ""} in intake pipeline
             </p>
           </div>
           <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
             <span>Governance: <strong>Dual-Control Enforced</strong></span>
             <button
               type="button"
-              onClick={() => handleTabChange("events")}
-              className="text-[#1a3a8f] font-bold hover:underline"
+              onClick={() => handleTabChange("risks")}
+              className="text-rose-600 font-bold hover:underline cursor-pointer"
             >
-              Corporate Events +
+              Strategic Risks &rarr;
             </button>
           </div>
         </div>
       </div>
 
-      {/* Academic Division Breakdown (Course Academy vs Kids School) */}
+      {/* Academic Division Balance Breakdown (Course Academy vs Kids School) */}
       <DivisionBalanceCard
         students={students}
         selectedBranch={selectedBranch}
@@ -314,7 +312,7 @@ export default function DirectorDashboard() {
       {/* High-Level Tuition Collection & Financial Health Indicator */}
       <ExecutiveTuitionHealthCard
         students={filteredStudents}
-        onNavigateToStudents={() => handleTabChange("students")}
+        onNavigateToStudents={() => handleTabChange("analytics")}
         onNavigateToReports={() => handleNavigateToReports("finance")}
       />
 
@@ -327,38 +325,29 @@ export default function DirectorDashboard() {
         selectedBranch={selectedBranch}
         role="director"
         showTuitionDueList={false}
-        onNavigateToStudents={() => handleTabChange("students")}
-        onNavigateToClasses={() => handleTabChange("classes")}
+        onNavigateToStudents={() => handleTabChange("analytics")}
+        onNavigateToClasses={() => handleTabChange("branches")}
       />
     </div>
   );
 
+  // ── Target Navigation Structure (Section 3 of Blueprint Directive) ──
   const tabs = [
-    // Main Strategic Overview
-    { id: "overview", label: "Overview", category: "Main", component: overviewTab },
-
-    // Dual-Control Governance (Operations Category)
+    // 1. Dashboard (Strategic Overview Cockpit)
     {
-      id: "approvals",
-      label: "Approvals",
-      category: "Operations",
-      badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
-      component: (
-        <ErrorBoundary label="Director Approvals queue">
-          <ApprovalInbox
-            userRole="director"
-            title="Director Dual-Control Authorization Registry"
-            subtitle="Dual-control executive sign-off queue for staff role elevations, strategic governance exceptions, large discounts, and financial variances."
-          />
-        </ErrorBoundary>
-      ),
+      id: "overview",
+      label: "Dashboard",
+      category: "Main",
+      icon: LayoutDashboard,
+      component: overviewTab,
     },
 
-    // Strategic Planning & Risk Oversight
+    // 2. Strategic Plan (Signature Director Module)
     {
       id: "strategic",
-      label: "Strategic Planning",
-      category: "Governance",
+      label: "Strategic Plan",
+      category: "Strategy",
+      icon: Target,
       component: (
         <ErrorBoundary label="Strategic planning panel">
           <StrategicPlanningPanel
@@ -369,145 +358,117 @@ export default function DirectorDashboard() {
         </ErrorBoundary>
       ),
     },
+
+    // 3. Executive Analytics (Synthesis Layer)
     {
-      id: "risk",
-      label: "Risk & Exceptions",
-      category: "Governance",
+      id: "analytics",
+      label: "Executive Analytics",
+      category: "Strategy",
+      icon: TrendingUp,
       component: (
-        <ErrorBoundary label="Risk and exceptions panel">
-          <RiskExceptionPanel
-            pendingApprovalsCount={pendingApprovalsCount}
-            unenrolledStudentsCount={unenrolledStudents.length}
-            onNavigateToApprovals={() => handleTabChange("approvals")}
-            onNavigateToStudents={() => handleTabChange("students")}
+        <ErrorBoundary label="Executive analytics panel">
+          <ExecutiveAnalyticsPanel
+            students={students}
+            classes={classes}
+            instructors={instructors}
+            users={users}
+            selectedBranch={selectedBranch}
+            onNavigateToReports={handleNavigateToReports}
+            onNavigateToStrategic={() => handleTabChange("strategic")}
+            onNavigateToBranches={() => handleTabChange("branches")}
           />
         </ErrorBoundary>
       ),
     },
 
-    // Academic & School Oversight (Executive Inspection & Policy Review Only)
+    // 4. Branch Performance (Multi-Campus Oversight)
     {
-      id: "students",
-      label: "Students",
-      category: "Academic",
+      id: "branches",
+      label: "Branch Performance",
+      category: "Performance",
+      icon: Building2,
       component: (
-        <div className="space-y-4">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">
-                Academic Learner Roster &amp; Profile Directory
-              </h4>
-              <p className="text-[11px] text-slate-500 font-medium">
-                Executive inspection and audit view. Front desk staff execute day-to-day enrollment and intake, while Executive Directorate oversees academic policy and authorizations.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleNavigateToReports("students")}
-              className="text-xs font-bold text-[#1a3a8f] bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition self-start sm:self-auto cursor-pointer shrink-0"
-            >
-              Academic Reports →
-            </button>
-          </div>
-          <StudentRoster
-            students={filteredStudents}
-            classes={filteredClasses}
-            users={users}
-            getStudentClasses={getStudentClasses}
-            setSelectedStudent={setSelectedStudent}
-            handleEdit={handleEdit}
-            handleDelete={handleDelete}
-            handleAddStudent={null}
-            isAdmin={true}
-            userRole="director"
-            branchId={selectedBranch === "all" ? null : branchToId(selectedBranch)}
-            canViewParents={true}
-          />
-        </div>
-      ),
-    },
-    {
-      id: "classes",
-      label: "Classes",
-      category: "Academic",
-      component: (
-        <div className="space-y-4">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">
-                Academic Classes &amp; Cohort Capacity Management
-              </h4>
-              <p className="text-[11px] text-slate-500 font-medium">
-                Executive cohort inspection. Division Managers manage day-to-day batch schedules, while Executive Directorate monitors province-wide seat utilization and expansion.
-              </p>
-            </div>
-          </div>
-          <ClassManager
-            classes={filteredClasses}
+        <ErrorBoundary label="Branch performance panel">
+          <BranchPerformancePanel
+            students={students}
+            classes={classes}
             users={users}
             instructors={instructors}
-            unenrolledStudents={unenrolledStudents}
-            role="director"
-            isAdmin={false}
+            applications={applications}
+            selectedBranch={selectedBranch}
+            onSelectBranch={setSelectedBranch}
+            onNavigateToDecisions={() => handleTabChange("decisions")}
+            onNavigateToRisks={() => handleTabChange("risks")}
           />
+        </ErrorBoundary>
+      ),
+    },
+
+    // 5. Decision Center (Dual-Control Executive Decisions)
+    {
+      id: "decisions",
+      label: "Decision Center",
+      category: "Governance",
+      icon: ShieldCheck,
+      badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
+      component: (
+        <div className="space-y-6">
+          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-2xs space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-[#1a3a8f]" />
+                  <h3 className="font-extrabold text-slate-900 text-lg tracking-tight">
+                    Executive Decision Center &amp; Dual-Control Registry
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Authorized Maker-Checker executive authorizations: Staff Role Elevations, Executive Discounts &amp; Refunds, and Strategic Policy Exceptions.
+                </p>
+              </div>
+              <span className="px-3 py-1 bg-indigo-50 text-[#1a3a8f] font-bold text-xs rounded-xl border border-indigo-100 self-start sm:self-auto">
+                Executive Governance Tier
+              </span>
+            </div>
+            <p className="text-xs text-slate-600 font-medium leading-relaxed">
+              Under Authoritative Blueprint v3.1 §17 &amp; §18, high-impact business decisions require independent executive sign-off. Requesters cannot approve their own submissions.
+            </p>
+          </div>
+          <ErrorBoundary label="Director Decision Center">
+            <ApprovalInbox
+              userRole="director"
+              title="Director Executive Decision Registry"
+              subtitle="Dual-control executive sign-off queue for staff role elevations, strategic governance exceptions, large discounts, and financial variances."
+            />
+          </ErrorBoundary>
         </div>
       ),
     },
+
+    // 6. Strategic Risks (High-Impact Risk & Exception Center)
     {
-      id: "events",
-      label: "Events",
-      category: "Academic",
+      id: "risks",
+      label: "Strategic Risks",
+      category: "Governance",
+      icon: ShieldAlert,
       component: (
-        <CorporateEventsPanel
-          canCreate={false}
-          title="Executive Calendar & Corporate Events"
-          subtitle="Province-wide institutional calendar, holidays, and corporate event oversight. Front Office and Operational Leaders coordinate local branch event logistics, while the Executive Directorate maintains calendar review."
-        />
+        <ErrorBoundary label="Risk and exceptions panel">
+          <RiskExceptionPanel
+            pendingApprovalsCount={pendingApprovalsCount}
+            unenrolledStudentsCount={unenrolledStudents.length}
+            onNavigateToApprovals={() => handleTabChange("decisions")}
+            onNavigateToStudents={() => handleTabChange("analytics")}
+          />
+        </ErrorBoundary>
       ),
     },
 
-    // Operations & Staff (Inspection Only)
-    {
-      id: "directory",
-      label: "Staff Directory",
-      category: "Operations",
-      component: (
-        <StaffDirectory
-          users={users}
-          classes={classes}
-          invites={[]}
-          currentUserId={auth.currentUser?.uid}
-          onAddStaff={null}
-          onEditStaff={handleEdit}
-          onPrintBadge={setSelectedStudent}
-          onDeleteStaff={handleDelete}
-          onNavigateToInvites={null}
-        />
-      ),
-    },
-    {
-      id: "misc",
-      label: "Directives",
-      category: "Operations",
-      badge: todos.filter((t) => !t.completed).length || null,
-      component: (
-        <TasksPanel
-          todos={todos}
-          users={users}
-          currentUser={auth.currentUser}
-          userRole="director"
-          onAddTodo={handleAddTodo}
-          onDeleteTodo={handleDeleteTodo}
-          onToggleTodo={handleToggleTodo}
-        />
-      ),
-    },
-
-    // System Reports & AI
+    // 7. Reports (Executive Reporting Synthesis)
     {
       id: "reports",
       label: "Reports",
-      category: "System",
+      category: "Governance",
+      icon: BarChart3,
       component: (
         <ReportsDashboard
           isAdminView={true}
@@ -518,12 +479,6 @@ export default function DirectorDashboard() {
         />
       ),
     },
-    {
-      id: "aiAssistant",
-      label: "AI Assistant",
-      category: "System",
-      component: <AIAssistant />,
-    },
   ];
 
   return (
@@ -532,12 +487,9 @@ export default function DirectorDashboard() {
         tabs={tabs}
         activeTab={activeTab}
         onTabChange={handleTabChange}
-        title="Executive Director Strategic Command"
-        primaryTabIds={["overview", "approvals", "strategic", "risk", "students", "classes", "reports"]}
+        title="Executive Director Strategic Cockpit"
+        primaryTabIds={["overview", "strategic", "analytics", "branches", "decisions", "risks", "reports"]}
       />
-
-      {/* ID Badge Modal */}
-      <BadgeModal person={selectedStudent} onClose={() => setSelectedStudent(null)} />
     </div>
   );
 }

@@ -101,18 +101,20 @@ export default function ReportsDashboard({
             <span>{isSupervisor ? "Staff Duty Logs" : "My Duty Log"}</span>
           </button>
 
-          {/* Sub-Tab: Learner Progress & Attendance */}
-          <button
-            onClick={() => setSubTab("students")}
-            className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
-              subTab === "students"
-                ? "bg-[#1a3a8f] text-white shadow-xs"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            <GraduationCap className="w-3.5 h-3.5" />
-            <span>Learner Progress</span>
-          </button>
+          {/* Sub-Tab: Learner Progress & Attendance (Supervisors & Instructors) */}
+          {!isActualAdmin && (
+            <button
+              onClick={() => setSubTab("students")}
+              className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
+                subTab === "students"
+                  ? "bg-[#1a3a8f] text-white shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>Learner Progress</span>
+            </button>
+          )}
 
           {/* Sub-Tab: Admissions Velocity (Admin, Manager, Front Office) */}
           {(isAdminView || isFrontOffice || isManager) && (
@@ -221,7 +223,7 @@ export default function ReportsDashboard({
         />
       )}
 
-      {subTab === "students" && (
+      {subTab === "students" && !isActualAdmin && (
         <LearnerProgressTab
           ref={activeTabRef}
           branchFilter={branchFilter}

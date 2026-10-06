@@ -50,11 +50,6 @@ vi.mock("./LogRetentionCard", () => ({
   default: () => React.createElement("div", { "data-testid": "log-retention-card" }, "Log Retention Mock"),
 }));
 
-vi.mock("../../utils/urlAction", () => ({
-  getUrlAction: vi.fn().mockReturnValue(null),
-  clearUrlAction: vi.fn(),
-}));
-
 describe("AdminDashboard Component (Technical Administration)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -102,5 +97,9 @@ describe("AdminDashboard Component (Technical Administration)", () => {
     expect(html).not.toContain("Tuition Due");
     expect(html).not.toContain("Available Batches");
     expect(html).not.toContain("Administrative Attention Required");
+
+    // System Admin does not have unauthorized AI messaging or in-dashboard kiosk scanner
+    expect(html).not.toContain("AI Assistant");
+    expect(html).not.toContain("Attendance Kiosk");
   });
 });

@@ -185,6 +185,7 @@ describe("TRACKED_STAFF_ROLES", () => {
     expect(TRACKED_STAFF_ROLES).toContain("opslead");
     expect(TRACKED_STAFF_ROLES).toContain("marketing");
     expect(TRACKED_STAFF_ROLES).toContain("officeboy");
+    expect(TRACKED_STAFF_ROLES).toContain("admin");
   });
 });
 

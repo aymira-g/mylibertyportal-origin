@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { auth } from "../../firebase";
 import { useDashboardData } from "./useDashboardData";
 import {
-  AIAssistant,
   DashboardShell,
   WelcomeBanner,
   isStaffRole,
@@ -20,21 +19,13 @@ import {
 } from "lucide-react";
 import { ReportsDashboard } from "../reports";
 import { UserForm, BadgeModal } from "../students";
-import { KioskModal, KioskSidebarButton, KioskProvisioningPanel } from "../attendance";
+import { KioskProvisioningPanel } from "../attendance";
 import { StaffDirectory, InvitesPanel, TasksPanel } from "../staff";
 import LogRetentionCard from "./LogRetentionCard";
 import BranchHealthAuditCard from "./BranchHealthAuditCard";
-import { getUrlAction, clearUrlAction } from "../../utils/urlAction.js";
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
-  const [kioskOpen, setKioskOpen] = useState(() => {
-    return getUrlAction() === "attendance";
-  });
-
-  useEffect(() => {
-    clearUrlAction();
-  }, []);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -284,12 +275,6 @@ export default function AdminDashboard() {
       category: "System",
       component: <ReportsDashboard isAdminView={true} isFrontOffice={false} canEdit={false} />,
     },
-    {
-      id: "aiAssistant",
-      label: "AI Assistant",
-      category: "System",
-      component: <AIAssistant />,
-    },
 
     // Hidden form tab for adding / editing user
     {
@@ -319,17 +304,6 @@ export default function AdminDashboard() {
         onTabChange={handleTabChange}
         title="Admin Panel"
         primaryTabIds={["overview", "directory", "invites", "terminals"]}
-        extraSidebarContent={
-          <KioskSidebarButton onClick={() => setKioskOpen(true)} label="Attendance Kiosk" />
-        }
-      />
-
-      {/* Standalone Full-Screen Kiosk Station */}
-      <KioskModal
-        isOpen={kioskOpen}
-        onClose={() => setKioskOpen(false)}
-        title="Campus Attendance Scanner"
-        studentsOnly={false}
       />
 
       {/* ID Badge Modal */}

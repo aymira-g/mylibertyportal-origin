@@ -28,7 +28,7 @@ export const STAFF_ROLE_LABELS = {
   instructorleader: "Instructor Leader",
   frontoffice: "Front Office",
   opslead: "Front Office Leader",
-  manager: "Manager",
+  manager: "Division Manager",
   marketing: "Marketing Staff",
   officeboy: "Office Boy",
   admin: "Administrator",
@@ -65,6 +65,7 @@ export const TRACKED_STAFF_ROLES = [
   "manager",
   "marketing",
   "officeboy",
+  "admin",
 ];
 
 export const STAFF_STATUS_OPTIONS = Object.entries(STAFF_STATUS_MAP).map(([value, conf]) => ({

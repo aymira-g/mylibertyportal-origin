@@ -165,7 +165,7 @@ export default function StaffProfileFields({
             <option value="instructorleader">Instructor Leader</option>
             <option value="frontoffice">Front Office</option>
             <option value="opslead">Front Office Leader (Ops Lead)</option>
-            <option value="manager">Manager</option>
+            <option value="manager">Division Manager</option>
             <option value="marketing">Marketing Staff</option>
             <option value="officeboy">Office Support (Office Boy)</option>
           </select>

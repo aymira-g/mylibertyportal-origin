@@ -7,7 +7,6 @@ import {
   GraduationCap,
   Award,
   Layers,
-  CheckCircle2,
   Target,
 } from "lucide-react";
 import { BRANCHES, matchesBranchFilter } from "../../../constants/branches";
@@ -359,9 +358,15 @@ export function ExecutiveAnalyticsPanel({
                     {b.ratio} : 1
                   </td>
                   <td className="py-3 px-3 text-right">
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      <CheckCircle2 className="w-3 h-3" /> Balanced
-                    </span>
+                    {b.faculty === 0 && b.learners > 0 ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                        No faculty assigned
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                        Data active
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

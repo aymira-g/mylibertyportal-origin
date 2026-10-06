@@ -1,6 +1,6 @@
 # MyLiberty Portal — Authoritative Organizational, Authority & Rebuild Blueprint
 
-**Version:** 3.1  
+**Version:** 3.2  
 **Status:** PROPOSED AUTHORITATIVE BASELINE FOR OWNER APPROVAL  
 **Date:** 2026-10-06  
 **Scope:** Organizational identity, authority, access governance, workflow governance, data-scope principles, implementation derivation, and rebuild/re-foundation rules
@@ -36,6 +36,15 @@ Version 3.1 adopts an explicit simplification of the physical-branch authority m
 - Any existing decision, specification, permission, dashboard, or code path that grants authority specifically to a **Branch Manager / Branch Head** must be reconciled to this revised model before the v3.1 baseline is considered fully implemented.
 
 This change is intended to simplify authority, reduce role overlap, preserve separation of responsibilities, and make the system's authorization model easier to derive and audit.
+
+### Version 3.2 executive clarification
+
+Version 3.2 proposes an explicit executive distinction between the Director and Vice Director:
+
+- **Director:** strategic direction, strategic performance assessment, and executive decision authority where explicitly assigned.
+- **Vice Director:** execution, coordination, multi-branch operational oversight, exception follow-up, and delegated executive authority.
+
+This distinction resolves the conceptual direction of governance question **G-004**, while remaining subject to the blueprint's normal owner-approval process.
 
 ---
 
@@ -303,13 +312,21 @@ Any existing technical or documentation references to those concepts must be tre
 
 ## 6.1 Director
 
-**Organizational purpose:** Executive strategic leadership.
+**Organizational purpose:** Executive strategic direction and overall organizational leadership.
+
+**Primary executive function:** Determine and maintain the organization's strategic direction, assess province-wide strategic performance, and make executive decisions specifically assigned to the role.
 
 **Established responsibilities:**
 
 - overall strategic leadership;
 - province-wide analytics;
-- multi-branch performance oversight.
+- multi-branch performance oversight;
+- definition, ownership, or approval of strategic objectives where governance assigns that authority;
+- assessment of organization-wide performance against strategic objectives;
+- review of major strategic risks, material exceptions, and matters escalated for executive decision;
+- executive direction of the organization within the authority established by governance.
+
+The Director's primary executive focus is **strategy and direction**: determining where the organization is going, whether it is meeting its strategic objectives, and which high-impact decisions require executive direction.
 
 The Director is an organizational role.
 
@@ -317,21 +334,54 @@ The Director is **not** automatically the technical System Admin.
 
 The Director does not receive technical system-administration authority merely by holding executive office.
 
+Holding the Director role does not automatically grant unrestricted authority over every operational workflow. Specific approval, signing, execution, and technical capabilities must still be explicitly assigned through the applicable role, capability, scope, and workflow rules.
+
 ## 6.2 Vice Director
 
-**Organizational purpose:** Executive leadership below the Director.
+**Organizational purpose:** Executive execution, coordination, and multi-branch operational oversight under the Director.
+
+**Primary executive function:** Translate approved organizational priorities into coordinated execution, monitor multi-branch operational performance, follow up on exceptions, and exercise only the authority expressly delegated to the role.
 
 **Established responsibilities:**
 
 - participation in executive leadership;
-- province-wide and multi-branch oversight within the authority actually delegated to the role;
-- oversight of branch-scope functions as explicitly delegated by governance.
+- province-wide and multi-branch operational oversight within delegated authority;
+- coordination of execution of organizational priorities and approved strategic objectives;
+- monitoring of branch performance and identification of operational or organizational exceptions requiring intervention;
+- follow-up and coordination of corrective actions across branch-scope leadership functions;
+- oversight of branch-scope functions as explicitly delegated by governance;
+- escalation of material or strategic matters to the Director when they exceed the Vice Director's delegated authority;
+- executive coordination among Course Division Manager, Kindergarten Division Manager, Operational Leader, and Instructor Leader functions where governance explicitly assigns such coordination authority.
 
-The exact division of decision authority between Director and Vice Director is not fully established by this blueprint and remains an owner-governance question.
+The Vice Director's primary executive focus is **execution and coordination**: understanding what is happening across the organization, identifying what requires action, coordinating the appropriate responsible functions, and ensuring that approved priorities are followed through.
 
-The Vice Director is not automatically the technical System Admin.
+The Vice Director is not a technical System Admin.
 
-## 6.3 Course Division Manager
+The Vice Director does not automatically inherit unrestricted Director authority by virtue of being next in the organizational hierarchy. Temporary exercise of Director authority requires **explicit delegation under the applicable approved governance procedure**. The Vice Director must not infer or self-assume Acting Director authority merely because the Director is absent, unavailable, or operationally uninvolved.
+
+The Vice Director's authority remains bounded by the specific capability, organizational scope, and workflow authority expressly delegated to the role.
+
+## 6.3 Executive role boundary: Director vs Vice Director
+
+The executive distinction is intentionally functional rather than merely hierarchical:
+
+| Dimension | Director | Vice Director |
+|---|---|---|
+| Primary purpose | Strategic direction | Strategic execution and coordination |
+| Primary question | **Where are we going?** | **What is happening, what needs action, and who needs to act?** |
+| Time horizon | Long-term / strategic | Short- to medium-term execution and follow-up |
+| Strategic plan | Owns overall strategic direction and strategic performance assessment where authorized | Coordinates execution of approved priorities and monitors progress |
+| Multi-branch performance | Evaluates organization-wide strategic performance | Monitors operational performance, exceptions, and corrective-action follow-up |
+| Major issues | Provides executive direction on matters within assigned authority | Coordinates response and escalates matters beyond delegated authority |
+| Branch leadership interaction | Strategic oversight | Active executive coordination and follow-up within delegated authority |
+| Approval/sign-off | Higher-level or final executive authority only where explicitly assigned | Delegated executive authority only where explicitly assigned |
+| Absence/delegation | May delegate specific authority through approved governance | Does not become unrestricted Acting Director without explicit delegation |
+
+This distinction does **not** mean that the Vice Director has less visibility merely because the role has less ultimate authority. The Vice Director may require broad multi-branch visibility to perform coordination and oversight responsibilities while still lacking authority over actions outside the role's delegated capabilities.
+
+The exact approval thresholds, signing authorities, and detailed workflow participation for both executive roles must be defined through the applicable workflow cards and owner-approved decisions.
+
+## 6.4 Course Division Manager
 
 The Course Division Manager leads the Course Division within an assigned physical branch.
 
@@ -354,7 +404,7 @@ The role does not automatically inherit authority over:
 - technical system administration;
 - restricted financial actions unless separately and explicitly authorized.
 
-## 6.4 Kindergarten Division Manager
+## 6.5 Kindergarten Division Manager
 
 The Kindergarten Division Manager leads the Kindergarten Division within an assigned physical branch.
 
@@ -379,7 +429,7 @@ The role does not automatically inherit authority over:
 - technical system administration;
 - restricted financial actions unless separately and explicitly authorized.
 
-## 6.5 Course Division Marketing
+## 6.6 Course Division Marketing
 
 Course Division Marketing operates under the Course Division Manager.
 
@@ -389,7 +439,7 @@ Course Division Marketing operates under the Course Division Manager.
 
 Marketing authority is operational. It does not automatically create academic, financial, executive, or technical authority.
 
-## 6.6 Kindergarten Division Marketing
+## 6.7 Kindergarten Division Marketing
 
 Kindergarten Division Marketing operates under the Kindergarten Division Manager.
 
@@ -399,7 +449,7 @@ Kindergarten Division Marketing operates under the Kindergarten Division Manager
 
 Marketing authority does not automatically create academic, financial, executive, or technical authority.
 
-## 6.7 Operational Leader
+## 6.8 Operational Leader
 
 The Operational Leader coordinates branch-site operations.
 
@@ -414,7 +464,7 @@ The Operational Leader is an operational organizational role, not System Admin.
 
 The Operational Leader is **not** a replacement Branch Manager. The role has the operational authority expressly assigned to it and does not automatically acquire authority over the Course Division, Kindergarten Division, or Teaching and Learning Structure.
 
-## 6.8 Front Office / Admin
+## 6.9 Front Office / Admin
 
 Front Office / Admin is a branch operational function.
 
@@ -429,7 +479,7 @@ Front Office / Admin is a branch operational function.
 
 **Mandatory naming boundary:** Front Office / Admin is not the technical System Admin role.
 
-## 6.9 Office Boy / Facilities
+## 6.10 Office Boy / Facilities
 
 Office Boy / Facilities provides:
 
@@ -443,7 +493,7 @@ This function does not automatically receive:
 - academic authority;
 - system-administration authority.
 
-## 6.10 Instructor Leader
+## 6.11 Instructor Leader
 
 The Instructor Leader leads academic delivery within the assigned branch scope.
 
@@ -460,7 +510,7 @@ The exact higher-level reporting line remains an explicit governance gap until c
 
 The Instructor Leader is **not** a Branch Manager and does not automatically inherit general operational or financial authority.
 
-## 6.11 Instructors / Tutors
+## 6.12 Instructors / Tutors
 
 Instructors / Tutors provide direct educational delivery.
 
@@ -473,13 +523,13 @@ Instructors / Tutors provide direct educational delivery.
 
 Their authority is academic and operational within assigned scope.
 
-## 6.12 Students
+## 6.13 Students
 
 Students are external actors in the internal organizational hierarchy, while remaining first-class participants in the service provided by the company.
 
 Student-facing access must be limited to information and interactions legitimately belonging to the student.
 
-## 6.13 Parents
+## 6.14 Parents
 
 Parents are external actors.
 
@@ -491,7 +541,7 @@ Established participation includes:
 
 Parent access is controlled access to authorized child-related information, not internal organizational authority.
 
-## 6.14 Unresolved Kindergarten staffing
+## 6.15 Unresolved Kindergarten staffing
 
 The phrase **"Kindergarten staff"** is not itself an approved organizational role.
 
@@ -754,6 +804,19 @@ Assume Permission
 A hidden button is not a security boundary.
 
 Backend/data authorization must reject unauthorized operations even when an unauthorized user manages to call the underlying operation directly.
+
+## 13.1 Executive dashboard derivation
+
+The Director and Vice Director should have distinguishable executive dashboard experiences because their organizational responsibilities are intentionally different.
+
+The governance model therefore establishes the following **dashboard intent**, without defining a framework-specific layout:
+
+- **Director dashboard:** emphasize strategic objectives, province-wide strategic performance, major organizational trends, material risks, and executive decisions requiring strategic direction.
+- **Vice Director dashboard:** emphasize execution of approved priorities, multi-branch operational performance, exceptions, corrective-action follow-up, coordination, and matters requiring escalation to the Director.
+
+Shared analytics or domain components may be reused technically, but the dashboard composition must reflect the different executive purposes of the two roles.
+
+Dashboard differences must remain downstream of authorization. A dashboard must not grant a capability merely because the role's executive interface exposes the information or action.
 
 ---
 
@@ -1130,7 +1193,7 @@ The following questions are intentionally **not answered by technical agents**.
 | G-001 | Who is the formal authority for approving amendments to this blueprint? | **OPEN** |
 | G-002 | Who may appoint/revoke System Admin access and who oversees it? | **OPEN** |
 | G-003 | What is the exact reporting line of the Instructor Leader? | **OPEN** |
-| G-004 | What is the exact division of authority between Director and Vice Director? | **OPEN** |
+| G-004 | What is the exact division of authority between Director and Vice Director? | **PROPOSED RESOLUTION — Director = strategic direction; Vice Director = executive execution, coordination, and multi-branch operational oversight; owner approval required** |
 | G-005 | Which real-world Kindergarten roles exist in addition to the Kindergarten Division Manager? | **OPEN** |
 | G-006 | Which actions are formally classified as sensitive? | **OPEN — candidate list exists in §17** |
 | G-007 | Who may approve each sensitive action? | **OPEN** |
@@ -1614,10 +1677,11 @@ It establishes:
 - privacy principle;
 - documentation authority relationship;
 - rebuild/re-foundation strategy;
-- owner-decision register.
+- owner-decision register, including a proposed resolution for the Director/Vice Director authority split.
 
 It does **not** claim to have finalized:
 
+- owner approval of the proposed Director / Vice Director authority split;
 - every role capability;
 - every field-level permission;
 - every approval threshold;
@@ -1669,7 +1733,7 @@ Never reverse the dependency by allowing the existing UI, a technical role, an o
 
 This section is intentionally left for explicit governance approval.
 
-**Blueprint:** MyLiberty Portal — Authoritative Organizational, Authority & Rebuild Blueprint v3.1
+**Blueprint:** MyLiberty Portal — Authoritative Organizational, Authority & Rebuild Blueprint v3.2
 
 **Approval status:** `PENDING OWNER APPROVAL`
 
@@ -1687,7 +1751,7 @@ ________________________________________________________________________________
 
 ### Upon approval
 
-After approval, this document becomes the authoritative governance baseline for the rules it establishes.
+After approval, this document becomes the authoritative governance baseline for the rules it establishes, including the proposed Director/Vice Director executive distinction once owner approval is recorded.
 
 Subsequent technical work must derive from it rather than redefine it.
 

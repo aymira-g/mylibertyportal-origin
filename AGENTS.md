@@ -84,10 +84,17 @@ Before making decisions concerning:
    - a previous implementation decision says so;
    - a role sounds senior;
    - or a feature appears to require a permission.
-3. **Separation of System Admin from the Organization:** System Admin is a technical system-access role, not an organizational position. It does not inherit Director, Vice Director, Branch Manager, or business approval authority. Technical access must never be used to bypass organizational approval chains or self-privilege-escalate.
-4. **Current Implementation as a Reconciliation Target:** The existing application is the starting implementation to be reconciled to the blueprint through controlled, evidence-based change — not the authority that defines the desired organizational model. Do not assume every existing permission is correct merely because it exists, nor assume it is wrong merely because it differs from v3.
+3. **Separation of System Admin from the Organization:** System Admin is a technical system-access role, not an organizational position. It does not inherit Director, Vice Director, Division Manager, or business approval authority. Technical access must never be used to bypass organizational approval chains or self-privilege-escalate.
+4. **Current Implementation as a Reconciliation Target:** The existing application is the starting implementation to be reconciled to the blueprint through controlled, evidence-based change — not the authority that defines the desired organizational model. Do not assume every existing permission is correct merely because it exists, nor assume it is wrong merely because it differs from v3.1.
 5. **Preserve Explicit Governance Gaps:** Where the blueprint records an unresolved decision (e.g. §26 Owner Decision Register), preserve that open state. An undefined governance rule is a governance gap, not permission for an implementation agent to invent a rule.
 6. **No Unilateral Blueprint Implementation:** Do not redesign dashboards, change Firestore rules, or alter role permissions based on the blueprint unless explicitly instructed in an approved, scoped implementation task.
+7. **No Branch Manager / Branch Head Concept (Blueprint v3.1 §5.4):** The concept of Branch Manager / Branch Head is removed from the organizational model. Agents must **not** invent or recreate Branch Manager under another name such as "Branch Head", "Site Manager", "Branch Lead", or an equivalent catch-all authority.
+8. **Physical Branch is Scope, Not a Role (Blueprint v3.1 §5.1):** A physical branch is an organizational and data-scope boundary (`branchId`), NOT a managerial authority role. Agents must not interpret a physical branch as an implicit catch-all manager.
+9. **No Silent Transfer of Removed Authority (Blueprint v3.1 §5.2, Principle 14):** Removing Branch Manager does not automatically transfer former Branch Manager permissions or approvals to the Course Division Manager, Kindergarten Division Manager, Operational Leader, Instructor Leader, or any other role. If no authoritative reassignment exists, record it as an explicit governance gap.
+10. **Semantic Interpretation of Manager:** The technical `manager` role represents an organizational Division Manager bound to their specific branch and division (`manager + branchId + division`), never branch-wide authority by default.
+    - `manager + division="courses"` $\rightarrow$ Course Division Manager authority.
+    - `manager + division="kindergarten"` $\rightarrow$ Kindergarten Division Manager authority.
+11. **Reconciliation vs. Restoring Old Model:** When encountering legacy Branch Manager behavior or terminology in code, report it as legacy/drift requiring reconciliation rather than silently restoring the old model.
 
 ### Architecture authority
 

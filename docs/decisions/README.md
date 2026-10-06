@@ -28,7 +28,7 @@ A decision document defines:
 | [`2026-09-24-multi-branch-data-isolation.md`](./2026-09-24-multi-branch-data-isolation.md) | Multi-Branch Data Isolation (`branchId` scoping across Firestore & Maker-Checker) | 2026-09-24 | Active *(Provisional executive representation by technical `admin` is superseded by Blueprint v3)* |
 | [`2026-10-04-executive-account-migration-bootstrap-runbook.md`](./2026-10-04-executive-account-migration-bootstrap-runbook.md) | Executive Account Migration & Bootstrapping (Director & Vice Director setup) | 2026-10-04 | Active |
 | [`2026-10-04-executive-break-glass-procedure.md`](./2026-10-04-executive-break-glass-procedure.md) | Executive Deadlock Break-Glass Procedure (Console-level recovery) | 2026-10-04 | Active |
-| [`2026-10-05-delegation-of-discounts-and-refunds-to-executives.md`](./2026-10-05-delegation-of-discounts-and-refunds-to-executives.md) | Exclusive Executive Authority for Tuition Discounts, Fee Waivers, and Refunds | 2026-10-05 | Active |
+| [`2026-10-05-delegation-of-discounts-and-refunds-to-executives.md`](./2026-10-05-delegation-of-discounts-and-refunds-to-executives.md) | Exclusive Executive Authority for Tuition Discounts, Fee Waivers, and Refunds | 2026-10-05 | Active *(Executive discount authority active; former Branch Manager cash reconciliation portion superseded by Blueprint v3.1 G-009 pending owner reassignment)* |
 
 ## Lifecycle Rule
 

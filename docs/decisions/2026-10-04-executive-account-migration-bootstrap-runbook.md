@@ -97,7 +97,7 @@ Once the Director and Vice Director accounts are bootstrapped, **no one needs to
 
 1. **Staff Promotion Request (Maker):**
    - An executive or manager opens the Staff Directory in the Dashboard.
-   - They edit an employee's profile and select a new role (e.g., promoting an Instructor to Instructor Leader, or appointing a Branch Manager).
+   - They edit an employee's profile and select a new role (e.g., promoting an Instructor to Instructor Leader, or appointing a Division Manager).
    - Clicking **Save** automatically creates a pending `STAFF_ROLE_ELEVATION` approval request.
    - Non-role changes (phone, division, address) save immediately, while the role elevation waits for authorization.
 2. **Independent Authorization (Signer / Checker):**

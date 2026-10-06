@@ -64,6 +64,11 @@ Where any technical decision intersects with an organizational authority boundar
    High-risk operations (tuition discounts, cash reconciliation discrepancies, staff departure, role elevation) require dual-control authorization ([`Blueprint §14–16`](./governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md#14-workflow-governance)). The architecture provides dedicated approval queues and prevents self-approval.
 6. **Dashboard Authority Rule:**  
    Dashboards are presentation interfaces, not authority sources ([`Blueprint §13`](./governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md#13-dashboard-authority-rule)). Backend security rules and repositories must enforce authorization independently of whether a UI element is visible.
+7. **No Implicit Branch-Wide Manager (Blueprint v3.1 §5):**  
+   The concept of Branch Manager / Branch Head is removed from the organizational model. A physical branch is an organizational unit and data-scope boundary (`branchId`), not a managerial role. The technical `role: "manager"` represents an organizational Division Manager bound to their specific branch and division (`manager + branchId + division`), such that:
+   - `manager + division="courses"` $\rightarrow$ Course Division Manager authority;
+   - `manager + division="kindergarten"` $\rightarrow$ Kindergarten Division Manager authority.  
+   There is no implicit branch-wide manager authority. Existing codebase paths using `manager` remain bounded by their assigned `branchId` and `division`.
 
 ---
 
@@ -142,7 +147,7 @@ The dashboard area contains role-specific portal entry points that realize the g
 
 - `ExecutiveDashboard.jsx` (dedicated executive portal for `director` and `vice_director`: province-wide analytics, dual-control approvals, tuition oversight, class capacity, and admissions);
 - `AdminDashboard.jsx` (technical administration portal for `admin`: account provisioning, staff onboarding invites, kiosk terminal setup, branch isolation diagnostics, and Firestore Spark log retention);
-- `ManagerDashboard.jsx` / `dashboard/manager` (branch manager operational oversight and course division management);
+- `ManagerDashboard.jsx` / `dashboard/manager` (Division Manager operational oversight — Course Division Manager when division=courses, KidsManagerDashboard for Kindergarten Division Manager);
 - `FrontOfficeDashboard.jsx` / `KidsFrontOfficeDashboard.jsx` (branch reception, front desk inquiry intake, payment collection, and daily operational coordination);
 - `InstructorDashboard.jsx` / `KidsInstructorDashboard.jsx` / `dashboard/instructor` / `dashboard/kids` (academic delivery, class attendance, student grades, and parent-instructor engagement);
 - `MarketingDashboard.jsx` / `dashboard/marketing` (school outreach, marketing campaigns, and prospect tracking);
@@ -513,7 +518,7 @@ Current responsibilities include:
 - seed data;
 - tests.
 
-The Manager Dashboard contains read-oriented outreach tracking:
+The Course Division Manager Dashboard contains read-oriented outreach tracking:
 
 `src/features/dashboard/manager/MarketingOutreachTracker.jsx`
 
@@ -522,18 +527,18 @@ with supporting utilities/tests.
 The intended separation is:
 
 ```text
-Marketing
+Course Marketing
   ↓
 creates/updates outreach activity
   ↓
 school + visit history
   ↓
-Manager Dashboard
+Course Division Manager Dashboard
   ↓
 read-oriented progress/oversight
 ```
 
-The Manager Dashboard should not become the owner of marketing write workflows merely because it displays their results.
+The Course Division Manager Dashboard should not become the owner of marketing write workflows merely because it displays their results.
 
 ---
 
@@ -555,10 +560,14 @@ Retention and querying should remain bounded enough for the current scale and sh
 
 The role dashboards are separate application experiences, including:
 
-- Manager;
-- Marketing;
-- Instructor;
-- Kids;
+- Executive (`ExecutiveDashboard` for Director & Vice Director province-wide strategic oversight);
+- Admin (`AdminDashboard` strictly for technical maintenance & diagnostics);
+- Division Manager (`ManagerDashboard` for Course Division, `KidsManagerDashboard` for Kindergarten Division);
+- Marketing (`MarketingDashboard`);
+- Instructor (`InstructorDashboard`, `KidsInstructorDashboard`);
+- Front Office (`FrontOfficeDashboard`, `KidsFrontOfficeDashboard`, `CrossDivDashboard`);
+- Office Boy (`OfficeBoyDashboard`);
+- Parent (`ParentDashboard`);
 - and other role-specific dashboard entry points already present in the repository.
 
 Shared dashboard layout/presentation should use existing shared shell/primitives where appropriate.
@@ -606,3 +615,4 @@ When a feature intentionally changes architecture:
 | 2026-09-23 | Audit Roadmap Implementation | Classified `deskInquiries` & `corporateEvents` in Class B; documented `deskInquiriesRepository.js` & `usersRepository.js`; aligned agent instructions reference with `AGENTS.md` |
 | 2026-09-24 | Multi-Branch Isolation & Dual-Control Approvals | Implemented branchId normalization across admissions, payments, shifts, outreach, and inquiries with Firestore rule scoping; added Maker-Checker Approval Registry, repository, and dashboard inboxes |
 | 2026-09-27 | Parent + Student + Class Roster Architecture | Implemented role: "parent" in users collection, childStudentIds linkage, parent authorization rules (isParentOf), Front Office linkage UI, composite indexes, and lazy-loaded ParentDashboard |
+| 2026-10-06 | Blueprint v3.1 Hierarchy Reconciliation | Reconciled architecture with Blueprint v3.1 removal of Branch Manager / Branch Head. Technical role 'manager' is interpreted as Division Manager bound by branchId and division. Physical branch is confirmed as a data-scope boundary, not a managerial authority. |

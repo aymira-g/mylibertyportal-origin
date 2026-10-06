@@ -13,15 +13,16 @@ related_proposal: docs/proposals/archive/2026-09-24-multi-branch-data-isolation.
 # Decision: Multi-Branch Data Isolation (`branchId` Scoping)
 
 > [!NOTE]
-> **Governance Alignment Notice (2026-10-05):**  
+> **Governance Alignment Notice (2026-10-05 / 2026-10-06):**  
 > The multi-branch data isolation policy (`branchId` scoping across Firestore collections, repository normalizers, and Maker-Checker branch routing) remains **active and binding**.  
-> However, the provisional statements in §1.1 and §2.1 that Owner / Director / Vice Director are "provisionally represented by the `admin` role" and that escalated actions route to `admin` are **superseded** by the Authoritative Governance Blueprint ([`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](../governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md), §6–§7) and the Executive Bootstrap runbook ([`docs/decisions/2026-10-04-executive-account-migration-bootstrap-runbook.md`](./2026-10-04-executive-account-migration-bootstrap-runbook.md)). Technical System Admin is not an organizational role; executive authority is held by Director and Vice Director under dual-control governance.
+> - The provisional statements in §1.1 and §2.1 that Owner / Director / Vice Director are "provisionally represented by the `admin` role" and that escalated actions route to `admin` are **superseded** by the Authoritative Governance Blueprint ([`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](../governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md), §6–§7) and the Executive Bootstrap runbook ([`docs/decisions/2026-10-04-executive-account-migration-bootstrap-runbook.md`](./2026-10-04-executive-account-migration-bootstrap-runbook.md)). Technical System Admin is not an organizational role; executive authority is held by Director and Vice Director under dual-control governance.  
+> - Under Blueprint v3.1 (§5.4), the **Branch Manager role is removed from the organizational model**. The location-isolated branch tier consists of distinct branch-scope leadership functions: Course Division Manager, Kindergarten Division Manager, Operational Leader, and Instructor Leader. The physical branch remains a strict data-scope boundary (`branchId`), but does not imply a single branch-wide manager role.
 
 ## 1. Selected Policy
 
 1. **Organizational Hierarchy & Boundary:**
-   - **Global Tier (Cross-Branch):** Owner / Director / Vice Director (provisionally represented by the `admin` role). They oversee all campus branches and have aggregate cross-branch visibility and authority.
-   - **Branch Tier (Location-Isolated):** Branch Manager (`manager`), Operations / Front Office Lead (`frontoffice` / `opslead`), Instructor Leader (`instructorleader`), Marketing (`marketing`), and Instructors (`instructor`) operate strictly within their assigned campus branch.
+   - **Global Tier (Cross-Branch):** Owner / Director / Vice Director (provisionally represented by the `admin` role in early phase). They oversee all campus branches and have aggregate cross-branch visibility and authority.
+   - **Branch Tier (Location-Isolated):** Division Managers (`manager`), Operations / Front Office Lead (`frontoffice` / `opslead`), Instructor Leader (`instructorleader`), Marketing (`marketing`), and Instructors (`instructor`) operate strictly within their assigned campus branch.
 
 2. **Canonical Branch Identifiers:**
    All branches must map deterministically through `src/constants/branches.js`:

@@ -122,7 +122,7 @@ Audits are **verification mechanisms**, not governance authorities. They verify 
 The foundational governance baseline that defines the organization, roles, authority boundaries, and operating principles:
 
 * **[`governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](./governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md)**  
-  **Authoritative Organizational, Authority & Rebuild Blueprint (v3.0):** Defines 4 branches, 2 divisions (Course & Kindergarten), organizational roles, strict separation of System Admin from organizational roles, data scope, simplified Maker-Checker / Signer governance, and safe rebuild doctrine.
+  **Authoritative Organizational, Authority & Rebuild Blueprint (v3.1):** Defines 4 physical branches as organizational/data-scope boundaries, removal of Branch Manager / Branch Head, 4 distinct branch-scope leadership functions (Course Division Manager, Kindergarten Division Manager, Operational Leader, Instructor Leader), strict separation of System Admin from organizational roles, data scope, simplified Maker-Checker / Signer governance, and safe rebuild doctrine.
 
 ---
 
@@ -131,11 +131,13 @@ The foundational governance baseline that defines the organization, roles, autho
 Formally accepted policies that govern ongoing implementation and operational procedures. These must align with the Authoritative Governance Blueprint:
 
 * **[`decisions/2026-09-24-multi-branch-data-isolation.md`](./decisions/2026-09-24-multi-branch-data-isolation.md)**  
-  Multi-branch data isolation policy (`branchId` scoping across Firestore collections, repository normalizers, and Maker-Checker dual-control routing). *(Note: Provisional representation of executive roles by technical `admin` is superseded by Blueprint v3 and executive bootstrap decisions below).*
+  Multi-branch data isolation policy (`branchId` scoping across Firestore collections, repository normalizers, and Maker-Checker dual-control routing). *(Note: Provisional representation of executive roles by technical `admin` is superseded by Blueprint v3; location-isolated branch tier updated per Blueprint v3.1).*
 * **[`decisions/2026-10-04-executive-account-migration-bootstrap-runbook.md`](./decisions/2026-10-04-executive-account-migration-bootstrap-runbook.md)**  
   Executive Account Migration & Bootstrapping: Separation of Director and Vice Director roles from technical admin, with one-time Firebase Console bootstrap procedure.
 * **[`decisions/2026-10-04-executive-break-glass-procedure.md`](./decisions/2026-10-04-executive-break-glass-procedure.md)**  
   Executive Deadlock Break-Glass Procedure: Console-level recovery runbook when dual-control in-app approvals cannot proceed.
+* **[`decisions/2026-10-05-delegation-of-discounts-and-refunds-to-executives.md`](./decisions/2026-10-05-delegation-of-discounts-and-refunds-to-executives.md)**  
+  Delegation of Discounts & Refunds to Executive Leadership (`G-009-DECISION-01`): Strict executive dual-control oversight for tuition discounts, waivers, and refunds. *(Former Branch Manager cash-drawer reconciliation portion superseded per Blueprint v3.1 G-009 pending owner reassignment).*
 
 ---
 

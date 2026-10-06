@@ -1,14 +1,15 @@
 # MyLiberty Portal — Authoritative Organizational, Authority & Rebuild Blueprint
 
-**Version:** 3.0
-**Status:** PROPOSED AUTHORITATIVE BASELINE FOR OWNER APPROVAL
-**Date:** 2026-10-05
+**Version:** 3.1  
+**Status:** PROPOSED AUTHORITATIVE BASELINE FOR OWNER APPROVAL  
+**Date:** 2026-10-06  
 **Scope:** Organizational identity, authority, access governance, workflow governance, data-scope principles, implementation derivation, and rebuild/re-foundation rules
 
-> **Canonical Repository Location:** `docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`  
-> **Authority Level:** Authoritative Governance Baseline (Governs organizational identity, authority boundaries, roles, separation of duties, and access governance)  
-> **Technical Counterparts:** Architecture is governed by [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md); accepted policies by [`docs/decisions/`](../decisions/README.md); agent behavior by [`AGENTS.md`](../../AGENTS.md)  
-
+> **Canonical Repository Location:** `docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`
+>
+> **Authority Level:** Authoritative Governance Baseline (Governs organizational identity, authority boundaries, roles, separation of duties, and access governance)
+>
+> **Technical Counterparts:** Architecture is governed by [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md); accepted policies by [`docs/decisions/`](../decisions/README.md); agent behavior by [`AGENTS.md`](../../AGENTS.md)
 
 > **Purpose**
 >
@@ -17,6 +18,24 @@
 > It is intentionally independent of a specific frontend framework, database, folder layout, or deployment platform.
 >
 > The existing application is the starting implementation. The goal is to reconcile it to this blueprint through controlled, evidence-based change — not to rewrite the project merely because a cleaner structure appears possible.
+
+## 0. Version 3.1 Organizational Simplification
+
+Version 3.1 adopts an explicit simplification of the physical-branch authority model:
+
+- **The Branch Manager role is removed from the organizational model.**
+- **The Branch Head concept is removed with it.**
+- A physical branch remains a real organizational unit and a critical data-scope boundary, but it is **not represented by a single branch-wide managerial authority role**.
+- Each physical branch instead contains distinct leadership functions:
+  - Course Division Manager;
+  - Kindergarten Division Manager;
+  - Operational Leader;
+  - Instructor Leader.
+- These roles are **functionally distinct peer leadership roles at branch scope**. None of them automatically inherits the authority of a former Branch Manager merely because another function is absent, unavailable, or operationally senior.
+- Cross-functional authority must be established by explicit responsibility, capability, workflow authority, or approved delegation — not by an implicit "acting branch manager" assumption.
+- Any existing decision, specification, permission, dashboard, or code path that grants authority specifically to a **Branch Manager / Branch Head** must be reconciled to this revised model before the v3.1 baseline is considered fully implemented.
+
+This change is intended to simplify authority, reduce role overlap, preserve separation of responsibilities, and make the system's authorization model easier to derive and audit.
 
 ---
 
@@ -153,12 +172,14 @@ These pillars cooperate in the operation of the company but remain distinct area
 The Operational Structure covers:
 
 - business sustainability;
-- branch management;
+- multi-branch operational coordination;
 - lead management;
 - finance;
 - site administration;
 - operational coordination;
 - facilities support.
+
+A physical branch is an organizational unit and operational scope. It is **not** itself represented by a separate Branch Manager authority role in v3.1.
 
 ## 3.2 Teaching and Learning Structure
 
@@ -183,11 +204,15 @@ Each branch contains two core divisions:
 1. **Course Division**
 2. **Kindergarten Division**
 
+Each physical branch also contains branch-scope operational and teaching leadership functions as defined in §5.
+
 The current four-branch / two-division structure is an organizational fact at the time of this blueprint.
 
 It is not a permanent promise that the company can never reorganize.
 
 Any addition, removal, merger, or restructuring of organizational units requires an explicit governance amendment.
+
+A branch remains a meaningful organizational and data-scope boundary even though it no longer has a single branch-wide manager.
 
 ---
 
@@ -199,30 +224,78 @@ The established hierarchy is:
 Director
 └── Vice Director
     └── Four Physical Branches
-        ├── Branch Manager
-        │   ├── Course Division
-        │   │   └── Course Division Marketing
-        │   ├── Kindergarten Division Manager
-        │   │   └── Kindergarten Division Marketing
-        │   └── Operational Leader
-        │       ├── Front Office / Admin
-        │       └── Office Boy / Facilities
+        ├── Course Division Manager
+        │   └── Course Division Marketing
+        ├── Kindergarten Division Manager
+        │   └── Kindergarten Division Marketing
+        ├── Operational Leader
+        │   ├── Front Office / Admin
+        │   └── Office Boy / Facilities
         └── Instructor Leader
             └── Instructors / Tutors
 ```
 
-Important established relationships:
+## 5.1 Meaning of the physical branch node
 
-- The Branch Manager is simultaneously the **Branch Head** and **Course Division Manager**.
-- The Kindergarten Division Manager reports to the Branch Manager.
-- Course Division Marketing reports to the Branch Manager in the Course Division Manager capacity.
-- Kindergarten Division Marketing reports to the Kindergarten Division Manager.
-- The Operational Leader coordinates branch-site operational functions.
+The **Physical Branch** is an organizational unit, not a role.
+
+The branch node establishes:
+
+- physical location;
+- branch-level operating scope;
+- organizational grouping of the functions that work at that site;
+- a durable data-scope boundary where branch-local access applies.
+
+The branch node does **not** imply the existence of a Branch Manager, Branch Head, or equivalent catch-all authority.
+
+## 5.2 Branch leadership model
+
+The four branch-scope leadership roles are:
+
+- Course Division Manager;
+- Kindergarten Division Manager;
+- Operational Leader;
+- Instructor Leader.
+
+These are separate functions with separate responsibilities.
+
+No one of these roles automatically becomes the overall head of the physical branch.
+
+A user must not receive branch-wide authority merely because:
+
+- they are the most senior person physically present;
+- another branch-scope leader is absent;
+- they manage more people than another role;
+- a dashboard is easier to implement that way;
+- legacy code previously referred to a Branch Manager.
+
+Where an action crosses multiple functions, the authority must come from the applicable workflow, explicit delegated authority, or a higher organizational authority established by governance.
+
+## 5.3 Established relationships
+
+- Course Division Marketing operates under the Course Division Manager.
+- Kindergarten Division Marketing operates under the Kindergarten Division Manager.
 - Front Office / Admin and Office Boy / Facilities operate under the Operational Leader.
-- The Instructor Leader manages the academic delivery structure.
 - Instructors / Tutors operate under the Instructor Leader.
+- All four branch-scope leadership functions belong to the relevant physical branch.
+- The Vice Director provides multi-branch oversight within the authority actually delegated to the role.
 
-The reporting relationship of the Instructor Leader above the branch level is **not yet established by this blueprint** and must not be guessed.
+The exact detailed reporting mechanics among the branch-scope leaders and upward executive authority must not be guessed beyond what this blueprint establishes.
+
+The exact higher-level reporting line of the Instructor Leader remains an explicit governance question unless separately resolved by an accepted amendment.
+
+## 5.4 Explicit removal of the Branch Manager layer
+
+The following concepts are intentionally **not part of the v3.1 organizational model**:
+
+- Branch Manager;
+- Branch Head;
+- Branch Manager as Course Division Manager;
+- Branch Manager as an implicit approver for unrelated branch functions;
+- Branch Manager as the default owner of branch-wide permissions;
+- Branch Manager as an automatic substitute for operational, kindergarten, or academic leadership.
+
+Any existing technical or documentation references to those concepts must be treated as legacy material requiring reconciliation.
 
 ---
 
@@ -251,28 +324,39 @@ The Director does not receive technical system-administration authority merely b
 **Established responsibilities:**
 
 - participation in executive leadership;
-- province-wide and multi-branch oversight within the authority actually delegated to the role.
+- province-wide and multi-branch oversight within the authority actually delegated to the role;
+- oversight of branch-scope functions as explicitly delegated by governance.
 
 The exact division of decision authority between Director and Vice Director is not fully established by this blueprint and remains an owner-governance question.
 
 The Vice Director is not automatically the technical System Admin.
 
-## 6.3 Branch Manager
+## 6.3 Course Division Manager
 
-The Branch Manager is responsible for overall physical branch operations and simultaneously serves as Course Division Manager.
+The Course Division Manager leads the Course Division within an assigned physical branch.
 
 **Established responsibilities:**
 
-- branch-level leadership;
-- branch operations;
 - Course Division management;
-- management oversight relevant to the branch and course division.
+- branch-local Course Division targets;
+- oversight of Course Division activities within assigned authority;
+- leadership of Course Division Marketing.
 
-The Branch Manager's organizational authority does not automatically create technical system-administration authority.
+The Course Division Manager is **not** a Branch Manager or Branch Head.
+
+The role does not automatically inherit authority over:
+
+- Kindergarten Division operations;
+- branch facilities;
+- Front Office / Admin;
+- academic teaching leadership outside its assigned Course Division responsibility;
+- executive decisions;
+- technical system administration;
+- restricted financial actions unless separately and explicitly authorized.
 
 ## 6.4 Kindergarten Division Manager
 
-The Kindergarten Division Manager reports to the Branch Manager.
+The Kindergarten Division Manager leads the Kindergarten Division within an assigned physical branch.
 
 **Established responsibilities:**
 
@@ -281,11 +365,23 @@ The Kindergarten Division Manager reports to the Branch Manager.
 - intake;
 - leadership of the Kindergarten Division and its approved support functions.
 
-The role's authority is limited to established organizational scope and explicitly delegated authority.
+The role does not report through a Branch Manager because no such role exists in v3.1.
+
+Its detailed upward reporting authority remains limited to what is explicitly established or later approved.
+
+The role does not automatically inherit authority over:
+
+- the Course Division;
+- general branch operations;
+- facilities;
+- academic teaching governance beyond its established kindergarten responsibilities;
+- executive decisions;
+- technical system administration;
+- restricted financial actions unless separately and explicitly authorized.
 
 ## 6.5 Course Division Marketing
 
-Course Division Marketing operates under the Branch Manager in the Course Division Manager capacity.
+Course Division Marketing operates under the Course Division Manager.
 
 **Established responsibility:**
 
@@ -311,9 +407,12 @@ The Operational Leader coordinates branch-site operations.
 
 - site logistics;
 - facility-maintenance coordination;
-- front-office performance coordination.
+- front-office performance coordination;
+- operational coordination of Front Office / Admin and Office Boy / Facilities.
 
 The Operational Leader is an operational organizational role, not System Admin.
+
+The Operational Leader is **not** a replacement Branch Manager. The role has the operational authority expressly assigned to it and does not automatically acquire authority over the Course Division, Kindergarten Division, or Teaching and Learning Structure.
 
 ## 6.8 Front Office / Admin
 
@@ -346,7 +445,7 @@ This function does not automatically receive:
 
 ## 6.10 Instructor Leader
 
-The Instructor Leader leads academic delivery.
+The Instructor Leader leads academic delivery within the assigned branch scope.
 
 **Established responsibilities:**
 
@@ -358,6 +457,8 @@ The Instructor Leader leads academic delivery.
 The Instructor Leader belongs to the Teaching and Learning Structure.
 
 The exact higher-level reporting line remains an explicit governance gap until confirmed.
+
+The Instructor Leader is **not** a Branch Manager and does not automatically inherit general operational or financial authority.
 
 ## 6.11 Instructors / Tutors
 
@@ -427,8 +528,9 @@ System Admin does not automatically become:
 
 - Director;
 - Vice Director;
-- Branch Manager;
+- Course Division Manager;
 - Kindergarten Division Manager;
+- Operational Leader;
 - Instructor Leader;
 - Finance authority;
 - academic authority;
@@ -572,6 +674,19 @@ A user does not receive province-wide or all-branch access merely because:
 
 Organization-wide access must be explicitly justified and authorized.
 
+## 11.3 Branch scope does not imply branch-wide authority
+
+A user's assignment to a physical branch establishes relevant scope, but it does **not** by itself grant access to every function at that branch.
+
+For example:
+
+- Course Division scope does not automatically grant facility-management authority;
+- Kindergarten scope does not automatically grant Course Division authority;
+- Operational scope does not automatically grant academic authority;
+- Instructor scope does not automatically grant finance or operational administration authority.
+
+The application must model both **where** the user operates and **what** the user is authorized to do.
+
 ---
 
 # 12. Domain Responsibility Principle
@@ -598,10 +713,10 @@ The responsible question is always:
 
 ```text
 Role
-  + Capability
-  + Scope
-  + Workflow state
-  = Authorized action
+ + Capability
+ + Scope
+ + Workflow state
+ = Authorized action
 ```
 
 ---
@@ -795,7 +910,7 @@ Actions such as the following are candidates for controlled approval:
 
 The exact approval thresholds and authorized approvers remain governance decisions.
 
-*(Approved Owner Decision 2026-10-05 — G-009-DECISION-01: All tuition discounts, fee waivers, promotional price reductions, and refunds are strictly delegated to Executive Director and Vice Director dual-control oversight. Branch Managers retain cash drawer reconciliation authority only; see [`docs/decisions/2026-10-05-delegation-of-discounts-and-refunds-to-executives.md`](../decisions/2026-10-05-delegation-of-discounts-and-refunds-to-executives.md).)*
+> **Important v3.1 reconciliation note:** The existing G-009 decision text currently names **Branch Managers** as retaining cash-drawer reconciliation authority. Because the Branch Manager role is removed in v3.1, that historical decision must be explicitly amended or superseded to identify the intended successor authority. Implementation agents must not silently assign that authority to the Course Division Manager, Kindergarten Division Manager, Operational Leader, or any other role.
 
 No technical implementation may invent monetary thresholds.
 
@@ -848,6 +963,8 @@ External access must not grant:
 - branch management authority;
 - financial administration authority beyond explicitly intended participant actions;
 - system administration authority.
+
+In v3.1, **"branch management authority" does not refer to a Branch Manager role**. It means authority over unrelated branch functions merely by virtue of being associated with a branch.
 
 ---
 
@@ -906,7 +1023,8 @@ Therefore:
 
 - a senior organizational role does not automatically receive technical Admin authority;
 - technical Admin does not automatically receive executive authority;
-- a manager does not automatically receive unrestricted finance authority;
+- a branch-scope leader does not automatically receive unrestricted authority over other branch functions;
+- a division manager does not automatically receive unrelated finance, facilities, or academic authority;
 - an instructor does not automatically receive student administration authority;
 - a marketing user does not automatically receive academic or finance authority.
 
@@ -965,6 +1083,8 @@ The application surfaces required to exercise already-authorized responsibilitie
 
 Dashboard access is defined last.
 
+The branch-scope leadership roles must receive separate role cards. The implementation must not create a shared "branch manager" role card as a convenience abstraction.
+
 ---
 
 # 25. High-Priority Workflow Cards
@@ -997,6 +1117,8 @@ Each workflow card should contain:
 - exception conditions;
 - unresolved owner decisions.
 
+Because no Branch Manager role exists in v3.1, any workflow that previously used "Branch Manager" as a normal actor or approver must be explicitly reassigned by governance rather than automatically mapped to another branch-scope leader.
+
 ---
 
 # 26. Known Governance Questions — Owner Decision Register
@@ -1013,8 +1135,9 @@ The following questions are intentionally **not answered by technical agents**.
 | G-006 | Which actions are formally classified as sensitive? | **OPEN — candidate list exists in §17** |
 | G-007 | Who may approve each sensitive action? | **OPEN** |
 | G-008 | What is the limited-staff / absence / emergency approval procedure? | **OPEN — later phase** |
-| G-009 | What are the operational boundaries for financial correction, refund, discount, and price changes? | **RESOLVED (2026-10-05):** Tuition discounts, fee waivers, and refunds require Executive Director or Vice Director approval ([Decision G-009-DECISION-01](../decisions/2026-10-05-delegation-of-discounts-and-refunds-to-executives.md)); Branch Managers retain cash discrepancy reconciliation only. |
+| G-009 | What are the operational boundaries for financial correction, refund, discount, and price changes, including cash-drawer reconciliation ownership after removal of Branch Manager? | **PARTIALLY RESOLVED — executive approval decision remains; cash-drawer reconciliation authority requires explicit v3.1 reassignment** |
 | G-010 | Which governance changes require preservation as superseded historical decisions? | **OPEN — process principle established** |
+| G-011 | What detailed upward reporting/accountability arrangement applies to the branch-scope Course Division Manager, Kindergarten Division Manager, Operational Leader, and Instructor Leader? | **OPEN where not otherwise explicitly established by this blueprint** |
 
 ### Rule for open decisions
 
@@ -1026,7 +1149,8 @@ Until resolved:
 2. avoid granting broader authority than necessary;
 3. document the gap;
 4. do not create a new organizational role without approval;
-5. do not weaken a security boundary to unblock implementation.
+5. do not weaken a security boundary to unblock implementation;
+6. do not silently map removed Branch Manager authority to another branch-scope role.
 
 ---
 
@@ -1045,6 +1169,22 @@ If a new rule conflicts with an older accepted decision:
 Historical material must not silently disappear simply because it is no longer current.
 
 This preserves organizational history and prevents agents from treating contradictory old documents as current policy.
+
+## 27.1 v3.1 migration requirement for removed Branch Manager references
+
+Because v3.1 removes a previously used organizational role, reconciliation should identify at least:
+
+- governance decisions naming Branch Manager;
+- role cards and permission matrices naming Branch Manager;
+- workflow specifications naming Branch Manager as maker/checker/approver;
+- dashboards and routes tied to a Branch Manager role;
+- authorization rules checking a Branch Manager role;
+- seeded accounts or claims using a Branch Manager role;
+- audit reports and historical records containing Branch Manager references.
+
+Historical audit records should preserve the fact that a Branch Manager role existed at the time of those events. Historical evidence must not be rewritten merely to make old events appear to have been performed under the new organizational model.
+
+Current-state authorization must, however, stop granting Branch Manager authority once v3.1 is formally approved and the controlled migration is complete.
 
 ---
 
@@ -1072,6 +1212,9 @@ Any human or AI agent working on MyLiberty Portal must obey the following.
 18. Keep technical implementation details out of the organizational baseline.
 19. When architecture changes, follow the repository's explicit architecture-change process.
 20. When implementation and governed policy diverge, report the gap rather than redefining the policy silently.
+21. Do not recreate the removed Branch Manager role under another name such as "Branch Head," "Site Manager," "Branch Lead," or an equivalent catch-all role unless governance explicitly approves such a role.
+22. Do not silently transfer former Branch Manager permissions to the Course Division Manager, Kindergarten Division Manager, Operational Leader, or Instructor Leader.
+23. When a legacy Branch Manager permission or workflow is encountered, classify it as a reconciliation item and identify the exact intended authority before changing it.
 
 ---
 
@@ -1118,7 +1261,8 @@ The recommended sequence is:
 
 - adopt this blueprint;
 - resolve the minimum owner decisions required to unblock implementation;
-- formally mark conflicting historical decisions as superseded where applicable.
+- formally mark conflicting historical decisions as superseded where applicable;
+- approve the removal of Branch Manager and the corresponding redistribution of authority.
 
 ## Phase 2 — High-risk workflows
 
@@ -1127,6 +1271,8 @@ Define and approve the priority workflow cards, beginning with money and staff a
 ## Phase 3 — Role authority
 
 Create role cards using the approved organizational structure and workflow decisions.
+
+For v3.1 this means distinct cards for the four branch-scope leadership functions rather than a single branch-manager abstraction.
 
 ## Phase 4 — Detailed permissions
 
@@ -1158,14 +1304,16 @@ Before the new authority model is considered implementation-complete, perform a 
 
 - required actions without an authorized actor;
 - required approvals without an authorized approver;
-- workflows without an authorized completion path.
+- workflows without an authorized completion path;
+- former Branch Manager responsibilities that have no approved successor.
 
 ## Excess authority
 
 - unnecessary access;
 - unrelated data access;
 - broad permissions unsupported by responsibility;
-- accidental business authority attached to System Admin.
+- accidental business authority attached to System Admin;
+- accidental branch-wide authority attached to a single branch-scope leader.
 
 ## Separation-of-duties failures
 
@@ -1186,7 +1334,8 @@ Before the new authority model is considered implementation-complete, perform a 
 - unauthorized state transitions;
 - skipped approval states;
 - unauthorized rollback;
-- silent modification after approval.
+- silent modification after approval;
+- legacy Branch Manager approval paths still functioning after v3.1 migration.
 
 ## Audit failures
 
@@ -1194,7 +1343,8 @@ Before the new authority model is considered implementation-complete, perform a 
 - missing timestamps;
 - missing state history;
 - missing approver identity;
-- silent alteration of important records.
+- silent alteration of important records;
+- historical records incorrectly rewritten to remove evidence of former roles.
 
 The cross-role audit is mandatory before declaring the new authority model implemented.
 
@@ -1213,13 +1363,16 @@ The repository's architecture documentation should determine matters such as:
 - routing and code splitting;
 - test structure;
 - deployment structure;
-- technical migration strategy.
+- technical migration strategy;
+- technical representation of branch and division scope.
 
 This blueprint should not duplicate those details.
 
 When a technical architecture decision affects an organizational authority boundary, the technical decision must conform to this blueprint.
 
 When the technical architecture guide and the repository disagree, the discrepancy must be investigated and documented rather than silently resolved.
+
+Technical architecture must not recreate Branch Manager as an implementation shortcut merely because existing code was built around that abstraction.
 
 ---
 
@@ -1233,7 +1386,8 @@ The implementation must ensure that:
 - role checks are not the sole security mechanism;
 - data scope is enforced at the actual data-access boundary;
 - workflow transitions are protected at the actual authorization boundary;
-- technical administrators cannot silently bypass governed business controls.
+- technical administrators cannot silently bypass governed business controls;
+- former Branch Manager capabilities cannot be invoked through stale claims, hidden routes, or compatibility code once the v3.1 migration is complete.
 
 The frontend may hide controls for usability, but hiding a control must never be treated as equivalent to authorization.
 
@@ -1263,6 +1417,8 @@ Legacy compatibility paths should remain until repository evidence confirms they
 
 Destructive migrations require an explicit migration and rollback plan.
 
+The removal of Branch Manager should be treated as a **governance and authorization migration**, not merely as a string rename.
+
 ---
 
 # 35. Verification and Completion Doctrine
@@ -1279,6 +1435,14 @@ For meaningful changes, completion requires evidence appropriate to the risk, in
 - build/type/lint verification;
 - deployment verification where applicable;
 - documentation synchronization when architecture changes.
+
+For the v3.1 hierarchy change, verification should additionally establish that:
+
+- no active authorization path requires a Branch Manager role unless explicitly preserved as a historical-only concept;
+- each former Branch Manager capability has an explicit approved destination, an explicit removal, or an open governance decision;
+- no branch-scope role has silently inherited unrelated branch-wide authority;
+- dashboards, routes, role claims, seeded accounts, and policy checks are aligned with the new role model;
+- historical audit records remain intact.
 
 The implementation agent must report honestly:
 
@@ -1362,6 +1526,14 @@ The existence of code, a route, a collection, a dashboard, or a technical admin 
 
 Emergency or exceptional actions must be explicit, limited, and auditable.
 
+### Principle 13 — No implicit branch head
+
+A physical branch is a scope and organizational unit, not a reason to invent or infer a single branch-wide manager.
+
+### Principle 14 — No silent transfer of removed authority
+
+Removing Branch Manager does not automatically transfer its historical permissions to another role.
+
 ---
 
 # 38. Relationship to Existing MyLiberty Documentation
@@ -1374,35 +1546,51 @@ Conceptually:
 
 ```text
 AUTHORITATIVE BLUEPRINT
+
     ↓
+
 Durable organization + authority
 
 ACCEPTED DECISIONS
+
     ↓
+
 Approved binding policies and explicit exceptions
 
 ARCHITECTURE
+
     ↓
+
 Current technical structure
 
 SPECS
+
     ↓
+
 Detailed behavioral contracts
 
 PLANS / PROPOSALS
+
     ↓
+
 How a change may be implemented
 
 AUDITS
+
     ↓
+
 Evidence that the system does or does not conform
 
 AGENT INSTRUCTIONS
+
     ↓
+
 How coding agents operate safely within all of the above
 ```
 
 No single layer should impersonate another.
+
+The v3.1 organization model must be reflected consistently across those layers. A lower-level document may describe a technical migration away from Branch Manager, but it may not re-establish Branch Manager as current organizational authority.
 
 ---
 
@@ -1413,7 +1601,9 @@ This blueprint is sufficient to begin the next governance/engineering stage.
 It establishes:
 
 - organizational structure;
-- role identities that are actually established;
+- the four-branch / two-division model;
+- the removal of Branch Manager / Branch Head from the current organizational model;
+- distinct branch-scope leadership functions;
 - the organizational/technical Admin separation;
 - permission vocabulary;
 - scope principles;
@@ -1434,6 +1624,7 @@ It does **not** claim to have finalized:
 - every workflow;
 - every organizational reporting line;
 - every Kindergarten role;
+- the exact successor authority for all former Branch Manager responsibilities;
 - emergency/delegation procedure;
 - every dashboard menu;
 - exact technical authorization rules.
@@ -1470,7 +1661,7 @@ TESTING + CROSS-ROLE AUDIT
 CONTROLLED RELEASE
 ```
 
-Never reverse the dependency by allowing the existing UI, a technical role, or an implementation convenience to define the organization's authority model.
+Never reverse the dependency by allowing the existing UI, a technical role, an old Branch Manager abstraction, or an implementation convenience to define the organization's authority model.
 
 ---
 
@@ -1478,21 +1669,21 @@ Never reverse the dependency by allowing the existing UI, a technical role, or a
 
 This section is intentionally left for explicit governance approval.
 
-**Blueprint:** MyLiberty Portal — Authoritative Organizational, Authority & Rebuild Blueprint v3.0
+**Blueprint:** MyLiberty Portal — Authoritative Organizational, Authority & Rebuild Blueprint v3.1
 
 **Approval status:** `PENDING OWNER APPROVAL`
 
-**Approved by:** ______________________________
+**Approved by:** ______________________________________
 
-**Role / Authority:** ___________________________
+**Role / Authority:** __________________________________
 
-**Approval date:** ______________________________
+**Approval date:** ____________________________________
 
 **Notes / approved exceptions:**
 
-____________________________________________________________
+________________________________________________________________________________
 
-____________________________________________________________
+________________________________________________________________________________
 
 ### Upon approval
 
@@ -1500,8 +1691,10 @@ After approval, this document becomes the authoritative governance baseline for 
 
 Subsequent technical work must derive from it rather than redefine it.
 
+The approval should also be treated as explicit authorization to reconcile the legacy Branch Manager model out of current organizational authority, subject to the controlled migration and any separately approved exceptions.
+
 ---
 
 # Foundation Statement
 
-> **MyLiberty Portal represents the real organization first. It separates organizational authority from technical system administration, limits access by explicit role, capability, scope, and workflow state, uses independent human review for sensitive actions where required, preserves auditable accountability, and refuses to let technical implementation invent organizational authority.**
+> **MyLiberty Portal represents the real organization first. It separates organizational authority from technical system administration, treats physical branches as organizational and data-scope boundaries rather than as implicit single-manager authorities, limits access by explicit role, capability, scope, and workflow state, uses independent human review for sensitive actions where required, preserves auditable accountability, and refuses to let technical implementation invent organizational authority.**

@@ -10,11 +10,11 @@ import { matchesDivisionFilter, divisionOfProgram } from "../../../constants/div
 
 const InstructorPunctualityTab = forwardRef(
   /**
-   * @param {{ isAdminView?: boolean; isManager?: boolean; branchFilter?: string; division?: string }} props
+   * @param {{ isAdminView?: boolean; isSupervisor?: boolean; isManager?: boolean; branchFilter?: string; division?: string }} props
    * @param {any} ref
    */
   function InstructorPunctualityTab(
-    { isAdminView = false, isManager = false, branchFilter = "all", division = "all" },
+    { isAdminView = false, isSupervisor = false, isManager = false, branchFilter = "all", division = "all" },
     ref
   ) {
     const now = new Date();
@@ -22,6 +22,8 @@ const InstructorPunctualityTab = forwardRef(
     const [selectedYear, setSelectedYear] = useState(now.getFullYear());
     const [analytics, setAnalytics] = useState([]);
     const [analyticsLoading, setAnalyticsLoading] = useState(true);
+
+    const effectiveSupervisor = isSupervisor || isAdminView || isManager;
 
     const fetchInstructorAnalytics = useCallback(async () => {
       setAnalyticsLoading(true);
@@ -33,7 +35,7 @@ const InstructorPunctualityTab = forwardRef(
           shifts: rawShifts,
           instructors,
         } = await fetchInstructorAnalyticsData(
-          isAdminView,
+          effectiveSupervisor,
           uid,
           branchId,
           isManager,
@@ -68,7 +70,7 @@ const InstructorPunctualityTab = forwardRef(
       } finally {
         setAnalyticsLoading(false);
       }
-    }, [isAdminView, isManager, selectedYear, selectedMonth, branchFilter, division]);
+    }, [effectiveSupervisor, isManager, selectedYear, selectedMonth, branchFilter, division]);
 
     useEffect(() => {
       fetchInstructorAnalytics();

@@ -15,11 +15,11 @@ import { LearnerCard } from "./LearnerCard";
 
 const LearnerProgressTab = forwardRef(
   /**
-   * @param {{ branchFilter?: string; rangeDays?: number; isAdminView?: boolean; isFrontOffice?: boolean; isManager?: boolean; division?: string }} props
+   * @param {{ branchFilter?: string; rangeDays?: number; isAdminView?: boolean; isSupervisor?: boolean; isFrontOffice?: boolean; isManager?: boolean; division?: string }} props
    * @param {any} ref
    */
   function LearnerProgressTab(
-    { branchFilter = "all", rangeDays = 30, isAdminView = false, isFrontOffice = false, isManager = false, division = "all" },
+    { branchFilter = "all", rangeDays = 30, isAdminView = false, isSupervisor = false, isFrontOffice = false, isManager = false, division = "all" },
     ref
   ) {
     const [students, setStudents] = useState([]);
@@ -29,6 +29,8 @@ const LearnerProgressTab = forwardRef(
     const [studentsLoading, setStudentsLoading] = useState(true);
     const [expandedId, setExpandedId] = useState(null);
     const [studentSearch, setStudentSearch] = useState("");
+
+    const effectiveSupervisor = isSupervisor || isAdminView || isManager;
 
     const fetchStudentProgress = useCallback(async () => {
       setStudentsLoading(true);
@@ -40,7 +42,7 @@ const LearnerProgressTab = forwardRef(
           attendance,
           progress,
         } = await fetchStudentProgressData(
-          isAdminView,
+          effectiveSupervisor,
           isFrontOffice,
           rangeToSince(rangeDays),
           branchId,
@@ -67,9 +69,9 @@ const LearnerProgressTab = forwardRef(
           ...progress.map((p) => p.studentId),
         ]);
 
-        const isSupervisor = isAdminView || isFrontOffice || isManager;
+        const isSuper = effectiveSupervisor || isFrontOffice;
         const relevantStudentIds =
-          isSupervisor
+          isSuper
             ? null
             : new Set(fetchedClasses.flatMap((c) => c.studentIds || []));
 
@@ -84,10 +86,10 @@ const LearnerProgressTab = forwardRef(
               }
               return (
                 usersById[id].role === "student" &&
-                (isSupervisor || relevantStudentIds.has(id))
+                (effectiveSupervisor || relevantStudentIds.has(id))
               );
             }
-            return isSupervisor;
+            return effectiveSupervisor;
           })
           .map((id) => {
             const u = usersById[id];
@@ -154,7 +156,7 @@ const LearnerProgressTab = forwardRef(
       } finally {
         setStudentsLoading(false);
       }
-    }, [isAdminView, isFrontOffice, isManager, selectedClassId, rangeDays, branchFilter, division]);
+    }, [effectiveSupervisor, isFrontOffice, isManager, selectedClassId, rangeDays, branchFilter, division]);
 
     useEffect(() => {
       fetchStudentProgress();

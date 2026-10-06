@@ -14,15 +14,17 @@ export default function ReportsDashboard({
   isAdminView = false,
   isFrontOffice = false,
   isManager = false,
+  isExecutiveView = false,
   canEdit = true,
   division = "all",
   userBranch = null,
   initialSubTab = null,
   onSubTabChange = null,
 }) {
-  const isActualAdmin = isAdminView && !isFrontOffice;
-  const isSupervisor = isActualAdmin || isManager;
-  const canPerformAdminActions = isActualAdmin && canEdit;
+  const isActualAdmin = isAdminView && !isFrontOffice && !isExecutiveView;
+  const isSupervisor = isActualAdmin || isManager || isExecutiveView;
+  const canPerformAdminActions = isActualAdmin && canEdit && !isExecutiveView;
+  const canAccessProvinceScope = isActualAdmin || isExecutiveView;
 
   const [userSelectedSubTab, setUserSelectedSubTab] = useState(null);
   const [prevInitialSubTab, setPrevInitialSubTab] = useState(initialSubTab);
@@ -35,7 +37,11 @@ export default function ReportsDashboard({
   const subTab =
     userSelectedSubTab ||
     initialSubTab ||
-    (isFrontOffice || (!isAdminView && !isManager) ? "today" : "staff");
+    (isExecutiveView
+      ? "finance"
+      : isFrontOffice || (!isAdminView && !isManager)
+      ? "today"
+      : "staff");
 
   const handleSubTabClick = (tabKey) => {
     setUserSelectedSubTab(tabKey);
@@ -47,9 +53,9 @@ export default function ReportsDashboard({
   // Shared Horizon Range (0 = all, or days)
   const [rangeDays, setRangeDays] = useState(30);
 
-  // Branch filter: Admin starts with 'all' and can switch; branch-scoped roles are locked
+  // Branch filter: Admin and Executive start with 'all' and can switch; branch-scoped roles are locked
   const [branchFilter, setBranchFilter] = useState(() => {
-    if (isActualAdmin) return "all";
+    if (canAccessProvinceScope) return "all";
     return userBranch || "Kota Gorontalo";
   });
 
@@ -119,8 +125,8 @@ export default function ReportsDashboard({
             <span>{isSupervisor ? "Staff Duty Logs" : "My Duty Log"}</span>
           </button>
 
-          {/* Sub-Tab: Financial & Tuition Revenue (Admin, Director, Manager) */}
-          {(isAdminView || isManager) && (
+          {/* Sub-Tab: Financial & Tuition Revenue (Admin, Executive, Manager) */}
+          {(isActualAdmin || isExecutiveView || isManager) && (
             <button
               onClick={() => handleSubTabClick("finance")}
               className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
@@ -147,8 +153,8 @@ export default function ReportsDashboard({
             <span>Learner Progress</span>
           </button>
 
-          {/* Sub-Tab: Admissions Velocity (Admin, Manager, Front Office) */}
-          {(isAdminView || isFrontOffice || isManager) && (
+          {/* Sub-Tab: Admissions Velocity (Admin, Executive, Manager, Front Office) */}
+          {(isActualAdmin || isExecutiveView || isFrontOffice || isManager) && (
             <button
               onClick={() => handleSubTabClick("admissions")}
               className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
@@ -162,7 +168,7 @@ export default function ReportsDashboard({
             </button>
           )}
 
-          {/* Sub-Tab: Instructor Punctuality (Admin, Manager, Instructor) */}
+          {/* Sub-Tab: Instructor Punctuality (Admin, Executive, Manager, Instructor) */}
           {!isFrontOffice && (
             <button
               onClick={() => handleSubTabClick("instructors")}
@@ -187,7 +193,7 @@ export default function ReportsDashboard({
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
               Campus Branch
             </label>
-            {isActualAdmin ? (
+            {canAccessProvinceScope ? (
               <select
                 value={branchFilter}
                 onChange={(e) => setBranchFilter(e.target.value)}
@@ -234,7 +240,8 @@ export default function ReportsDashboard({
         <TodayTab
           ref={activeTabRef}
           branchFilter={branchFilter}
-          isAdminView={isAdminView}
+          isAdminView={isActualAdmin}
+          isSupervisor={isSupervisor}
           isFrontOffice={isFrontOffice}
           isManager={isManager}
           division={division}
@@ -246,7 +253,8 @@ export default function ReportsDashboard({
           ref={activeTabRef}
           branchFilter={branchFilter}
           rangeDays={rangeDays}
-          isAdminView={isAdminView}
+          isAdminView={isActualAdmin}
+          isSupervisor={isSupervisor}
           isActualAdmin={isActualAdmin}
           isManager={isManager}
           canPerformAdminActions={canPerformAdminActions}
@@ -254,7 +262,7 @@ export default function ReportsDashboard({
         />
       )}
 
-      {subTab === "finance" && (isAdminView || isManager) && (
+      {subTab === "finance" && (isActualAdmin || isExecutiveView || isManager) && (
         <FinancialReportsTab
           ref={activeTabRef}
           branchFilter={branchFilter}
@@ -268,14 +276,15 @@ export default function ReportsDashboard({
           ref={activeTabRef}
           branchFilter={branchFilter}
           rangeDays={rangeDays}
-          isAdminView={isAdminView}
+          isAdminView={isActualAdmin}
+          isSupervisor={isSupervisor}
           isFrontOffice={isFrontOffice}
           isManager={isManager}
           division={division}
         />
       )}
 
-      {subTab === "admissions" && (isAdminView || isFrontOffice || isManager) && (
+      {subTab === "admissions" && (isActualAdmin || isExecutiveView || isFrontOffice || isManager) && (
         <AdmissionsTab
           ref={activeTabRef}
           branchFilter={branchFilter}
@@ -287,7 +296,8 @@ export default function ReportsDashboard({
       {subTab === "instructors" && !isFrontOffice && (
         <InstructorPunctualityTab
           ref={activeTabRef}
-          isAdminView={isAdminView}
+          isAdminView={isActualAdmin}
+          isSupervisor={isSupervisor}
           isManager={isManager}
           branchFilter={branchFilter}
           division={division}

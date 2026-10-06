@@ -7,9 +7,9 @@ import { isStaffRole } from "../shared/roles.js";
  * All direct Firestore reads for the Reports domain live here.
  */
 
-export async function fetchStaffShifts(isAdminView, since = null, branchId = null, isManager = false, division = null) {
+export async function fetchStaffShifts(isSupervisorOrAdmin, since = null, branchId = null, isManager = false, division = null) {
   const normalizedBranchId = branchId ? branchToId(branchId) : null;
-  const isSupervisor = isAdminView || isManager;
+  const isSupervisor = Boolean(isSupervisorOrAdmin || isManager);
   const shiftsRef = collection(db, "shifts");
   const filters = [];
   if (!isSupervisor) filters.push(where("userId", "==", auth.currentUser?.uid));

@@ -229,7 +229,6 @@ export default function ViceDirectorDashboard() {
         pendingApprovalsCount={pendingApprovalsCount}
         pendingApplications={pendingApplications}
         unenrolledStudentsCount={unenrolledStudents.length}
-        riskAlertCount={0}
         onNavigateToApprovals={() => handleTabChange("approvals")}
         onNavigateToApplications={() => handleTabChange("applications")}
         onNavigateToStudents={() => handleTabChange("students")}
@@ -563,7 +562,14 @@ export default function ViceDirectorDashboard() {
       id: "reports",
       label: "Reports",
       category: "System",
-      component: <ReportsDashboard isAdminView={true} isFrontOffice={false} canEdit={true} />,
+      component: (
+        <ReportsDashboard
+          isExecutiveView={true}
+          isAdminView={false}
+          isFrontOffice={false}
+          canEdit={false}
+        />
+      ),
     },
     {
       id: "aiAssistant",

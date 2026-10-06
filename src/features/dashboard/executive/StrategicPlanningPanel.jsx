@@ -1,4 +1,4 @@
-import { Target, TrendingUp, Award, CheckCircle } from "lucide-react";
+import { Target, TrendingUp, Award } from "lucide-react";
 import { BRANCHES, matchesBranchFilter } from "../../../constants/branches";
 import { DivisionBalanceCard } from "./DivisionBalanceCard";
 
@@ -130,7 +130,7 @@ export function StrategicPlanningPanel({
                 <th className="py-2.5 px-3 text-center">Active Cohorts</th>
                 <th className="py-2.5 px-3 text-center">Instructors</th>
                 <th className="py-2.5 px-3 text-center">Learner : Faculty Ratio</th>
-                <th className="py-2.5 px-3 text-right">Academic Health</th>
+                <th className="py-2.5 px-3 text-right">Operating Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -150,9 +150,15 @@ export function StrategicPlanningPanel({
                     {b.ratio} : 1
                   </td>
                   <td className="py-3 px-3 text-right">
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      <CheckCircle className="w-3 h-3" /> Balanced
-                    </span>
+                    {b.instructors === 0 && b.activeStudents > 0 ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                        No faculty assigned
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                        Data active
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -161,23 +167,23 @@ export function StrategicPlanningPanel({
         </div>
       </div>
 
-      {/* Strategic Milestones */}
+      {/* Strategic Milestones (Presentation Layer) */}
       <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-2xs space-y-4">
         <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
           <Award className="w-4 h-4 text-amber-600" />
-          Strategic Governance &amp; Expansion Milestones
+          Strategic Governance &amp; Expansion Status (Presentation Layer)
         </h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs">
           <div className="p-3.5 rounded-2xl bg-indigo-50/50 border border-indigo-100 space-y-1">
             <span className="font-bold text-indigo-950 block">Gorontalo Province 4-Campus Integration</span>
             <p className="text-slate-600 leading-relaxed font-medium">
-              Data isolation and multi-branch governance are active across Kota Gorontalo, Bone Bolango, Pohuwato, and Limboto.
+              Data isolation and multi-branch governance boundaries are active across Kota Gorontalo, Bone Bolango, Pohuwato, and Limboto.
             </p>
           </div>
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
             <span className="font-bold text-slate-900 block">Dual-Control Maker-Checker Authority</span>
             <p className="text-slate-600 leading-relaxed font-medium">
-              Strict separation of duties is enforced between Front Office / Division Managers and the Executive Directorate.
+              Separation of duties is enforced between Front Office / Division Managers and the Executive Directorate. Formal strategic objective lifecycle workflows remain open governance items (Blueprint v3.2 §26).
             </p>
           </div>
         </div>

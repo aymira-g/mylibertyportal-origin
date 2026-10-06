@@ -97,7 +97,7 @@ export function RiskExceptionPanel({
       <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-2xs space-y-4">
         <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          Authoritative Governance &amp; Security Controls (v3.1)
+          Authoritative Governance &amp; Security Controls (v3.2)
         </h4>
         <div className="space-y-2.5 text-xs">
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-start gap-2.5">

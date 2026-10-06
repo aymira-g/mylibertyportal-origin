@@ -23,7 +23,7 @@ import { ScheduledLeavesList } from "./ScheduledLeavesList";
 
 const StaffDutyTab = forwardRef(
   /**
-   * @param {{ branchFilter?: string; rangeDays?: number; isAdminView?: boolean; isActualAdmin?: boolean; isManager?: boolean; canPerformAdminActions?: boolean; division?: string }} props
+   * @param {{ branchFilter?: string; rangeDays?: number; isAdminView?: boolean; isSupervisor?: boolean; isActualAdmin?: boolean; isManager?: boolean; canPerformAdminActions?: boolean; division?: string }} props
    * @param {any} ref
    */
   function StaffDutyTab(
@@ -31,6 +31,7 @@ const StaffDutyTab = forwardRef(
       branchFilter = "all",
       rangeDays = 30,
       isAdminView = false,
+      isSupervisor = false,
       isActualAdmin = false,
       isManager = false,
       canPerformAdminActions = false,
@@ -52,12 +53,14 @@ const StaffDutyTab = forwardRef(
     const [editingShift, setEditingShift] = useState(null);
     const [leaveModalOpen, setLeaveModalOpen] = useState(false);
 
+    const effectiveSupervisor = isSupervisor || isActualAdmin || isAdminView || isManager;
+
     const fetchShifts = useCallback(async () => {
       setShiftsLoading(true);
       try {
         const branchId = branchFilter && branchFilter !== "all" ? branchToId(branchFilter) : null;
         const data = await fetchStaffShifts(
-          isAdminView,
+          effectiveSupervisor,
           rangeToSince(rangeDays),
           branchId,
           isManager,
@@ -71,7 +74,7 @@ const StaffDutyTab = forwardRef(
       } finally {
         setShiftsLoading(false);
       }
-    }, [isAdminView, isManager, rangeDays, branchFilter, division]);
+    }, [effectiveSupervisor, isManager, rangeDays, branchFilter, division]);
 
     useEffect(() => {
       fetchShifts();

@@ -224,6 +224,7 @@ export default function ViceDirectorDashboard() {
         onNavigateToApprovals={() => handleTabChange("approvals")}
         onNavigateToApplications={() => handleTabChange("applications")}
         onNavigateToStudents={() => handleTabChange("students")}
+        onNavigateToRisk={() => handleTabChange("risk")}
         title="Operational Action Required"
       />
 

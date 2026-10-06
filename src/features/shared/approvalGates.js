@@ -14,7 +14,8 @@ export const APPROVAL_ROLES = {
   DIRECTOR: "director",
   VICE_DIRECTOR: "vice_director",
   ADMIN: "admin",
-  BRANCH_MANAGER: "manager",
+  DIVISION_MANAGER: "manager", // Canonical (Authoritative Blueprint v3.1 §5.4)
+  BRANCH_MANAGER: "manager", // Deprecated alias retained for backward compatibility
   INSTRUCTOR_LEADER: "instructorleader",
   OPS_LEAD: "opslead",
 };
@@ -85,13 +86,13 @@ export const GATED_ACTIONS = Object.freeze({
     locked: true,
   }),
 
-  // ── Branch Manager Gates (Branch Operations & Status Oversight) ──
+  // ── Division Manager Gates (Division Operations & Status Oversight) ──
   CASH_DISCREPANCY: Object.freeze({
     id: "CASH_DISCREPANCY",
     label: "Cash Discrepancy Escalation",
-    approverRole: APPROVAL_ROLES.BRANCH_MANAGER,
+    approverRole: APPROVAL_ROLES.DIVISION_MANAGER,
     eligibleApproverRoles: Object.freeze([
-      APPROVAL_ROLES.BRANCH_MANAGER,
+      APPROVAL_ROLES.DIVISION_MANAGER,
       APPROVAL_ROLES.DIRECTOR,
       APPROVAL_ROLES.VICE_DIRECTOR,
     ]),
@@ -101,9 +102,9 @@ export const GATED_ACTIONS = Object.freeze({
   TUITION_PLAN_CHANGE: Object.freeze({
     id: "TUITION_PLAN_CHANGE",
     label: "Tuition Plan Modification (Create / Edit)",
-    approverRole: APPROVAL_ROLES.BRANCH_MANAGER,
+    approverRole: APPROVAL_ROLES.DIVISION_MANAGER,
     eligibleApproverRoles: Object.freeze([
-      APPROVAL_ROLES.BRANCH_MANAGER,
+      APPROVAL_ROLES.DIVISION_MANAGER,
       APPROVAL_ROLES.DIRECTOR,
       APPROVAL_ROLES.VICE_DIRECTOR,
     ]),
@@ -113,9 +114,9 @@ export const GATED_ACTIONS = Object.freeze({
   STUDENT_WITHDRAWAL_OR_FREEZE: Object.freeze({
     id: "STUDENT_WITHDRAWAL_OR_FREEZE",
     label: "Student Withdrawal / Enrollment Freeze",
-    approverRole: APPROVAL_ROLES.BRANCH_MANAGER,
+    approverRole: APPROVAL_ROLES.DIVISION_MANAGER,
     eligibleApproverRoles: Object.freeze([
-      APPROVAL_ROLES.BRANCH_MANAGER,
+      APPROVAL_ROLES.DIVISION_MANAGER,
       APPROVAL_ROLES.DIRECTOR,
       APPROVAL_ROLES.VICE_DIRECTOR,
     ]),
@@ -156,7 +157,7 @@ export const GATED_ACTIONS = Object.freeze({
     approverRole: APPROVAL_ROLES.OPS_LEAD,
     eligibleApproverRoles: Object.freeze([
       APPROVAL_ROLES.OPS_LEAD,
-      APPROVAL_ROLES.BRANCH_MANAGER,
+      APPROVAL_ROLES.DIVISION_MANAGER,
       APPROVAL_ROLES.DIRECTOR,
       APPROVAL_ROLES.VICE_DIRECTOR,
     ]),
@@ -169,7 +170,7 @@ export const GATED_ACTIONS = Object.freeze({
     approverRole: APPROVAL_ROLES.OPS_LEAD,
     eligibleApproverRoles: Object.freeze([
       APPROVAL_ROLES.OPS_LEAD,
-      APPROVAL_ROLES.BRANCH_MANAGER,
+      APPROVAL_ROLES.DIVISION_MANAGER,
       APPROVAL_ROLES.DIRECTOR,
       APPROVAL_ROLES.VICE_DIRECTOR,
     ]),
@@ -182,7 +183,7 @@ export const GATED_ACTIONS = Object.freeze({
     approverRole: APPROVAL_ROLES.OPS_LEAD,
     eligibleApproverRoles: Object.freeze([
       APPROVAL_ROLES.OPS_LEAD,
-      APPROVAL_ROLES.BRANCH_MANAGER,
+      APPROVAL_ROLES.DIVISION_MANAGER,
       APPROVAL_ROLES.DIRECTOR,
       APPROVAL_ROLES.VICE_DIRECTOR,
     ]),
@@ -195,7 +196,7 @@ export const GATED_ACTIONS = Object.freeze({
     approverRole: "dynamic_hierarchy", // Evaluated via getSelfCorrectionApprover()
     eligibleApproverRoles: Object.freeze([
       APPROVAL_ROLES.OPS_LEAD,
-      APPROVAL_ROLES.BRANCH_MANAGER,
+      APPROVAL_ROLES.DIVISION_MANAGER,
       APPROVAL_ROLES.DIRECTOR,
       APPROVAL_ROLES.VICE_DIRECTOR,
     ]),
@@ -206,12 +207,12 @@ export const GATED_ACTIONS = Object.freeze({
 
 /**
  * Resolves the designated approver for self-correction actions based on the requester's role.
- * Principle 5: staff < opslead < manager < director / admin.
+ * Principle 5: staff < opslead < manager < director.
  *
  * Escalation ladder:
  * - General staff (instructor, marketing, officeboy, instructorleader) -> ops_lead (Front Office Lead)
- * - Front Office / Ops Lead's own record -> manager (Branch Manager)
- * - Branch Manager's own record -> director (Owner / Director tier)
+ * - Front Office / Ops Lead's own record -> manager (Division Manager)
+ * - Division Manager's own record -> director (Owner / Director tier)
  * - Executives (director, vice_director, admin) -> exempt (returns null)
  *
  * @param {string} requesterRole
@@ -231,7 +232,7 @@ export function getSelfCorrectionApprover(requesterRole) {
     return APPROVAL_ROLES.DIRECTOR;
   }
   if (normalized === "opslead" || normalized === "frontoffice") {
-    return APPROVAL_ROLES.BRANCH_MANAGER;
+    return APPROVAL_ROLES.DIVISION_MANAGER;
   }
   // All other staff (instructor, marketing, officeboy, instructorleader, etc.)
   return APPROVAL_ROLES.OPS_LEAD;
@@ -289,36 +290,67 @@ export function createApprovalEnvelope(actionId, requester = {}, context = {}) {
 }
 
 /**
- * Evaluates whether a user's role satisfies the required approverRole.
+ * Evaluates whether a user's role satisfies the required approverRole or gated action.
+ *
+ * Governance (Authoritative Blueprint v3.1 §4 & §5.3, Principle 14):
+ * System Admin is a technical maintenance role, not an organizational authority.
+ * System Admin does NOT automatically inherit business approval authority over
+ * refunds, discounts, class transfers, or staff attendance self-corrections.
+ * System Admin only satisfies APPROVAL_ROLES.ADMIN gates.
  *
  * Role mapping:
- * - Admin, Director, and Vice Director satisfy all approval gates.
- * - Manager satisfies branch_manager and ops_lead.
- * - Instructor Leader / Head Teacher satisfies instructorleader.
- * - Front Office / Operations Lead satisfies opslead.
+ * - Admin satisfies APPROVAL_ROLES.ADMIN only.
+ * - Director and Vice Director satisfy all operational/business approval gates.
+ * - Division Manager satisfies division_manager and ops_lead gates.
+ * - Instructor Leader / Head Teacher satisfies instructorleader gates.
+ * - Front Office / Operations Lead satisfies opslead gates.
+ *
+ * @param {string} userRole
+ * @param {string|{ id?: string }|any} approverRoleOrAction
+ * @param {string} [actionId]
+ * @returns {boolean}
  */
-export function canApproveGate(userRole, approverRole) {
+export function canApproveGate(userRole, approverRoleOrAction, actionId = null) {
   if (!userRole) return false;
   const normalized = normalizeRole(userRole);
-  if (normalized === "admin") return true;
+
+  const actionObj =
+    approverRoleOrAction && typeof approverRoleOrAction === "object"
+      ? /** @type {any} */ (approverRoleOrAction)
+      : null;
+
+  // If an actionId or gated action object is provided, evaluate against eligibleApproverRoles
+  const targetAction =
+    (actionId && GATED_ACTIONS[actionId]) ||
+    (typeof approverRoleOrAction === "string" && GATED_ACTIONS[approverRoleOrAction]) ||
+    (actionObj?.id && GATED_ACTIONS[actionObj.id]);
+
+  if (targetAction && Array.isArray(targetAction.eligibleApproverRoles)) {
+    return targetAction.eligibleApproverRoles.includes(normalized);
+  }
+
+  const approverRole =
+    typeof approverRoleOrAction === "string" ? approverRoleOrAction : null;
+  if (!approverRole) return false;
 
   switch (approverRole) {
+    case APPROVAL_ROLES.ADMIN:
+    case "admin":
+      return normalized === "admin";
     case APPROVAL_ROLES.DIRECTOR:
     case APPROVAL_ROLES.VICE_DIRECTOR:
     case "director":
     case "vice_director":
-    case APPROVAL_ROLES.ADMIN:
       return (
         normalized === "director" ||
-        normalized === "vice_director" ||
-        normalized === "admin"
+        normalized === "vice_director"
       );
+    case APPROVAL_ROLES.DIVISION_MANAGER:
     case APPROVAL_ROLES.BRANCH_MANAGER:
     case "manager":
       return (
         normalized === "director" ||
         normalized === "vice_director" ||
-        normalized === "admin" ||
         normalized === "manager"
       );
     case APPROVAL_ROLES.INSTRUCTOR_LEADER:
@@ -327,7 +359,6 @@ export function canApproveGate(userRole, approverRole) {
       return (
         normalized === "director" ||
         normalized === "vice_director" ||
-        normalized === "admin" ||
         normalized === "manager" ||
         normalized === "instructorleader"
       );
@@ -337,7 +368,6 @@ export function canApproveGate(userRole, approverRole) {
       return (
         normalized === "director" ||
         normalized === "vice_director" ||
-        normalized === "admin" ||
         normalized === "manager" ||
         normalized === "frontoffice" ||
         normalized === "opslead"

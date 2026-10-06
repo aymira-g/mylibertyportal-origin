@@ -4,17 +4,33 @@ import { BRANCHES, matchesBranchFilter } from "../../../constants/branches";
 /**
  * BranchOperationalHealthPanel: Operational health & daily/weekly execution tracking
  * for the Vice Director (Authoritative Blueprint §6.2).
+ *
+ * @param {{
+ *   students?: any[],
+ *   classes?: any[],
+ *   users?: any[],
+ *   applications?: any[],
+ *   selectedBranch?: string | null,
+ *   onNavigateToApplications?: () => void,
+ *   onNavigateToClasses?: () => void,
+ *   onNavigateToStudents?: () => void,
+ * }} props
  */
 export function BranchOperationalHealthPanel({
   students = [],
   classes = [],
   users = [],
   applications = [],
+  selectedBranch = null,
   onNavigateToApplications,
   onNavigateToClasses,
   onNavigateToStudents,
 }) {
-  const branchHealthData = BRANCHES.map((branchName) => {
+  const displayedBranches = selectedBranch
+    ? BRANCHES.filter((b) => matchesBranchFilter(selectedBranch, b))
+    : BRANCHES;
+
+  const branchHealthData = displayedBranches.map((branchName) => {
     const bStudents = students.filter(
       (s) =>
         matchesBranchFilter(s.branchId || s.branch, branchName) &&

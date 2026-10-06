@@ -3,6 +3,18 @@ import { AlertCircle } from "lucide-react";
 /**
  * ExecutiveAlertBanner: Prominently surfaces high-priority executive action items
  * (Pending approvals, pending applications, unassigned students, exception flags).
+ *
+ * @param {{
+ *   pendingApprovalsCount?: number,
+ *   pendingApplications?: number,
+ *   unenrolledStudentsCount?: number,
+ *   riskAlertCount?: number,
+ *   onNavigateToApprovals?: () => void,
+ *   onNavigateToApplications?: () => void,
+ *   onNavigateToStudents?: () => void,
+ *   onNavigateToRisk?: () => void,
+ *   title?: string,
+ * }} props
  */
 export function ExecutiveAlertBanner({
   pendingApprovalsCount = 0,

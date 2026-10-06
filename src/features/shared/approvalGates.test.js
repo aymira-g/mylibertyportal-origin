@@ -121,27 +121,35 @@ describe("Maker-Checker Approval Gates", () => {
   });
 
   it("evaluates role authority correctly", () => {
-    // Admin, Director, and Vice Director approve executive gates
+    // Executive gates: Director and Vice Director approve; Admin does NOT inherit executive business authority
     expect(canApproveGate("director", APPROVAL_ROLES.DIRECTOR)).toBe(true);
     expect(canApproveGate("vice_director", APPROVAL_ROLES.DIRECTOR)).toBe(true);
-    expect(canApproveGate("admin", APPROVAL_ROLES.DIRECTOR)).toBe(true);
+    expect(canApproveGate("admin", APPROVAL_ROLES.DIRECTOR)).toBe(false);
     expect(canApproveGate("manager", APPROVAL_ROLES.DIRECTOR)).toBe(false);
 
-    // Director and Vice Director can approve branch gates
-    expect(canApproveGate("director", APPROVAL_ROLES.BRANCH_MANAGER)).toBe(true);
-    expect(canApproveGate("vice_director", APPROVAL_ROLES.BRANCH_MANAGER)).toBe(true);
+    // Director and Vice Director can approve division gates
+    expect(canApproveGate("director", APPROVAL_ROLES.DIVISION_MANAGER)).toBe(true);
+    expect(canApproveGate("vice_director", APPROVAL_ROLES.DIVISION_MANAGER)).toBe(true);
     expect(canApproveGate("director", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
     expect(canApproveGate("vice_director", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
 
-    // Admin approves all
+    // System Admin is a technical maintenance role (Blueprint v3.1 §4 & §5.3):
+    // Admin only satisfies technical ADMIN gates, NOT business approval gates
     expect(canApproveGate("admin", APPROVAL_ROLES.ADMIN)).toBe(true);
-    expect(canApproveGate("admin", APPROVAL_ROLES.BRANCH_MANAGER)).toBe(true);
-    expect(canApproveGate("admin", APPROVAL_ROLES.INSTRUCTOR_LEADER)).toBe(true);
-    expect(canApproveGate("admin", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
+    expect(canApproveGate("admin", APPROVAL_ROLES.DIVISION_MANAGER)).toBe(false);
+    expect(canApproveGate("admin", APPROVAL_ROLES.INSTRUCTOR_LEADER)).toBe(false);
+    expect(canApproveGate("admin", APPROVAL_ROLES.OPS_LEAD)).toBe(false);
 
-    // Branch manager cannot approve Director escalated actions, but can approve Manager and OpsLead
+    // Evaluation with specific action IDs against eligibleApproverRoles
+    expect(canApproveGate("admin", null, "DISCOUNT_OR_REFUND")).toBe(false);
+    expect(canApproveGate("director", null, "DISCOUNT_OR_REFUND")).toBe(true);
+    expect(canApproveGate("vice_director", null, "DISCOUNT_OR_REFUND")).toBe(true);
+    expect(canApproveGate("manager", null, "CASH_DISCREPANCY")).toBe(true);
+    expect(canApproveGate("admin", null, "CASH_DISCREPANCY")).toBe(false);
+
+    // Division manager cannot approve Director escalated actions, but can approve Manager and OpsLead
     expect(canApproveGate("manager", APPROVAL_ROLES.DIRECTOR)).toBe(false);
-    expect(canApproveGate("manager", APPROVAL_ROLES.BRANCH_MANAGER)).toBe(true);
+    expect(canApproveGate("manager", APPROVAL_ROLES.DIVISION_MANAGER)).toBe(true);
     expect(canApproveGate("manager", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
 
     // Instructor Leader

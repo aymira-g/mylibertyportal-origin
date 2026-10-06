@@ -216,6 +216,7 @@ export default function DirectorDashboard() {
         unenrolledStudentsCount={unenrolledStudents.length}
         riskAlertCount={0}
         onNavigateToApprovals={() => handleTabChange("approvals")}
+        onNavigateToApplications={() => handleTabChange("applications")}
         onNavigateToStudents={() => handleTabChange("students")}
         onNavigateToRisk={() => handleTabChange("risk")}
         title="Executive Strategic Action Required"

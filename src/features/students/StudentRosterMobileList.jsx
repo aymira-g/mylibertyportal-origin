@@ -193,22 +193,31 @@ export default function StudentRosterMobileList({
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="font-semibold text-slate-800">{s.parentName || "—"}</span>
                   {linkedParentsMap[s.id]?.length > 0 ? (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const parent = linkedParentsMap[s.id][0];
-                        if (onOpenParentProfile) {
-                          onOpenParentProfile(parent);
-                        } else if (onEdit) {
-                          onEdit(parent);
-                        }
-                      }}
-                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 transition cursor-pointer shadow-2xs"
-                      title={`Linked: ${linkedParentsMap[s.id].map((p) => p.displayName || p.email).join(", ")}. Click to view/edit parent profile.`}
-                    >
-                      <Shield className="w-2.5 h-2.5" /> Linked
-                    </button>
+                    !readOnly && (onOpenParentProfile || onEdit) ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const parent = linkedParentsMap[s.id][0];
+                          if (onOpenParentProfile) {
+                            onOpenParentProfile(parent);
+                          } else if (onEdit) {
+                            onEdit(parent);
+                          }
+                        }}
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 transition cursor-pointer shadow-2xs"
+                        title={`Linked: ${linkedParentsMap[s.id].map((p) => p.displayName || p.email).join(", ")}. Click to view parent profile.`}
+                      >
+                        <Shield className="w-2.5 h-2.5" /> Linked
+                      </button>
+                    ) : (
+                      <span
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        title={`Linked: ${linkedParentsMap[s.id].map((p) => p.displayName || p.email).join(", ")}`}
+                      >
+                        <Shield className="w-2.5 h-2.5" /> Linked
+                      </span>
+                    )
                   ) : !readOnly && onLinkParent ? (
                     <button
                       type="button"
@@ -235,7 +244,7 @@ export default function StudentRosterMobileList({
                   <p className="text-[11px] text-slate-500 truncate">
                     {s.parentPhone || "No contact"}
                   </p>
-                  {s.parentPhone && (
+                  {s.parentPhone && !readOnly && (
                     <button
                       type="button"
                       onClick={() =>
@@ -313,20 +322,24 @@ export default function StudentRosterMobileList({
                 )}
                 {!readOnly && (
                   <>
-                    <button
-                      onClick={() => onEdit && onEdit(s)}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 px-3 rounded-xl text-xs font-bold transition cursor-pointer"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                      <span>Edit</span>
-                    </button>
-                    <button
-                      onClick={() => onDeleteStudent && onDeleteStudent(s)}
-                      className="inline-flex items-center justify-center p-2 rounded-xl text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition cursor-pointer"
-                      title="Delete student"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {onEdit && (
+                      <button
+                        onClick={() => onEdit(s)}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 px-3 rounded-xl text-xs font-bold transition cursor-pointer"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
+                    )}
+                    {onDeleteStudent && (
+                      <button
+                        onClick={() => onDeleteStudent(s)}
+                        className="inline-flex items-center justify-center p-2 rounded-xl text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition cursor-pointer"
+                        title="Delete student"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </>
                 )}
               </div>

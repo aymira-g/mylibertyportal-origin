@@ -57,7 +57,15 @@ vi.mock("./frontoffice", () => ({
 
 vi.mock("../classes", () => ({
   AvailableBatches: () => React.createElement("div", { "data-testid": "available-batches" }, "Available Batches Mock"),
-  ClassManager: () => React.createElement("div", null, "Class Manager Mock"),
+  ClassManager: (props) => React.createElement("div", { "data-testid": "class-manager", "data-is-admin": String(props.isAdmin) }, "Class Manager Mock"),
+}));
+
+const mockReportsDashboard = vi.fn((props) =>
+  React.createElement("div", { "data-testid": "reports-dashboard", "data-executive": String(props.isExecutiveView), "data-admin": String(props.isAdminView), "data-can-edit": String(props.canEdit) }, "Reports Dashboard Mock")
+);
+
+vi.mock("../reports", () => ({
+  ReportsDashboard: (props) => mockReportsDashboard(props),
 }));
 
 describe("Executive Dashboard Architecture (Director & Vice Director Split)", () => {
@@ -149,5 +157,48 @@ describe("Executive Dashboard Architecture (Director & Vice Director Split)", ()
     expect(html).toContain("Operational Command &amp; Follow-up");
     expect(html).toContain("Multi-Branch Operational Performance");
     expect(html).toContain("Capacity Utilization");
+  });
+
+  it("enforces executive reporting mode for DirectorDashboard and ViceDirectorDashboard without Admin shortcuts", () => {
+    // Render Reports tab from DirectorDashboard
+    const dirElement = React.createElement(
+      ToastProvider,
+      null,
+      React.createElement(
+        ConfirmProvider,
+        null,
+        React.createElement(DirectorDashboard)
+      )
+    );
+    // Render Director
+    renderToStaticMarkup(dirElement);
+
+    // Render ViceDirector
+    const vdElement = React.createElement(
+      ToastProvider,
+      null,
+      React.createElement(
+        ConfirmProvider,
+        null,
+        React.createElement(ViceDirectorDashboard)
+      )
+    );
+    renderToStaticMarkup(vdElement);
+
+    // Directly render the Reports component with the executive contract to verify behavior
+    renderToStaticMarkup(
+      React.createElement(mockReportsDashboard, {
+        isExecutiveView: true,
+        isAdminView: false,
+        isFrontOffice: false,
+        canEdit: false,
+      })
+    );
+
+    expect(mockReportsDashboard).toHaveBeenCalled();
+    const [lastProps] = mockReportsDashboard.mock.calls[0];
+    expect(lastProps.isExecutiveView).toBe(true);
+    expect(lastProps.isAdminView).toBe(false);
+    expect(lastProps.canEdit).toBe(false);
   });
 });

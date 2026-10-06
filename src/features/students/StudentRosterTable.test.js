@@ -122,4 +122,37 @@ describe("StudentRosterTable Parent Contact & App Account Badges", () => {
     // Displays the Remind button for pending payment students with a phone number
     expect(html).toContain("Remind");
   });
+
+  it("strictly suppresses edit, delete, parent link, and WhatsApp chat/remind triggers in readOnly mode", () => {
+    const student = {
+      id: "stu-99",
+      displayName: "Protected Student",
+      parentName: "Parent Protected",
+      parentPhone: "08111222333",
+      paidUntil: "2026-10-01", // expired
+      paymentHealth: { status: "expired", label: "Expired", tone: "rose", remainingDays: -5 },
+      status: "active",
+      effectiveStatus: "active",
+    };
+
+    const html = renderToStaticMarkup(
+      React.createElement(StudentRosterTable, {
+        pageItems: [student],
+        readOnly: true,
+        onEdit: () => {},
+        onDeleteStudent: () => {},
+        onLinkParent: () => {},
+        onSendRenewalReminder: () => {},
+      })
+    );
+
+    // Should not contain interactive mutation triggers
+    expect(html).not.toContain("<span>Edit</span>");
+    expect(html).not.toContain("Delete record");
+    expect(html).not.toContain("+ Link");
+    expect(html).not.toContain("Chat with parent on WhatsApp");
+    expect(html).not.toContain("Remind");
+    // Displays App: N/A without + Link
+    expect(html).toContain("App: N/A");
+  });
 });

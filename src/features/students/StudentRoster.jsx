@@ -500,21 +500,21 @@ export default function StudentRoster({
           <StudentRosterMobileList
             pageItems={pageItems}
             readOnly={readOnly}
-            canEditStatus={canEditStatus}
+            canEditStatus={!readOnly && canEditStatus}
             updatingStatusId={updatingStatusId}
             pendingPromotionsMap={pendingPromotionsMap}
             linkedParentsMap={linkedParentsMap}
-            onStatusChange={handleStatusChange}
-            onPaymentClick={(s) => setPaymentStudent(s)}
-            onSendRenewalReminder={handleSendRenewalReminder}
-            onPromote={handlePromote}
-            onAssignBatch={(s) => setSelectedTransferStudent({ student: s, sourceClass: null })}
-            onTransferBatch={(s, c) => setSelectedTransferStudent({ student: s, sourceClass: c })}
+            onStatusChange={readOnly || !canEditStatus ? null : handleStatusChange}
+            onPaymentClick={readOnly ? null : (s) => setPaymentStudent(s)}
+            onSendRenewalReminder={readOnly ? null : handleSendRenewalReminder}
+            onPromote={readOnly ? null : handlePromote}
+            onAssignBatch={readOnly ? null : (s) => setSelectedTransferStudent({ student: s, sourceClass: null })}
+            onTransferBatch={readOnly ? null : (s, c) => setSelectedTransferStudent({ student: s, sourceClass: c })}
             onBadgeClick={setSelectedStudent}
-            onEdit={handleEdit}
-            onDeleteStudent={handleDeleteStudent}
-            onOpenParentProfile={(parent) => handleEdit && handleEdit(parent)}
-            onLinkParent={(s) => setLinkModalStudent(s)}
+            onEdit={readOnly ? null : handleEdit}
+            onDeleteStudent={readOnly || !handleDelete ? null : handleDeleteStudent}
+            onOpenParentProfile={readOnly ? null : (parent) => handleEdit && handleEdit(parent)}
+            onLinkParent={readOnly ? null : (s) => setLinkModalStudent(s)}
           />
 
           {/* Desktop Full Table View */}
@@ -524,21 +524,21 @@ export default function StudentRoster({
             studentSortAsc={studentSortAsc}
             onSort={handleStudentSort}
             readOnly={readOnly}
-            canEditStatus={canEditStatus}
+            canEditStatus={!readOnly && canEditStatus}
             updatingStatusId={updatingStatusId}
             pendingPromotionsMap={pendingPromotionsMap}
             linkedParentsMap={linkedParentsMap}
-            onStatusChange={handleStatusChange}
-            onPaymentClick={(s) => setPaymentStudent(s)}
-            onSendRenewalReminder={handleSendRenewalReminder}
-            onPromote={handlePromote}
-            onAssignBatch={(s) => setSelectedTransferStudent({ student: s, sourceClass: null })}
-            onTransferBatch={(s, c) => setSelectedTransferStudent({ student: s, sourceClass: c })}
+            onStatusChange={readOnly || !canEditStatus ? null : handleStatusChange}
+            onPaymentClick={readOnly ? null : (s) => setPaymentStudent(s)}
+            onSendRenewalReminder={readOnly ? null : handleSendRenewalReminder}
+            onPromote={readOnly ? null : handlePromote}
+            onAssignBatch={readOnly ? null : (s) => setSelectedTransferStudent({ student: s, sourceClass: null })}
+            onTransferBatch={readOnly ? null : (s, c) => setSelectedTransferStudent({ student: s, sourceClass: c })}
             onBadgeClick={setSelectedStudent}
-            onEdit={handleEdit}
-            onDeleteStudent={handleDeleteStudent}
-            onOpenParentProfile={(parent) => handleEdit && handleEdit(parent)}
-            onLinkParent={(s) => setLinkModalStudent(s)}
+            onEdit={readOnly ? null : handleEdit}
+            onDeleteStudent={readOnly || !handleDelete ? null : handleDeleteStudent}
+            onOpenParentProfile={readOnly ? null : (parent) => handleEdit && handleEdit(parent)}
+            onLinkParent={readOnly ? null : (s) => setLinkModalStudent(s)}
           />
 
           {/* Pagination Footer */}

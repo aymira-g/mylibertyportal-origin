@@ -401,8 +401,8 @@ export default function ViceDirectorDashboard() {
             applications={filteredApplications}
             classes={filteredClasses}
             users={users}
-            onApproveAndEdit={handleEdit}
-            onViewStudent={handleEdit}
+            onApproveAndEdit={null}
+            onViewStudent={null}
           />
         </div>
       ),
@@ -436,10 +436,12 @@ export default function ViceDirectorDashboard() {
             users={users}
             getStudentClasses={getStudentClasses}
             setSelectedStudent={setSelectedStudent}
-            handleEdit={handleEdit}
-            handleDelete={handleDelete}
+            handleEdit={null}
+            handleDelete={null}
             handleAddStudent={null}
-            isAdmin={true}
+            readOnly={true}
+            isAdmin={false}
+            canEditStatus={false}
             userRole="vice_director"
             branchId={selectedBranch === "all" ? null : branchToId(selectedBranch)}
             canViewParents={true}
@@ -476,7 +478,7 @@ export default function ViceDirectorDashboard() {
             instructors={instructors}
             unenrolledStudents={unenrolledStudents}
             role="vice_director"
-            isAdmin={true}
+            isAdmin={false}
           />
         </div>
       ),

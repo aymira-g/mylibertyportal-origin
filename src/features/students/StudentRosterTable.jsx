@@ -218,22 +218,31 @@ export default function StudentRosterTable({
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <p className="font-semibold text-slate-800">{s.parentName || "—"}</p>
                     {linkedParentsMap[s.id]?.length > 0 ? (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const parent = linkedParentsMap[s.id][0];
-                          if (onOpenParentProfile) {
-                            onOpenParentProfile(parent);
-                          } else if (onEdit) {
-                            onEdit(parent);
-                          }
-                        }}
-                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 transition cursor-pointer shadow-2xs"
-                        title={`Linked: ${linkedParentsMap[s.id].map((p) => p.displayName || p.email).join(", ")}. Click to view/edit parent profile.`}
-                      >
-                        <Shield className="w-2.5 h-2.5" /> Linked
-                      </button>
+                      !readOnly && (onOpenParentProfile || onEdit) ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const parent = linkedParentsMap[s.id][0];
+                            if (onOpenParentProfile) {
+                              onOpenParentProfile(parent);
+                            } else if (onEdit) {
+                              onEdit(parent);
+                            }
+                          }}
+                          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 transition cursor-pointer shadow-2xs"
+                          title={`Linked: ${linkedParentsMap[s.id].map((p) => p.displayName || p.email).join(", ")}. Click to view/edit parent profile.`}
+                        >
+                          <Shield className="w-2.5 h-2.5" /> Linked
+                        </button>
+                      ) : (
+                        <span
+                          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          title={`Linked: ${linkedParentsMap[s.id].map((p) => p.displayName || p.email).join(", ")}`}
+                        >
+                          <Shield className="w-2.5 h-2.5" /> Linked
+                        </span>
+                      )
                     ) : !readOnly && onLinkParent ? (
                       <button
                         type="button"
@@ -258,7 +267,7 @@ export default function StudentRosterTable({
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <p className="text-[11px] text-slate-400">{s.parentPhone || "No contact"}</p>
-                    {s.parentPhone && (
+                    {s.parentPhone && !readOnly && (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -420,21 +429,25 @@ export default function StudentRosterTable({
                       )}
                       {!readOnly && (
                         <>
-                          <button
-                            onClick={() => onEdit && onEdit(s)}
-                            className="inline-flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg font-bold text-[11px] transition shadow-2xs cursor-pointer"
-                            title="Edit profile"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                            <span>Edit</span>
-                          </button>
-                          <button
-                            onClick={() => onDeleteStudent && onDeleteStudent(s)}
-                            className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700 transition cursor-pointer"
-                            title="Delete record"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {onEdit && (
+                            <button
+                              onClick={() => onEdit(s)}
+                              className="inline-flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg font-bold text-[11px] transition shadow-2xs cursor-pointer"
+                              title="Edit profile"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                              <span>Edit</span>
+                            </button>
+                          )}
+                          {onDeleteStudent && (
+                            <button
+                              onClick={() => onDeleteStudent(s)}
+                              className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700 transition cursor-pointer"
+                              title="Delete record"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </>
                       )}
                     </div>

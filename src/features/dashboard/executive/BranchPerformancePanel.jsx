@@ -88,10 +88,6 @@ export function BranchPerformancePanel({
 
       const ratio = bFaculty > 0 ? (bActiveStudents / bFaculty).toFixed(1) : "0";
 
-      // Target benchmark: >75% seat utilization is optimal, <50% requires attention
-      const statusTone =
-        capacityPct >= 70 ? "optimal" : capacityPct >= 45 ? "balanced" : "attention";
-
       return {
         branchName,
         branchId,
@@ -104,7 +100,6 @@ export function BranchPerformancePanel({
         facultyCount: bFaculty,
         ratio,
         branchApps: bApps,
-        statusTone,
       };
     });
   }, [students, classes, users, instructors, applications]);
@@ -268,15 +263,7 @@ export function BranchPerformancePanel({
                     {b.enrolledSeats} / {b.totalCapacity}
                   </td>
                   <td className="py-3 px-3 text-center">
-                    <span
-                      className={`font-mono font-bold ${
-                        b.capacityPct >= 70
-                          ? "text-emerald-700"
-                          : b.capacityPct >= 45
-                            ? "text-slate-800"
-                            : "text-amber-700"
-                      }`}
-                    >
+                    <span className="font-mono font-bold text-slate-800">
                       {b.capacityPct}%
                     </span>
                   </td>
@@ -284,17 +271,13 @@ export function BranchPerformancePanel({
                     {b.ratio} : 1
                   </td>
                   <td className="py-3 px-3 text-right">
-                    {b.statusTone === "optimal" ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        <CheckCircle2 className="w-3 h-3" /> Optimal
-                      </span>
-                    ) : b.statusTone === "balanced" ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-50 text-slate-700 border border-slate-200">
-                        <CheckCircle2 className="w-3 h-3" /> Balanced
+                    {b.facultyCount === 0 && b.activeStudents > 0 ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                        <AlertTriangle className="w-3 h-3" /> No faculty assigned
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                        <AlertTriangle className="w-3 h-3" /> Growth Target
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                        <CheckCircle2 className="w-3 h-3" /> Data active
                       </span>
                     )}
                   </td>

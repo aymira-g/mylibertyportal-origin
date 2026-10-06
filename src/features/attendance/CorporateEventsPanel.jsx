@@ -26,7 +26,11 @@ import {
 } from "lucide-react";
 import { CorporateEventModal } from "./CorporateEventModal";
 
-export default function CorporateEventsPanel() {
+export default function CorporateEventsPanel({
+  canCreate = true,
+  title = "Corporate Events",
+  subtitle = "Schedule workshops, training sessions, company meetings, and academy events. Eligible staff, managers, and students will automatically record attendance at the kiosk.",
+}) {
   const toast = useToast();
   const confirm = useConfirm();
 
@@ -224,21 +228,22 @@ export default function CorporateEventsPanel() {
             <div className="p-2 bg-indigo-50 text-[#1a3a8f] rounded-xl">
               <Calendar className="w-5 h-5" />
             </div>
-            <h2 className="text-xl font-extrabold text-slate-800 tracking-tight">Corporate Events</h2>
+            <h2 className="text-xl font-extrabold text-slate-800 tracking-tight">{title}</h2>
           </div>
           <p className="text-xs text-slate-500 font-medium mt-1">
-            Schedule workshops, training sessions, company meetings, and academy events. Eligible
-            staff, managers, and students will automatically record attendance at the kiosk.
+            {subtitle}
           </p>
         </div>
 
-        <button
-          onClick={handleOpenModal}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#1a3a8f] hover:bg-[#152e72] text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Schedule Event</span>
-        </button>
+        {canCreate && (
+          <button
+            onClick={handleOpenModal}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#1a3a8f] hover:bg-[#152e72] text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Schedule Event</span>
+          </button>
+        )}
       </div>
 
       {/* Filter and Tab bar */}

@@ -1278,13 +1278,23 @@ async function handleParentLink(request, env) {
     fsGetDoc("users", caller.user_id, token), fsGetDoc("users", parentUid, token), fsGetDoc("users", studentId, token),
   ]);
   const actorRole = normalizeRole(actor?.role);
-  if (!actor || !["admin", "frontoffice", "opslead", "frontofficelead"].includes(actorRole)) {
-    return json({ error: "Only authorized front-office staff can manage parent links." }, 403, request, env);
+  const authorizedRoles = [
+    "admin",
+    "director",
+    "vice_director",
+    "manager",
+    "frontoffice",
+    "opslead",
+    "frontofficelead",
+  ];
+  if (!actor || !authorizedRoles.includes(actorRole)) {
+    return json({ error: "Only authorized school staff can manage parent links." }, 403, request, env);
   }
   if (!parent || parent.role !== "parent" || !student || student.role !== "student" || (student.status && student.status !== "active")) {
     return json({ error: "The selected active parent or student was not found." }, 404, request, env);
   }
-  if (actorRole !== "admin" && (actor.branchId !== parent.branchId || parent.branchId !== student.branchId)) {
+  const isExecutiveRole = ["admin", "director", "vice_director"].includes(actorRole);
+  if (!isExecutiveRole && (actor.branchId !== parent.branchId || parent.branchId !== student.branchId)) {
     return json({ error: "Parent and student must belong to your branch." }, 403, request, env);
   }
   await fsSetDoc("users", parentUid, {

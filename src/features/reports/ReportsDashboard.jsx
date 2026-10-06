@@ -5,8 +5,9 @@ import {
   LearnerProgressTab,
   AdmissionsTab,
   InstructorPunctualityTab,
+  FinancialReportsTab,
 } from "./tabs";
-import { Clock, Download, Users, GraduationCap, TrendingUp, UserCheck } from "lucide-react";
+import { Clock, Download, Users, GraduationCap, TrendingUp, UserCheck, DollarSign } from "lucide-react";
 import { BRANCHES } from "../../constants/branches";
 
 export default function ReportsDashboard({
@@ -16,15 +17,32 @@ export default function ReportsDashboard({
   canEdit = true,
   division = "all",
   userBranch = null,
+  initialSubTab = null,
+  onSubTabChange = null,
 }) {
   const isActualAdmin = isAdminView && !isFrontOffice;
   const isSupervisor = isActualAdmin || isManager;
   const canPerformAdminActions = isActualAdmin && canEdit;
 
-  // Default initial subTab
-  const [subTab, setSubTab] = useState(
-    isFrontOffice || (!isAdminView && !isManager) ? "today" : "staff"
-  );
+  const [userSelectedSubTab, setUserSelectedSubTab] = useState(null);
+  const [prevInitialSubTab, setPrevInitialSubTab] = useState(initialSubTab);
+
+  if (initialSubTab !== prevInitialSubTab) {
+    setPrevInitialSubTab(initialSubTab);
+    setUserSelectedSubTab(null);
+  }
+
+  const subTab =
+    userSelectedSubTab ||
+    initialSubTab ||
+    (isFrontOffice || (!isAdminView && !isManager) ? "today" : "staff");
+
+  const handleSubTabClick = (tabKey) => {
+    setUserSelectedSubTab(tabKey);
+    if (onSubTabChange) {
+      onSubTabChange(tabKey);
+    }
+  };
 
   // Shared Horizon Range (0 = all, or days)
   const [rangeDays, setRangeDays] = useState(30);
@@ -77,7 +95,7 @@ export default function ReportsDashboard({
         <div className="flex flex-wrap gap-2 pt-1">
           {/* Sub-Tab: Today's Check-ins */}
           <button
-            onClick={() => setSubTab("today")}
+            onClick={() => handleSubTabClick("today")}
             className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
               subTab === "today"
                 ? "bg-[#1a3a8f] text-white shadow-xs"
@@ -90,7 +108,7 @@ export default function ReportsDashboard({
 
           {/* Sub-Tab: Staff Duty Logs */}
           <button
-            onClick={() => setSubTab("staff")}
+            onClick={() => handleSubTabClick("staff")}
             className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
               subTab === "staff"
                 ? "bg-[#1a3a8f] text-white shadow-xs"
@@ -101,25 +119,38 @@ export default function ReportsDashboard({
             <span>{isSupervisor ? "Staff Duty Logs" : "My Duty Log"}</span>
           </button>
 
-          {/* Sub-Tab: Learner Progress & Attendance (Supervisors & Instructors) */}
-          {!isActualAdmin && (
+          {/* Sub-Tab: Financial & Tuition Revenue (Admin, Director, Manager) */}
+          {(isAdminView || isManager) && (
             <button
-              onClick={() => setSubTab("students")}
+              onClick={() => handleSubTabClick("finance")}
               className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
-                subTab === "students"
+                subTab === "finance"
                   ? "bg-[#1a3a8f] text-white shadow-xs"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
-              <GraduationCap className="w-3.5 h-3.5" />
-              <span>Learner Progress</span>
+              <DollarSign className="w-3.5 h-3.5" />
+              <span>Financial &amp; Tuition</span>
             </button>
           )}
+
+          {/* Sub-Tab: Learner Progress & Attendance */}
+          <button
+            onClick={() => handleSubTabClick("students")}
+            className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
+              subTab === "students"
+                ? "bg-[#1a3a8f] text-white shadow-xs"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            <GraduationCap className="w-3.5 h-3.5" />
+            <span>Learner Progress</span>
+          </button>
 
           {/* Sub-Tab: Admissions Velocity (Admin, Manager, Front Office) */}
           {(isAdminView || isFrontOffice || isManager) && (
             <button
-              onClick={() => setSubTab("admissions")}
+              onClick={() => handleSubTabClick("admissions")}
               className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
                 subTab === "admissions"
                   ? "bg-[#1a3a8f] text-white shadow-xs"
@@ -134,7 +165,7 @@ export default function ReportsDashboard({
           {/* Sub-Tab: Instructor Punctuality (Admin, Manager, Instructor) */}
           {!isFrontOffice && (
             <button
-              onClick={() => setSubTab("instructors")}
+              onClick={() => handleSubTabClick("instructors")}
               className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
                 subTab === "instructors"
                   ? "bg-[#1a3a8f] text-white shadow-xs"
@@ -176,7 +207,7 @@ export default function ReportsDashboard({
             )}
           </div>
 
-          {/* Date Horizon Presets (for staff, students, admissions) */}
+          {/* Date Horizon Presets */}
           {subTab !== "today" && subTab !== "instructors" && (
             <div className="space-y-1">
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
@@ -223,7 +254,16 @@ export default function ReportsDashboard({
         />
       )}
 
-      {subTab === "students" && !isActualAdmin && (
+      {subTab === "finance" && (isAdminView || isManager) && (
+        <FinancialReportsTab
+          ref={activeTabRef}
+          branchFilter={branchFilter}
+          rangeDays={rangeDays}
+          division={division}
+        />
+      )}
+
+      {subTab === "students" && (
         <LearnerProgressTab
           ref={activeTabRef}
           branchFilter={branchFilter}

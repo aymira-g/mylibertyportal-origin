@@ -119,7 +119,20 @@ export default function StudentRosterTable({
                   ))}
               </div>
             </th>
-            <th className="p-3.5">Payment</th>
+            <th
+              className="p-3.5 cursor-pointer hover:text-slate-900 transition"
+              onClick={() => onSort && onSort("paidUntil")}
+            >
+              <div className="flex items-center gap-1">
+                <span>Payment</span>
+                {studentSortField === "paidUntil" &&
+                  (studentSortAsc ? (
+                    <ChevronUp className="w-3.5 h-3.5 text-[#1a3a8f]" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5 text-[#1a3a8f]" />
+                  ))}
+              </div>
+            </th>
             <th className="p-3.5">Class Cohort</th>
             <th className="p-3.5">Instructor</th>
             {(!readOnly || onBadgeClick) && <th className="p-3.5 text-right">Actions</th>}
@@ -134,7 +147,9 @@ export default function StudentRosterTable({
             const canRemind =
               !readOnly &&
               isActiveStudent(s) &&
-              (health.status === "due_soon" || health.status === "expired") &&
+              (health.status === "due_soon" ||
+                health.status === "expired" ||
+                health.status === "pending") &&
               (s.parentPhone || s.phone);
             const pendingPromotion = pendingPromotionsMap[s.id];
             const nextLevel = pendingPromotion ? getNextLevel(s.currentLevel || "warrior") : null;

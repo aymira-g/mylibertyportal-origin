@@ -48,7 +48,9 @@ export default function StudentRosterMobileList({
         const canRemind =
           !readOnly &&
           isActiveStudent(s) &&
-          (health.status === "due_soon" || health.status === "expired") &&
+          (health.status === "due_soon" ||
+            health.status === "expired" ||
+            health.status === "pending") &&
           (s.parentPhone || s.phone);
         const pendingPromotion = pendingPromotionsMap[s.id];
         const nextLevel = pendingPromotion ? getNextLevel(s.currentLevel || "warrior") : null;

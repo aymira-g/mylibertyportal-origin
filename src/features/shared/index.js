@@ -87,3 +87,4 @@ export {
 } from "./roles";
 export { useUserProfile } from "./useUserProfile";
 export { useOverlayHistory } from "./useOverlayHistory";
+export { lazyWithRetry } from "../../utils/lazyWithRetry";

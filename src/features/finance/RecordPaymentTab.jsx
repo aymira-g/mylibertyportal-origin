@@ -34,6 +34,7 @@ export default function RecordPaymentTab({
   saving,
   onSubmit,
   onMarkPending,
+  onClearPending = null,
 }) {
   const { isOnline } = useNetworkStatus();
 
@@ -52,9 +53,11 @@ export default function RecordPaymentTab({
                   ? "bg-emerald-100 text-emerald-800"
                   : existingHealth.status === "due_soon"
                     ? "bg-amber-100 text-amber-800"
-                    : existingHealth.status === "expired"
-                      ? "bg-rose-100 text-rose-800"
-                      : "bg-slate-200 text-slate-700"
+                    : existingHealth.status === "pending"
+                      ? "bg-amber-100 text-amber-800 border border-amber-300"
+                      : existingHealth.status === "expired"
+                        ? "bg-rose-100 text-rose-800"
+                        : "bg-slate-200 text-slate-700"
               }`}
             >
               {existingHealth.label}
@@ -81,14 +84,30 @@ export default function RecordPaymentTab({
           </div>
         </div>
 
-        {student.paymentStatus === "paid" && onMarkPending && (
-          <button
-            type="button"
-            onClick={onMarkPending}
-            className="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-3 py-1.5 rounded-xl transition cursor-pointer"
-          >
-            Reset to Pending
-          </button>
+        {existingHealth.status === "pending" ? (
+          onClearPending && (
+            <button
+              type="button"
+              onClick={onClearPending}
+              className="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-3 py-1.5 rounded-xl transition cursor-pointer"
+            >
+              Clear Pending
+            </button>
+          )
+        ) : (
+          (hasFutureCoverage ||
+            student.paymentStatus === "paid" ||
+            existingHealth.status === "active" ||
+            existingHealth.status === "due_soon") &&
+          onMarkPending && (
+            <button
+              type="button"
+              onClick={onMarkPending}
+              className="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-3 py-1.5 rounded-xl transition cursor-pointer"
+            >
+              Reset to Pending
+            </button>
+          )
         )}
       </div>
 

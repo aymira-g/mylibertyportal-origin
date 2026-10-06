@@ -15,7 +15,12 @@ import {
   useOverlayHistory,
 } from "../shared";
 import { normalizeWhatsAppNumber, buildWhatsAppReceiptMessage } from "./receiptMessages";
-import { fetchPaymentHistory, recordPayment, markPaymentPending } from "./paymentsRepository";
+import {
+  fetchPaymentHistory,
+  recordPayment,
+  markPaymentPending,
+  updateStudentPaymentStatus,
+} from "./paymentsRepository";
 import { branchToId } from "../../constants/branches";
 import { normalizeDivision, divisionOfProgram } from "../../constants/divisions";
 import RecordPaymentTab from "./RecordPaymentTab";
@@ -34,12 +39,25 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
   useOverlayHistory(Boolean(student), onClose, "paymentModal");
   const [activeTab, setActiveTab] = useState("record"); // "record" | "history" | "receipt"
 
+  const rawPaidUntil =
+    typeof student?.paidUntil === "string"
+      ? student.paidUntil
+      : student?.paidUntil?.toDate
+        ? student.paidUntil.toDate().toISOString().slice(0, 10)
+        : student?.paidUntil instanceof Date
+          ? student.paidUntil.toISOString().slice(0, 10)
+          : null;
+
   const todayStr = format(new Date(), "yyyy-MM-dd");
-  const studentBranchId = student.branchId || branchToId(student.branch || "");
-  const existingHealth = getPaymentHealthStatus(student.paidUntil);
+  const studentBranchId = student?.branchId || branchToId(student?.branch || "");
+  const isPendingStatus = student?.paymentStatus === "pending";
+  const existingHealth = isPendingStatus
+    ? { status: "pending", label: "Pending", tone: "amber", remainingDays: null }
+    : getPaymentHealthStatus(rawPaidUntil);
   const hasFutureCoverage =
-    existingHealth.status === "active" || existingHealth.status === "due_soon";
-  const parsedPaidUntil = student.paidUntil ? parseISO(student.paidUntil) : null;
+    !isPendingStatus &&
+    (existingHealth.status === "active" || existingHealth.status === "due_soon");
+  const parsedPaidUntil = rawPaidUntil ? parseISO(rawPaidUntil) : null;
   const isValidPaidUntil = parsedPaidUntil && isValid(parsedPaidUntil);
   const nextDayAfterExpiry = isValidPaidUntil
     ? format(addDays(parsedPaidUntil, 1), "yyyy-MM-dd")
@@ -289,6 +307,28 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
     }
   };
 
+  const handleClearPending = async () => {
+    const isReachable = await checkNetworkReachability();
+    if (!isReachable) {
+      toast("Cannot update payment status: connection is offline or unstable. Please check your internet connection.", "error");
+      return;
+    }
+    if (
+      !(await confirm(
+        `Clear Pending payment status for ${student.displayName}?`
+      ))
+    )
+      return;
+    try {
+      await updateStudentPaymentStatus(student.id, "unpaid");
+      if (onPaymentUpdated) onPaymentUpdated();
+      toast("Cleared Pending status.");
+      onClose();
+    } catch (err) {
+      toast("Error clearing status: " + err.message, "error");
+    }
+  };
+
   const handleSendWhatsApp = (rcp) => {
     const rawPhone = student.parentPhone || student.phone;
     const formatted = normalizeWhatsAppNumber(rawPhone);
@@ -400,6 +440,7 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
               saving={saving}
               onSubmit={handleRecordPayment}
               onMarkPending={handleMarkPending}
+              onClearPending={handleClearPending}
             />
           )}
 

@@ -1,7 +1,7 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import ExecutiveDashboard from "./ExecutiveDashboard";
+import ExecutiveDashboard, { DirectorDashboard, ViceDirectorDashboard } from "./ExecutiveDashboard";
 import { ToastProvider, ConfirmProvider } from "../shared";
 
 vi.mock("./useDashboardData", () => ({
@@ -39,7 +39,8 @@ vi.mock("./useDashboardData", () => ({
       { id: "u-2", displayName: "Teacher Alice", role: "instructor", status: "active" },
     ],
     students: [
-      { id: "s-1", name: "Student Bob", status: "active" },
+      { id: "s-1", name: "Student Bob", status: "active", division: "courses", paidUntil: "2026-11-30" },
+      { id: "s-2", name: "Little Lily", status: "active", division: "kindergarten", paidUntil: "2026-10-06" },
     ],
     unenrolledStudents: [],
     pendingApplications: 1,
@@ -59,12 +60,12 @@ vi.mock("../classes", () => ({
   ClassManager: () => React.createElement("div", null, "Class Manager Mock"),
 }));
 
-describe("ExecutiveDashboard Component", () => {
+describe("Executive Dashboard Architecture (Director & Vice Director Split)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("renders executive portal welcome banner for director", () => {
+  it("routes to DirectorDashboard and renders strategic command for director role", () => {
     const html = renderToStaticMarkup(
       React.createElement(
         ToastProvider,
@@ -81,11 +82,14 @@ describe("ExecutiveDashboard Component", () => {
     expect(html).toContain("Executive Director");
     expect(html).toContain("Pending Approvals");
     expect(html).toContain("Province Learners");
-    expect(html).toContain("Executive Action Required");
     expect(html).toContain("Review Approvals");
+    expect(html).toContain("Multi-Branch Strategic Performance");
+    expect(html).toContain("Executive Branch Scope");
+    expect(html).toContain("Academic Division Enrollment Distribution");
+    expect(html).toContain("Executive Tuition Collection &amp; Financial Health");
   });
 
-  it("renders role label correctly for vice director", () => {
+  it("routes to ViceDirectorDashboard and renders operational command for vice_director role", () => {
     const html = renderToStaticMarkup(
       React.createElement(
         ToastProvider,
@@ -98,11 +102,14 @@ describe("ExecutiveDashboard Component", () => {
       )
     );
 
+    expect(html).toContain("Operational Leadership Portal");
     expect(html).toContain("Vice Director");
-    expect(html).toContain("Review Approvals");
+    expect(html).toContain("Routine Approvals");
+    expect(html).toContain("Multi-Branch Operational Performance");
+    expect(html).toContain("Executive Branch Scope");
   });
 
-  it("renders multi-branch strategic performance cards for all 4 campuses", () => {
+  it("renders DirectorDashboard standalone component with strategic governance focus and enhancements", () => {
     const html = renderToStaticMarkup(
       React.createElement(
         ToastProvider,
@@ -110,20 +117,23 @@ describe("ExecutiveDashboard Component", () => {
         React.createElement(
           ConfirmProvider,
           null,
-          React.createElement(ExecutiveDashboard, { role: "director" })
+          React.createElement(DirectorDashboard)
         )
       )
     );
 
-    expect(html).toContain("Multi-Branch Strategic Performance");
+    expect(html).toContain("Executive Director Strategic Command");
+    expect(html).toContain("Strategic Command &amp; Oversight");
     expect(html).toContain("Kota Gorontalo");
     expect(html).toContain("Bone Bolango");
     expect(html).toContain("Pohuwato");
     expect(html).toContain("Limboto");
-    expect(html).toContain("Capacity Utilization");
+    expect(html).toContain("Course Academy");
+    expect(html).toContain("Kids School");
+    expect(html).toContain("Executive Tuition Collection &amp; Financial Health");
   });
 
-  it("renders executive branch scope filter bar", () => {
+  it("renders ViceDirectorDashboard standalone component with operational health focus", () => {
     const html = renderToStaticMarkup(
       React.createElement(
         ToastProvider,
@@ -131,12 +141,14 @@ describe("ExecutiveDashboard Component", () => {
         React.createElement(
           ConfirmProvider,
           null,
-          React.createElement(ExecutiveDashboard, { role: "director" })
+          React.createElement(ViceDirectorDashboard)
         )
       )
     );
 
-    expect(html).toContain("Executive Branch Scope");
-    expect(html).toContain("All Branches");
+    expect(html).toContain("Vice Director Operational Command");
+    expect(html).toContain("Operational Command &amp; Follow-up");
+    expect(html).toContain("Multi-Branch Operational Performance");
+    expect(html).toContain("Capacity Utilization");
   });
 });

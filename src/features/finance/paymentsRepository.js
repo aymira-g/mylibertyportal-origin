@@ -216,12 +216,28 @@ export async function recordPayment(studentId, paymentRecord, idempotencyKey = n
 }
 
 export function markPaymentPending(studentId) {
+  const validStudentId = studentIdSchema.parse(studentId);
   return setDoc(
-    doc(db, "users", studentId),
+    doc(db, "users", validStudentId),
     {
       paymentStatus: "pending",
       paidUntil: deleteField(),
+      updatedAt: new Date().toISOString(),
     },
     { merge: true }
   );
+}
+
+export function updateStudentPaymentStatus(studentId, paymentStatus, paidUntil = null) {
+  const validStudentId = studentIdSchema.parse(studentId);
+  const payload = {
+    paymentStatus,
+    updatedAt: new Date().toISOString(),
+  };
+  if (paidUntil) {
+    payload.paidUntil = paidUntil;
+  } else if (paymentStatus === "pending") {
+    payload.paidUntil = deleteField();
+  }
+  return setDoc(doc(db, "users", validStudentId), payload, { merge: true });
 }

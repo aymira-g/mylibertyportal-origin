@@ -94,4 +94,32 @@ describe("StudentRosterTable Parent Contact & App Account Badges", () => {
     expect(html).toContain("No contact");
     expect(html).toContain("App: N/A");
   });
+
+  it("renders sortable Payment column header and supports reminders for pending status", () => {
+    const pendingStudent = {
+      id: "stu-3",
+      displayName: "Doni Pratama",
+      parentPhone: "081987654321",
+      paymentStatus: "pending",
+      paymentHealth: { status: "pending", label: "Pending", tone: "amber", remainingDays: null },
+      status: "active",
+      effectiveStatus: "active",
+    };
+
+    const html = renderToStaticMarkup(
+      React.createElement(StudentRosterTable, {
+        pageItems: [pendingStudent],
+        studentSortField: "paidUntil",
+        studentSortAsc: true,
+        onSort: () => {},
+      })
+    );
+
+    // Header has sortable Payment label
+    expect(html).toContain("Payment");
+    // Displays the Pending payment status badge
+    expect(html).toContain("Pending");
+    // Displays the Remind button for pending payment students with a phone number
+    expect(html).toContain("Remind");
+  });
 });

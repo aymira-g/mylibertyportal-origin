@@ -343,7 +343,7 @@ export function ApprovalInbox({
                       >
                         <option value="instructor">Instructor</option>
                         <option value="frontoffice">Front Office</option>
-                        <option value="manager">Branch Manager</option>
+                        <option value="manager">Division Manager</option>
                         <option value="marketing">Marketing</option>
                         <option value="officeboy">Office Boy</option>
                         <option value="admin">Admin</option>

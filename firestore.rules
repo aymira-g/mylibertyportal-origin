@@ -325,7 +325,7 @@ service cloud.firestore {
             || !(request.resource.data.status in ['resigned', 'terminated'])
           )
         )
-        || (isFrontOffice()
+        || ((isFrontOffice() || isManager())
           && resource.data.role == 'student'
           && request.resource.data.role == 'student'
           && isSameBranch(resource.data)
@@ -346,14 +346,14 @@ service cloud.firestore {
               'rating', 'paymentPlan', 'paymentStatus', 'lastPaymentPeriod', 'lastPaymentDate',
               'lastPaymentAmount', 'lastPaymentMethod', 'paidUntil', 'branch', 'division'
             ]))
-        || (isFrontOffice()
+        || ((isFrontOffice() || isManager())
           && resource.data.role == 'parent'
           && request.resource.data.role == 'parent'
           && isSameBranch(resource.data)
           && isSameBranch(request.resource.data)
           && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId)
           && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['displayName', 'phone', 'updatedAt', 'status', 'branch']))
+            .hasOnly(['displayName', 'phone', 'updatedAt', 'status', 'branch', 'childStudentIds']))
         || (signedIn()
           && userId == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys()

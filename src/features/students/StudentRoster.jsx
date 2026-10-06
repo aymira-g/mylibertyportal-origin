@@ -248,12 +248,17 @@ export default function StudentRoster({
   const actionCounts = useMemo(() => {
     let unassigned = 0;
     let dueOrExpired = 0;
+    let pendingPayment = 0;
+    const getClasses = typeof getStudentClasses === "function" ? getStudentClasses : () => [];
     students.filter(isActiveStudent).forEach((s) => {
-      const cls = getStudentClasses(s.id);
+      const cls = getClasses(s.id);
       if (!cls || cls.length === 0) unassigned++;
       const health =
         s.paymentStatus === "pending" ? { status: "pending" } : getPaymentHealthStatus(s.paidUntil);
-      if (
+      if (health.status === "pending") {
+        pendingPayment++;
+        dueOrExpired++;
+      } else if (
         health.status === "due_soon" ||
         health.status === "expired" ||
         health.status === "invalid_date"
@@ -261,7 +266,7 @@ export default function StudentRoster({
         dueOrExpired++;
       }
     });
-    return { unassigned, dueOrExpired };
+    return { unassigned, dueOrExpired, pendingPayment };
   }, [students, getStudentClasses]);
 
   const handleSendRenewalReminder = (e, s, health) => {
@@ -298,9 +303,10 @@ export default function StudentRoster({
   };
 
   const sortedStudents = useMemo(() => {
+    const getClasses = typeof getStudentClasses === "function" ? getStudentClasses : () => [];
     return [...students]
       .map((s) => {
-        const studentClasses = getStudentClasses(s.id);
+        const studentClasses = getClasses(s.id);
         const enrollmentJoinedDate = studentClasses.find((c) => c.dateJoined)?.dateJoined || "";
         const effectiveStatus = s.status || "active";
         const health =
@@ -332,9 +338,11 @@ export default function StudentRoster({
           actionFilter === "due_or_expired" &&
           s.paymentHealth.status !== "due_soon" &&
           s.paymentHealth.status !== "expired" &&
-          s.paymentHealth.status !== "invalid_date"
+          s.paymentHealth.status !== "invalid_date" &&
+          s.paymentHealth.status !== "pending"
         )
           return false;
+        if (actionFilter === "pending_payment" && s.paymentHealth.status !== "pending") return false;
         if (actionFilter === "beginner" && s.tier !== "beginner") return false;
         if (actionFilter === "intermediate" && s.tier !== "intermediate") return false;
         if (actionFilter === "fluent" && s.tier !== "fluent") return false;
@@ -349,6 +357,20 @@ export default function StudentRoster({
         );
       })
       .sort((a, b) => {
+        if (studentSortField === "paidUntil") {
+          const keyA =
+            a.paymentHealth?.status === "pending"
+              ? "0000-00-00_pending"
+              : a.paidUntil || "0000-00-00_none";
+          const keyB =
+            b.paymentHealth?.status === "pending"
+              ? "0000-00-00_pending"
+              : b.paidUntil || "0000-00-00_none";
+          if (keyA < keyB) return studentSortAsc ? -1 : 1;
+          if (keyA > keyB) return studentSortAsc ? 1 : -1;
+          return 0;
+        }
+
         const field = studentSortField === "joinedDate" ? "effectiveJoinedDate" : studentSortField;
         let valA = a[field] || "";
         let valB = b[field] || "";

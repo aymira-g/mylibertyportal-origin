@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { auth, db } from "./firebase";
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
@@ -20,34 +20,34 @@ import { normalizeRole, isExecutiveRole } from "./features/shared/roles";
 import { InstallButton, PwaUpdateBanner } from "./features/pwa";
 import { AlertTriangle } from "lucide-react";
 import schoolLogo from "./assets/school-logo.webp";
+import { lazyWithRetry } from "./utils/lazyWithRetry";
 
-// Code-split: each of these becomes its own downloaded chunk, fetched
-// only when actually needed — an instructor's browser never downloads
-// Admin's code, a marketing user never downloads the Kiosk/QR logic, etc.
-const RegistrationPage = lazy(() => import("./features/auth/RegistrationPage"));
-const StaffSignup = lazy(() => import("./features/auth/StaffSignup"));
-const StandaloneKioskPage = lazy(() =>
+// Code-split with auto-retry: dynamically downloaded chunks automatically retry
+// if there is a dev server restart, version redeployment, or momentary network hiccup.
+const RegistrationPage = lazyWithRetry(() => import("./features/auth/RegistrationPage"));
+const StaffSignup = lazyWithRetry(() => import("./features/auth/StaffSignup"));
+const StandaloneKioskPage = lazyWithRetry(() =>
   import("./features/attendance").then((m) => ({ default: m.StandaloneKioskPage }))
 );
-const ParentPortalPage = lazy(() =>
+const ParentPortalPage = lazyWithRetry(() =>
   import("./features/students").then((m) => ({ default: m.ParentPortalPage }))
 );
-const AdminDashboard = lazy(() => import("./features/dashboard/AdminDashboard"));
-const ExecutiveDashboard = lazy(() => import("./features/dashboard/ExecutiveDashboard"));
-const FrontOfficeDashboard = lazy(() => import("./features/dashboard/FrontOfficeDashboard"));
-const ManagerDashboard = lazy(() => import("./features/dashboard/ManagerDashboard"));
-const InstructorDashboard = lazy(() => import("./features/dashboard/InstructorDashboard"));
-const MarketingDashboard = lazy(() => import("./features/dashboard/MarketingDashboard"));
-const OfficeBoyDashboard = lazy(() => import("./features/dashboard/OfficeBoyDashboard"));
-const KidsFrontOfficeDashboard = lazy(() =>
+const AdminDashboard = lazyWithRetry(() => import("./features/dashboard/AdminDashboard"));
+const ExecutiveDashboard = lazyWithRetry(() => import("./features/dashboard/ExecutiveDashboard"));
+const FrontOfficeDashboard = lazyWithRetry(() => import("./features/dashboard/FrontOfficeDashboard"));
+const ManagerDashboard = lazyWithRetry(() => import("./features/dashboard/ManagerDashboard"));
+const InstructorDashboard = lazyWithRetry(() => import("./features/dashboard/InstructorDashboard"));
+const MarketingDashboard = lazyWithRetry(() => import("./features/dashboard/MarketingDashboard"));
+const OfficeBoyDashboard = lazyWithRetry(() => import("./features/dashboard/OfficeBoyDashboard"));
+const KidsFrontOfficeDashboard = lazyWithRetry(() =>
   import("./features/dashboard/kids/KidsFrontOfficeDashboard")
 );
-const KidsManagerDashboard = lazy(() => import("./features/dashboard/kids/KidsManagerDashboard"));
-const CrossDivDashboard = lazy(() => import("./features/dashboard/CrossDivDashboard"));
-const KidsInstructorDashboard = lazy(() =>
+const KidsManagerDashboard = lazyWithRetry(() => import("./features/dashboard/kids/KidsManagerDashboard"));
+const CrossDivDashboard = lazyWithRetry(() => import("./features/dashboard/CrossDivDashboard"));
+const KidsInstructorDashboard = lazyWithRetry(() =>
   import("./features/dashboard/kids/KidsInstructorDashboard")
 );
-const ParentDashboard = lazy(() => import("./features/dashboard/ParentDashboard"));
+const ParentDashboard = lazyWithRetry(() => import("./features/dashboard/ParentDashboard"));
 
 import { normalizeStaffDivision, DEFAULT_DIVISION } from "./constants/divisions";
 import { branchToId } from "./constants/branches";

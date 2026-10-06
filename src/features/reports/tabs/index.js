@@ -3,3 +3,4 @@ export { default as StaffDutyTab } from "./StaffDutyTab";
 export { default as LearnerProgressTab } from "./LearnerProgressTab";
 export { default as AdmissionsTab } from "./AdmissionsTab";
 export { default as InstructorPunctualityTab } from "./InstructorPunctualityTab";
+export { default as FinancialReportsTab } from "./FinancialReportsTab";

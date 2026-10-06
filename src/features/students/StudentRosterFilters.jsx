@@ -88,6 +88,14 @@ export default function StudentRosterFilters({
               label: `💳 Due Soon / Expired (${actionCounts.dueOrExpired})`,
               tone: actionCounts.dueOrExpired > 0 ? "text-rose-700 bg-rose-50 border-rose-200" : "",
             },
+            {
+              id: "pending_payment",
+              label: `⏳ Pending (${actionCounts.pendingPayment || 0})`,
+              tone:
+                (actionCounts.pendingPayment || 0) > 0
+                  ? "text-amber-700 bg-amber-50 border-amber-200"
+                  : "",
+            },
             { id: "beginner", label: "⭐ Beginner" },
             { id: "intermediate", label: "⭐⭐ Intermediate" },
             { id: "fluent", label: "⭐⭐⭐ Fluent" },

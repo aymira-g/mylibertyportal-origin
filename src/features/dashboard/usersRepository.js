@@ -11,6 +11,7 @@ import {
   getDocs,
   getDoc,
   arrayRemove,
+  arrayUnion,
 } from "firebase/firestore";
 import { createUserWithEmailAndPassword, deleteUser } from "firebase/auth";
 import { branchToId, idToBranch, DEFAULT_BRANCH_ID } from "../../constants/branches";
@@ -404,6 +405,31 @@ async function linkChildThroughWorker(parentUid, studentId) {
   if (!response.ok) throw new Error(result.error || "Could not link the parent account.");
 }
 
+async function linkChildInternal(parentUid, studentId) {
+  const workerBase = import.meta.env?.VITE_AI_WORKER_URL || "";
+  const user = auth.currentUser;
+
+  // Attempt server-authoritative linking through the Worker if available
+  if (workerBase && user) {
+    try {
+      await linkChildThroughWorker(parentUid, studentId);
+      return;
+    } catch (workerErr) {
+      console.warn("linkChildThroughWorker failed, attempting direct Firestore update:", workerErr?.message);
+    }
+  }
+
+  // Fallback to direct Firestore update (authorized for Executive, Manager, Front Office)
+  return setDoc(
+    doc(db, "users", parentUid),
+    {
+      childStudentIds: arrayUnion(studentId),
+      updatedAt: new Date().toISOString(),
+    },
+    { merge: true }
+  );
+}
+
 /**
  * Links a student to a parent's childStudentIds list.
  *
@@ -412,7 +438,7 @@ async function linkChildThroughWorker(parentUid, studentId) {
  */
 export function linkChildToParent(parentUid, studentId) {
   const parsed = parentChildLinkSchema.parse({ parentUid, studentId });
-  return linkChildThroughWorker(parsed.parentUid, parsed.studentId);
+  return linkChildInternal(parsed.parentUid, parsed.studentId);
 }
 
 /**

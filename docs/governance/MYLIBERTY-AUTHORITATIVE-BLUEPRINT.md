@@ -1,8 +1,8 @@
 # MyLiberty Portal — Authoritative Organizational, Authority & Rebuild Blueprint
 
-**Version:** 3.2  
+**Version:** 3.3  
 **Status:** PROPOSED AUTHORITATIVE BASELINE FOR OWNER APPROVAL  
-**Date:** 2026-10-06  
+**Date:** 2026-10-07  
 **Scope:** Organizational identity, authority, access governance, workflow governance, data-scope principles, implementation derivation, and rebuild/re-foundation rules
 
 > **Canonical Repository Location:** `docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`
@@ -37,14 +37,19 @@ Version 3.1 adopts an explicit simplification of the physical-branch authority m
 
 This change is intended to simplify authority, reduce role overlap, preserve separation of responsibilities, and make the system's authorization model easier to derive and audit.
 
-### Version 3.2 executive clarification
+### Version 3.3 executive clarification
 
-Version 3.2 proposes an explicit executive distinction between the Director and Vice Director:
+Version 3.3 proposes an explicit **Executive Dual-Control Model** for the Director and Vice Director:
 
-- **Director:** strategic direction, strategic performance assessment, and executive decision authority where explicitly assigned.
-- **Vice Director:** execution, coordination, multi-branch operational oversight, exception follow-up, and delegated executive authority.
+- **Director — Strategic Control:** strategic direction, strategic performance assessment, major executive decisions, and final executive authority where explicitly assigned.
+- **Vice Director — Operational Control:** execution, coordination, multi-branch operational oversight, exception follow-up, corrective-action coordination, and delegated executive authority.
+- The two executive control domains are intentionally complementary rather than interchangeable.
+- **Dual-control does not mean equal authority, automatic joint approval, or unrestricted executive CRUD.**
+- Authority remains bounded by explicit capability, organizational scope, workflow state, and approved delegation.
+- The Vice Director does not become unrestricted Acting Director merely because the Director is absent or unavailable.
+- Sensitive actions that separately require Maker–Checker / Signer controls remain governed by their own workflow rules; the Executive Dual-Control Model must not be interpreted as a requirement that every sensitive action receive approval from both executive roles.
 
-This distinction resolves the conceptual direction of governance question **G-004**, while remaining subject to the blueprint's normal owner-approval process.
+This distinction is proposed as the implementation-governance interpretation of **G-004** and remains subject to the blueprint's normal owner-approval process.
 
 ---
 
@@ -93,19 +98,19 @@ The governing relationship is:
 
 ```text
 REAL ORGANIZATION
-        ↓
+       ↓
 AUTHORITATIVE ORGANIZATIONAL BASELINE
-        ↓
+       ↓
 ACCEPTED GOVERNANCE / ARCHITECTURAL DECISIONS
-        ↓
+       ↓
 CURRENT ARCHITECTURE
-        ↓
+       ↓
 SYSTEM / SUBSYSTEM SPECIFICATIONS
-        ↓
+       ↓
 IMPLEMENTATION PLANS / PROPOSALS
-        ↓
+       ↓
 CODE + CONFIGURATION
-        ↓
+       ↓
 AUDIT EVIDENCE / VERIFICATION
 ```
 
@@ -113,7 +118,7 @@ With a separate execution layer:
 
 ```text
 AGENT INSTRUCTIONS
-        ↓
+       ↓
 How a human or AI agent must behave while operating
 within the governed system above.
 ```
@@ -140,13 +145,13 @@ Therefore:
 
 ```text
 APPROVED GOVERNANCE
-        ↓
+       ↓
 CURRENT IMPLEMENTATION
-        ↓
+       ↓
 GAP / DRIFT
-        ↓
+       ↓
 CONTROLLED IMPLEMENTATION WORK
-        ↓
+       ↓
 VERIFICATION
 ```
 
@@ -293,7 +298,157 @@ The exact detailed reporting mechanics among the branch-scope leaders and upward
 
 The exact higher-level reporting line of the Instructor Leader remains an explicit governance question unless separately resolved by an accepted amendment.
 
-## 5.4 Explicit removal of the Branch Manager layer
+## 5.4 Executive Dual-Control Model
+
+The Director and Vice Director form a **complementary executive control structure**.
+
+The purpose of this model is to prevent strategic direction and operational execution from collapsing into one undifferentiated executive authority layer.
+
+### 5.4.1 Strategic Control — Director
+
+The Director is the primary executive role for:
+
+- strategic direction;
+- province-wide strategic performance assessment;
+- major organizational direction;
+- strategic risk review;
+- executive decisions where the role is explicitly assigned authority;
+- final executive decisions where governance identifies the Director as the required authority.
+
+The Director determines **where the organization is going**, whether the organization is meeting strategic objectives, and which material matters require executive direction.
+
+### 5.4.2 Operational Control — Vice Director
+
+The Vice Director is the primary executive role for:
+
+- execution of approved organizational priorities;
+- multi-branch operational oversight;
+- operational coordination;
+- exception identification;
+- corrective-action follow-up;
+- cross-branch coordination;
+- escalation of matters beyond delegated authority;
+- delegated executive approval where explicitly assigned.
+
+The Vice Director determines **what is happening, what needs action, who needs to act, and whether the matter remains within delegated authority**.
+
+### 5.4.3 Complementary control, not equal authority
+
+Executive Dual-Control must not be interpreted as:
+
+- equal organizational authority;
+- automatic joint ownership of every decision;
+- automatic joint approval of every sensitive action;
+- inheritance of all Director authority by the Vice Director;
+- inheritance of all operational authority by the Director;
+- unrestricted CRUD over business domains;
+- replacement of operational domain ownership.
+
+The roles are complementary:
+
+```text
+Director
+→ Strategic Control
+→ Direction / Major Decision
+
+Vice Director
+→ Operational Control
+→ Coordination / Execution / Follow-up
+```
+
+Neither role becomes a universal operator merely because it is executive.
+
+### 5.4.4 Delegation boundary
+
+Delegated authority must be explicit.
+
+The Vice Director does not become unrestricted Acting Director merely because:
+
+- the Director is absent;
+- the Director is unavailable;
+- the Director is operationally uninvolved;
+- the Vice Director is the senior person present.
+
+Any temporary exercise of Director authority requires an explicit approved delegation under the applicable governance procedure.
+
+### 5.4.5 Escalation relationship
+
+The executive control model establishes a directional escalation path:
+
+```text
+Operational matter
+       ↓
+Vice Director coordinates
+       ↓
+Within delegated authority?
+   ┌───────────────┴───────────────┐
+   ↓                               ↓
+  Yes                              No
+   ↓                               ↓
+Execute / follow up          Escalate to Director
+                                   ↓
+                              Executive decision
+```
+
+Escalation is a governance routing mechanism. It does not itself grant the Vice Director additional authority.
+
+### 5.4.6 Relationship to Maker–Checker / Signer
+
+Executive Dual-Control is distinct from the transactional Maker–Checker / Signer model in §15.
+
+Where a sensitive workflow requires:
+
+```text
+Maker
+  ↓
+Checker / Signer
+  ↓
+Approved
+  ↓
+Execution
+```
+
+that workflow must follow its approved rules.
+
+The existence of two executive control domains does **not** mean the Director and Vice Director must both approve the same transaction unless a specific approved workflow requires it.
+
+### 5.4.7 Executive visibility vs executive authority
+
+Both executive roles may require broad organizational visibility to perform their responsibilities.
+
+Therefore:
+
+```text
+Broad visibility
+≠
+Broad CRUD authority
+
+Multi-branch visibility
+≠
+Automatic branch-wide management authority
+
+Executive role
+≠
+System Admin
+```
+
+The system must derive action authorization from:
+
+```text
+Role
++
+Capability
++
+Scope
++
+Workflow state
++
+Approved delegation
+=
+Authorized action
+```
+
+## 5.5 Explicit removal of the Branch Manager layer
 
 The following concepts are intentionally **not part of the v3.1 organizational model**:
 
@@ -368,6 +523,7 @@ The executive distinction is intentionally functional rather than merely hierarc
 | Dimension | Director | Vice Director |
 |---|---|---|
 | Primary purpose | Strategic direction | Strategic execution and coordination |
+| Control domain | Strategic Control | Operational Control |
 | Primary question | **Where are we going?** | **What is happening, what needs action, and who needs to act?** |
 | Time horizon | Long-term / strategic | Short- to medium-term execution and follow-up |
 | Strategic plan | Owns overall strategic direction and strategic performance assessment where authorized | Coordinates execution of approved priorities and monitors progress |
@@ -779,17 +935,17 @@ The correct dependency is:
 
 ```text
 Organizational Model
-        ↓
+       ↓
 Role Authority
-        ↓
+       ↓
 Capabilities
-        ↓
+       ↓
 Data Scope
-        ↓
+       ↓
 Workflow Authority
-        ↓
+       ↓
 Authorization Enforcement
-        ↓
+       ↓
 Dashboard / Menu
 ```
 
@@ -797,7 +953,7 @@ Never:
 
 ```text
 Dashboard Menu
-        ↓
+       ↓
 Assume Permission
 ```
 
@@ -828,15 +984,15 @@ The canonical controlled pattern is:
 
 ```text
 Draft
-  ↓
+ ↓
 Submitted
-  ↓
+ ↓
 Checked / Independently Reviewed where required
-  ↓
+ ↓
 Approved
-  ↓
+ ↓
 Executed
-  ↓
+ ↓
 Archived / Completed
 ```
 
@@ -860,11 +1016,11 @@ For sensitive actions, use the following governance model:
 
 ```text
 Maker
-  ↓
+ ↓
 Checker / Signer
-  ↓
+ ↓
 Approved
-  ↓
+ ↓
 Execution
 ```
 
@@ -890,10 +1046,10 @@ The desired operating principle is:
 
 ```text
 Normal action
-    → one appropriate person
+   → one appropriate person
 
 Sensitive action
-    → Maker → Checker / Signer
+   → Maker → Checker / Signer
 ```
 
 Maker–Checker / Signer is risk-based. It is not a rule that every company operation must pass through multiple humans.
@@ -1062,11 +1218,11 @@ The prohibited pattern is:
 
 ```text
 User
-  ↓
+ ↓
 changes own authority
-  ↓
+ ↓
 performs restricted action
-  ↓
+ ↓
 restores prior authority
 ```
 
@@ -1193,7 +1349,7 @@ The following questions are intentionally **not answered by technical agents**.
 | G-001 | Who is the formal authority for approving amendments to this blueprint? | **OPEN** |
 | G-002 | Who may appoint/revoke System Admin access and who oversees it? | **OPEN** |
 | G-003 | What is the exact reporting line of the Instructor Leader? | **OPEN** |
-| G-004 | What is the exact division of authority between Director and Vice Director? | **PROPOSED RESOLUTION — Director = strategic direction; Vice Director = executive execution, coordination, and multi-branch operational oversight; owner approval required** |
+| G-004 | What is the exact division of authority between Director and Vice Director, including the proposed Executive Dual-Control interpretation? | **PROPOSED RESOLUTION — Director = Strategic Control / strategic direction; Vice Director = Operational Control / executive execution, coordination, and multi-branch operational oversight; owner approval required** |
 | G-005 | Which real-world Kindergarten roles exist in addition to the Kindergarten Division Manager? | **OPEN** |
 | G-006 | Which actions are formally classified as sensitive? | **OPEN — candidate list exists in §17** |
 | G-007 | Who may approve each sensitive action? | **OPEN** |
@@ -1269,15 +1425,19 @@ Any human or AI agent working on MyLiberty Portal must obey the following.
 12. Do not invent monetary thresholds, approval chains, or legal requirements.
 13. Do not invent Kindergarten roles.
 14. Do not invent reporting lines.
-15. Do not turn an audit finding directly into a production rule without the required governance decision.
-16. Preserve branch and division boundaries in implementation.
-17. Prefer least necessary authority.
-18. Keep technical implementation details out of the organizational baseline.
-19. When architecture changes, follow the repository's explicit architecture-change process.
-20. When implementation and governed policy diverge, report the gap rather than redefining the policy silently.
-21. Do not recreate the removed Branch Manager role under another name such as "Branch Head," "Site Manager," "Branch Lead," or an equivalent catch-all role unless governance explicitly approves such a role.
-22. Do not silently transfer former Branch Manager permissions to the Course Division Manager, Kindergarten Division Manager, Operational Leader, or Instructor Leader.
-23. When a legacy Branch Manager permission or workflow is encountered, classify it as a reconciliation item and identify the exact intended authority before changing it.
+15. Do not treat Executive Dual-Control as automatic joint approval of all sensitive actions.
+16. Do not turn an audit finding directly into a production rule without the required governance decision.
+17. Preserve branch and division boundaries in implementation.
+18. Prefer least necessary authority.
+19. Keep technical implementation details out of the organizational baseline.
+20. When architecture changes, follow the repository's explicit architecture-change process.
+21. When implementation and governed policy diverge, report the gap rather than redefining the policy silently.
+22. Do not recreate the removed Branch Manager role under another name such as "Branch Head," "Site Manager," "Branch Lead," or an equivalent catch-all role unless governance explicitly approves such a role.
+23. Do not silently transfer former Branch Manager permissions to the Course Division Manager, Kindergarten Division Manager, Operational Leader, or Instructor Leader.
+24. When a legacy Branch Manager permission or workflow is encountered, classify it as a reconciliation item and identify the exact intended authority before changing it.
+25. Do not treat Director or Vice Director status as a generic Admin capability.
+26. Do not infer Executive Dual-Control authority merely from organizational seniority; use explicit role, capability, scope, workflow, and delegation rules.
+27. Do not allow dashboard composition to become the source of organizational authority.
 
 ---
 
@@ -1298,15 +1458,15 @@ The implementation strategy is therefore:
 
 ```text
 APPROVED GOVERNANCE
-        ↓
+       ↓
 RECONCILE CURRENT IMPLEMENTATION
-        ↓
+       ↓
 DEFINE GAPS
-        ↓
+       ↓
 IMPLEMENT ONE BOUNDARY AT A TIME
-        ↓
+       ↓
 VERIFY
-        ↓
+       ↓
 MIGRATE / REPLACE ONLY WHERE JUSTIFIED
 ```
 
@@ -1325,7 +1485,8 @@ The recommended sequence is:
 - adopt this blueprint;
 - resolve the minimum owner decisions required to unblock implementation;
 - formally mark conflicting historical decisions as superseded where applicable;
-- approve the removal of Branch Manager and the corresponding redistribution of authority.
+- approve the removal of Branch Manager and the corresponding redistribution of authority;
+- approve or refine the Executive Dual-Control interpretation in G-004.
 
 ## Phase 2 — High-risk workflows
 
@@ -1336,6 +1497,8 @@ Define and approve the priority workflow cards, beginning with money and staff a
 Create role cards using the approved organizational structure and workflow decisions.
 
 For v3.1 this means distinct cards for the four branch-scope leadership functions rather than a single branch-manager abstraction.
+
+For v3.3, Director and Vice Director role cards must reflect the complementary Executive Dual-Control domains.
 
 ## Phase 4 — Detailed permissions
 
@@ -1376,14 +1539,16 @@ Before the new authority model is considered implementation-complete, perform a 
 - unrelated data access;
 - broad permissions unsupported by responsibility;
 - accidental business authority attached to System Admin;
-- accidental branch-wide authority attached to a single branch-scope leader.
+- accidental branch-wide authority attached to a single branch-scope leader;
+- accidental equivalence of Director and Vice Director authority where not approved.
 
 ## Separation-of-duties failures
 
 - self-approval;
 - one-person control of sensitive workflows;
 - technical bypasses;
-- conflicting workflow roles.
+- conflicting workflow roles;
+- false dual-control created by assigning multiple roles to the same human.
 
 ## Data-scope failures
 
@@ -1462,15 +1627,15 @@ For significant changes, implementation should follow a controlled sequence:
 
 ```text
 Working checkpoint
-    ↓
+   ↓
 One meaningful boundary change
-    ↓
+   ↓
 Targeted verification
-    ↓
+   ↓
 Adjacent workflow verification
-    ↓
+   ↓
 Permission / data-scope verification
-    ↓
+   ↓
 Broader audit where risk requires it
 ```
 
@@ -1506,6 +1671,15 @@ For the v3.1 hierarchy change, verification should additionally establish that:
 - no branch-scope role has silently inherited unrelated branch-wide authority;
 - dashboards, routes, role claims, seeded accounts, and policy checks are aligned with the new role model;
 - historical audit records remain intact.
+
+For the v3.3 executive model, verification should additionally establish that:
+
+- Director and Vice Director dashboard composition reflects different control domains;
+- neither executive role inherits generic Admin semantics;
+- executive authority remains capability- and workflow-based;
+- broad executive visibility does not become a blanket business-write permission;
+- unresolved approval authority remains unresolved until explicitly approved;
+- Executive Dual-Control is not misimplemented as mandatory joint approval for all sensitive actions.
 
 The implementation agent must report honestly:
 
@@ -1597,6 +1771,14 @@ A physical branch is a scope and organizational unit, not a reason to invent or 
 
 Removing Branch Manager does not automatically transfer its historical permissions to another role.
 
+### Principle 15 — Executive Dual-Control
+
+Director and Vice Director are complementary executive control domains. Their distinction must remain explicit, and neither role may be treated as a universal operational or technical administrator.
+
+### Principle 16 — Executive visibility does not imply execution authority
+
+An executive may require broad data visibility for legitimate oversight while remaining unable to perform operational actions outside explicitly assigned capability and workflow authority.
+
 ---
 
 # 38. Relationship to Existing MyLiberty Documentation
@@ -1610,50 +1792,50 @@ Conceptually:
 ```text
 AUTHORITATIVE BLUEPRINT
 
-    ↓
+   ↓
 
 Durable organization + authority
 
 ACCEPTED DECISIONS
 
-    ↓
+   ↓
 
 Approved binding policies and explicit exceptions
 
 ARCHITECTURE
 
-    ↓
+   ↓
 
 Current technical structure
 
 SPECS
 
-    ↓
+   ↓
 
 Detailed behavioral contracts
 
 PLANS / PROPOSALS
 
-    ↓
+   ↓
 
 How a change may be implemented
 
 AUDITS
 
-    ↓
+   ↓
 
 Evidence that the system does or does not conform
 
 AGENT INSTRUCTIONS
 
-    ↓
+   ↓
 
 How coding agents operate safely within all of the above
 ```
 
 No single layer should impersonate another.
 
-The v3.1 organization model must be reflected consistently across those layers. A lower-level document may describe a technical migration away from Branch Manager, but it may not re-establish Branch Manager as current organizational authority.
+The v3.1 organization model and v3.3 executive control model must be reflected consistently across those layers. A lower-level document may describe a technical migration away from Branch Manager, but it may not re-establish Branch Manager as current organizational authority.
 
 ---
 
@@ -1667,6 +1849,7 @@ It establishes:
 - the four-branch / two-division model;
 - the removal of Branch Manager / Branch Head from the current organizational model;
 - distinct branch-scope leadership functions;
+- a proposed Executive Dual-Control Model separating Director Strategic Control from Vice Director Operational Control;
 - the organizational/technical Admin separation;
 - permission vocabulary;
 - scope principles;
@@ -1681,7 +1864,7 @@ It establishes:
 
 It does **not** claim to have finalized:
 
-- owner approval of the proposed Director / Vice Director authority split;
+- owner approval of the proposed Director / Vice Director authority split and Executive Dual-Control Model;
 - every role capability;
 - every field-level permission;
 - every approval threshold;
@@ -1703,25 +1886,25 @@ The implementation team must follow this dependency:
 
 ```text
 REAL COMPANY
-    ↓
+   ↓
 AUTHORITATIVE GOVERNANCE BASELINE
-    ↓
+   ↓
 OWNER GOVERNANCE DECISIONS
-    ↓
+   ↓
 CORE WORKFLOWS
-    ↓
+   ↓
 ROLE AUTHORITY
-    ↓
+   ↓
 DETAILED PERMISSIONS
-    ↓
+   ↓
 DATA SCOPE
-    ↓
+   ↓
 SECURITY ENFORCEMENT
-    ↓
+   ↓
 DASHBOARDS / MENUS
-    ↓
+   ↓
 TESTING + CROSS-ROLE AUDIT
-    ↓
+   ↓
 CONTROLLED RELEASE
 ```
 
@@ -1733,15 +1916,15 @@ Never reverse the dependency by allowing the existing UI, a technical role, an o
 
 This section is intentionally left for explicit governance approval.
 
-**Blueprint:** MyLiberty Portal — Authoritative Organizational, Authority & Rebuild Blueprint v3.2
+**Blueprint:** MyLiberty Portal — Authoritative Organizational, Authority & Rebuild Blueprint v3.3
 
 **Approval status:** `PENDING OWNER APPROVAL`
 
-**Approved by:** ______________________________________
+**Approved by:** ________________________________________________
 
-**Role / Authority:** __________________________________
+**Role / Authority:** ____________________________________________
 
-**Approval date:** ____________________________________
+**Approval date:** ______________________________________________
 
 **Notes / approved exceptions:**
 
@@ -1751,7 +1934,7 @@ ________________________________________________________________________________
 
 ### Upon approval
 
-After approval, this document becomes the authoritative governance baseline for the rules it establishes, including the proposed Director/Vice Director executive distinction once owner approval is recorded.
+After approval, this document becomes the authoritative governance baseline for the rules it establishes, including the proposed Director/Vice Director executive distinction and Executive Dual-Control Model once owner approval is recorded.
 
 Subsequent technical work must derive from it rather than redefine it.
 
@@ -1761,4 +1944,4 @@ The approval should also be treated as explicit authorization to reconcile the l
 
 # Foundation Statement
 
-> **MyLiberty Portal represents the real organization first. It separates organizational authority from technical system administration, treats physical branches as organizational and data-scope boundaries rather than as implicit single-manager authorities, limits access by explicit role, capability, scope, and workflow state, uses independent human review for sensitive actions where required, preserves auditable accountability, and refuses to let technical implementation invent organizational authority.**
+> **MyLiberty Portal represents the real organization first. It separates organizational authority from technical system administration, treats physical branches as organizational and data-scope boundaries rather than as implicit single-manager authorities, uses a complementary Executive Dual-Control Model that separates strategic direction from operational coordination, limits access by explicit role, capability, scope, and workflow state, uses independent human review for sensitive actions where required, preserves auditable accountability, and refuses to let technical implementation invent organizational authority.**

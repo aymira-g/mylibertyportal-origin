@@ -25,9 +25,9 @@ export function StaffDirectivesTab({
   return (
     <div className="w-full space-y-6">
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-        <h2 className="text-2xl font-black text-[#1a3a8f]">Staff Directives &amp; Delegation</h2>
+        <h2 className="text-2xl font-black text-[#1a3a8f]">Course Directives &amp; Department Delegation</h2>
         <p className="text-sm text-slate-500">
-          Issue actionable directives to branch departments, coordinate classroom support, and track operational execution for {branchLabel ? `${branchLabel} Campus` : "your branch"}.
+          Direct Course Division Marketing campaigns, and coordinate operational execution with Front Office, teaching faculty, and facilities for {branchLabel ? `${branchLabel} Campus` : "your branch"}.
         </p>
 
         {!todosPermission && (
@@ -56,20 +56,20 @@ export function StaffDirectivesTab({
             <p className="text-red-500 text-[10px] uppercase">Pinned / Deadlines</p>
             <p className="text-lg font-black text-red-700 mt-0.5">{pinnedCount}</p>
           </div>
-          <div className="p-2.5 rounded-xl border bg-blue-50 font-semibold border-blue-100">
-            <p className="text-blue-600 text-[10px] uppercase">Front Office</p>
-            <p className="text-lg font-black text-blue-800 mt-0.5">{deptCounts.frontoffice}</p>
-          </div>
           <div className="p-2.5 rounded-xl border bg-purple-50 font-semibold border-purple-100">
-            <p className="text-purple-600 text-[10px] uppercase">Marketing</p>
+            <p className="text-purple-600 text-[10px] uppercase font-bold">Marketing (Direct)</p>
             <p className="text-lg font-black text-purple-800 mt-0.5">{deptCounts.marketing}</p>
           </div>
+          <div className="p-2.5 rounded-xl border bg-blue-50 font-semibold border-blue-100">
+            <p className="text-blue-600 text-[10px] uppercase">Front Office (Coord)</p>
+            <p className="text-lg font-black text-blue-800 mt-0.5">{deptCounts.frontoffice}</p>
+          </div>
           <div className="p-2.5 rounded-xl border bg-emerald-50 font-semibold border-emerald-100">
-            <p className="text-emerald-600 text-[10px] uppercase">Instructors</p>
+            <p className="text-emerald-600 text-[10px] uppercase">Teaching (Coord)</p>
             <p className="text-lg font-black text-emerald-800 mt-0.5">{deptCounts.instructor}</p>
           </div>
           <div className="p-2.5 rounded-xl border bg-amber-50 font-semibold border-amber-100">
-            <p className="text-amber-600 text-[10px] uppercase">Office Boy</p>
+            <p className="text-amber-600 text-[10px] uppercase">Facilities (Coord)</p>
             <p className="text-lg font-black text-amber-800 mt-0.5">{deptCounts.officeboy}</p>
           </div>
         </div>

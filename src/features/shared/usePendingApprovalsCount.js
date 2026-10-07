@@ -7,10 +7,12 @@ import { listenToPendingApprovals } from "./approvalsRepository";
  *
  * @param {string|null|undefined} userRole
  * @param {string} [branchId]
+ * @param {{ division?: string }} [options]
  * @returns {number}
  */
-export function usePendingApprovalsCount(userRole, branchId) {
+export function usePendingApprovalsCount(userRole, branchId, options = {}) {
   const [count, setCount] = useState(0);
+  const targetDivision = options?.division || null;
 
   useEffect(() => {
     if (!userRole) {
@@ -26,7 +28,8 @@ export function usePendingApprovalsCount(userRole, branchId) {
       (err) => {
         console.warn("usePendingApprovalsCount error:", err);
         setCount(0);
-      }
+      },
+      { division: targetDivision }
     );
 
     return () => {
@@ -34,7 +37,7 @@ export function usePendingApprovalsCount(userRole, branchId) {
         unsubscribe();
       }
     };
-  }, [userRole, branchId]);
+  }, [userRole, branchId, targetDivision]);
 
   return userRole ? count : 0;
 }

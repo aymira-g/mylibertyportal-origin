@@ -52,12 +52,12 @@ export function ManagerOverview({
 
   return (
     <div className="w-full space-y-6">
-      {/* Branch Operations Command & Welcome Banner */}
+      {/* Course Division Command & Welcome Banner */}
       <WelcomeBanner
-        portalLabel="Branch Operations Command"
-        roleLabel="Branch Manager & Course Division Head"
-        fallbackName="Branch Manager"
-        subtitle={`Branch operational leadership, course programs, classroom coverage, and daily cash intake for ${myBranch}.`}
+        portalLabel="Course Division Command"
+        roleLabel="Course Division Manager"
+        fallbackName="Course Division Manager"
+        subtitle={`Course academic programs, student enrollment, classroom coverage, and division performance for ${myBranch} Campus.`}
         extraPills={
           <>
             <span className="text-[10px] font-bold text-blue-200 bg-blue-950/50 px-2.5 py-0.5 rounded-full border border-blue-500/30 flex items-center gap-1.5">
@@ -113,7 +113,7 @@ export function ManagerOverview({
         }
       />
 
-      {/* Pending Branch Approvals Alert Bar */}
+      {/* Pending Course Division Approvals Alert Bar */}
       {pendingApprovalsCount > 0 && (
         <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-3">
@@ -122,10 +122,10 @@ export function ManagerOverview({
             </div>
             <div>
               <h4 className="text-xs font-black uppercase tracking-wider text-amber-900">
-                Branch Dual-Control Action Required
+                Course Division Authorization Required
               </h4>
               <p className="text-xs font-medium text-amber-800 mt-0.5">
-                <strong>{pendingApprovalsCount}</strong> pending authorization{pendingApprovalsCount > 1 ? "s" : ""} (cash drawer discrepancy, schedule transfer) awaiting your branch sign-off.
+                <strong>{pendingApprovalsCount}</strong> pending authorization{pendingApprovalsCount > 1 ? "s" : ""} (tuition plan change, student withdrawal) awaiting your course division review.
               </p>
             </div>
           </div>
@@ -134,24 +134,27 @@ export function ManagerOverview({
             onClick={() => onNavigate("approvals")}
             className="min-h-11 px-3.5 py-2 bg-[#1a3a8f] hover:bg-[#132c6d] text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-xs shrink-0"
           >
-            Review Branch Approvals
+            Review Course Approvals
           </button>
         </div>
       )}
 
-      {/* Daily Cash Drawer & Intake Summary Scoped to Branch */}
+      {/* Daily Course Division Intake & Collections Scoped to Branch */}
       <ManagerCashSummary
         branch={myBranch}
         payments={branchPayments}
         loading={paymentsLoading}
         onRefresh={onRefreshPayments}
+        onNavigate={onNavigate}
       />
 
       {/* Tuition Due / Expiry Alerts */}
-      <TuitionDueWidget
-        students={students.length > 0 ? students : users.filter((u) => u.role === "student")}
-        onNavigateToStudents={() => onNavigate("classes")}
-      />
+      <div id="tuition-due-section">
+        <TuitionDueWidget
+          students={students.length > 0 ? students : users.filter((u) => u.role === "student")}
+          onNavigateToStudents={() => onNavigate("classes")}
+        />
+      </div>
 
       {/* Operational Bottlenecks / Action Required */}
       <OperationalBottlenecksSection

@@ -44,7 +44,7 @@ vi.mock("./manager/OperationalBottlenecksSection", () => ({
     React.createElement("div", { "data-testid": "bottlenecks-mock" }, "Bottlenecks"),
 }));
 
-describe("ManagerOverview Component (Branch Manager & Course Division Head)", () => {
+describe("ManagerOverview Component (Course Division Manager)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -74,7 +74,7 @@ describe("ManagerOverview Component (Branch Manager & Course Division Head)", ()
     onRefreshPayments: vi.fn(),
   };
 
-  it("renders authentic branch manager identity and campus location", () => {
+  it("renders authentic course division manager identity and campus location", () => {
     const html = renderToStaticMarkup(
       React.createElement(
         ToastProvider,
@@ -87,8 +87,8 @@ describe("ManagerOverview Component (Branch Manager & Course Division Head)", ()
       )
     );
 
-    expect(html).toContain("Branch Operations Command");
-    expect(html).toContain("Branch Manager &amp; Course Division Head");
+    expect(html).toContain("Course Division Command");
+    expect(html).toContain("Course Division Manager");
     expect(html).toContain("Kota Gorontalo Campus");
     expect(html).toContain("1 On Duty");
   });
@@ -106,10 +106,10 @@ describe("ManagerOverview Component (Branch Manager & Course Division Head)", ()
       )
     );
 
-    expect(html).toContain("Branch Dual-Control Action Required");
+    expect(html).toContain("Course Division Authorization Required");
     expect(html).toContain("3");
-    expect(html).toContain("awaiting your branch sign-off");
-    expect(html).toContain("Review Branch Approvals");
+    expect(html).toContain("awaiting your course division review");
+    expect(html).toContain("Review Course Approvals");
   });
 
   it("renders daily reception cash intake strictly scoped to the branch", () => {
@@ -129,9 +129,32 @@ describe("ManagerOverview Component (Branch Manager & Course Division Head)", ()
       )
     );
 
-    expect(html).toContain("Today&#x27;s Cash Drawer &amp; Intake");
+    expect(html).toContain("Course Division Intake &amp; Collections");
     expect(html).toContain("Kota Gorontalo Campus");
-    expect(html).toContain("Cash (Drawer)");
+    expect(html).toContain("Cash Receipts");
     expect(html).not.toContain("View All Branches");
+  });
+
+  it("renders course tuition targets and overdue accounts quick links when onNavigate is provided", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(
+        ToastProvider,
+        null,
+        React.createElement(
+          ConfirmProvider,
+          null,
+          React.createElement(ManagerCashSummary, {
+            branch: "Kota Gorontalo",
+            payments: baseProps.branchPayments,
+            loading: false,
+            onNavigate: vi.fn(),
+          })
+        )
+      )
+    );
+
+    expect(html).toContain("Tuition Targets &amp; Reports");
+    expect(html).toContain("Overdue Student Accounts");
+    expect(html).toContain("Tuition Target Reports");
   });
 });

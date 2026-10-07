@@ -83,4 +83,38 @@ describe("approvalsRepository", () => {
     expect(result.status).toBe(APPROVAL_STATUS.PENDING);
     expect(result.approverRole).toBe("admin");
   });
+
+  it("filters out mismatched division items in listenToPendingApprovals when options.division is provided", async () => {
+    let snapshotCallback = null;
+    const { onSnapshot } = await import("firebase/firestore");
+    /** @type {any} */ (onSnapshot).mockImplementation((_q, onNext) => {
+      snapshotCallback = onNext;
+      return vi.fn();
+    });
+
+    const { listenToPendingApprovals } = await import("./approvalsRepository");
+
+    let receivedItems = [];
+    listenToPendingApprovals(
+      "manager",
+      "kota_gorontalo",
+      (items) => {
+        receivedItems = items;
+      },
+      vi.fn(),
+      { division: "courses" }
+    );
+
+    // Emit a snapshot with course, kindergarten, and shared items
+    snapshotCallback({
+      docs: [
+        { id: "1", data: () => ({ id: "1", label: "Course Item", division: "courses" }) },
+        { id: "2", data: () => ({ id: "2", label: "Kindergarten Item", division: "kindergarten" }) },
+        { id: "3", data: () => ({ id: "3", label: "Shared Item", division: "all" }) },
+      ],
+    });
+
+    expect(receivedItems.length).toBe(2);
+    expect(receivedItems.map((i) => i.id)).toEqual(["1", "3"]);
+  });
 });

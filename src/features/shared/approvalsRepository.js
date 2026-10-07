@@ -46,11 +46,13 @@ export async function submitApprovalRequest(envelope) {
  * @param {string} branchId
  * @param {((approvals: any[]) => void)} onData
  * @param {((err: any) => void)} [onError]
+ * @param {{ division?: string }} [options] Optional division scope filter (e.g. "courses" or "kindergarten")
  * @returns {(() => void)} Unsubscribe callback
  */
-export function listenToPendingApprovals(userRole, branchId, onData, onError) {
+export function listenToPendingApprovals(userRole, branchId, onData, onError, options = {}) {
   const normalizedRole = normalizeRole(userRole);
   const normalizedBranch = branchId ? branchToId(branchId) : DEFAULT_BRANCH_ID;
+  const targetDivision = options?.division || null;
 
   const constraints = [where("status", "==", APPROVAL_STATUS.PENDING)];
 
@@ -73,7 +75,17 @@ export function listenToPendingApprovals(userRole, branchId, onData, onError) {
     q,
     (snap) => {
       /** @type {any[]} */
-      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      let items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      if (targetDivision) {
+        items = items.filter((item) => {
+          if (item.division && item.division !== "all" && item.division !== targetDivision) {
+            return false;
+          }
+          return true;
+        });
+      }
+
       items.sort((a, b) => new Date(b.requestedAt || 0).getTime() - new Date(a.requestedAt || 0).getTime());
       onData(items);
     },

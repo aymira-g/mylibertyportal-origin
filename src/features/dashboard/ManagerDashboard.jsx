@@ -473,7 +473,11 @@ export default function ManagerDashboard() {
     return getFollowUpSchools(schools).length;
   }, [schools]);
 
-  const pendingApprovalsCount = usePendingApprovalsCount("manager", managerBranchId || myBranch);
+  const pendingApprovalsCount = usePendingApprovalsCount(
+    "manager",
+    managerBranchId || myBranch,
+    { division: "courses" }
+  );
 
   const getStudentClasses = useCallback(
     (studentId) => {
@@ -574,14 +578,15 @@ export default function ManagerDashboard() {
     },
     {
       id: "approvals",
-      label: "Branch Approvals",
+      label: "Course Approvals",
       badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
       component: (
         <ApprovalInbox
           userRole="manager"
           branchId={myBranch}
-          title={`Branch Dual-Control Approvals (${myBranch})`}
-          subtitle="Review and authorize branch cash drawer reconciliations, student schedule transfers, and operational exceptions."
+          division="courses"
+          title={`Course Division Approvals (${myBranch})`}
+          subtitle="Review and authorize course tuition plan modifications, student withdrawals, and division exceptions."
         />
       ),
     },
@@ -622,7 +627,7 @@ export default function ManagerDashboard() {
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
-      title={`Branch Manager & Course Division Head — ${myBranch}`}
+      title={`Course Division Manager — ${myBranch}`}
       primaryTabIds={["overview", "students", "approvals", "classes", "reports"]}
     />
   );

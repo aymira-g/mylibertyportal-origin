@@ -5,6 +5,7 @@ import {
   rejectApprovalRequest,
   markApprovalApplied,
 } from "./approvalsRepository";
+import { canApproveGate } from "./approvalGates";
 import { applyApprovedShiftCorrection } from "../attendance/shiftsRepository";
 import { updateStaffRecord } from "../dashboard/usersRepository";
 import { useToast } from "./useToast";
@@ -17,6 +18,7 @@ import {
   XCircle,
   Clock,
   ShieldCheck,
+  ShieldAlert,
   FileCheck,
   User,
   Building,
@@ -25,6 +27,7 @@ import {
 export function ApprovalInbox({
   userRole = "admin",
   branchId = null,
+  division = null,
   title = "Pending Authorization Requests",
   subtitle = "Maker-Checker dual-control operational review queue.",
 }) {
@@ -57,17 +60,22 @@ export function ApprovalInbox({
       (err) => {
         console.warn("ApprovalInbox listen error:", err);
         setLoading(false);
-      }
+      },
+      { division }
     );
 
     return () => unsubscribe();
-  }, [userRole, branchId]);
+  }, [userRole, branchId, division]);
 
   const handleApprove = async (approval) => {
     if (processingId) return;
     const currentUid = auth.currentUser?.uid;
     if (approval.requestedByUid && approval.requestedByUid === currentUid) {
       toast("Dual-control restriction: You cannot approve a request you submitted yourself.", "error");
+      return;
+    }
+    if (!canApproveGate(userRole, approval.actionId || approval)) {
+      toast(`You do not have authorization to approve ${approval.label || "this action"} under governing rules.`, "error");
       return;
     }
     if (
@@ -370,22 +378,54 @@ export function ApprovalInbox({
 
               {/* Action Buttons */}
               <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
-                <button
-                  disabled={processingId === req.id}
-                  onClick={() => handleReject(req)}
-                  className="px-3.5 py-2 rounded-xl bg-slate-200 hover:bg-rose-100 text-slate-700 hover:text-rose-700 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  <XCircle className="w-3.5 h-3.5" />
-                  <span>Reject</span>
-                </button>
-                <button
-                  disabled={processingId === req.id}
-                  onClick={() => handleApprove(req)}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Authorize</span>
-                </button>
+                {(() => {
+                  const isAuthorized = canApproveGate(userRole, req.actionId || req);
+                  const isSelfRequest = req.requestedByUid && req.requestedByUid === auth.currentUser?.uid;
+
+                  if (!isAuthorized) {
+                    return (
+                      <span
+                        className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-500 font-bold text-xs border border-slate-200 flex items-center gap-1.5"
+                        title="This action requires a designated authority under governance rules"
+                      >
+                        <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Higher Sign-Off Required</span>
+                      </span>
+                    );
+                  }
+
+                  if (isSelfRequest) {
+                    return (
+                      <span
+                        className="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 font-bold text-xs border border-amber-200 flex items-center gap-1.5"
+                        title="Dual-control restriction: You cannot approve your own request"
+                      >
+                        <span>Self-Request (Cannot Sign)</span>
+                      </span>
+                    );
+                  }
+
+                  return (
+                    <>
+                      <button
+                        disabled={processingId === req.id}
+                        onClick={() => handleReject(req)}
+                        className="px-3.5 py-2 rounded-xl bg-slate-200 hover:bg-rose-100 text-slate-700 hover:text-rose-700 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                        <span>Reject</span>
+                      </button>
+                      <button
+                        disabled={processingId === req.id}
+                        onClick={() => handleApprove(req)}
+                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Authorize</span>
+                      </button>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           ))}

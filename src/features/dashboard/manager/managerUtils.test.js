@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatPunctuality, formatTime } from "./managerUtils.js";
+import {
+  formatPunctuality,
+  formatTime,
+  filterCourseDivision,
+  computeBottleneckTotals,
+} from "./managerUtils.js";
 
 describe("formatTime", () => {
   it("returns N/A for an empty value", () => {
@@ -49,3 +54,49 @@ describe("formatPunctuality", () => {
     expect(r.label).toBe("20m late");
   });
 });
+
+describe("filterCourseDivision", () => {
+  it("filters out items explicitly flagged as kindergarten", () => {
+    const items = [
+      { id: "1", name: "English 101", division: "courses" },
+      { id: "2", name: "Kindy Phonics", division: "kindergarten" },
+      { id: "3", name: "General Batch" },
+    ];
+    const filtered = filterCourseDivision(items);
+    expect(filtered).toHaveLength(2);
+    expect(filtered.map((x) => x.id)).toEqual(["1", "3"]);
+  });
+
+  it("handles empty or non-array inputs safely", () => {
+    expect(filterCourseDivision([])).toEqual([]);
+    expect(filterCourseDivision(null)).toEqual([]);
+    expect(filterCourseDivision(undefined)).toEqual([]);
+  });
+});
+
+describe("computeBottleneckTotals", () => {
+  it("computes accurate sums across pending leads, unplaced students, and class alerts", () => {
+    const res = computeBottleneckTotals({
+      pendingApplications: [{ id: "a1" }, { id: "a2" }],
+      unenrolledStudents: [{ id: "s1" }],
+      classesWithIssues: [{ id: "c1" }, { id: "c2" }, { id: "c3" }],
+    });
+    expect(res).toEqual({
+      pendingCount: 2,
+      unenrolledCount: 1,
+      issuesCount: 3,
+      total: 6,
+    });
+  });
+
+  it("handles missing or undefined params safely", () => {
+    const res = computeBottleneckTotals();
+    expect(res).toEqual({
+      pendingCount: 0,
+      unenrolledCount: 0,
+      issuesCount: 0,
+      total: 0,
+    });
+  });
+});
+

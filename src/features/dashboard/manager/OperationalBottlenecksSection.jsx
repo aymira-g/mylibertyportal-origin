@@ -10,7 +10,7 @@ export function OperationalBottlenecksSection({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <span>🚨 Operational Bottlenecks &amp; Action Required</span>
+            <span>⚡ Course Operational Bottlenecks &amp; Action Required</span>
             {totalBottlenecks > 0 && (
               <span className="px-2 py-0.5 rounded-full text-xs font-black bg-rose-100 text-rose-700">
                 {totalBottlenecks}
@@ -18,7 +18,7 @@ export function OperationalBottlenecksSection({
             )}
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Items currently slowing down student onboarding or daily operations.
+            Active course division items slowing down student enrollment, batch placement, or class coverage.
           </p>
         </div>
       </div>
@@ -35,7 +35,7 @@ export function OperationalBottlenecksSection({
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                📝 Pending Leads
+                📝 Pending Course Leads
               </span>
               <span
                 className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
@@ -50,7 +50,7 @@ export function OperationalBottlenecksSection({
             {pendingApplications.length > 0 ? (
               <div className="space-y-2 mb-3">
                 <p className="text-xs text-amber-900 font-medium">
-                  Leads waiting for Front Office / Marketing outreach:
+                  Leads waiting for Course Marketing / Front Office follow-up:
                 </p>
                 <div className="space-y-1.5 max-h-36 overflow-y-auto">
                   {pendingApplications.slice(0, 3).map((app) => (
@@ -75,7 +75,7 @@ export function OperationalBottlenecksSection({
               </div>
             ) : (
               <p className="text-xs text-slate-500 py-3">
-                ✓ All applicant leads have been contacted and processed.
+                ✓ All course applicant leads have been contacted and processed.
               </p>
             )}
           </div>
@@ -100,7 +100,7 @@ export function OperationalBottlenecksSection({
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                ⚠️ Unassigned Students
+                ⚠️ Unplaced Course Students
               </span>
               <span
                 className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
@@ -115,7 +115,7 @@ export function OperationalBottlenecksSection({
             {unenrolledStudents.length > 0 ? (
               <div className="space-y-2 mb-3">
                 <p className="text-xs text-rose-900 font-medium">
-                  Active students not yet placed into a class group:
+                  Active course students not yet placed into a class batch:
                 </p>
                 <div className="space-y-1.5 max-h-36 overflow-y-auto">
                   {unenrolledStudents.slice(0, 3).map((stu) => (
@@ -141,7 +141,7 @@ export function OperationalBottlenecksSection({
               </div>
             ) : (
               <p className="text-xs text-slate-500 py-3">
-                ✓ 100% Student Placement. Every active student is assigned to a class.
+                ✓ 100% Student Placement. Every active course student is assigned to a class batch.
               </p>
             )}
           </div>
@@ -150,7 +150,7 @@ export function OperationalBottlenecksSection({
               onClick={() => onNavigate("classes")}
               className="w-full mt-2 py-2 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-sm cursor-pointer"
             >
-              Assign to Open Classes →
+              Assign to Open Batches →
             </button>
           )}
         </div>
@@ -166,7 +166,7 @@ export function OperationalBottlenecksSection({
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                🏫 Coverage Alerts
+                🏫 Course Coverage Alerts
               </span>
               <span
                 className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
@@ -181,7 +181,7 @@ export function OperationalBottlenecksSection({
             {classesWithIssues.length > 0 ? (
               <div className="space-y-2 mb-3">
                 <p className="text-xs text-purple-900 font-medium">
-                  Classes with missing instructor or room allocation:
+                  Course classes with missing instructor or room allocation:
                 </p>
                 <div className="space-y-1.5 max-h-36 overflow-y-auto">
                   {classesWithIssues.slice(0, 3).map((cls) => (
@@ -220,7 +220,7 @@ export function OperationalBottlenecksSection({
               </div>
             ) : (
               <p className="text-xs text-slate-500 py-3">
-                ✓ All active classes have confirmed instructors and room assignments.
+                ✓ All active course classes have confirmed instructors and room assignments.
               </p>
             )}
           </div>

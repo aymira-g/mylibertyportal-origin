@@ -30,3 +30,46 @@ export function formatPunctuality(shift) {
     classes: "bg-emerald-100 text-emerald-800 border-emerald-200",
   };
 }
+
+/**
+ * Filter an array of records to exclude kindergarten-specific documents,
+ * preserving course division and shared records.
+ *
+ * @template T
+ * @param {T[]} items
+ * @returns {T[]}
+ */
+export function filterCourseDivision(items) {
+  if (!Array.isArray(items)) return [];
+  return items.filter((item) => {
+    if (!item || typeof item !== "object") return false;
+    const div = /** @type {any} */ (item).division;
+    return !div || div !== "kindergarten";
+  });
+}
+
+/**
+ * Calculate total operational bottlenecks across leads, unplaced students, and class alerts.
+ *
+ * @param {object} params
+ * @param {any[]} [params.pendingApplications]
+ * @param {any[]} [params.unenrolledStudents]
+ * @param {any[]} [params.classesWithIssues]
+ * @returns {{ pendingCount: number, unenrolledCount: number, issuesCount: number, total: number }}
+ */
+export function computeBottleneckTotals({
+  pendingApplications = [],
+  unenrolledStudents = [],
+  classesWithIssues = [],
+} = {}) {
+  const pendingCount = Array.isArray(pendingApplications) ? pendingApplications.length : 0;
+  const unenrolledCount = Array.isArray(unenrolledStudents) ? unenrolledStudents.length : 0;
+  const issuesCount = Array.isArray(classesWithIssues) ? classesWithIssues.length : 0;
+  return {
+    pendingCount,
+    unenrolledCount,
+    issuesCount,
+    total: pendingCount + unenrolledCount + issuesCount,
+  };
+}
+

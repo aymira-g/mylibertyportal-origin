@@ -56,13 +56,13 @@ export function listenToPendingApprovals(userRole, branchId, onData, onError) {
 
   if (!isExecutiveRole(normalizedRole)) {
     if (normalizedRole === "manager") {
-      constraints.push(where("approverRole", "in", [APPROVAL_ROLES.BRANCH_MANAGER, APPROVAL_ROLES.OPS_LEAD, "ops_lead"]));
+      constraints.push(where("approverRole", "in", [APPROVAL_ROLES.DIVISION_MANAGER, APPROVAL_ROLES.BRANCH_MANAGER, "manager"]));
       constraints.push(where("approverBranchId", "==", normalizedBranch));
     } else if (normalizedRole === "instructorleader") {
-      constraints.push(where("approverRole", "in", [APPROVAL_ROLES.INSTRUCTOR_LEADER, "instructor_leader"]));
+      constraints.push(where("approverRole", "in", [APPROVAL_ROLES.INSTRUCTOR_LEADER, "instructor_leader", "instructorleader"]));
       constraints.push(where("approverBranchId", "==", normalizedBranch));
     } else if (normalizedRole === "frontoffice" || normalizedRole === "opslead") {
-      constraints.push(where("approverRole", "in", [APPROVAL_ROLES.OPS_LEAD, "ops_lead"]));
+      constraints.push(where("approverRole", "in", [APPROVAL_ROLES.OPS_LEAD, "ops_lead", "opslead", "frontoffice"]));
       constraints.push(where("approverBranchId", "==", normalizedBranch));
     }
   }

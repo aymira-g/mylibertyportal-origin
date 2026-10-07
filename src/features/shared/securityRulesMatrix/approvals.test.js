@@ -4,6 +4,7 @@ import {
   isManager,
   isFrontOffice,
   isSameBranch,
+  isApproverForDoc,
   canDecideApproval,
   canUpdateApproval,
   isApprovedShiftCorrection,
@@ -19,6 +20,10 @@ import {
   foBoneBolango,
   instructorLeaderGorontalo,
 } from "./securityRulesMatrix.fixtures.js";
+import {
+  GATED_ACTIONS,
+  canApproveGate,
+} from "../approvalGates.js";
 
 describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
   describe("Dual-Control Maker-Checker Approval Isolation & 4 Inboxes", () => {
@@ -359,6 +364,103 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
 
       // Self-promotion violation: decidedByUid === targetUserId is rejected
       expect(isApprovedRoleElevation("ins_gtlo", { ...approvedDoc, decidedByUid: "ins_gtlo" }, "instructorleader")).toBe(false);
+    });
+  });
+
+  describe("Client / Backend Parity & Cross-Role Negative Authorization (F1 & §6)", () => {
+    const testUsers = [
+      { user: directorUser, role: "director", label: "Director" },
+      { user: viceDirectorUser, role: "vice_director", label: "Vice Director" },
+      { user: adminUser, role: "admin", label: "System Admin" },
+      { user: managerGorontalo, role: "manager", label: "Division Manager GTLO" },
+      { user: foGorontalo, role: "frontoffice", label: "Front Office GTLO" },
+      { user: instructorLeaderGorontalo, role: "instructorleader", label: "Instructor Leader GTLO" },
+      { user: { uid: "ins_1", role: "instructor", branchId: "kota_gorontalo" }, role: "instructor", label: "Instructor GTLO" },
+      { user: { uid: "mkt_1", role: "marketing", branchId: "kota_gorontalo" }, role: "marketing", label: "Marketing GTLO" },
+      { user: { uid: "ob_1", role: "officeboy", branchId: "kota_gorontalo" }, role: "officeboy", label: "Office Boy GTLO" },
+    ];
+
+    it("maintains 100% parity between canApproveGate and isApproverForDoc for every gate", () => {
+      Object.values(GATED_ACTIONS).forEach((gate) => {
+        // Skip dynamic gates that resolve per-ticket approvers at runtime
+        if (gate.approverRole === "dynamic_hierarchy" || gate.approverRole === "dynamic_superior") return;
+
+        testUsers.forEach(({ user, role, label }) => {
+          const clientResult = canApproveGate(role, gate);
+          const mockDoc = {
+            actionId: gate.id,
+            approverRole: gate.approverRole,
+            approverBranchId: "kota_gorontalo",
+            branchId: "kota_gorontalo",
+            requestedByUid: "someone_else_uid",
+          };
+          const backendResult = isApproverForDoc(mockDoc, user);
+
+          expect(
+            clientResult,
+            `Parity mismatch on gate ${gate.id} for role ${label} (${role}): client says ${clientResult}, backend says ${backendResult}`
+          ).toBe(backendResult);
+        });
+      });
+    });
+
+    it("proves negative authority: Course Division Manager cannot approve unrelated domain gates", () => {
+      const opsDoc = { actionId: "RETROACTIVE_STUDENT_ATTENDANCE", approverRole: "ops_lead", approverBranchId: "kota_gorontalo", requestedByUid: "ins_1" };
+      const academicDoc = { actionId: "PLACEMENT_LEVEL_OVERRIDE", approverRole: "instructor_leader", approverBranchId: "kota_gorontalo", requestedByUid: "ins_1" };
+      const elevationDoc = { actionId: "STAFF_ROLE_ELEVATION", approverRole: "director", approverBranchId: null, requestedByUid: "director_1" };
+
+      expect(canDecideApproval(opsDoc, managerGorontalo)).toBe(false);
+      expect(canDecideApproval(academicDoc, managerGorontalo)).toBe(false);
+      expect(canDecideApproval(elevationDoc, managerGorontalo)).toBe(false);
+    });
+
+    it("proves negative authority: Operational Leader cannot approve academic or financial gates", () => {
+      const academicDoc = { actionId: "PLACEMENT_LEVEL_OVERRIDE", approverRole: "instructor_leader", approverBranchId: "kota_gorontalo", requestedByUid: "ins_1" };
+      const discountDoc = { actionId: "DISCOUNT_OR_REFUND", approverRole: "director", approverBranchId: "kota_gorontalo", requestedByUid: "fo_gtlo" };
+      const tuitionDoc = { actionId: "TUITION_PLAN_CHANGE", approverRole: "manager", approverBranchId: "kota_gorontalo", requestedByUid: "fo_gtlo" };
+
+      expect(canDecideApproval(academicDoc, foGorontalo)).toBe(false);
+      expect(canDecideApproval(discountDoc, foGorontalo)).toBe(false);
+      expect(canDecideApproval(tuitionDoc, foGorontalo)).toBe(false);
+    });
+
+    it("proves negative authority: Instructor Leader cannot approve operational or financial gates", () => {
+      const opsDoc = { actionId: "RETROACTIVE_STUDENT_ATTENDANCE", approverRole: "ops_lead", approverBranchId: "kota_gorontalo", requestedByUid: "ins_1" };
+      const discountDoc = { actionId: "DISCOUNT_OR_REFUND", approverRole: "director", approverBranchId: "kota_gorontalo", requestedByUid: "fo_gtlo" };
+
+      expect(canDecideApproval(opsDoc, instructorLeaderGorontalo)).toBe(false);
+      expect(canDecideApproval(discountDoc, instructorLeaderGorontalo)).toBe(false);
+    });
+
+    it("proves negative authority: Vice Director cannot approve domain-local Ops Lead or Instructor Leader gates (F1)", () => {
+      const opsDoc = { actionId: "RETROACTIVE_STUDENT_ATTENDANCE", approverRole: "ops_lead", approverBranchId: "kota_gorontalo", requestedByUid: "ins_1" };
+      const academicDoc = { actionId: "PLACEMENT_LEVEL_OVERRIDE", approverRole: "instructor_leader", approverBranchId: "kota_gorontalo", requestedByUid: "ins_1" };
+
+      expect(canDecideApproval(opsDoc, viceDirectorUser)).toBe(false);
+      expect(canDecideApproval(academicDoc, viceDirectorUser)).toBe(false);
+    });
+
+    it("proves negative authority: Director cannot approve domain-local Ops Lead or Instructor Leader gates (F1)", () => {
+      const opsDoc = { actionId: "RETROACTIVE_STUDENT_ATTENDANCE", approverRole: "ops_lead", approverBranchId: "kota_gorontalo", requestedByUid: "ins_1" };
+      const academicDoc = { actionId: "PLACEMENT_LEVEL_OVERRIDE", approverRole: "instructor_leader", approverBranchId: "kota_gorontalo", requestedByUid: "ins_1" };
+
+      expect(canDecideApproval(opsDoc, directorUser)).toBe(false);
+      expect(canDecideApproval(academicDoc, directorUser)).toBe(false);
+    });
+
+    it("proves negative authority: System Admin cannot approve ANY business gates (Blueprint §7)", () => {
+      Object.values(GATED_ACTIONS).forEach((gate) => {
+        const mockDoc = {
+          actionId: gate.id,
+          approverRole: gate.approverRole,
+          approverBranchId: "kota_gorontalo",
+          requestedByUid: "user_req_1",
+        };
+        expect(
+          canDecideApproval(mockDoc, adminUser),
+          `System Admin must NOT be allowed to approve business gate: ${gate.id}`
+        ).toBe(false);
+      });
     });
   });
 });

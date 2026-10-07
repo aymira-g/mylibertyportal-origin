@@ -4,10 +4,17 @@ import {
   APPROVAL_ROLES,
   APPROVAL_MODES,
   APPROVAL_STATUS,
+  CONTROL_LEVELS,
+  SCOPE_LEVELS,
+  RISK_MODIFIERS,
   createApprovalEnvelope,
   canApproveGate,
   isActionOperational,
   getSelfCorrectionApprover,
+  getCashDiscrepancyApprover,
+  getStaffStatusApprover,
+  validateDelegation,
+  evaluateActionRisk,
 } from "./approvalGates";
 
 describe("Maker-Checker Approval Gates", () => {
@@ -62,10 +69,10 @@ describe("Maker-Checker Approval Gates", () => {
     // 3. Branch Manager's own record -> Director (Owner / Director tier)
     expect(getSelfCorrectionApprover("manager")).toBe(APPROVAL_ROLES.DIRECTOR);
 
-    // 4. Executives -> Exempt (null)
+    // 4. Executives -> Cross-review each other (Owner Decision 2026-10-07 §4.5); Admin is technical maintenance (null)
     expect(getSelfCorrectionApprover("admin")).toBeNull();
-    expect(getSelfCorrectionApprover("director")).toBeNull();
-    expect(getSelfCorrectionApprover("vice_director")).toBeNull();
+    expect(getSelfCorrectionApprover("director")).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+    expect(getSelfCorrectionApprover("vice_director")).toBe(APPROVAL_ROLES.DIRECTOR);
   });
 
   it("creates standard approval envelopes with branchId and self-correction resolution", () => {
@@ -91,9 +98,10 @@ describe("Maker-Checker Approval Gates", () => {
     });
     expect(cashEnv.approverRole).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
 
-    // Admin requester is exempt from routine branch actions -> returns null
-    const adminAction = createApprovalEnvelope("DISCOUNT_OR_REFUND", { role: "admin" });
-    expect(adminAction).toBeNull();
+    // Admin requester is NOT exempt from routine business actions (Blueprint §7 & Owner Decision 2026-10-07)
+    const adminAction = createApprovalEnvelope("DISCOUNT_OR_REFUND", { role: "admin", name: "Admin" });
+    expect(adminAction).not.toBeNull();
+    expect(adminAction.approverRole).toBe(APPROVAL_ROLES.DIRECTOR);
 
     // STAFF_ROLE_ELEVATION is strictly dual-controlled even when initiated by admin
     const adminElevation = createApprovalEnvelope("STAFF_ROLE_ELEVATION", { role: "admin", uid: "admin-1" });
@@ -127,11 +135,14 @@ describe("Maker-Checker Approval Gates", () => {
     expect(canApproveGate("admin", APPROVAL_ROLES.DIRECTOR)).toBe(false);
     expect(canApproveGate("manager", APPROVAL_ROLES.DIRECTOR)).toBe(false);
 
-    // Director and Vice Director can approve division gates
+    // Director and Vice Director can approve division gates (Interim rule §4.2)
     expect(canApproveGate("director", APPROVAL_ROLES.DIVISION_MANAGER)).toBe(true);
     expect(canApproveGate("vice_director", APPROVAL_ROLES.DIVISION_MANAGER)).toBe(true);
-    expect(canApproveGate("director", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
-    expect(canApproveGate("vice_director", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
+    // Domain gates are strictly peer-separated: Executives do not substitute for Ops Lead or Instructor Leader (F1)
+    expect(canApproveGate("director", APPROVAL_ROLES.OPS_LEAD)).toBe(false);
+    expect(canApproveGate("vice_director", APPROVAL_ROLES.OPS_LEAD)).toBe(false);
+    expect(canApproveGate("director", APPROVAL_ROLES.INSTRUCTOR_LEADER)).toBe(false);
+    expect(canApproveGate("vice_director", APPROVAL_ROLES.INSTRUCTOR_LEADER)).toBe(false);
 
     // System Admin is a technical maintenance role (Blueprint v3.1 §4 & §5.3):
     // Admin only satisfies technical ADMIN gates, NOT business approval gates
@@ -147,10 +158,18 @@ describe("Maker-Checker Approval Gates", () => {
     expect(canApproveGate("manager", null, "CASH_DISCREPANCY")).toBe(true);
     expect(canApproveGate("admin", null, "CASH_DISCREPANCY")).toBe(false);
 
-    // Division manager cannot approve Director escalated actions, but can approve Manager and OpsLead
+    // Domain actions route strictly to their domain leads (F1 parity)
+    expect(canApproveGate("instructorleader", null, "PLACEMENT_LEVEL_OVERRIDE")).toBe(true);
+    expect(canApproveGate("director", null, "PLACEMENT_LEVEL_OVERRIDE")).toBe(false);
+    expect(canApproveGate("manager", null, "PLACEMENT_LEVEL_OVERRIDE")).toBe(false);
+    expect(canApproveGate("opslead", null, "RETROACTIVE_STUDENT_ATTENDANCE")).toBe(true);
+    expect(canApproveGate("director", null, "RETROACTIVE_STUDENT_ATTENDANCE")).toBe(false);
+    expect(canApproveGate("manager", null, "RETROACTIVE_STUDENT_ATTENDANCE")).toBe(false);
+
+    // Division manager cannot approve Director escalated actions, nor OpsLead (peers do not approve peers)
     expect(canApproveGate("manager", APPROVAL_ROLES.DIRECTOR)).toBe(false);
     expect(canApproveGate("manager", APPROVAL_ROLES.DIVISION_MANAGER)).toBe(true);
-    expect(canApproveGate("manager", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
+    expect(canApproveGate("manager", APPROVAL_ROLES.OPS_LEAD)).toBe(false);
 
     // Instructor Leader
     expect(canApproveGate("instructor", APPROVAL_ROLES.BRANCH_MANAGER)).toBe(false);
@@ -199,5 +218,194 @@ describe("Maker-Checker Approval Gates", () => {
 
     // Ungated
     expect(isActionOperational(null)).toBe(true);
+  });
+
+  it("verifies all gate schema fields match the control model (Phase 2)", () => {
+    expect(SCOPE_LEVELS.BRANCH_LOCAL).toBe("branch-local");
+    expect(SCOPE_LEVELS.ORGANIZATION_WIDE).toBe("organization-wide");
+
+    Object.values(GATED_ACTIONS).forEach((gate) => {
+      expect(gate.id).toBeDefined();
+      expect(gate.label).toBeDefined();
+      expect(gate.primaryController).toBeDefined();
+      expect(gate.requiredDomain).toBeDefined();
+      expect(gate.requiredScope).toBeDefined();
+      expect(gate.controlLevel).toMatch(/^L[123]$/);
+      expect(gate.separationRequired).toBe(true);
+      expect(Array.isArray(gate.riskModifiers)).toBe(true);
+    });
+
+    // Check specific gate levels
+    expect(GATED_ACTIONS.STAFF_ROLE_ELEVATION.controlLevel).toBe(CONTROL_LEVELS.L3);
+    expect(GATED_ACTIONS.STAFF_DEACTIVATION.controlLevel).toBe(CONTROL_LEVELS.L3);
+    expect(GATED_ACTIONS.NEW_STAFF_ACCOUNT.controlLevel).toBe(CONTROL_LEVELS.L2);
+    expect(GATED_ACTIONS.DISCOUNT_OR_REFUND.controlLevel).toBe(CONTROL_LEVELS.L2);
+    expect(GATED_ACTIONS.PLACEMENT_LEVEL_OVERRIDE.controlLevel).toBe(CONTROL_LEVELS.L1);
+    expect(GATED_ACTIONS.SUBSTITUTE_INSTRUCTOR.controlLevel).toBe(CONTROL_LEVELS.L1);
+    expect(GATED_ACTIONS.CLASS_CANCELLATION_OR_RESCHEDULE.controlLevel).toBe(CONTROL_LEVELS.L1);
+    expect(GATED_ACTIONS.RETROACTIVE_STUDENT_ATTENDANCE.controlLevel).toBe(CONTROL_LEVELS.L1);
+    expect(GATED_ACTIONS.STUDENT_CLASS_TRANSFER.controlLevel).toBe(CONTROL_LEVELS.L1);
+  });
+
+  describe("Cash Discrepancy Materiality Tiers (Owner Decision §4.5)", () => {
+    it("routes < Rp 20.000 to Ops Lead", () => {
+      expect(getCashDiscrepancyApprover({ amount: 15000 })).toBe(APPROVAL_ROLES.OPS_LEAD);
+      expect(getCashDiscrepancyApprover({ amount: -19999 })).toBe(APPROVAL_ROLES.OPS_LEAD);
+      expect(getCashDiscrepancyApprover({ amount: 0 })).toBe(APPROVAL_ROLES.OPS_LEAD);
+    });
+
+    it("escalates to Vice Director if Ops Lead handled the drawer themselves (< 20.000)", () => {
+      expect(
+        getCashDiscrepancyApprover({
+          amount: 10000,
+          drawerHandlerUid: "user_opslead_1",
+          opsLeadUid: "user_opslead_1",
+        })
+      ).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+    });
+
+    it("routes Rp 20.000 up to Rp 49.999 to Vice Director", () => {
+      expect(getCashDiscrepancyApprover({ amount: 20000 })).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+      expect(getCashDiscrepancyApprover({ amount: 49999 })).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+      expect(getCashDiscrepancyApprover({ amount: -35000 })).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+    });
+
+    it("routes >= Rp 50.000 to Director (or Vice Director as Acting Director if Director on approved leave)", () => {
+      expect(getCashDiscrepancyApprover({ amount: 50000 })).toBe(APPROVAL_ROLES.DIRECTOR);
+      expect(getCashDiscrepancyApprover({ amount: 100000 })).toBe(APPROVAL_ROLES.DIRECTOR);
+      expect(getCashDiscrepancyApprover({ amount: -50000 })).toBe(APPROVAL_ROLES.DIRECTOR);
+
+      // Director on approved leave -> Vice Director Acting Director
+      expect(
+        getCashDiscrepancyApprover({
+          amount: 75000,
+          isDirectorOnLeave: true,
+        })
+      ).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+    });
+  });
+
+  describe("Staff Status & Leave Authorization Workflow (Owner Decision §4.5)", () => {
+    it("routes subordinates to their respective domain superiors", () => {
+      expect(getStaffStatusApprover({ subjectRole: "frontoffice" })).toBe(APPROVAL_ROLES.OPS_LEAD);
+      expect(getStaffStatusApprover({ subjectRole: "officeboy" })).toBe(APPROVAL_ROLES.OPS_LEAD);
+      expect(getStaffStatusApprover({ subjectRole: "instructor" })).toBe(APPROVAL_ROLES.INSTRUCTOR_LEADER);
+      expect(getStaffStatusApprover({ subjectRole: "marketing" })).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+    });
+
+    it("routes branch leadership peers to Vice Director (Director if VD is away)", () => {
+      expect(getStaffStatusApprover({ subjectRole: "opslead" })).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+      expect(getStaffStatusApprover({ subjectRole: "instructorleader" })).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+      expect(getStaffStatusApprover({ subjectRole: "manager" })).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+
+      // If Vice Director is away, routes to Director
+      expect(
+        getStaffStatusApprover({
+          subjectRole: "opslead",
+          isViceDirectorOnLeave: true,
+        })
+      ).toBe(APPROVAL_ROLES.DIRECTOR);
+    });
+
+    it("has executives review each other", () => {
+      expect(getStaffStatusApprover({ subjectRole: "director" })).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+      expect(getStaffStatusApprover({ subjectRole: "vice_director" })).toBe(APPROVAL_ROLES.DIRECTOR);
+    });
+
+    it("falls back to 4-peer leadership chain when both executives are away", () => {
+      expect(
+        getStaffStatusApprover({
+          subjectRole: "director",
+          isViceDirectorOnLeave: true,
+        })
+      ).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+    });
+
+    it("strictly blocks maker from submitting leave for themselves", () => {
+      expect(() =>
+        getStaffStatusApprover({
+          subjectRole: "frontoffice",
+          subjectUid: "fo_user_1",
+          makerUid: "fo_user_1",
+        })
+      ).toThrow("Front Office staff cannot submit status/leave changes for themselves.");
+    });
+  });
+
+  describe("Acting Director Delegation Validation (Blueprint §4.3 & §4.5)", () => {
+    it("permits valid delegation while Director is on approved leave", () => {
+      const result = validateDelegation({
+        delegateUid: "vd_user_1",
+        targetActionId: "DISCOUNT_OR_REFUND",
+        isDirectorOnApprovedLeave: true,
+      });
+      expect(result.valid).toBe(true);
+    });
+
+    it("rejects delegation if Director is not on approved leave", () => {
+      const result = validateDelegation({
+        delegateUid: "vd_user_1",
+        targetActionId: "DISCOUNT_OR_REFUND",
+        isDirectorOnApprovedLeave: false,
+      });
+      expect(result.valid).toBe(false);
+      expect(result.reason).toContain("only active during Director's approved leave");
+    });
+
+    it("strictly blocks delegation for staff role elevation or deactivation", () => {
+      const result = validateDelegation({
+        delegateUid: "vd_user_1",
+        targetActionId: "STAFF_ROLE_ELEVATION",
+        isDirectorOnApprovedLeave: true,
+      });
+      expect(result.valid).toBe(false);
+      expect(result.reason).toContain("excludes staff role elevation");
+    });
+
+    it("strictly blocks delegate from acting on their own record", () => {
+      const result = validateDelegation({
+        delegateUid: "vd_user_1",
+        targetActionId: "DISCOUNT_OR_REFUND",
+        targetUserId: "vd_user_1",
+        isDirectorOnApprovedLeave: true,
+      });
+      expect(result.valid).toBe(false);
+      expect(result.reason).toContain("cannot exercise authority on their own record");
+    });
+
+    it("strictly blocks delegate from acting as second signature if they already signed", () => {
+      const result = validateDelegation({
+        delegateUid: "vd_user_1",
+        targetActionId: "NEW_STAFF_ACCOUNT",
+        isDirectorOnApprovedLeave: true,
+        previousSignerUids: ["vd_user_1"],
+      });
+      expect(result.valid).toBe(false);
+      expect(result.reason).toContain("cannot provide second signature after having already signed");
+    });
+  });
+
+  describe("Contextual Risk Evaluation Framework (Phase 2)", () => {
+    it("evaluates base control level and modifiers", () => {
+      const risk = evaluateActionRisk("RETROACTIVE_STUDENT_ATTENDANCE");
+      expect(risk.baseLevel).toBe(CONTROL_LEVELS.L1);
+      expect(risk.effectiveLevel).toBe(CONTROL_LEVELS.L1);
+      expect(risk.requiresEscalation).toBe(false);
+    });
+
+    it("escalates Level 1 action to Level 2 on cross-branch impact", () => {
+      const risk = evaluateActionRisk("CLASS_CANCELLATION_OR_RESCHEDULE", { isCrossBranch: true });
+      expect(risk.baseLevel).toBe(CONTROL_LEVELS.L1);
+      expect(risk.effectiveLevel).toBe(CONTROL_LEVELS.L2);
+      expect(risk.activeModifiers).toContain(RISK_MODIFIERS.CROSS_BRANCH);
+      expect(risk.requiresEscalation).toBe(true);
+    });
+
+    it("escalates Level 1 action to Level 3 on high financial impact (>= 50.000)", () => {
+      const risk = evaluateActionRisk("CASH_DISCREPANCY", { amount: 50000 });
+      expect(risk.baseLevel).toBe(CONTROL_LEVELS.L1);
+      expect(risk.effectiveLevel).toBe(CONTROL_LEVELS.L3);
+      expect(risk.requiresEscalation).toBe(true);
+    });
   });
 });

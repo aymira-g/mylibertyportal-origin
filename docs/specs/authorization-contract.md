@@ -100,3 +100,37 @@ The Role × Branch × Division contract is enforced across five distinct system 
 ## 5. Change Control & Governance
 
 Any deviation from this contract—such as opening Kindergarten outreach to Marketing, or introducing a new division-independent staff role—requires an update to this document, accompanying schema updates, and automated security matrix verification.
+
+---
+
+## 6. Executive Dual-Control & Risk-Based Approval Architecture (Blueprint v3.3)
+
+### 6.1 Core Ground Formula
+$$\text{Role} + \text{Capability} + \text{Scope} + \text{Workflow State} + \text{Approved Delegation} = \text{Authorized Action}$$
+$$\text{Risk Profile} \longrightarrow \text{Control Level} \longrightarrow \text{Required Workflow} \longrightarrow \text{Authorized Checker / Signer}$$
+
+### 6.2 Peer Branch Functional Authorities
+The four branch leadership functions are peer authorities within their respective domains (never "mini-admins" or subordinate to each other):
+- **Course Division Manager (`manager` + `courses`):** Course-domain control.
+- **Kindergarten Division Manager (`manager` + `kindergarten`):** Kindergarten-domain control.
+- **Operational Leader (`opslead`):** Operations, desk workflows, and shift scheduling.
+- **Instructor Leader (`instructorleader`):** Pedagogy, placement overrides, substitute teaching.
+
+### 6.3 Executive Dual-Control Separation
+- **Director — Strategic Control:** Strategic direction, irreversible decisions, staff authority/termination, and high-impact pricing policies.
+- **Vice Director — Operational Control:** Operational execution, cross-branch coordination, and material operational exceptions.
+- **Dual-Control Invariant:** Director and Vice Director have complementary domains; dual-control does **not** mean automatic joint approval or executive substitution for branch domain gates.
+
+### 6.4 Human Separation of Duties
+- `makerUid !== checkerUid` is strictly enforced across all dual-control and approval workflows.
+- No user may self-approve their own request or self-promote their own role.
+
+### 6.5 Materiality Tiers & Special Workflows (Owner Decision 2026-10-07 §4.5)
+- **Cash Discrepancies:**
+  - `< Rp 20.000`: Operational Leader (escalates to Vice Director if Ops Lead balanced drawer).
+  - `Rp 20.000 – Rp 49.999`: Vice Director.
+  - `≥ Rp 50.000`: Director (or Vice Director as Acting Director if Director on approved leave).
+- **Executive Shift Corrections:** Director and Vice Director review each other's.
+- **Staff Status / Leave Changes:** Maker is always Front Office (never the subject); checker is the subject's domain superior; peer leaders escalate to executives; executives review each other; 4-peer fallback chain when both executives are on leave.
+- **Acting Director Delegation:** Explicit, active only during Director's approved leave, excludes role elevations/executive modifications, excludes delegate's own requests, and cannot count as a second signature if delegate already signed.
+

@@ -624,7 +624,7 @@ service cloud.firestore {
               && request.resource.data.applied == true
               && request.resource.data.diff(resource.data).affectedKeys()
                 .hasOnly(['applied', 'appliedAt', 'appliedByUid', 'updatedAt']))
-          ));
+          );
       allow delete: if false; // Approvals form an immutable audit trail of operational & role decisions
     }
 

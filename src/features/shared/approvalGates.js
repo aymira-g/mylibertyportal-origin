@@ -681,9 +681,18 @@ export function createApprovalEnvelope(actionId, requester = {}, context = {}) {
     if (!resolvedApproverRole) {
       return null;
     }
-  } else if (gate.id === "CASH_DISCREPANCY" && context.payload?.discrepancyAmount !== undefined) {
+  } else if (
+    gate.id === "CASH_DISCREPANCY" &&
+    (context.payload?.discrepancyAmount !== undefined ||
+      context.payload?.discrepancy !== undefined ||
+      context.amount !== undefined)
+  ) {
+    const discrepancyAmount =
+      context.payload?.discrepancyAmount ??
+      context.payload?.discrepancy ??
+      context.amount;
     resolvedApproverRole = getCashDiscrepancyApprover({
-      amount: context.payload.discrepancyAmount,
+      amount: discrepancyAmount,
       drawerHandlerUid: requester.uid,
       opsLeadUid: context.payload?.opsLeadUid,
     });

@@ -534,7 +534,6 @@ export const APPROVAL_DECISION_KEYS = [
 
 export function canUpdateApproval(existing, incoming, user) {
   if (!user) return false;
-  if (isAdmin(user) && (!existing || existing.actionId !== "STAFF_ROLE_ELEVATION")) return true;
   if (!canDecideApproval(existing, user)) return false;
   if (incoming.requestedByUid !== existing.requestedByUid) return false;
   if (existing.status === "approved" && incoming.status === "approved" && incoming.applied === true) {

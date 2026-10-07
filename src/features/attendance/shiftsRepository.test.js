@@ -387,10 +387,10 @@ describe("Cash Reconciliation on Shift Clock-Out", () => {
     expect(getShiftCashReconciliation(op.data)).toEqual(op.data.cashReconciliation);
   });
 
-  it("escalates to Branch Manager approval queue without polluting the shift payload", async () => {
+  it("escalates cash discrepancy to appropriate approval queue (Director for >= 50k) without polluting shift payload", async () => {
     fake.seed("shifts", [{ id: "shift-2", userId: "fo-1", clockOut: null }]);
 
-    // Expected 2,000,000 (1% is 20,000 threshold), Counted is short by 50,000
+    // Expected 2,000,000 (1% is 20,000 threshold), Counted is short by 50,000 (routes to Director per §4.5)
     await clockOutShiftWithCashReconciliation("shift-2", {
       clockOutAt: at,
       countedCash: 1450000,
@@ -415,7 +415,7 @@ describe("Cash Reconciliation on Shift Clock-Out", () => {
     expect(escalation).toBeDefined();
     expect(escalation.data).toMatchObject({
       actionId: "CASH_DISCREPANCY",
-      approverRole: "manager",
+      approverRole: "director",
       mode: "blocking",
       status: "pending",
       requestedBy: "Budi FO",

@@ -198,6 +198,19 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
       expect(canUpdateApproval({ ...pendingApproval, status: "approved" }, incoming, managerGorontalo)).toBe(false);
     });
 
+    it("blocks System Admin from updating or deciding business approvals (Blueprint §7)", () => {
+      const incoming = {
+        ...pendingApproval,
+        status: "approved",
+        decidedBy: "Admin User",
+        decidedByUid: "admin_1",
+        decidedAt: "2026-09-25T10:00:00.000Z",
+        decisionNotes: "Admin override",
+        updatedAt: "ts",
+      };
+      expect(canUpdateApproval(pendingApproval, incoming, adminUser)).toBe(false);
+    });
+
     it("allows marking an approved ticket as applied to seal against replay", () => {
       const approvedState = {
         ...pendingApproval,

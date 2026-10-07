@@ -70,22 +70,42 @@
 
 ---
 
-## 5. Phased Implementation Strategy
+## 5. Phased Implementation Summary & Verification
 
-- **Phase 1 (P1):** Evidence-based fixes:
-  - Fix F1 (Client/rules parity): Remove overbroad executive/manager fallback on domain gates (`INSTRUCTOR_LEADER` and `OPS_LEAD`) in `approvalGates.js` and tests.
-  - Fix F2 (Admin bypass): Remove `admin` exemption in `createApprovalEnvelope` so admin cannot bypass dual-control.
-  - Document and report on F4 (`manager` role key and division scoping).
-- **Phase 2 (P2):** Gate Schema Extension:
-  - Add `primaryController`, `requiredDomain`, `requiredScope`, `controlLevel`, `escalationTarget`, `delegationAllowed`, `separationRequired`, `riskModifiers`.
-  - Seed with today's values; mark provisional without altering unauthorized authority.
-  - Add contextual risk evaluation framework `evaluateActionRisk(actionId, context)`.
-- **Phase 3 (P3):** Status Workflow, Escalation & Owner Decisions:
-  - Cash discrepancy tiers: < Rp 20.000 (Ops Lead), 20.000–49.999 (Vice Director), >= 50.000 (Director). Drawer handler cannot approve.
-  - Executive shift self-correction (F3): Director and Vice Director review each other's.
-  - Staff status/leave approval resolution (§4.5): superior reviews subordinate; executives review each other; 4-peer fallback chain when both away.
-- **Phase 4 (P4):** Acting Director Delegation framework:
-  - Explicit delegation record verification (sourceRole, targetRole, leave status check, capability, validity, non-self-approval).
-- **Phase 5 (P5):** Canonical Documentation & Parity Verification:
-  - Update `docs/specs/authorization-contract.md` and related docs.
-  - Run full test suite, lint, typecheck, build.
+- **Phase 0 (P0) — Baseline Evidence & Checkpoint:**
+  - Pristine tree recorded, test suite passed (1090 tests passed).
+- **Phase 1 (P1) — Evidence-Based Parity Fixes:**
+  - Fixed F1: Aligned client `canApproveGate` to `firestore.rules` by removing overbroad executive/manager fallback on domain gates (`INSTRUCTOR_LEADER` and `OPS_LEAD`).
+  - Fixed F2: Removed `admin` exemption in `createApprovalEnvelope` so admin cannot bypass dual-control workflows.
+  - Addressed F4: Preserved `manager` role key and division scoping (`manager` + `branchId` + `division`).
+- **Phase 2 (P2) — Gate Schema Extension:**
+  - Extended `GATED_ACTIONS` schema across all 13 gates with `primaryController`, `requiredDomain`, `requiredScope`, `controlLevel`, `escalationTarget`, `delegationAllowed`, `separationRequired`, and `riskModifiers`.
+  - Added `evaluateActionRisk(actionId, context)` for contextual risk computation without hardcoded numbers.
+- **Phase 3 (P3) — Status Workflow, Escalation & Owner Decisions (§4.5):**
+  - Cash discrepancy tiers implemented in `getCashDiscrepancyApprover` (< 20k: Ops Lead; 20k–49.999k: Vice Director; >= 50k: Director). Cash drawer handler escalation enforced. Integrated into `createApprovalEnvelope` with support for `reconciliationData.discrepancy`.
+  - Executive shift self-correction (F3): Director and Vice Director review each other's in `getSelfCorrectionApprover`.
+  - Staff status/leave authorization (§4.5): Domain superiors review subordinates; leadership peers escalate to executives; executives review each other; 4-peer fallback chain when both executives are away; self-request strictly blocked.
+- **Phase 4 (P4) — Acting Director Delegation Framework:**
+  - Implemented `validateDelegation` requiring Director approved leave, excluding self-promotion / role elevation, and prohibiting double-signing.
+- **Phase 5 (P5) — Canonical Documentation & Parity Verification:**
+  - Updated `docs/specs/authorization-contract.md` with Section 6 covering dual-control, peer functional authorities, separation of duties, and materiality tiers.
+  - Fixed syntax error in `firestore.rules` at line 627 (extra closing parenthesis in `/approvals/{approvalId}` update rule).
+  - Aligned `securityRulesMatrix.helpers.js` `canUpdateApproval` to remove obsolete admin bypass.
+  - Verified 100% parity across all 13 gates in `securityRulesMatrix/approvals.test.js`.
+
+---
+
+## 6. Verification Results & Definition of Done
+
+- **Typecheck:** `npm run typecheck` (`tsc --noEmit`) $\rightarrow$ **PASSED** (0 errors).
+- **Lint:** `npm run lint` (`eslint .`) $\rightarrow$ **PASSED** (0 errors, 0 warnings).
+- **Unit & Security Matrix Tests:** `npm test` (`vitest run`) $\rightarrow$ **PASSED** (87 test suites passed, 1116 tests passed, 0 failures).
+- **Build:** `npm run build` (`vite build`) $\rightarrow$ **PASSED** (production client bundle and service worker built cleanly).
+- **Rules Parity:** 30 tests in `securityRulesMatrix/approvals.test.js` passed, verifying 100% parity between client `canApproveGate` and backend `isApproverForDoc`.
+- **Governance Status:**
+  - **G-001 through G-011:** **RESOLVED** and ratified by Owner / Director Kifry on 2026-10-07.
+  - Formally codified in [`docs/decisions/2026-10-07-resolution-of-governance-questions-g001-g011.md`](../../decisions/2026-10-07-resolution-of-governance-questions-g001-g011.md).
+  - Blueprint v3.3 Section 26 ratified and updated to Ratified Authoritative Baseline.
+- **Remaining Open Operational Items:**
+  - Cumulative cash-discrepancy limit per cashier (deferred for review after 1 month of operations).
+  - Controlled timeline for eventual deprecation of the legacy `branch_manager` alias in `roles.js` and `firestore.rules`.

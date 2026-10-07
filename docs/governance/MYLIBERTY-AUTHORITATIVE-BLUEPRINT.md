@@ -1,7 +1,7 @@
 # MyLiberty Portal — Authoritative Organizational, Authority & Rebuild Blueprint
 
 **Version:** 3.3  
-**Status:** PROPOSED AUTHORITATIVE BASELINE FOR OWNER APPROVAL  
+**Status:** RATIFIED AUTHORITATIVE BASELINE — APPROVED BY OWNER (KIFRY)  
 **Date:** 2026-10-07  
 **Scope:** Organizational identity, authority, access governance, workflow governance, data-scope principles, implementation derivation, and rebuild/re-foundation rules
 
@@ -1340,36 +1340,27 @@ Because no Branch Manager role exists in v3.1, any workflow that previously used
 
 ---
 
-# 26. Known Governance Questions — Owner Decision Register
+# 26. Owner Decision Register — Formally Ratified Resolutions (2026-10-07)
 
-The following questions are intentionally **not answered by technical agents**.
+The following governance decisions have been formally reviewed, ratified, and adopted by the **Owner / Director (Kifry)** on **2026-10-07** (recorded canonically in [`docs/decisions/2026-10-07-resolution-of-governance-questions-g001-g011.md`](../decisions/2026-10-07-resolution-of-governance-questions-g001-g011.md)).
 
-| ID | Decision required | Current state |
+| ID | Decision required | Ratified State & Approved Resolution |
 |---|---|---|
-| G-001 | Who is the formal authority for approving amendments to this blueprint? | **OPEN** |
-| G-002 | Who may appoint/revoke System Admin access and who oversees it? | **OPEN** |
-| G-003 | What is the exact reporting line of the Instructor Leader? | **OPEN** |
-| G-004 | What is the exact division of authority between Director and Vice Director, including the proposed Executive Dual-Control interpretation? | **PROPOSED RESOLUTION — Director = Strategic Control / strategic direction; Vice Director = Operational Control / executive execution, coordination, and multi-branch operational oversight; owner approval required** |
-| G-005 | Which real-world Kindergarten roles exist in addition to the Kindergarten Division Manager? | **OPEN** |
-| G-006 | Which actions are formally classified as sensitive? | **OPEN — candidate list exists in §17** |
-| G-007 | Who may approve each sensitive action? | **OPEN** |
-| G-008 | What is the limited-staff / absence / emergency approval procedure? | **OPEN — later phase** |
-| G-009 | What are the operational boundaries for financial correction, refund, discount, and price changes, including cash-drawer reconciliation ownership after removal of Branch Manager? | **PARTIALLY RESOLVED — executive approval decision remains; cash-drawer reconciliation authority requires explicit v3.1 reassignment** |
-| G-010 | Which governance changes require preservation as superseded historical decisions? | **OPEN — process principle established** |
-| G-011 | What detailed upward reporting/accountability arrangement applies to the branch-scope Course Division Manager, Kindergarten Division Manager, Operational Leader, and Instructor Leader? | **OPEN where not otherwise explicitly established by this blueprint** |
+| **G-001** | Who is the formal authority for approving amendments to this blueprint? | **RESOLVED — The Owner / Director (Kifry)** holds sole constitutional authority to approve and amend this Authoritative Blueprint. Technical agents and operational roles cannot unilaterally alter governance truth. |
+| **G-002** | Who may appoint/revoke System Admin access and who oversees it? | **RESOLVED — Appointment & revocation exclusively by the Director.** Dual-executive oversight (Director & Vice Director) via immutable audit logs. System Admin is strictly technical maintenance with **zero business or operational approval authority** (Blueprint §7). |
+| **G-003** | What is the exact reporting line of the Instructor Leader? | **RESOLVED — Upward to Executive Leadership.** Operationally reports to the **Vice Director** (scheduling, coverage, substitute teaching); strategically reports to the **Director** (curriculum standards, academic pedagogy). Instructors report directly to the Instructor Leader. |
+| **G-004** | What is the exact division of authority between Director and Vice Director, including the proposed Executive Dual-Control interpretation? | **RESOLVED — Executive Dual-Control Formally Adopted:**<br>• **Director — Strategic Control:** Strategic direction, school expansion, academic standards, tuition pricing policies, staff role elevation/deactivation, and final executive authority.<br>• **Vice Director — Operational Control:** Day-to-day execution, multi-branch operational coordination, operational exception follow-up, cross-branch issue resolution, and delegated executive approvals.<br>• Complementary domains; not universal joint-sign and not interchangeable automatic substitution. |
+| **G-005** | Which real-world Kindergarten roles exist in addition to the Kindergarten Division Manager? | **RESOLVED — Real-World Kindergarten Roles Established:**<br>• Kindergarten Division Manager (`manager` + `division: "kindergarten"`)<br>• Kindergarten Instructors (`instructor` + `division: "kindergarten"`)<br>• Kindergarten Learners (`student` + `division: "kindergarten"`) and linked Parents (`parent`)<br>• Front Office and Office Boy support the division either via explicit cross-divisional appointment (`division: "all"`) or campus facility scope (`division: null`). |
+| **G-006** | Which actions are formally classified as sensitive? | **RESOLVED — 13 Gated Actions Ratified:**<br>• **Strategic (Level 3):** `STAFF_ROLE_ELEVATION`, `STAFF_DEACTIVATION`<br>• **Executive Operational (Level 2):** `NEW_STAFF_ACCOUNT`, `DISCOUNT_OR_REFUND`<br>• **Domain Operations (Level 1):** `TUITION_PLAN_CHANGE`, `STUDENT_WITHDRAWAL_OR_FREEZE`, `PLACEMENT_LEVEL_OVERRIDE`, `SUBSTITUTE_INSTRUCTOR`, `CLASS_CANCELLATION_OR_RESCHEDULE`, `RETROACTIVE_STUDENT_ATTENDANCE`, `STUDENT_CLASS_TRANSFER`<br>• **Dynamic Tiers:** `STAFF_SHIFT_SELF_CORRECTION`, `CASH_DISCREPANCY`, `STAFF_STATUS_CHANGE`. |
+| **G-007** | Who may approve each sensitive action? | **RESOLVED — Authorized Approvers Assigned:**<br>• Director (`director`): `STAFF_ROLE_ELEVATION`, `STAFF_DEACTIVATION`<br>• Director / Vice Director (`director`, `vice_director`): `NEW_STAFF_ACCOUNT`, `DISCOUNT_OR_REFUND`<br>• Division Manager (`manager`): `TUITION_PLAN_CHANGE`, `STUDENT_WITHDRAWAL_OR_FREEZE`<br>• Instructor Leader (`instructorleader`): `PLACEMENT_LEVEL_OVERRIDE`, `SUBSTITUTE_INSTRUCTOR`<br>• Operations Lead / Front Office (`opslead`, `frontoffice`): `CLASS_CANCELLATION_OR_RESCHEDULE`, `RETROACTIVE_STUDENT_ATTENDANCE`, `STUDENT_CLASS_TRANSFER`<br>• Dynamic workflows resolved by hierarchy; executives review each other (Director $\leftrightarrow$ Vice Director). |
+| **G-008** | What is the limited-staff / absence / emergency approval procedure? | **RESOLVED — Resilience & Absence Workflow Ratified:**<br>• **Acting Director Delegation:** Vice Director acts as Acting Director **only** while Director has active, approved leave status. Strictly excludes role elevations, executive authority modification, and self-actions. Delegate cannot act as second signer if already signed.<br>• **Absence Escalation:** Unavailable leader's requests escalate upward to executive layer; peer leaders never cover peer leaders.<br>• **Both Executives Away (Status Records Only):** Status records fall back in order: Course Div Manager $\rightarrow$ Kindergarten Div Manager $\rightarrow$ Ops Lead $\rightarrow$ Instructor Leader. High-level business gates wait; deadlock covered by console break-glass runbook.<br>• **Separation of Duties:** Never share accounts or create fake users. |
+| **G-009** | What are the operational boundaries for financial correction, refund, discount, and price changes, including cash-drawer reconciliation ownership after removal of Branch Manager? | **RESOLVED — Tiered Cash Discrepancy & Financial Authority Ratified:**<br>• **< Rp 20.000:** Approved by Operational Leader (`opslead`). Escalates to Vice Director if Ops Lead handled the drawer.<br>• **Rp 20.000 – Rp 49.999:** Approved by Vice Director (`vice_director`).<br>• **$\ge$ Rp 50.000:** Approved by Director (`director`) (or Vice Director as Acting Director if Director on approved leave).<br>• Drawer handler cannot approve discrepancy (Maker $\ne$ Checker).<br>• Routine tuition collections executed directly without approval envelopes.<br>• Discounts and refunds strictly restricted to Executive layer (`director`, `vice_director`). |
+| **G-010** | Which governance changes require preservation as superseded historical decisions? | **RESOLVED — Supersession Protocol Ratified:** Historical records under `docs/decisions/` are preserved rather than deleted. Superseded decisions are tagged with `Status: SUPERSEDED BY ADR-XXX` / `Blueprint v3.3` with date, rationale, and link to the governing document. |
+| **G-011** | What detailed upward reporting/accountability arrangement applies to the branch-scope Course Division Manager, Kindergarten Division Manager, Operational Leader, and Instructor Leader? | **RESOLVED — Peer Accountability & Executive Dual-Reporting Ratified:** The four branch leadership roles are functional peers. Daily operational execution, exception coordination, and multi-branch tracking report upward to the **Vice Director** (Operational Control). Academic curriculum standards, strategic planning, and major policy escalations report upward to the **Director** (Strategic Control). |
 
-### Rule for open decisions
+### Rule for resolved decisions
 
-An OPEN decision is not a license to guess.
-
-Until resolved:
-
-1. preserve the currently established organizational responsibility;
-2. avoid granting broader authority than necessary;
-3. document the gap;
-4. do not create a new organizational role without approval;
-5. do not weaken a security boundary to unblock implementation;
-6. do not silently map removed Branch Manager authority to another branch-scope role.
+All governance items G-001 through G-011 are formally resolved and binding across all software layers. Implementation agents must strictly enforce these contracts without introducing unapproved deviations.
 
 ---
 

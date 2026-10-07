@@ -39,7 +39,7 @@ AUDITS (docs/audits/)
 
 | Document | Status | Description |
 |---|---|---|
-| [`MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](./MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md) | Proposed Authoritative Baseline for Owner Approval | Version 3.0: Definitive organizational identity, hierarchy, roles, system-admin separation, data scope, Maker-Checker signer governance, and rebuild/re-foundation doctrine. |
+| [`MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](./MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md) | Proposed Authoritative Baseline for Owner Approval | Version 3.3: Definitive organizational identity, hierarchy, roles, removal of Branch Manager (v3.1), Executive Dual-Control Model (Director Strategic Control vs. Vice Director Operational Control; Principles 15 & 16), System Admin separation, data scope, Maker-Checker dual-control, and rebuild/re-foundation doctrine. |
 
 ---
 
@@ -48,9 +48,11 @@ AUDITS (docs/audits/)
 The blueprint is authoritative for:
 - Organizational structure (4 physical branches, 2 divisions: Course Division & Kindergarten Division);
 - Established organizational roles and reporting lines;
+- Complementary **Executive Dual-Control Model** separating Director Strategic Control from Vice Director Operational Control (Principles 15 & 16);
+- **Removal of Branch Manager / Branch Head** (physical branches are organizational & data-scope boundaries, not managerial roles; distinct branch-scope leadership functions: Course Division Manager, Kindergarten Division Manager, Operational Leader, Instructor Leader);
 - Durable authority boundaries;
 - **Separation of organizational authority from technical system administration** (System Admin is technical access, not an organizational role);
-- Access-governance and data-scope principles;
+- Access-governance and data-scope principles (executive visibility does not imply operational execution authority);
 - Workflow governance and dual-control / separation-of-duties principles;
 - Constraints placed on human and AI implementation agents;
 - Safe rebuild / re-foundation doctrine.

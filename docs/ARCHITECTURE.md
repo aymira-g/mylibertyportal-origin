@@ -64,11 +64,16 @@ Where any technical decision intersects with an organizational authority boundar
    High-risk operations (tuition discounts, cash reconciliation discrepancies, staff departure, role elevation) require dual-control authorization ([`Blueprint §14–16`](./governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md#14-workflow-governance)). The architecture provides dedicated approval queues and prevents self-approval.
 6. **Dashboard Authority Rule:**  
    Dashboards are presentation interfaces, not authority sources ([`Blueprint §13`](./governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md#13-dashboard-authority-rule)). Backend security rules and repositories must enforce authorization independently of whether a UI element is visible.
-7. **No Implicit Branch-Wide Manager (Blueprint v3.1 §5):**  
+7. **No Implicit Branch-Wide Manager (Blueprint v3.1 §5 / v3.3 §5.5):**  
    The concept of Branch Manager / Branch Head is removed from the organizational model. A physical branch is an organizational unit and data-scope boundary (`branchId`), not a managerial role. The technical `role: "manager"` represents an organizational Division Manager bound to their specific branch and division (`manager + branchId + division`), such that:
    - `manager + division="courses"` $\rightarrow$ Course Division Manager authority;
    - `manager + division="kindergarten"` $\rightarrow$ Kindergarten Division Manager authority.  
    There is no implicit branch-wide manager authority. Existing codebase paths using `manager` remain bounded by their assigned `branchId` and `division`.
+8. **Executive Dual-Control Architecture (Blueprint v3.3 §0, §5.4, Principles 15 & 16):**  
+   The technical architecture separates Director Strategic Control from Vice Director Operational Control:
+   - Dedicated dashboard panels enforce domain boundaries: Strategic Planning, strategic performance assessment, and province-wide targets belong to the Director (`DirectorDashboard.jsx`), while operational health monitoring, exception coordination, and multi-branch follow-up belong to the Vice Director (`ExecutiveDashboard.jsx` / `BranchOperationalHealthPanel.jsx`).
+   - Executive visibility does not confer blanket operational write or execution authority (Principle 16). Oversight access is distinct from operational transaction authority; transactional changes remain owned by front-office and division actors.
+   - Complementary dual-control does not collapse into universal joint approval for every transaction. Transactional approvals remain governed by explicit Maker-Checker / Signer workflows.
 
 ---
 
@@ -616,3 +621,4 @@ When a feature intentionally changes architecture:
 | 2026-09-24 | Multi-Branch Isolation & Dual-Control Approvals | Implemented branchId normalization across admissions, payments, shifts, outreach, and inquiries with Firestore rule scoping; added Maker-Checker Approval Registry, repository, and dashboard inboxes |
 | 2026-09-27 | Parent + Student + Class Roster Architecture | Implemented role: "parent" in users collection, childStudentIds linkage, parent authorization rules (isParentOf), Front Office linkage UI, composite indexes, and lazy-loaded ParentDashboard |
 | 2026-10-06 | Blueprint v3.1 Hierarchy Reconciliation | Reconciled architecture with Blueprint v3.1 removal of Branch Manager / Branch Head. Technical role 'manager' is interpreted as Division Manager bound by branchId and division. Physical branch is confirmed as a data-scope boundary, not a managerial authority. |
+| 2026-10-07 | Blueprint v3.3 Executive Dual-Control Model Reconciliation | Reconciled technical architecture with Blueprint v3.3 Executive Dual-Control Model (Principles 15 & 16, §5.4). Differentiated Strategic Control (Director) from Operational Control (Vice Director), enforced panel domain separation in executive dashboard, established that executive oversight visibility does not grant blanket operational write permissions, and updated Blueprint references to v3.3. |

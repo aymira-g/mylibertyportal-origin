@@ -330,7 +330,7 @@ export function BranchOperationalHealthPanel({
           </h4>
         </div>
         <p className="text-xs text-slate-600 font-medium leading-relaxed">
-          Under <strong>Authoritative Blueprint v3.2 §6.2 &amp; §6.3</strong>, the Vice Director translates approved priorities into operational coordination across physical campuses.
+          Under <strong>Authoritative Blueprint v3.3 §6.2 &amp; §6.3</strong>, the Vice Director translates approved priorities into operational coordination across physical campuses.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-1">
           <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-1">

@@ -183,7 +183,7 @@ export function StrategicPlanningPanel({
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
             <span className="font-bold text-slate-900 block">Dual-Control Maker-Checker Authority</span>
             <p className="text-slate-600 leading-relaxed font-medium">
-              Separation of duties is enforced between Front Office / Division Managers and the Executive Directorate. Formal strategic objective lifecycle workflows remain open governance items (Blueprint v3.2 §26).
+              Separation of duties is enforced between Front Office / Division Managers and the Executive Directorate. Formal strategic objective lifecycle workflows remain open governance items (Blueprint v3.3 §26).
             </p>
           </div>
         </div>

@@ -85,16 +85,23 @@ Before making decisions concerning:
    - a role sounds senior;
    - or a feature appears to require a permission.
 3. **Separation of System Admin from the Organization:** System Admin is a technical system-access role, not an organizational position. It does not inherit Director, Vice Director, Division Manager, or business approval authority. Technical access must never be used to bypass organizational approval chains or self-privilege-escalate.
-4. **Current Implementation as a Reconciliation Target:** The existing application is the starting implementation to be reconciled to the blueprint through controlled, evidence-based change — not the authority that defines the desired organizational model. Do not assume every existing permission is correct merely because it exists, nor assume it is wrong merely because it differs from v3.1.
+4. **Current Implementation as a Reconciliation Target:** The existing application is the starting implementation to be reconciled to the blueprint through controlled, evidence-based change — not the authority that defines the desired organizational model. Do not assume every existing permission is correct merely because it exists, nor assume it is wrong merely because it differs from v3.1–v3.3.
 5. **Preserve Explicit Governance Gaps:** Where the blueprint records an unresolved decision (e.g. §26 Owner Decision Register), preserve that open state. An undefined governance rule is a governance gap, not permission for an implementation agent to invent a rule.
 6. **No Unilateral Blueprint Implementation:** Do not redesign dashboards, change Firestore rules, or alter role permissions based on the blueprint unless explicitly instructed in an approved, scoped implementation task.
-7. **No Branch Manager / Branch Head Concept (Blueprint v3.1 §5.4):** The concept of Branch Manager / Branch Head is removed from the organizational model. Agents must **not** invent or recreate Branch Manager under another name such as "Branch Head", "Site Manager", "Branch Lead", or an equivalent catch-all authority.
+7. **No Branch Manager / Branch Head Concept (Blueprint v3.1 §5.4 / v3.3 §5.5):** The concept of Branch Manager / Branch Head is removed from the organizational model. Agents must **not** invent or recreate Branch Manager under another name such as "Branch Head", "Site Manager", "Branch Lead", or an equivalent catch-all authority.
 8. **Physical Branch is Scope, Not a Role (Blueprint v3.1 §5.1):** A physical branch is an organizational and data-scope boundary (`branchId`), NOT a managerial authority role. Agents must not interpret a physical branch as an implicit catch-all manager.
 9. **No Silent Transfer of Removed Authority (Blueprint v3.1 §5.2, Principle 14):** Removing Branch Manager does not automatically transfer former Branch Manager permissions or approvals to the Course Division Manager, Kindergarten Division Manager, Operational Leader, Instructor Leader, or any other role. If no authoritative reassignment exists, record it as an explicit governance gap.
 10. **Semantic Interpretation of Manager:** The technical `manager` role represents an organizational Division Manager bound to their specific branch and division (`manager + branchId + division`), never branch-wide authority by default.
     - `manager + division="courses"` $\rightarrow$ Course Division Manager authority.
     - `manager + division="kindergarten"` $\rightarrow$ Kindergarten Division Manager authority.
 11. **Reconciliation vs. Restoring Old Model:** When encountering legacy Branch Manager behavior or terminology in code, report it as legacy/drift requiring reconciliation rather than silently restoring the old model.
+12. **Executive Dual-Control Model (Blueprint v3.3 §0, §5.4, Principle 15):** Director and Vice Director represent complementary executive control domains:
+    - **Director — Strategic Control:** strategic direction, province-wide strategic performance assessment, major executive decisions, and final executive authority where explicitly assigned.
+    - **Vice Director — Operational Control:** execution, coordination, multi-branch operational oversight, exception follow-up, corrective-action coordination, and delegated executive authority.
+    - Complementary control does not mean equal authority, universal joint approval for all sensitive actions, or unrestricted CRUD over business domains.
+    - The Vice Director does not become unrestricted Acting Director merely because the Director is absent or unavailable.
+    - The model remains a proposed baseline pending formal owner ratification; agents must not treat Director and Vice Director as interchangeable or collapse them into generic Admin semantics.
+13. **Executive Visibility Does Not Imply Execution Authority (Blueprint v3.3 Principle 16):** Broad cross-branch visibility required for strategic or operational oversight does not confer operational execution or business-write authority outside explicitly assigned workflows. Operational data mutations remain strictly owned by their respective domain actors (Front Office, Division Managers).
 
 ### Architecture authority
 

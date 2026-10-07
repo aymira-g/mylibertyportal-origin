@@ -292,7 +292,7 @@ export function BranchPerformancePanel({
       <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 text-xs text-slate-600 space-y-1.5">
         <div className="flex items-center gap-2 text-slate-800 font-bold">
           <Award className="w-4 h-4 text-[#1a3a8f]" />
-          <span>Governance &amp; Authority Model (Blueprint v3.1 §5 &amp; §6.1)</span>
+          <span>Governance &amp; Authority Model (Blueprint v3.3 §5 &amp; §6.1)</span>
         </div>
         <p className="leading-relaxed font-medium">
           The Director evaluates comparative multi-branch metrics and strategic targets. Day-to-day batch scheduling, cohort room assignments, and staff coordination belong to local branch leaders (Course Division Manager, Kindergarten Division Manager, Operational Leader, and Instructor Leader).

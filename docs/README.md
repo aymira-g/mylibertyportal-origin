@@ -122,7 +122,7 @@ Audits are **verification mechanisms**, not governance authorities. They verify 
 The foundational governance baseline that defines the organization, roles, authority boundaries, and operating principles:
 
 * **[`governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](./governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md)**  
-  **Authoritative Organizational, Authority & Rebuild Blueprint (v3.1):** Defines 4 physical branches as organizational/data-scope boundaries, removal of Branch Manager / Branch Head, 4 distinct branch-scope leadership functions (Course Division Manager, Kindergarten Division Manager, Operational Leader, Instructor Leader), strict separation of System Admin from organizational roles, data scope, simplified Maker-Checker / Signer governance, and safe rebuild doctrine.
+  **Authoritative Organizational, Authority & Rebuild Blueprint (v3.3):** Defines the complementary Executive Dual-Control Model separating Director Strategic Control from Vice Director Operational Control (Principles 15 & 16), 4 physical branches as organizational/data-scope boundaries, removal of Branch Manager / Branch Head (v3.1), 4 distinct branch-scope leadership functions (Course Division Manager, Kindergarten Division Manager, Operational Leader, Instructor Leader), strict separation of System Admin from organizational roles, data scope, simplified Maker-Checker / Signer governance, and safe rebuild doctrine.
 
 ---
 

@@ -22,10 +22,13 @@ $$\text{User Access Scope} = \text{ROLE (Capability)} \times \text{BRANCH (Organ
 **Key Axiom:** Division is a functional scope, **not** an entitlement automatically bundled with a role. No staff role is permanently or inherently forced into a single division scope unless constrained by an explicit business rule.
 
 > [!IMPORTANT]
-> **Blueprint v3.1 Organizational Model:**  
-> The concept of **Branch Manager / Branch Head is removed from the organizational model** ([`Blueprint §5.4`](../governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md#54-explicit-removal-of-the-branch-manager-layer)).  
+> **Blueprint v3.1–v3.3 Organizational Model:**  
+> The concept of **Branch Manager / Branch Head is removed from the organizational model** ([`Blueprint §5.5`](../governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md#55-explicit-removal-of-the-branch-manager-layer)).  
 > A physical branch is an organizational and data-scope boundary, **not** a managerial authority role. There is no implicit branch-wide manager. Authority requires the full conjunction:  
 > $$\text{Role} + \text{Branch Scope} + \text{Division Scope} + \text{Capability} + \text{Workflow State} = \text{Authorized Action}$$
+>
+> **Executive Dual-Control Model (Blueprint v3.3 §0, §5.4, Principles 15 & 16):**  
+> Executive leadership is partitioned into complementary domains: Strategic Control (`director`) and Operational Control (`vice_director`). Executive roles hold province-wide cross-branch oversight and cross-divisional visibility (`division: "all"`), but **executive oversight visibility does not imply execution authority** (Principle 16). Day-to-day operational mutations remain strictly owned by designated domain roles.
 
 ---
 
@@ -47,8 +50,10 @@ $$\text{User Access Scope} = \text{ROLE (Capability)} \times \text{BRANCH (Organ
 
 | Role | May Have `division = null`? | Allowed Division Scopes | Mandatory Constraint & Rationale |
 |---|:---:|---|---|
+| **`director`** | **NO** | `"all"` | **Strategic Control (Province-Wide).** Province-wide strategic oversight, strategic planning, executive approvals (Blueprint v3.3 §5.4.1). Visibility does not confer operational write authority (Principle 16). |
+| **`vice_director`** | **NO** | `"all"` | **Operational Control (Province-Wide).** Multi-branch operational oversight, exception coordination, delegated executive approvals (Blueprint v3.3 §5.4.2). Not an unrestricted acting director; visibility does not confer operational write authority (Principle 16). |
 | **`officeboy`** | **YES (Required)** | `null` | **Division-Independent.** Facility maintenance, cleaning, supply logistics, and classroom setup are campus-wide and must never be blocked by academic division boundaries. |
-| **`admin`** | Permitted (Canonically `"all"`) | `"all"`, `null` | **Global Authority.** System administrator holds cross-branch and cross-divisional authorization by role hierarchy. |
+| **`admin`** | Permitted (Canonically `"all"`) | `"all"`, `null` | **Technical System Maintenance Only.** System administrator holds technical platform access for maintenance, user provisioning, terminals, and diagnostics (Blueprint §7). Does not inherit business or approval authority. |
 | **`manager`** | **NO** | `"courses"`, `"kindergarten"`, `"all"` | **Division Management Oversight.** In Blueprint v3.1, `manager` does not represent a catch-all Branch Manager or Branch Head. A user with `role: "manager"` is an organizational Division Manager bound to their specific branch and division (`manager + branchId + division`):<br>• `manager + division="courses"` $\rightarrow$ Course Division Manager.<br>• `manager + division="kindergarten"` $\rightarrow$ Kindergarten Division Manager.<br>• Cross-divisional (`"all"`) is an explicit administrative exception and does not create an implicit single-branch head. |
 | **`frontoffice`** | **NO** | `"courses"`, `"kindergarten"`, `"all"` | **Reception & Cashier.** Front desk staff register students and collect fees; they must be bound to a specific division or explicit cross-divisional scope. |
 | **`opslead`** | **NO** | `"courses"`, `"kindergarten"`, `"all"` | **Front Desk Operations Lead.** Same operational requirements as Front Office. |

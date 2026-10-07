@@ -430,7 +430,7 @@ export default function DirectorDashboard() {
               </span>
             </div>
             <p className="text-xs text-slate-600 font-medium leading-relaxed">
-              Under Authoritative Blueprint v3.2 §17, §18 &amp; §26 (G-006/G-007), high-impact sensitive actions require independent executive sign-off. Requesters cannot approve their own submissions, and specific approval thresholds remain strictly bound to approved governance rules.
+              Under Authoritative Blueprint v3.3 §17, §18 &amp; §26 (G-006/G-007), high-impact sensitive actions require independent executive sign-off. Requesters cannot approve their own submissions, and specific approval thresholds remain strictly bound to approved governance rules.
             </p>
           </div>
           <ErrorBoundary label="Director Decision Center">

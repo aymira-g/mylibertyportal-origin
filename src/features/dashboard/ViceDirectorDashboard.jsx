@@ -401,8 +401,13 @@ export default function ViceDirectorDashboard() {
             applications={filteredApplications}
             classes={filteredClasses}
             users={users}
+            readOnly={true}
             onApproveAndEdit={null}
-            onViewStudent={null}
+            onViewStudent={(student) => {
+              if (!student) return;
+              setSelectedStudent(student);
+              handleTabChange("students");
+            }}
           />
         </div>
       ),

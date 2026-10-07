@@ -37,6 +37,7 @@ export default function StudentApplications({
   applications = [],
   classes = [],
   users = [],
+  readOnly = false,
   onApproveAndEdit = null,
   onViewStudent = null,
 }) {
@@ -357,6 +358,7 @@ export default function StudentApplications({
               classes={classes}
               applications={applications}
               isProcessing={processingId === app.id}
+              readOnly={readOnly}
               onApprove={setPlacementApp}
               onReject={setRejectingApp}
               onRestore={handleRestore}

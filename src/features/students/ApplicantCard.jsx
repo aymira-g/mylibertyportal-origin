@@ -18,17 +18,18 @@ import {
 
 export function ApplicantCard({
   app,
-  activeView,
-  users,
-  classes,
-  applications,
-  isProcessing,
-  onApprove,
-  onReject,
-  onRestore,
-  onDelete,
-  onViewStudent,
-  onApproveAndEdit,
+  activeView = "pending",
+  users = [],
+  classes = [],
+  applications = [],
+  isProcessing = false,
+  readOnly = false,
+  onApprove = null,
+  onReject = null,
+  onRestore = null,
+  onDelete = null,
+  onViewStudent = null,
+  onApproveAndEdit = null,
 }) {
   const duplicates = findDuplicates(app, users, applications);
   const applicantWa = buildApplicantWhatsAppUrl({ target: "applicant", app });
@@ -152,84 +153,86 @@ export function ApplicantCard({
         </div>
 
         {/* Actions Column */}
-        <div className="flex gap-2 shrink-0 sm:flex-col sm:w-32">
-          {activeView === "pending" && (
-            <>
-              <button
-                type="button"
-                onClick={() => onApprove(app)}
-                disabled={isProcessing}
-                className="flex-1 py-2 px-3 rounded-xl font-extrabold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
-              >
-                <Check className="w-3.5 h-3.5" />
-                <span>Approve</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onReject(app)}
-                disabled={isProcessing}
-                className="flex-1 py-2 px-3 rounded-xl font-bold text-xs bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 border border-slate-200 hover:border-rose-200 transition flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" />
-                <span>Reject</span>
-              </button>
-            </>
-          )}
+        {(!readOnly || applicantWa || parentWa) && (
+          <div className="flex gap-2 shrink-0 sm:flex-col sm:w-32">
+            {!readOnly && activeView === "pending" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onApprove(app)}
+                  disabled={isProcessing}
+                  className="flex-1 py-2 px-3 rounded-xl font-extrabold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Approve</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onReject(app)}
+                  disabled={isProcessing}
+                  className="flex-1 py-2 px-3 rounded-xl font-bold text-xs bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 border border-slate-200 hover:border-rose-200 transition flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Reject</span>
+                </button>
+              </>
+            )}
 
-          {activeView === "rejected" && (
-            <>
-              <button
-                type="button"
-                onClick={() => onRestore(app)}
-                disabled={isProcessing}
-                className="flex-1 py-1.5 px-3 rounded-xl font-bold text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-              >
-                {isProcessing ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <RotateCcw className="w-3.5 h-3.5" />
-                )}
-                <span>Restore</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onDelete(app)}
-                disabled={isProcessing}
-                className="flex-1 py-1.5 px-3 rounded-xl font-bold text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Delete</span>
-              </button>
-            </>
-          )}
+            {!readOnly && activeView === "rejected" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onRestore(app)}
+                  disabled={isProcessing}
+                  className="flex-1 py-1.5 px-3 rounded-xl font-bold text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isProcessing ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  )}
+                  <span>Restore</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete(app)}
+                  disabled={isProcessing}
+                  className="flex-1 py-1.5 px-3 rounded-xl font-bold text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete</span>
+                </button>
+              </>
+            )}
 
-          {/* WhatsApp Outreach */}
-          {applicantWa && (
-            <a
-              href={applicantWa}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 py-1.5 px-2 rounded-xl font-bold text-[11px] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition flex items-center justify-center gap-1 shadow-2xs text-center"
-              title="Follow up with applicant on WhatsApp"
-            >
-              <MessageCircle className="w-3 h-3 text-emerald-600 shrink-0" />
-              <span>WA Chat</span>
-            </a>
-          )}
+            {/* WhatsApp Outreach (Only in non-readOnly mode) */}
+            {!readOnly && applicantWa && (
+              <a
+                href={applicantWa}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 py-1.5 px-2 rounded-xl font-bold text-[11px] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition flex items-center justify-center gap-1 shadow-2xs text-center"
+                title="Follow up with applicant on WhatsApp"
+              >
+                <MessageCircle className="w-3 h-3 text-emerald-600 shrink-0" />
+                <span>WA Chat</span>
+              </a>
+            )}
 
-          {parentWa && (
-            <a
-              href={parentWa}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 py-1.5 px-2 rounded-xl font-bold text-[11px] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition flex items-center justify-center gap-1 shadow-2xs text-center"
-              title="Follow up with parent on WhatsApp"
-            >
-              <MessageCircle className="w-3 h-3 text-emerald-600 shrink-0" />
-              <span>WA Parent</span>
-            </a>
-          )}
-        </div>
+            {!readOnly && parentWa && (
+              <a
+                href={parentWa}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 py-1.5 px-2 rounded-xl font-bold text-[11px] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition flex items-center justify-center gap-1 shadow-2xs text-center"
+                title="Follow up with parent on WhatsApp"
+              >
+                <MessageCircle className="w-3 h-3 text-emerald-600 shrink-0" />
+                <span>WA Parent</span>
+              </a>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Audit metadata for Approved & Rejected views */}

@@ -4,13 +4,20 @@ export function OperationalBottlenecksSection({
   classesWithIssues,
   totalBottlenecks,
   onNavigate,
+  division = "courses",
 }) {
+  const isKindergarten = division === "kindergarten";
+
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <span>⚡ Course Operational Bottlenecks &amp; Action Required</span>
+            <span>
+              {isKindergarten
+                ? "⚡ Kindergarten Operational Bottlenecks & Action Required"
+                : "⚡ Course Operational Bottlenecks & Action Required"}
+            </span>
             {totalBottlenecks > 0 && (
               <span className="px-2 py-0.5 rounded-full text-xs font-black bg-rose-100 text-rose-700">
                 {totalBottlenecks}
@@ -18,7 +25,9 @@ export function OperationalBottlenecksSection({
             )}
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Active course division items slowing down student enrollment, batch placement, or class coverage.
+            {isKindergarten
+              ? "Active kindergarten division items slowing down learner enrollment, room/cohort placement, or class coverage."
+              : "Active course division items slowing down student enrollment, batch placement, or class coverage."}
           </p>
         </div>
       </div>
@@ -35,7 +44,7 @@ export function OperationalBottlenecksSection({
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                📝 Pending Course Leads
+                {isKindergarten ? "📝 Pending Kindergarten Leads" : "📝 Pending Course Leads"}
               </span>
               <span
                 className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
@@ -50,7 +59,9 @@ export function OperationalBottlenecksSection({
             {pendingApplications.length > 0 ? (
               <div className="space-y-2 mb-3">
                 <p className="text-xs text-amber-900 font-medium">
-                  Leads waiting for Course Marketing / Front Office follow-up:
+                  {isKindergarten
+                    ? "Leads waiting for Kindergarten / Front Office follow-up:"
+                    : "Leads waiting for Course Marketing / Front Office follow-up:"}
                 </p>
                 <div className="space-y-1.5 max-h-36 overflow-y-auto">
                   {pendingApplications.slice(0, 3).map((app) => (
@@ -62,7 +73,7 @@ export function OperationalBottlenecksSection({
                         {app.fullName || app.name || "New Applicant"}
                       </p>
                       <p className="text-[11px] text-slate-500">
-                        {app.program || "English Program"} · {app.phone || "No phone"}
+                        {app.program || (isKindergarten ? "Kindergarten Program" : "English Program")} · {app.phone || "No phone"}
                       </p>
                     </div>
                   ))}
@@ -75,16 +86,18 @@ export function OperationalBottlenecksSection({
               </div>
             ) : (
               <p className="text-xs text-slate-500 py-3">
-                ✓ All course applicant leads have been contacted and processed.
+                {isKindergarten
+                  ? "✓ All kindergarten applicant leads have been contacted and processed."
+                  : "✓ All course applicant leads have been contacted and processed."}
               </p>
             )}
           </div>
           {pendingApplications.length > 0 && (
             <button
-              onClick={() => onNavigate("tasks")}
+              onClick={() => onNavigate(isKindergarten ? "inquiries" : "tasks")}
               className="w-full mt-2 py-2 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition shadow-sm cursor-pointer"
             >
-              Delegate Lead Follow-up →
+              {isKindergarten ? "Follow Up in Inquiries →" : "Delegate Lead Follow-up →"}
             </button>
           )}
         </div>
@@ -100,7 +113,7 @@ export function OperationalBottlenecksSection({
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                ⚠️ Unplaced Course Students
+                {isKindergarten ? "⚠️ Unplaced Kindergarten Learners" : "⚠️ Unplaced Course Students"}
               </span>
               <span
                 className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
@@ -115,7 +128,9 @@ export function OperationalBottlenecksSection({
             {unenrolledStudents.length > 0 ? (
               <div className="space-y-2 mb-3">
                 <p className="text-xs text-rose-900 font-medium">
-                  Active course students not yet placed into a class batch:
+                  {isKindergarten
+                    ? "Active kindergarten learners not yet placed into a class cohort:"
+                    : "Active course students not yet placed into a class batch:"}
                 </p>
                 <div className="space-y-1.5 max-h-36 overflow-y-auto">
                   {unenrolledStudents.slice(0, 3).map((stu) => (
@@ -127,7 +142,7 @@ export function OperationalBottlenecksSection({
                         {stu.displayName || stu.firstName || "Student"}
                       </p>
                       <p className="text-[11px] text-slate-500">
-                        {stu.program || stu.branch || "General"} · Level:{" "}
+                        {stu.program || stu.branch || (isKindergarten ? "Early Childhood" : "General")} · Level:{" "}
                         {stu.currentLevel || "Unset"}
                       </p>
                     </div>
@@ -141,7 +156,9 @@ export function OperationalBottlenecksSection({
               </div>
             ) : (
               <p className="text-xs text-slate-500 py-3">
-                ✓ 100% Student Placement. Every active course student is assigned to a class batch.
+                {isKindergarten
+                  ? "✓ 100% Learner Placement. Every active kindergarten learner is assigned to a class cohort."
+                  : "✓ 100% Student Placement. Every active course student is assigned to a class batch."}
               </p>
             )}
           </div>
@@ -150,7 +167,7 @@ export function OperationalBottlenecksSection({
               onClick={() => onNavigate("classes")}
               className="w-full mt-2 py-2 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-sm cursor-pointer"
             >
-              Assign to Open Batches →
+              {isKindergarten ? "Assign to Open Cohorts →" : "Assign to Open Batches →"}
             </button>
           )}
         </div>
@@ -166,7 +183,7 @@ export function OperationalBottlenecksSection({
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                🏫 Course Coverage Alerts
+                {isKindergarten ? "🏫 Kindergarten Coverage Alerts" : "🏫 Course Coverage Alerts"}
               </span>
               <span
                 className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
@@ -181,7 +198,9 @@ export function OperationalBottlenecksSection({
             {classesWithIssues.length > 0 ? (
               <div className="space-y-2 mb-3">
                 <p className="text-xs text-purple-900 font-medium">
-                  Course classes with missing instructor or room allocation:
+                  {isKindergarten
+                    ? "Kindergarten classes with missing teacher or room allocation:"
+                    : "Course classes with missing instructor or room allocation:"}
                 </p>
                 <div className="space-y-1.5 max-h-36 overflow-y-auto">
                   {classesWithIssues.slice(0, 3).map((cls) => (
@@ -195,12 +214,12 @@ export function OperationalBottlenecksSection({
                       <div className="flex gap-1.5 mt-0.5 flex-wrap">
                         {cls.needsInstructor && (
                           <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-rose-100 text-rose-800">
-                            Missing Instructor
+                            {isKindergarten ? "Missing Teacher" : "Missing Instructor"}
                           </span>
                         )}
                         {cls.instructorInactive && (
                           <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
-                            Instructor Inactive
+                            {isKindergarten ? "Teacher Inactive" : "Instructor Inactive"}
                           </span>
                         )}
                         {cls.needsRoom && (
@@ -220,7 +239,9 @@ export function OperationalBottlenecksSection({
               </div>
             ) : (
               <p className="text-xs text-slate-500 py-3">
-                ✓ All active course classes have confirmed instructors and room assignments.
+                {isKindergarten
+                  ? "✓ All active kindergarten classes have confirmed teachers and room assignments."
+                  : "✓ All active course classes have confirmed instructors and room assignments."}
               </p>
             )}
           </div>

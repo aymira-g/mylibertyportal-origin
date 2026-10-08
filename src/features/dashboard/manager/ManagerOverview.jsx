@@ -40,7 +40,28 @@ export function ManagerOverview({
   branchPayments = [],
   paymentsLoading = false,
   onRefreshPayments = null,
+  division = "courses",
+  portalLabel = null,
+  roleLabel = null,
+  fallbackName = null,
+  subtitle = null,
+  cashSummaryTitle = null,
+  showOutreach = undefined,
 }) {
+  const isKindergarten = division === "kindergarten";
+  const effectivePortalLabel =
+    portalLabel || (isKindergarten ? "Kindergarten Division Command" : "Course Division Command");
+  const effectiveRoleLabel =
+    roleLabel || (isKindergarten ? "Kindergarten Division Manager" : "Course Division Manager");
+  const effectiveFallbackName =
+    fallbackName || (isKindergarten ? "Kindergarten Division Manager" : "Course Division Manager");
+  const effectiveSubtitle =
+    subtitle ||
+    (isKindergarten
+      ? `Kindergarten academic programs, early childhood development, classroom coverage, and division performance for ${myBranch} Campus.`
+      : `Course academic programs, student enrollment, classroom coverage, and division performance for ${myBranch} Campus.`);
+  const effectiveShowOutreach = showOutreach !== undefined ? showOutreach : !isKindergarten;
+
   const totalBottlenecks =
     pendingApplications.length + unenrolledStudents.length + classesWithIssues.length;
 
@@ -52,12 +73,12 @@ export function ManagerOverview({
 
   return (
     <div className="w-full space-y-6">
-      {/* Course Division Command & Welcome Banner */}
+      {/* Division Command & Welcome Banner */}
       <WelcomeBanner
-        portalLabel="Course Division Command"
-        roleLabel="Course Division Manager"
-        fallbackName="Course Division Manager"
-        subtitle={`Course academic programs, student enrollment, classroom coverage, and division performance for ${myBranch} Campus.`}
+        portalLabel={effectivePortalLabel}
+        roleLabel={effectiveRoleLabel}
+        fallbackName={effectiveFallbackName}
+        subtitle={effectiveSubtitle}
         extraPills={
           <>
             <span className="text-[10px] font-bold text-blue-200 bg-blue-950/50 px-2.5 py-0.5 rounded-full border border-blue-500/30 flex items-center gap-1.5">
@@ -113,7 +134,7 @@ export function ManagerOverview({
         }
       />
 
-      {/* Pending Course Division Approvals Alert Bar */}
+      {/* Pending Division Approvals Alert Bar */}
       {pendingApprovalsCount > 0 && (
         <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-3">
@@ -122,10 +143,12 @@ export function ManagerOverview({
             </div>
             <div>
               <h4 className="text-xs font-black uppercase tracking-wider text-amber-900">
-                Course Division Authorization Required
+                {isKindergarten
+                  ? "Kindergarten Division Authorization Required"
+                  : "Course Division Authorization Required"}
               </h4>
               <p className="text-xs font-medium text-amber-800 mt-0.5">
-                <strong>{pendingApprovalsCount}</strong> pending authorization{pendingApprovalsCount > 1 ? "s" : ""} (tuition plan change, student withdrawal) awaiting your course division review.
+                <strong>{pendingApprovalsCount}</strong> pending authorization{pendingApprovalsCount > 1 ? "s" : ""} (tuition plan change, student withdrawal) awaiting your {isKindergarten ? "kindergarten" : "course"} division review.
               </p>
             </div>
           </div>
@@ -134,18 +157,29 @@ export function ManagerOverview({
             onClick={() => onNavigate("approvals")}
             className="min-h-11 px-3.5 py-2 bg-[#1a3a8f] hover:bg-[#132c6d] text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-xs shrink-0"
           >
-            Review Course Approvals
+            {isKindergarten ? "Review Kindergarten Approvals" : "Review Course Approvals"}
           </button>
         </div>
       )}
 
-      {/* Daily Course Division Intake & Collections Scoped to Branch */}
+      {/* Daily Division Intake & Collections Scoped to Branch */}
       <ManagerCashSummary
         branch={myBranch}
         payments={branchPayments}
         loading={paymentsLoading}
         onRefresh={onRefreshPayments}
         onNavigate={onNavigate}
+        title={
+          cashSummaryTitle ||
+          (isKindergarten
+            ? "Kindergarten Division Intake & Collections"
+            : "Course Division Intake & Collections")
+        }
+        subtitle={
+          isKindergarten
+            ? `Kindergarten tuition payments recorded today for ${myBranch} Campus.`
+            : null
+        }
       />
 
       {/* Tuition Due / Expiry Alerts */}
@@ -163,6 +197,7 @@ export function ManagerOverview({
         classesWithIssues={classesWithIssues}
         totalBottlenecks={totalBottlenecks}
         onNavigate={onNavigate}
+        division={division}
       />
 
       {/* Today's On-Duty & Shifts Snapshot */}
@@ -244,79 +279,81 @@ export function ManagerOverview({
       </div>
 
       {/* ── Marketing Outreach Operational Summary Card ── */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-[#1a3a8f]" />
-              <span>Marketing Outreach &amp; School Admissions</span>
-              {followUpCount > 0 && (
-                <span className="px-2 py-0.5 rounded-full text-xs font-black bg-purple-100 text-purple-700">
-                  {followUpCount} Follow-ups
-                </span>
+      {effectiveShowOutreach && (
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-[#1a3a8f]" />
+                <span>Marketing Outreach &amp; School Admissions</span>
+                {followUpCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-black bg-purple-100 text-purple-700">
+                    {followUpCount} Follow-ups
+                  </span>
+                )}
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Live school coverage, admissions campaign progress, and weekly field visits.
+              </p>
+            </div>
+            <button
+              onClick={() => onNavigate("marketing-outreach")}
+              className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#1a3a8f] font-extrabold text-xs transition self-start sm:self-auto cursor-pointer"
+            >
+              View Outreach Tracker &rarr;
+            </button>
+          </div>
+
+          {outreachError && (
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center justify-between gap-2">
+              <span className="font-semibold">Unable to stream live outreach updates: {outreachError}</span>
+              {onRetryOutreach && (
+                <button
+                  onClick={onRetryOutreach}
+                  className="px-2.5 py-1 bg-amber-200 hover:bg-amber-300 text-amber-900 rounded-lg font-bold text-[11px] shrink-0 cursor-pointer"
+                >
+                  Retry
+                </button>
               )}
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Live school coverage, admissions campaign progress, and weekly field visits.
-            </p>
-          </div>
-          <button
-            onClick={() => onNavigate("marketing-outreach")}
-            className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#1a3a8f] font-extrabold text-xs transition self-start sm:self-auto cursor-pointer"
-          >
-            View Outreach Tracker &rarr;
-          </button>
-        </div>
+            </div>
+          )}
 
-        {outreachError && (
-          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center justify-between gap-2">
-            <span className="font-semibold">Unable to stream live outreach updates: {outreachError}</span>
-            {onRetryOutreach && (
-              <button
-                onClick={onRetryOutreach}
-                className="px-2.5 py-1 bg-amber-200 hover:bg-amber-300 text-amber-900 rounded-lg font-bold text-[11px] shrink-0 cursor-pointer"
-              >
-                Retry
-              </button>
-            )}
-          </div>
-        )}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+              <span className="text-[11px] font-bold text-slate-500">School Coverage</span>
+              {outreachLoading ? (
+                <div className="h-7 w-24 mt-1 rounded-lg bg-slate-200 animate-pulse" />
+              ) : (
+                <div className="text-xl font-black text-slate-800 mt-0.5">
+                  {coverage.visited} / {coverage.total}{" "}
+                  <span className="text-xs text-emerald-600 font-bold">({coverage.percentage}%)</span>
+                </div>
+              )}
+              <p className="text-[10px] text-slate-400 mt-0.5">Target schools visited</p>
+            </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-            <span className="text-[11px] font-bold text-slate-500">School Coverage</span>
-            {outreachLoading ? (
-              <div className="h-7 w-24 mt-1 rounded-lg bg-slate-200 animate-pulse" />
-            ) : (
-              <div className="text-xl font-black text-slate-800 mt-0.5">
-                {coverage.visited} / {coverage.total}{" "}
-                <span className="text-xs text-emerald-600 font-bold">({coverage.percentage}%)</span>
-              </div>
-            )}
-            <p className="text-[10px] text-slate-400 mt-0.5">Target schools visited</p>
-          </div>
+            <div className="p-3.5 rounded-xl bg-purple-50/60 border border-purple-200">
+              <span className="text-[11px] font-bold text-purple-700">Follow-ups Due</span>
+              {outreachLoading ? (
+                <div className="h-7 w-12 mt-1 rounded-lg bg-purple-200 animate-pulse" />
+              ) : (
+                <div className="text-xl font-black text-purple-900 mt-0.5">{followUpCount}</div>
+              )}
+              <p className="text-[10px] text-purple-600 mt-0.5">Schools awaiting next action</p>
+            </div>
 
-          <div className="p-3.5 rounded-xl bg-purple-50/60 border border-purple-200">
-            <span className="text-[11px] font-bold text-purple-700">Follow-ups Due</span>
-            {outreachLoading ? (
-              <div className="h-7 w-12 mt-1 rounded-lg bg-purple-200 animate-pulse" />
-            ) : (
-              <div className="text-xl font-black text-purple-900 mt-0.5">{followUpCount}</div>
-            )}
-            <p className="text-[10px] text-purple-600 mt-0.5">Schools awaiting next action</p>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200">
-            <span className="text-[11px] font-bold text-emerald-700">Visits This Week</span>
-            {outreachLoading ? (
-              <div className="h-7 w-12 mt-1 rounded-lg bg-emerald-200 animate-pulse" />
-            ) : (
-              <div className="text-xl font-black text-emerald-900 mt-0.5">{weeklyVisitsCount}</div>
-            )}
-            <p className="text-[10px] text-emerald-600 mt-0.5">Field visits completed (WITA)</p>
+            <div className="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200">
+              <span className="text-[11px] font-bold text-emerald-700">Visits This Week</span>
+              {outreachLoading ? (
+                <div className="h-7 w-12 mt-1 rounded-lg bg-emerald-200 animate-pulse" />
+              ) : (
+                <div className="text-xl font-black text-emerald-900 mt-0.5">{weeklyVisitsCount}</div>
+              )}
+              <p className="text-[10px] text-emerald-600 mt-0.5">Field visits completed (WITA)</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Available Batches & Capacity Openings in Command Center */}
       <AvailableBatches

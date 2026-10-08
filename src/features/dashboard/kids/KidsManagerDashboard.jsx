@@ -1,13 +1,29 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { auth, db } from "../../../firebase";
 import { collection, onSnapshot, query, where, doc } from "firebase/firestore";
-import { AIAssistant, DashboardShell, useToast, isStaffRole, isInstructorRole } from "../../shared";
+import {
+  AIAssistant,
+  DashboardShell,
+  useToast,
+  ApprovalInbox,
+  isStaffRole,
+  isInstructorRole,
+  usePendingApprovalsCount,
+} from "../../shared";
 import { ReportsDashboard } from "../../reports";
+import { StudentRoster } from "../../students";
 import { createTodo, deleteTodo, toggleTodoComplete } from "../../staff";
 import { getShiftStatus } from "../../attendance";
 import { ManagerOverview, ClassesAndCoverageTab, StaffDirectivesTab } from "../manager";
+import { WalkInInquiryTab } from "../frontoffice";
 import { matchesDivisionFilter, divisionOfProgram } from "../../../constants/divisions";
-import { DEFAULT_BRANCH, branchToId } from "../../../constants/branches";
+import {
+  DEFAULT_BRANCH,
+  branchToId,
+  normalizeBranch,
+  matchesBranchFilter,
+} from "../../../constants/branches";
+import { getPaymentsForRecordedDay } from "../../finance/paymentsRepository";
 import { getUrlAction, clearUrlAction } from "../../../utils/urlAction";
 
 export default function KidsManagerDashboard() {
@@ -36,6 +52,8 @@ export default function KidsManagerDashboard() {
   const [todosPermission, setTodosPermission] = useState(true);
   const [loading, setLoading] = useState(true);
   const [managerProfile, setManagerProfile] = useState(null);
+  const [dailyPayments, setDailyPayments] = useState([]);
+  const [dailyPaymentsLoading, setDailyPaymentsLoading] = useState(true);
 
   // Directly subscribe to logged in manager's own user doc to discover their branchId
   useEffect(() => {
@@ -56,6 +74,49 @@ export default function KidsManagerDashboard() {
     if (!managerProfile) return null;
     return managerProfile.branchId || branchToId(managerProfile.branch || DEFAULT_BRANCH);
   }, [managerProfile]);
+
+  const myBranch = useMemo(() => {
+    return managerProfile?.branch || DEFAULT_BRANCH;
+  }, [managerProfile]);
+
+  // Load today's payments for daily cash drawer summary (WITA) scoped to Kindergarten
+  const fetchTodayPayments = useCallback(async () => {
+    if (!managerBranchId) return;
+    setDailyPaymentsLoading(true);
+    try {
+      const list = await getPaymentsForRecordedDay(new Date(), managerBranchId, "kindergarten");
+      setDailyPayments(list.filter((p) => matchesDivisionFilter(p.division, "kindergarten")));
+    } catch (err) {
+      console.warn("fetchTodayPayments error in KidsManagerDashboard:", err);
+      toast("Could not load today's kindergarten payment totals.", "error");
+    } finally {
+      setDailyPaymentsLoading(false);
+    }
+  }, [managerBranchId, toast]);
+
+  useEffect(() => {
+    if (!managerBranchId) return;
+    let active = true;
+    (async () => {
+      try {
+        setDailyPaymentsLoading(true);
+        const list = await getPaymentsForRecordedDay(new Date(), managerBranchId, "kindergarten");
+        if (active) {
+          setDailyPayments(list.filter((p) => matchesDivisionFilter(p.division, "kindergarten")));
+          setDailyPaymentsLoading(false);
+        }
+      } catch (err) {
+        console.warn("fetchTodayPayments error in KidsManagerDashboard:", err);
+        if (active) {
+          toast("Could not load today's kindergarten payment totals.", "error");
+          setDailyPaymentsLoading(false);
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [managerBranchId, toast]);
 
   const isDashboardLoading = loading || !managerBranchId;
 
@@ -334,6 +395,38 @@ export default function KidsManagerDashboard() {
     staff: activeStaff.length,
   };
 
+  const pendingApprovalsCount = usePendingApprovalsCount(
+    "manager",
+    managerBranchId || myBranch,
+    { division: "kindergarten" }
+  );
+
+  const getStudentClasses = useCallback(
+    (studentId) => {
+      return (classes || []).filter((c) => (c.studentIds || []).includes(studentId));
+    },
+    [classes]
+  );
+
+  // Fast O(1) studentId -> branch lookup map for payment join
+  const studentBranchMap = useMemo(() => {
+    const map = new Map();
+    for (const u of rawUsers) {
+      if (u.id) {
+        map.set(u.id, normalizeBranch(u.branch));
+      }
+    }
+    return map;
+  }, [rawUsers]);
+
+  // Branch-filtered daily payments (client-side join with zero additional reads)
+  const branchDailyPayments = useMemo(() => {
+    return dailyPayments.filter((p) => {
+      const studentBranch = studentBranchMap.get(p.studentId);
+      return !studentBranch || matchesBranchFilter(studentBranch, myBranch);
+    });
+  }, [dailyPayments, studentBranchMap, myBranch]);
+
   const tabs = [
     {
       id: "overview",
@@ -349,7 +442,41 @@ export default function KidsManagerDashboard() {
           onNavigate={(tab) => setActiveTab(tab)}
           classes={classes}
           users={rawUsers}
+          students={students}
           currentUserId={auth.currentUser?.uid}
+          myBranch={myBranch}
+          division="kindergarten"
+          branchPayments={branchDailyPayments}
+          paymentsLoading={dailyPaymentsLoading}
+          onRefreshPayments={fetchTodayPayments}
+          pendingApprovalsCount={pendingApprovalsCount}
+        />
+      ),
+    },
+    {
+      id: "students",
+      label: "Learners & Parents",
+      component: (
+        <StudentRoster
+          students={students}
+          classes={classes}
+          users={rawUsers}
+          getStudentClasses={getStudentClasses}
+          readOnly={true}
+          canEditStatus={false}
+          userRole="manager"
+          branchId={managerBranchId || myBranch}
+          canViewParents={true}
+        />
+      ),
+    },
+    {
+      id: "inquiries",
+      label: "Guestbook & Inquiries",
+      component: (
+        <WalkInInquiryTab
+          division="kindergarten"
+          branchLabel={myBranch}
         />
       ),
     },
@@ -362,10 +489,26 @@ export default function KidsManagerDashboard() {
           todos={todos}
           users={rawUsers}
           currentUser={auth.currentUser}
+          branchLabel={myBranch}
           onAddTodo={handleAddTodo}
           onDeleteTodo={handleDeleteTodo}
           onToggleTodo={handleToggleTodo}
           todosPermission={todosPermission}
+          division="kindergarten"
+        />
+      ),
+    },
+    {
+      id: "approvals",
+      label: "Kindergarten Approvals",
+      badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
+      component: (
+        <ApprovalInbox
+          userRole="manager"
+          branchId={myBranch}
+          division="kindergarten"
+          title={`Kindergarten Division Approvals (${myBranch})`}
+          subtitle="Review and authorize kindergarten tuition plan modifications, student withdrawals, and division exceptions."
         />
       ),
     },
@@ -407,8 +550,8 @@ export default function KidsManagerDashboard() {
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
-      title="Kids School — Manager Portal"
-      primaryTabIds={["overview", "classes", "reports", "tasks"]}
+      title="Kindergarten Division Manager Portal"
+      primaryTabIds={["overview", "students", "inquiries", "classes", "reports", "tasks"]}
       extraSidebarContent={
         <div className="px-2 pb-1">
           <span className="inline-flex items-center gap-1.5 bg-cyan-50 text-cyan-800 text-[11px] font-black px-2.5 py-0.5 rounded-full border border-cyan-200">

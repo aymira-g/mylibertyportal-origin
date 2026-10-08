@@ -26,6 +26,8 @@ import {
  *   loading?: boolean,
  *   onRefresh?: () => void,
  *   onNavigate?: (tab: string) => void,
+ *   title?: string,
+ *   subtitle?: string,
  * }} props
  */
 export function ManagerCashSummary({
@@ -34,6 +36,8 @@ export function ManagerCashSummary({
   loading = false,
   onRefresh = null,
   onNavigate = null,
+  title = "Course Division Intake & Collections",
+  subtitle = null,
 }) {
   const summary = useMemo(() => {
     return summarizePaymentsByMethod(payments);
@@ -51,7 +55,7 @@ export function ManagerCashSummary({
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="text-base font-extrabold text-slate-800">
-                Course Division Intake &amp; Collections
+                {title}
               </h3>
               <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-emerald-100/80 text-emerald-800 flex items-center gap-1">
                 <Building2 className="w-3 h-3" />
@@ -59,7 +63,7 @@ export function ManagerCashSummary({
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Course tuition payments recorded today ({todayStr} WITA).
+              {subtitle || `Tuition payments recorded today (${todayStr} WITA).`}
             </p>
           </div>
         </div>

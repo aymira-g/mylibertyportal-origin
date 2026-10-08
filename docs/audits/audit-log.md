@@ -259,6 +259,28 @@ Executed Level 1 Light Regression Check per `docs/audits/Light Regression Check 
 | **Escalation Required** | No |
 | **Status** | **PASS** |
 
+---
+
+## 2026-10-08 — Light Regression Check: Kindergarten Division Manager Dashboard (Phases 1–3)
+
+Executed Level 1 Light Regression Check per `docs/audits/Light Regression Check Playbook/`:
+
+| Field | Value |
+|---|---|
+| **Change** | Refactored `KidsManagerDashboard.jsx`, generalized `ManagerOverview.jsx` & `OperationalBottlenecksSection.jsx`, mounted `StudentRoster`, `ApprovalInbox` (dual-control), `WalkInInquiryTab`, and wired Kindergarten daily cash intake (`ManagerCashSummary`) |
+| **Date** | 2026-10-08 |
+| **Section** | Division Isolation / Kindergarten Manager Dashboard / Maker-Checker Approvals / Financial Intake |
+| **Workflow** | Kindergarten Division Manager Portal -> Command Center, Learners & Parents, Guestbook & Inquiries, Kindergarten Approvals, Staff Directives, Classes & Coverage, Reports |
+| **Normal Test** | Dashboard loads with "Kindergarten Division Manager Portal"; overview shows Kindergarten-branded banners and early-childhood bottleneck cards; approvals tab isolates `division="kindergarten"`; cash summary displays today's Kindergarten campus intake |
+| **Duplicate Test** | Refreshing payment totals or toggling tabs maintains exact Firestore listener cleanups without memory leaks or repeated fetches |
+| **Failure Test** | Null branch or empty payment returns clean loading and zero-count state without runtime errors |
+| **Boundary Test** | Strict multi-branch (`branchId`) and divisional (`division="kindergarten"`) isolation enforced in queries and client-side joins; Course division marketing outreach omitted |
+| **Result Verification** | 19 dashboard test suites (141 tests) passed; `KidsManagerDashboard.test.js` (4/4 passed); `OperationalBottlenecksSection.test.js` (4/4 passed); ESLint clean (0 errors); Typecheck clean (`tsc --noEmit`); Vite build clean |
+| **Findings** | None. Parity and division-scoped conformance achieved with Blueprint v3.3 |
+| **Escalation Required** | No |
+| **Status** | **PASS** |
+
+
 
 
 

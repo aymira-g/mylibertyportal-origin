@@ -157,4 +157,31 @@ describe("ManagerOverview Component (Course Division Manager)", () => {
     expect(html).toContain("Overdue Student Accounts");
     expect(html).toContain("Tuition Target Reports");
   });
+
+  it("renders kindergarten division manager identity and branding when division='kindergarten'", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(
+        ToastProvider,
+        null,
+        React.createElement(
+          ConfirmProvider,
+          null,
+          React.createElement(ManagerOverview, {
+            ...baseProps,
+            division: "kindergarten",
+            pendingApprovalsCount: 2,
+          })
+        )
+      )
+    );
+
+    expect(html).toContain("Kindergarten Division Command");
+    expect(html).toContain("Kindergarten Division Manager");
+    expect(html).toContain("Kindergarten Division Authorization Required");
+    expect(html).toContain("awaiting your kindergarten division review");
+    expect(html).toContain("Review Kindergarten Approvals");
+    expect(html).toContain("Kindergarten Division Intake &amp; Collections");
+    // Marketing outreach is scoped out for kindergarten
+    expect(html).not.toContain("Marketing Outreach &amp; School Admissions");
+  });
 });

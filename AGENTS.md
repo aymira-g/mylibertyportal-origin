@@ -100,7 +100,7 @@ Before making decisions concerning:
     - **Vice Director — Operational Control:** execution, coordination, multi-branch operational oversight, exception follow-up, corrective-action coordination, and delegated executive authority.
     - Complementary control does not mean equal authority, universal joint approval for all sensitive actions, or unrestricted CRUD over business domains.
     - The Vice Director does not become unrestricted Acting Director merely because the Director is absent or unavailable.
-    - The model remains a proposed baseline pending formal owner ratification; agents must not treat Director and Vice Director as interchangeable or collapse them into generic Admin semantics.
+    - The model is ratified and binding (Blueprint §26 G-004, §41; owner-ratified 2026-10-07). Agents must not treat Director and Vice Director as interchangeable or collapse them into generic Admin semantics.
 13. **Executive Visibility Does Not Imply Execution Authority (Blueprint v3.3 Principle 16):** Broad cross-branch visibility required for strategic or operational oversight does not confer operational execution or business-write authority outside explicitly assigned workflows. Operational data mutations remain strictly owned by their respective domain actors (Front Office, Division Managers).
 
 ### Architecture authority
@@ -285,9 +285,15 @@ Prefer existing shared pieces such as:
 - `useToast`
 - `useConfirm`
 - `DashboardShell`
-- `ResponsiveTable`
+- `MobileDashboardShell`
 - existing normalization/date helpers
 - existing repository patterns
+
+*Note:* there is no generic shared table component. Responsive data tables are
+currently feature-specific (`CohortRosterTable`, `StudentRosterTable`,
+`WalkInTable`, `RecentVisitsTable`); `printTable` is a print utility, not a
+table primitive. Promote one to `src/features/shared/` only if a second
+independent consumer genuinely needs the same contract.
 
 ### 3. Plans are proposals
 

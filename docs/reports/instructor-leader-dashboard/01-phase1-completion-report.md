@@ -241,9 +241,20 @@ The `progressReports` branch window depends on the composite index. If rules are
 | [`src/features/dashboard/InstructorLeaderDashboard.test.js`](../../../src/features/dashboard/InstructorLeaderDashboard.test.js) | Rewritten for the leadership portal (4 tests) |
 | [`docs/specs/authorization-contract.md`](../../specs/authorization-contract.md) | New §6.6 recording the read authority, the financial-isolation exclusion, and a divergence note |
 
-### Explicitly NOT modified
+### Modified in the follow-up documentation pass (2026-10-08, separate owner-authorized task)
 
-`src/App.jsx` · `src/features/dashboard/InstructorDashboard.jsx` · `src/features/dashboard/instructor/index.js` · `src/features/dashboard/instructor/InstructorOverview.jsx` · `InstructorClasses.jsx` · `InstructorProgress.jsx` · `instructorUtils.js` · `useInstructorWorkspace.js` · `KidsInstructorDashboard.jsx` · `docs/ARCHITECTURE.md` · `docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`
+| File | Change |
+|---|---|
+| [`AGENTS.md`](../../../AGENTS.md) | (a) Removed the reference to a non-existent shared `ResponsiveTable` primitive and stated plainly that no generic shared table exists; the real `MobileDashboardShell` was added to the preferred-primitives list. (b) Rule 12 no longer describes the Executive Dual-Control Model as "pending formal owner ratification". |
+| [`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](../../governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md) | §41 Owner Approval Record completed (approval recorded with the 2026-10-07 decision document as the cited basis — **no fabricated signature**); stale "proposed" markers at §0 and §39 aligned to the ratified G-004; stale Instructor Leader reporting-line text at §5.3 and §6.11 aligned to the ratified G-003; §18 reconciliation note marked satisfied by the ratified G-009. No new governance rule was invented. |
+| [`docs/README.md`](../../README.md) | Decision index entry for `G-009-DECISION-01` now records Point 4 as superseded by G-009 (Blueprint v3.3, 2026-10-07) with the materiality tiers, replacing "pending owner reassignment". |
+| [`docs/decisions/2026-10-05-delegation-of-discounts-and-refunds-to-executives.md`](../../decisions/2026-10-05-delegation-of-discounts-and-refunds-to-executives.md) | Front-matter Status split into Points 1–3 (ACTIVE) and Point 4 (`SUPERSEDED BY G-009 — Blueprint v3.3 (2026-10-07)`, per the G-010 tagging convention); the stale "OPEN GOVERNANCE QUESTION (G-009)" notice bullet and the `ManagerDashboard` note now record the resolved tiered authority. Points 1–3 are untouched. |
+
+### Explicitly NOT modified during the Phase 1 dashboard change
+
+`src/App.jsx` · `src/features/dashboard/InstructorDashboard.jsx` · `src/features/dashboard/instructor/index.js` · `src/features/dashboard/instructor/InstructorOverview.jsx` · `InstructorClasses.jsx` · `InstructorProgress.jsx` · `instructorUtils.js` · `useInstructorWorkspace.js` · `KidsInstructorDashboard.jsx` · `docs/ARCHITECTURE.md`
+
+(`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md` was also untouched by the Phase 1 change itself; it was modified only in the follow-up documentation pass above.)
 
 ---
 
@@ -270,33 +281,41 @@ The `progressReports` branch window depends on the composite index. If rules are
 1. `tsc` caught a real bug: `unscheduledToday` was passed the *array* of unscheduled classes where a count was expected. Fixed by passing `unscheduledClasses.length`.
 2. ESLint flagged three `react-hooks/exhaustive-deps` warnings from derived values with unstable identity. Fixed by wrapping them in `useMemo`.
 3. Three of my own initial `leaderUtils` test expectations were wrong (fixtures also tripped the below-quorum and shared-room rules). The tests were corrected, not the logic.
+4. **`AGENTS.md` referenced a non-existent shared `ResponsiveTable` primitive** — fixed in the follow-up pass (reference removed; `MobileDashboardShell` added; the real feature-specific tables named).
+5. **The blueprint's §41 approval record contradicted its own header**, and the Executive Dual-Control Model was still called "proposed" at §0/§39. Fixed in the follow-up pass after the owner confirmed v3.3 is ratified.
 
 ### Limitations (stated honestly)
 
 - **Production deployment was not performed** by explicit owner instruction. `firestore.rules` and `firestore.indexes.json` are proven locally only. Production behaviour is therefore **unverified** until deployment.
 - **Playwright E2E is flaky in this environment and does not cover the leader workspace.** Three runs produced three different outcomes (12/9, 14/0, 19/2 passed/failed), all confined to `tests/portal.spec.ts` (login view, password-reset modal, password visibility) and `tests/pwa.spec.ts` (manifest, icons, deep links). None of those specs renders the Instructor Leader dashboard. Re-running the two projects that failed in run 1 produced **14 passed / 0 failed** on the identical tests, which identifies the cause as load/timing against the single shared Vite dev server (`fullyParallel` × 3 projects) rather than a code defect. **The leader workspace interaction flows — attendance scope toggle, mobile layout, kiosk modal, and the live Firestore-backed views — remain NOT browser-verified.** Only static render tests and emulator rule tests cover them.
 - **`docs/ARCHITECTURE.md` was not modified.** The new files live under the already-listed `dashboard/instructor` directory and add no new architectural boundary, collection, or routing, so no architecture statement changed. The security-rules widening is recorded in `docs/specs/authorization-contract.md` §6.6 (the behavioural spec) rather than in the architecture guide.
-- **`AGENTS.md` cites a shared `ResponsiveTable` primitive that does not exist** in the repository (verified: the only occurrence of that name anywhere is that instruction line). Leader views therefore use the existing card/row layout patterns already used by the other dashboards. This is a documentation defect, flagged rather than worked around by inventing the component.
 - **`firestore.indexes.json` is not validated by the emulator.** The emulator serves queries without enforcing composite indexes, so the new index entry is verified as well-formed JSON with the correct field shapes, but its sufficiency is only confirmed once deployed.
 
 ---
 
-## 11. Governance Conflicts Flagged (not reconciled)
+## 11. Governance Items: Reconciled and Outstanding
 
-Per `AGENTS.md` rule 1 and blueprint §"Flag Conflicts, Do Not Invent Reconciliations", the following are reported rather than silently resolved:
+Per `AGENTS.md` rule 1 ("Flag Conflicts, Do Not Invent Reconciliations"), conflicts were reported rather than silently resolved. Three were subsequently fixed under explicit owner authorization on 2026-10-08; the rest remain outstanding.
 
-1. **Blueprint v3.3 contradicts itself on the Instructor Leader reporting line.** §6.11 (line 665) still reads *"The exact higher-level reporting line remains an explicit governance gap until confirmed"*, and §5.3 (line 299) repeats it, while the same document's §26 Owner Decision Register (line 1351) records G-003 as **RESOLVED**, and §26 (line 1363) states all G-001–G-011 are "formally resolved and binding across all software layers". The later ratified register was treated as governing; **the blueprint text was not edited.**
-2. **The blueprint's own signature block conflicts with its header.** The header (line 4) declares "RATIFIED AUTHORITATIVE BASELINE — APPROVED BY OWNER (KIFRY)", while §41 (line 1912) states "PENDING OWNER APPROVAL" with a blank signature field. Document-control item, outside this task's scope.
+### Reconciled (owner-authorized 2026-10-08, separate follow-up task)
+
+1. **Instructor Leader reporting line — body text aligned to the ratified register.** §6.11 and §5.3 read as an open governance gap, while §26 recorded **G-003** as RESOLVED. Both stale passages now state the resolved line directly (operationally to the **Vice Director**; strategically to the **Director**; all branch Instructors report to the Instructor Leader) and cite G-003. §26 was the governing source; the body text was the stale part. No new rule was invented.
+2. **Blueprint approval status — §41 completed.** The header declared owner approval while §41 was an unsigned "PENDING OWNER APPROVAL" template, and the Executive Dual-Control Model was still described as "proposed" at §0, §39 and its "not yet finalized" list even though §26 records **G-004** as RESOLVED. After the owner confirmed v3.3 is ratified, §41 now records the approval (Owner / Director (Kifry), 2026-10-07) with the 2026-10-07 decision document cited as the **recorded basis** — no signature was fabricated — and the stale "proposed" markers at §0, §39 and the matching line in `AGENTS.md` (rule 12) were aligned. `AGENTS.md` no longer contradicts the blueprint on this point.
+3. **G-009 cash-reconciliation staleness — reconciled.** [`docs/README.md`](../../README.md) and [`docs/decisions/2026-10-05-delegation-of-discounts-and-refunds-to-executives.md`](../../decisions/2026-10-05-delegation-of-discounts-and-refunds-to-executives.md) still described the former Branch Manager cash-drawer reconciliation authority as "pending owner reassignment", even though §26 records **G-009** as RESOLVED with materiality tiers and the 2026-10-07 decision document's own §3 Supersession Notice explicitly names that file. Both now tag Point 4 `SUPERSEDED BY G-009 — Blueprint v3.3 (2026-10-07)` following the **G-010** tagging convention, and the blueprint's §18 reconciliation note — the passage that *required* this supersession — now records it as satisfied. Point 4's authority was **not** transferred to any role without the ratified decision; it followed the tiered resolution (Operational Leader / Vice Director / Director).
+
+### Outstanding (flagged, not reconciled)
+
 3. **"Shift adherence" is assigned to the Vice Director, not the Instructor Leader.** G-003 places "day-to-day instructor scheduling, class coverage, shift adherence, and substitute assignments" under Vice Director operational control, while §6.11 gives the Instructor Leader "teacher schedule assignments" and G-007 gives them the `SUBSTITUTE_INSTRUCTOR` gate. Reconcilable as task-ownership versus operational-control, but no canonical text resolves it explicitly — and it is precisely why widening shift read access was refused rather than assumed.
 4. **`isDivisionAllowedForBranchStaff` diverges from the authorization contract's Layer 3 description.** The contract describes the gate as `!(isManager() || isFrontOffice())`; the implemented helper uses the narrower role list `['manager', 'branch_manager', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'marketing']`, so `instructor` / `instructorleader` / `instructor_leader` are not division-gated on division-scoped collections. Recorded in `authorization-contract.md` §6.6 as a reconciliation item; the helper was **not** changed.
 5. **No Instructor Leader role card or workflow card exists**, although blueprint §1305 requires branch-scope leadership roles to receive separate role cards and §1337 requires workflow cards to record unresolved owner decisions. Recorded as a governance artifact gap.
+6. **The blueprint's §39 "does not claim to have finalized" list retains blanket wording that the ratified register partly supersedes.** Most bullets are deliberately blanket claims ("every role capability", "every field-level permission", "every workflow", "every dashboard menu") and are still genuinely unclaimed. Two are now doubtful because the ratified register addressed them specifically: *"every approval threshold"* (G-006/G-009 ratified the gated-action levels and cash tiers) and *"emergency/delegation procedure"* (G-008 ratified the limited-staff, absence, and Acting Director procedure). The clearly-resolved bullet naming owner approval of the Director/Vice Director split was already removed in the previous pass. **Flagged, not edited** — rewriting a self-limiting disclaimer list is a broader editorial judgement than the scope the owner authorized, so it is left for an explicit decision.
 
 ---
 
 ## 12. Final Verification Report
 
-1. **Files changed** — 8 modified (see §9).
-2. **Files created** — 13 (see §9).
+1. **Files changed** — 8 modified for the Phase 1 change, plus 4 in the follow-up documentation pass (`AGENTS.md`, the blueprint, `docs/README.md`, and the 2026-10-05 G-009 decision record) — see §9.
+2. **Files created** — 14 (see §9).
 3. **Governance requirements implemented** — §6.11 branch-scope academic delivery oversight across both divisions; G-003 direct reporting of all branch instructors; G-011 peer-leadership model preserved; G-007 approval gates retained and not expanded.
 4. **Existing behaviour preserved** — ordinary and kindergarten instructor dashboards untouched and byte-identical in bundle; routing untouched; all nine original leader tabs retained plus leadership surfaces; dual-control queue contract preserved with the alias canonicalized.
 5. **New Instructor Leader capabilities** — branch teaching-team monitoring across both divisions; classes & coverage view with conflict detection and escalation path; branch-wide progress-report monitoring; on-demand branch attendance completion monitoring; exception-first overview.

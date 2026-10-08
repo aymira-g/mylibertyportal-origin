@@ -84,17 +84,35 @@ Findings:
     where a count was expected. Now passes `unscheduledClasses.length`.
   - FIXED during verification: 3 react-hooks/exhaustive-deps warnings from derived values with unstable
     identity; wrapped in useMemo. Lint is now 0 errors / 0 warnings.
-  - RECORDED (not fixed, out of scope): AGENTS.md references a shared `ResponsiveTable` primitive that does
-    not exist anywhere in the repository. Leader views use existing card/row layout patterns instead.
-  - RECORDED (governance, not a defect): Blueprint §6.11 / §5.3 still describe the Instructor Leader
-    reporting line as an open governance gap while §26 (G-003, ratified 2026-10-07) records it as RESOLVED.
-    Flagged, not reconciled; the blueprint was not edited.
+  - FIXED (follow-up, owner-authorized 2026-10-08): AGENTS.md referenced a shared `ResponsiveTable` primitive
+    that existed nowhere in the repository. Reference removed and replaced with `MobileDashboardShell` plus an
+    explicit note that no generic shared table exists (tables are feature-specific: CohortRosterTable,
+    StudentRosterTable, WalkInTable, RecentVisitsTable; printTable is a print utility).
+  - FIXED (follow-up, owner-authorized 2026-10-08): Blueprint §6.11 / §5.3 described the Instructor Leader
+    reporting line as an open governance gap while §26 (G-003, ratified 2026-10-07) recorded it RESOLVED.
+    Both stale passages now cite the resolved G-003 line. No new rule was invented.
+  - FIXED (follow-up, owner-authorized 2026-10-08): Blueprint §41 was an unsigned "PENDING OWNER APPROVAL"
+    template while the header declared owner approval, and the Executive Dual-Control Model was still called
+    "proposed" at §0/§39 though §26 (G-004) records it RESOLVED. After the owner confirmed v3.3 is ratified,
+    §41 records the approval (Owner / Director (Kifry), 2026-10-07) citing the 2026-10-07 decision document as
+    the recorded basis (no fabricated signature), and the stale "proposed" markers at §0, §39 and AGENTS.md
+    rule 12 were aligned.
   - RECORDED (governance, not a defect): Blueprint G-003 assigns "shift adherence" to the Vice Director,
     while §6.11 gives the Instructor Leader "teacher schedule assignments". Unresolved in canon; this is
     why shift read access was NOT widened.
   - RECORDED (pre-existing divergence): isDivisionAllowedForBranchStaff's implemented role list is narrower
     than authorization-contract.md Layer 3 describes, so instructor-family roles are not division-gated.
     Recorded in authorization-contract.md §6.6; the helper was not changed.
+  - FIXED (follow-up, owner-authorized 2026-10-08): docs/README.md and
+    docs/decisions/2026-10-05-delegation-of-discounts-and-refunds-to-executives.md described the former Branch
+    Manager cash-reconciliation authority as "pending owner reassignment" although §26 records G-009 as RESOLVED
+    with materiality tiers and the 2026-10-07 decision's own §3 Supersession Notice names that file. Both now tag
+    Point 4 "SUPERSEDED BY G-009 — Blueprint v3.3 (2026-10-07)" per the G-010 tagging convention, and the
+    blueprint's §18 reconciliation note (which required that supersession) now records it as satisfied.
+  - RECORDED (outstanding, not edited): the blueprint's §39 "does not claim to have finalized" list keeps blanket
+    wording that is now doubtful for two entries — "every approval threshold" (G-006/G-009 ratified them) and
+    "emergency/delegation procedure" (G-008 ratified it). Rewriting a self-limiting disclaimer list is a broader
+    editorial judgement; left for an explicit owner decision.
 
 Escalation Required: No
 Status: PASS

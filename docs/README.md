@@ -137,7 +137,7 @@ Formally accepted policies that govern ongoing implementation and operational pr
 * **[`decisions/2026-10-04-executive-break-glass-procedure.md`](./decisions/2026-10-04-executive-break-glass-procedure.md)**  
   Executive Deadlock Break-Glass Procedure: Console-level recovery runbook when dual-control in-app approvals cannot proceed.
 * **[`decisions/2026-10-05-delegation-of-discounts-and-refunds-to-executives.md`](./decisions/2026-10-05-delegation-of-discounts-and-refunds-to-executives.md)**  
-  Delegation of Discounts & Refunds to Executive Leadership (`G-009-DECISION-01`): Strict executive dual-control oversight for tuition discounts, waivers, and refunds. *(Former Branch Manager cash-drawer reconciliation portion superseded per Blueprint v3.1 G-009 pending owner reassignment).*
+  Delegation of Discounts & Refunds to Executive Leadership (`G-009-DECISION-01`): Strict executive dual-control oversight for tuition discounts, waivers, and refunds. *(Point 4, the former Branch Manager cash-drawer reconciliation retention, is superseded by G-009 — Blueprint v3.3, 2026-10-07: authority now follows materiality tiers — Operational Leader / Vice Director / Director).*
 
 ---
 

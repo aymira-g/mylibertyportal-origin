@@ -6,13 +6,14 @@
 > **Approved By:** Kifry (Project Owner)  
 > **Date:** 2026-10-05  
 > **Governance Reference:** [`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md §18, §26 (G-009)`](../governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md)  
-> **Status:** ACTIVE *(Executive discount authority active; former Branch Manager cash reconciliation portion superseded by Blueprint v3.1 §5.4 / G-009 pending owner reassignment)*
+> **Status:** ACTIVE *(Points 1–3: exclusive executive discount, waiver, and refund authority)*  
+> **Point 4 Status:** `SUPERSEDED BY G-009 — Blueprint v3.3 (2026-10-07)` *(former Branch Manager cash-drawer reconciliation retention removed from the organizational model; successor authority identified by materiality tier — see the Governance Amendment Notice below)*
 
 > [!NOTE]
-> **Governance Amendment Notice (2026-10-06 — Blueprint v3.1 §5.4, §26 G-009):**  
+> **Governance Amendment Notice (2026-10-06 — Blueprint v3.1 §5.4; updated 2026-10-07 by G-009 ratification):**  
 > Under Blueprint v3.1, the **Branch Manager role is removed from the organizational model**.  
 > - **Points 1–3 (Executive Discount Authority) remain 100% active and binding.** Tuition discounts, fee waivers, promotional pricing, and refunds require Executive Director or Vice Director dual-control approval. Neither branch-level managers nor staff may approve discounts.  
-> - **Point 4 is partially superseded / amended regarding role attribution:** The former Branch Manager retention of end-of-day cash drawer reconciliation (`CASH_DISCREPANCY`) is currently an **OPEN GOVERNANCE QUESTION (G-009)** awaiting explicit owner reassignment. Implementation agents must **not** silently assign cash reconciliation authority to the Course Division Manager, Kindergarten Division Manager, Operational Leader, or any other role without an explicit owner decision.
+> - **Point 4 is SUPERSEDED (2026-10-07).** The former Branch Manager retention of end-of-day cash drawer reconciliation (`CASH_DISCREPANCY`) was an open governance question under G-009 and has been **resolved by the Owner on 2026-10-07**. Authority now follows **materiality tiers**: `< Rp 20.000` → Operational Leader (`opslead`); `Rp 20.000 – Rp 49.999` → Vice Director (`vice_director`); `≥ Rp 50.000` → Director (`director`). The drawer handler cannot approve their own discrepancy (Maker ≠ Checker). Recorded in [`2026-10-07-resolution-of-governance-questions-g001-g011.md`](./2026-10-07-resolution-of-governance-questions-g001-g011.md) (§G-009) and Blueprint v3.3 §26 (G-009). No cash-reconciliation authority transfers to the Course Division Manager, Kindergarten Division Manager, or Instructor Leader.
 
 ---
 
@@ -49,4 +50,4 @@ Under earlier provisional routing, fee discounts and refunds were routed to the 
    The approvals collection rules require that tickets with `actionId == 'DISCOUNT_OR_REFUND'` have `approverRole in ['director', 'vice_director']` and can only be updated/approved by `isDirector() || isViceDirector()`.
 3. **Dashboards:**  
    - `ExecutiveDashboard`: Displays pending discount and refund authorizations in the province-wide approvals queue.
-   - `ManagerDashboard`: Relieved of discount approval duty; operates as Course Division Manager view. Cash reconciliation discrepancy authority remains pending formal owner reassignment per G-009.
+   - `ManagerDashboard`: Relieved of discount approval duty; operates as Course Division Manager view. Cash-reconciliation discrepancy authority is **not** held by the Division Manager; per the ratified G-009 (2026-10-07) it follows materiality tiers — Operational Leader, Vice Director, or Director.

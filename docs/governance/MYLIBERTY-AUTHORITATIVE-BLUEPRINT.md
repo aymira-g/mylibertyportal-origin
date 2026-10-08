@@ -49,7 +49,7 @@ Version 3.3 proposes an explicit **Executive Dual-Control Model** for the Direct
 - The Vice Director does not become unrestricted Acting Director merely because the Director is absent or unavailable.
 - Sensitive actions that separately require Maker–Checker / Signer controls remain governed by their own workflow rules; the Executive Dual-Control Model must not be interpreted as a requirement that every sensitive action receive approval from both executive roles.
 
-This distinction is proposed as the implementation-governance interpretation of **G-004** and remains subject to the blueprint's normal owner-approval process.
+This distinction is the implementation-governance interpretation of **G-004**. It was formally ratified by the Owner on **2026-10-07** (see §26 and §41) and is therefore binding, not a proposal.
 
 ---
 
@@ -296,7 +296,7 @@ Where an action crosses multiple functions, the authority must come from the app
 
 The exact detailed reporting mechanics among the branch-scope leaders and upward executive authority must not be guessed beyond what this blueprint establishes.
 
-The exact higher-level reporting line of the Instructor Leader remains an explicit governance question unless separately resolved by an accepted amendment.
+The higher-level reporting line of the Instructor Leader is resolved by **G-003** (ratified 2026-10-07, see §26): operationally to the **Vice Director** (instructor scheduling, class coverage, shift adherence, substitute assignments) and strategically to the **Director** (pedagogical curriculum standards, placement testing criteria, academic excellence).
 
 ## 5.4 Executive Dual-Control Model
 
@@ -662,7 +662,7 @@ The Instructor Leader leads academic delivery within the assigned branch scope.
 
 The Instructor Leader belongs to the Teaching and Learning Structure.
 
-The exact higher-level reporting line remains an explicit governance gap until confirmed.
+The higher-level reporting line is resolved by **G-003** (ratified 2026-10-07, see §26): operationally to the **Vice Director**, strategically to the **Director**. All branch Instructors report directly to the Instructor Leader.
 
 The Instructor Leader is **not** a Branch Manager and does not automatically inherit general operational or financial authority.
 
@@ -1129,7 +1129,7 @@ Actions such as the following are candidates for controlled approval:
 
 The exact approval thresholds and authorized approvers remain governance decisions.
 
-> **Important v3.1 reconciliation note:** The existing G-009 decision text currently names **Branch Managers** as retaining cash-drawer reconciliation authority. Because the Branch Manager role is removed in v3.1, that historical decision must be explicitly amended or superseded to identify the intended successor authority. Implementation agents must not silently assign that authority to the Course Division Manager, Kindergarten Division Manager, Operational Leader, or any other role.
+> **v3.1 reconciliation note — resolved 2026-10-07:** The original G-009 decision text named **Branch Managers** as retaining cash-drawer reconciliation authority. Because the Branch Manager role is removed, that historical text was explicitly superseded by the ratified **G-009** decision (2026-10-07, see §26), which identifies the successor authority: cash discrepancy approval follows materiality tiers — `< Rp 20.000` to the Operational Leader (`opslead`), `Rp 20.000 – Rp 49.999` to the Vice Director (`vice_director`), and `≥ Rp 50.000` to the Director (`director`), with the drawer handler excluded (Maker ≠ Checker). No such authority transfers to the Course Division Manager, Kindergarten Division Manager, or Instructor Leader.
 
 No technical implementation may invent monetary thresholds.
 
@@ -1840,7 +1840,7 @@ It establishes:
 - the four-branch / two-division model;
 - the removal of Branch Manager / Branch Head from the current organizational model;
 - distinct branch-scope leadership functions;
-- a proposed Executive Dual-Control Model separating Director Strategic Control from Vice Director Operational Control;
+- the ratified Executive Dual-Control Model separating Director Strategic Control from Vice Director Operational Control;
 - the organizational/technical Admin separation;
 - permission vocabulary;
 - scope principles;
@@ -1851,11 +1851,10 @@ It establishes:
 - privacy principle;
 - documentation authority relationship;
 - rebuild/re-foundation strategy;
-- owner-decision register, including a proposed resolution for the Director/Vice Director authority split.
+- owner-decision register, including the ratified resolution for the Director/Vice Director authority split.
 
 It does **not** claim to have finalized:
 
-- owner approval of the proposed Director / Vice Director authority split and Executive Dual-Control Model;
 - every role capability;
 - every field-level permission;
 - every approval threshold;
@@ -1905,31 +1904,37 @@ Never reverse the dependency by allowing the existing UI, a technical role, an o
 
 # 41. Owner Approval Record
 
-This section is intentionally left for explicit governance approval.
+This section records the owner's formal approval of this blueprint.
 
 **Blueprint:** MyLiberty Portal — Authoritative Organizational, Authority & Rebuild Blueprint v3.3
 
-**Approval status:** `PENDING OWNER APPROVAL`
+**Approval status:** `APPROVED — RATIFIED AUTHORITATIVE BASELINE`
 
-**Approved by:** ________________________________________________
+**Approved by:** Owner / Director (Kifry)
 
-**Role / Authority:** ____________________________________________
+**Role / Authority:** Owner / Director
 
-**Approval date:** ______________________________________________
+**Approval date:** 2026-10-07
 
 **Notes / approved exceptions:**
 
-________________________________________________________________________________
+- Decisions **G-001 through G-011** are ratified and binding across all software layers (see §26).
+- This approval includes the Director / Vice Director authority split and the Executive Dual-Control Model, ratified as **G-004** (see §26 and §5.4).
+- Items recorded elsewhere in this document as unresolved, and which were **not** part of the G-001 – G-011 register, remain open governance gaps. Approval of this document does not approve them; see §26 and the "does not claim to have finalized" list in §39.
+- Amendments and supersessions follow the normal owner-decision process recorded under `docs/decisions/`.
 
-________________________________________________________________________________
+**Recorded basis:** Owner ratification is recorded canonically in
+[`docs/decisions/2026-10-07-resolution-of-governance-questions-g001-g011.md`](../decisions/2026-10-07-resolution-of-governance-questions-g001-g011.md)
+("Authority: Ratified & Approved by Owner / Director (Kifry)", "Status: Active & Binding"), which §26 of this
+blueprint cites as the canonical source for the ratified G-001 – G-011 decisions.
 
-### Upon approval
+### Effect of approval
 
-After approval, this document becomes the authoritative governance baseline for the rules it establishes, including the proposed Director/Vice Director executive distinction and Executive Dual-Control Model once owner approval is recorded.
+This document is the authoritative governance baseline for the rules it establishes, including the Director / Vice Director executive distinction and the Executive Dual-Control Model.
 
 Subsequent technical work must derive from it rather than redefine it.
 
-The approval should also be treated as explicit authorization to reconcile the legacy Branch Manager model out of current organizational authority, subject to the controlled migration and any separately approved exceptions.
+This approval is also explicit authorization to reconcile the legacy Branch Manager model out of current organizational authority, subject to the controlled migration and any separately approved exceptions.
 
 ---
 

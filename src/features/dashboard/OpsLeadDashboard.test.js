@@ -189,4 +189,28 @@ describe("OpsLeadDashboard Component Suite (Phase 1 & Phase 2 Conformance)", () 
     expect(html).toContain("Dispatch Site Maintenance / Cleaning Task");
     expect(html).toContain("Clean classroom 2");
   });
+
+  it("filters office support staff strictly to selected branch in Executive preview mode", () => {
+    const crossBranchUsers = [
+      { id: "ob_gto", displayName: "Ahmad Kota", role: "officeboy", status: "active", branch: "Kota Gorontalo" },
+      { id: "ob_boba", displayName: "Budi Bone", role: "officeboy", status: "active", branch: "Bone Bolango" },
+      { id: "ob_limb", displayName: "Citra Limboto", role: "officeboy", status: "active", branch: "Limboto" },
+    ];
+
+    const html = renderToStaticMarkup(
+      React.createElement(
+        ToastProvider,
+        null,
+        React.createElement(OpsLeadFacilitiesTab, {
+          todos: [],
+          users: crossBranchUsers,
+          myBranch: "Kota Gorontalo",
+        })
+      )
+    );
+    expect(html).toContain("1 Office Support on duty");
+    expect(html).toContain("Ahmad Kota");
+    expect(html).not.toContain("Budi Bone");
+    expect(html).not.toContain("Citra Limboto");
+  });
 });

@@ -156,9 +156,10 @@ export function filterBranchStaffByRole(users = [], branch = "") {
     const isNotResigned = u.status !== "resigned" && u.status !== "terminated";
     if (!isNotResigned) return false;
 
-    // Branch match (if specified and user has branch)
-    if (normalizedTarget && u.branch) {
-      if (!matchesBranchFilter(u.branch, normalizedTarget)) {
+    // Branch match (if specified and user has branch/branchId)
+    const userBranch = u.branch || u.branchId;
+    if (normalizedTarget && userBranch) {
+      if (!matchesBranchFilter(userBranch, normalizedTarget)) {
         return false;
       }
     }

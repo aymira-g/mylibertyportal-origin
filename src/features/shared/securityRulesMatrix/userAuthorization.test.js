@@ -222,4 +222,26 @@ describe("User & Parent/Student Authorization Rules Matrix", () => {
       expect(canUpdateUser(viceDirectorDoc, { status: "terminated" }, directorUser)).toBe(true);
     });
   });
+
+  describe("Ops Lead vs Front Office Student Mutation Boundary (Blueprint §6.8 / §6.10)", () => {
+    const foStaff = { uid: "fo_1", role: "frontoffice", branchId: "kota_gorontalo" };
+    const opsLead = { uid: "ops_1", role: "opslead", branchId: "kota_gorontalo" };
+    const studentDoc = { id: "std_1", role: "student", branchId: "kota_gorontalo", division: "courses" };
+
+    it("permits Front Office receptionist to update student within branch, but blocks Ops Lead", () => {
+      // FO receptionist can update student profile
+      expect(canUpdateUser(studentDoc, { role: "student", branchId: "kota_gorontalo", division: "courses", displayName: "Updated Student" }, foStaff)).toBe(true);
+
+      // Ops Lead has read-only oversight: direct update blocked
+      expect(canUpdateUser(studentDoc, { role: "student", branchId: "kota_gorontalo", division: "courses", displayName: "Updated Student" }, opsLead)).toBe(false);
+    });
+
+    it("permits Front Office receptionist to delete student within branch, but blocks Ops Lead", () => {
+      // FO receptionist can delete student
+      expect(canDeleteUser(studentDoc, foStaff)).toBe(true);
+
+      // Ops Lead cannot delete student
+      expect(canDeleteUser(studentDoc, opsLead)).toBe(false);
+    });
+  });
 });

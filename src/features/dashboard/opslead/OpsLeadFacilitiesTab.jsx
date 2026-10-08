@@ -6,6 +6,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useToast } from "../../shared";
+import { filterBranchStaffByRole } from "./opsLeadUtils";
 
 /**
  * OpsLeadFacilitiesTab
@@ -26,14 +27,10 @@ export default function OpsLeadFacilitiesTab({
   const [taskText, setTaskText] = useState("");
   const [assignedUid, setAssignedUid] = useState("");
 
-  // Office Boy & support staff at this branch
+  // Office Boy & support staff at this branch (strictly branch-scoped, including in Executive preview mode)
   const officeSupportStaff = useMemo(() => {
-    return users.filter((u) => {
-      const isOB = u.role === "officeboy";
-      const isNotResigned = u.status !== "resigned" && u.status !== "terminated";
-      return isOB && isNotResigned;
-    });
-  }, [users]);
+    return filterBranchStaffByRole(users, myBranch).officeSupport;
+  }, [users, myBranch]);
 
   const handleCreateTask = (e) => {
     e.preventDefault();

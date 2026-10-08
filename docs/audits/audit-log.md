@@ -353,6 +353,26 @@ Executed Phase 4 Final Recheck & Comprehensive Sign-Off for Operational Leader (
 | **Escalation Required** | No |
 | **Status** | **PASS — PHASE 4 COMPLETED & SIGNED OFF** |
 
+---
+
+## 2026-10-08 — Operational Leader Post-Signoff Refinements (Executive Preview Isolation & Rules Mutation Scope)
+
+Executed resolution for observations identified during inspection:
+
+| Field | Value |
+|---|---|
+| **Change** | 1) Scoped `OpsLeadFacilitiesTab.jsx` office support staff strictly to `myBranch` via `filterBranchStaffByRole(users, myBranch).officeSupport` (handles executive multi-branch preview mode); enhanced `opsLeadUtils.js` branch filtering to support both `branch` and `branchId`. 2) Introduced `isFrontDeskStaff()` in `firestore.rules` (restricted strictly to `frontoffice`); narrowed `/users/{userId}` student/parent creation, deletion, and profile mutation rules to `isFrontDeskStaff()` so Ops Leads have read-only student oversight per Blueprint §6.8/§6.10. 3) Added test cases in `OpsLeadDashboard.test.js` and `userAuthorization.test.js`. |
+| **Date** | 2026-10-08 |
+| **Section** | Operational Leader / Multi-Branch Executive Preview / Firestore Security Rules / Student Mutation Scope |
+| **Workflow** | Facilities Staff Dispatch -> Multi-branch preview isolation; Users Collection Security Rules -> Read-Only Student Oversight |
+| **Normal Test** | `OpsLeadDashboard.test.js` (6/6 passed); `userAuthorization.test.js` (12/12 passed); `opsLeadUtils.test.js` (12/12 passed); full suite (94 test files, 1,161 tests passed, 0 failures) |
+| **Failure Test** | Cross-branch office boys excluded in preview mode; Ops Lead direct API mutation/deletion of student documents rejected |
+| **Result Verification** | `npm run typecheck` passed (0 errors); `npm run lint` passed (0 errors, 0 warnings); `npm run build` passed cleanly; 100% Spark free-tier compliant |
+| **Findings** | Both non-blocking recommendations resolved and validated across frontend, backend rules, and test suites |
+| **Escalation Required** | No |
+| **Status** | **PASS — REFINEMENTS COMPLETED** |
+
+
 
 
 

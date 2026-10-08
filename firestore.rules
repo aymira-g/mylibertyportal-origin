@@ -75,6 +75,14 @@ service cloud.firestore {
         && p.role in ['opslead', 'ops_lead', 'frontofficelead'];
     }
 
+    function isFrontDeskStaff() {
+      let p = userProfile();
+      return signedIn()
+        && p != null
+        && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'))
+        && p.role in ['frontoffice'];
+    }
+
     function userBranch() {
       let p = userProfile();
       return signedIn() && p != null && ('branchId' in p)
@@ -300,7 +308,7 @@ service cloud.firestore {
         || (isManager() && isSameBranchStrict(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)))
         || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranchStrict(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)));
       allow create: if isExecutive() 
-        || (isFrontOffice() && request.resource.data.role in ['student', 'parent'] && isSameBranch(request.resource.data)
+        || (isFrontDeskStaff() && request.resource.data.role in ['student', 'parent'] && isSameBranch(request.resource.data)
           && (request.resource.data.role != 'student' || isDivisionAllowedForBranchStaff(request.resource.data))
           && (request.resource.data.role != 'parent'
             || !('childStudentIds' in request.resource.data)
@@ -314,7 +322,7 @@ service cloud.firestore {
               'role', 'branch', 'branchId', 'division', 'status', 'phone', 'dob',
               'educationLevel', 'inviteId', 'createdAt', 'photoURL'
             ]));
-      allow delete: if (isAdmin() && !(resource.data.role in ['director', 'vice_director', 'admin'])) || (isFrontOffice() && resource.data.role in ['student', 'parent'] && isSameBranch(resource.data) && (resource.data.role != 'student' || isDivisionAllowedForBranchStaff(resource.data)));
+      allow delete: if (isAdmin() && !(resource.data.role in ['director', 'vice_director', 'admin'])) || (isFrontDeskStaff() && resource.data.role in ['student', 'parent'] && isSameBranch(resource.data) && (resource.data.role != 'student' || isDivisionAllowedForBranchStaff(resource.data)));
       allow update: if (
           isExecutive()
           && (
@@ -334,7 +342,7 @@ service cloud.firestore {
             || !(request.resource.data.status in ['resigned', 'terminated'])
           )
         )
-        || ((isFrontOffice() || isManager())
+        || ((isFrontDeskStaff() || isManager())
           && resource.data.role == 'student'
           && request.resource.data.role == 'student'
           && isSameBranch(resource.data)
@@ -355,7 +363,7 @@ service cloud.firestore {
               'rating', 'paymentPlan', 'paymentStatus', 'lastPaymentPeriod', 'lastPaymentDate',
               'lastPaymentAmount', 'lastPaymentMethod', 'paidUntil', 'branch', 'division'
             ]))
-        || ((isFrontOffice() || isManager())
+        || ((isFrontDeskStaff() || isManager())
           && resource.data.role == 'parent'
           && request.resource.data.role == 'parent'
           && isSameBranch(resource.data)

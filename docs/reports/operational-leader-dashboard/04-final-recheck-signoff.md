@@ -61,6 +61,19 @@ A Level 1 Light Regression Check was executed across the 5 core invariants:
 
 ---
 
-## 4. Final Sign-Off & Status
+## 4. Observations & Refinements Implemented
 
-The **Operational Leader Dashboard** is **100% complete, fully decoupled, rigorously tested, and formally signed off**. All four phases (Phase 0 Audit, Phase 1 Decoupling, Phase 2 Domain Workflows, Phase 3 Bottlenecks Cockpit, and Phase 4 Final Recheck & Sign-Off) have concluded successfully.
+Following deep code inspection, both identified refinement points have been addressed and validated:
+
+1. **Facilities Staff Filter in Executive Preview Mode:**
+   - **Issue:** In `OpsLeadFacilitiesTab.jsx`, `officeSupportStaff` previously checked `u.role === "officeboy"` directly on the provided `users` list. In Executive preview mode (Admin/Director viewing Ops Lead across branches), this list includes staff across all branches.
+   - **Resolution:** Updated `OpsLeadFacilitiesTab.jsx` to use `filterBranchStaffByRole(users, myBranch).officeSupport`. In `opsLeadUtils.js`, enhanced branch filtering to check `u.branch || u.branchId`. Added a dedicated test in `OpsLeadDashboard.test.js` verifying that cross-branch staff are strictly filtered out during Executive preview mode.
+2. **Backend Direct-Write Scope for Ops Lead in `firestore.rules`:**
+   - **Issue:** `isFrontOffice()` previously included `opslead`, which granted write/create/delete access to `/users/{userId}` (students/parents) via direct API calls even though the UI mounts `StudentRoster` in `readOnly` mode.
+   - **Resolution:** Introduced `isFrontDeskStaff()` in `firestore.rules` (restricted strictly to `frontoffice`). Narrowed `/users/{userId}` student/parent creation, deletion, and profile mutation rules to `isFrontDeskStaff()`. Ops Leads retain read-only visibility (`isStaff()` / `isFrontOffice()`) for campus emergency and coordination duties without having direct mutation capabilities. Verified via unit and security rules matrix tests (`userAuthorization.test.js`).
+
+---
+
+## 5. Final Sign-Off & Status
+
+The **Operational Leader Dashboard** is **100% complete, fully decoupled, rigorously tested, and formally signed off**. All phases (Phase 0 Audit, Phase 1 Decoupling, Phase 2 Domain Workflows, Phase 3 Bottlenecks Cockpit, Phase 4 Final Recheck & Sign-Off, and Follow-Up Refinements) have concluded successfully.

@@ -66,6 +66,14 @@ export function isOpsLead(user) {
   );
 }
 
+export function isFrontDeskStaff(user) {
+  return Boolean(
+    user &&
+      isActiveUser(user) &&
+      user.role === "frontoffice"
+  );
+}
+
 export function isStaff(user) {
   return Boolean(
     user &&
@@ -187,7 +195,7 @@ export function canUpdateUser(existing, incoming, user) {
     return true;
   }
   if (
-    isFrontOffice(user) &&
+    (isFrontDeskStaff(user) || isManager(user)) &&
     existing.role === "student" &&
     incoming.role === "student" &&
     isSameBranch(existing, user) &&
@@ -204,7 +212,7 @@ export function canDeleteUser(existing, user) {
   if (!user) return false;
   if (isAdmin(user) && !["director", "vice_director", "admin"].includes(existing.role)) return true;
   if (
-    isFrontOffice(user) &&
+    isFrontDeskStaff(user) &&
     ["student", "parent"].includes(existing.role) &&
     isSameBranch(existing, user) &&
     (existing.role !== "student" || isDivisionAllowedForBranchStaff(existing, user))

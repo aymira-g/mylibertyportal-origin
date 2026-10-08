@@ -1,17 +1,44 @@
 import { useState, useMemo, useEffect } from "react";
-import { AIAssistant, DashboardShell, ApprovalInbox, usePendingApprovalsCount } from "../shared";
+import { AIAssistant, DashboardShell, ApprovalInbox } from "../shared";
 import { KioskModal, KioskSidebarButton, InstructorAttendanceView } from "../attendance";
 import { ClassPhotoShare, TeachingMaterial } from "../classes";
 import { ReportsDashboard } from "../reports";
 import { StaffDirectivesWidget } from "../staff";
+// Ordinary instructor surfaces reused as-is; `instructor/index.js` is left untouched
+// so this dashboard's leader-only modules never enter the ordinary instructor bundle.
+import { InstructorClasses, InstructorProgress } from "./instructor";
+import { useInstructorLeaderWorkspace } from "./instructor/useInstructorLeaderWorkspace";
+import { splitClassesByDay } from "./instructor/leaderUtils";
 import {
-  InstructorOverview,
-  InstructorClasses,
-  InstructorProgress,
-  useInstructorWorkspace,
-} from "./instructor";
+  AcademicProgressLeader,
+  AttendanceActivity,
+  ClassesCoverage,
+  InstructorTeam,
+  LeaderOverview,
+} from "./instructor/leader";
 import { getUrlAction, clearUrlAction } from "../../utils/urlAction.js";
 
+/**
+ * InstructorLeaderDashboard
+ *
+ * Branch-scope academic leadership workspace for the Instructor Leader.
+ *
+ * Governance (Blueprint v3.3 §6.11, ratified G-003 / G-011):
+ * - The Instructor Leader leads academic delivery within the assigned branch scope
+ *   (curriculum standardization, academic quality control, teacher schedule
+ *   assignments, teacher evaluations) across BOTH divisions.
+ * - All branch Instructors report directly to the Instructor Leader; the operational
+ *   line runs to the Vice Director, the strategic/pedagogical line to the Director.
+ * - The four branch leadership roles are peers. This dashboard is NOT a Branch
+ *   Manager surface: it holds no financial, HR, or general operational authority.
+ *
+ * Approvals canonicalization: this dashboard previously passed the legacy alias
+ * "instructor_leader" to ApprovalInbox / usePendingApprovalsCount. Phase 1
+ * canonicalizes it to "instructorleader" after verifying that
+ * approvalsRepository.listenToPendingApprovals normalizes through roles.js and
+ * queries both spellings identically (approverRole in
+ * [instructorleader, instructor_leader, instructorleader]).
+ */
 export default function InstructorLeaderDashboard({ role = "", branch = "" }) {
   const [activeTab, setActiveTab] = useState(() => {
     const action = getUrlAction();
@@ -31,6 +58,7 @@ export default function InstructorLeaderDashboard({ role = "", branch = "" }) {
   }, []);
 
   const [selectedClassFilter, setSelectedClassFilter] = useState("all");
+  const [attendanceScope, setAttendanceScope] = useState("branch");
 
   const {
     uid,
@@ -40,17 +68,36 @@ export default function InstructorLeaderDashboard({ role = "", branch = "" }) {
     effectiveBranch,
     loading,
     error,
+    allClasses,
     combinedAllClasses,
     activeDirectives,
     completedDirectives,
     pendingDirectivesCount,
     directivesLoading,
     handleToggleDirective,
-  } = useInstructorWorkspace({ role, branch });
+    todayDate,
+    todayDayCode,
+    branchInstructors,
+    branchProgressReports,
+    teamLoading,
+    teamError,
+    reportsLoading,
+    reportsError,
+    coverage,
+    divisionBreakdown,
+    studentsServed,
+    instructorWorkload,
+    progressCoverage,
+    attentionItems,
+    pendingApprovalsCount,
+    attendance,
+    attendanceSummary,
+    loadAttendance,
+  } = useInstructorLeaderWorkspace({ role, branch });
 
-  const pendingApprovalsCount = usePendingApprovalsCount(
-    "instructor_leader",
-    effectiveBranch
+  const { scheduled: todayClasses, unscheduled: unscheduledClasses } = useMemo(
+    () => splitClassesByDay(allClasses, todayDayCode),
+    [allClasses, todayDayCode]
   );
 
   const tabs = [
@@ -58,14 +105,76 @@ export default function InstructorLeaderDashboard({ role = "", branch = "" }) {
       id: "overview",
       label: "Overview",
       component: (
-        <InstructorOverview
-          classes={classes}
-          students={students}
+        <LeaderOverview
           instructorName={instructorName}
+          branchLabel={effectiveBranch}
+          todayDate={todayDate}
+          divisionBreakdown={divisionBreakdown}
+          coverage={coverage}
+          studentsServed={studentsServed}
+          branchInstructors={branchInstructors}
+          todayClasses={todayClasses}
+          unscheduledToday={unscheduledClasses.length}
+          attentionItems={attentionItems}
+          progressCoverage={progressCoverage}
+          progressError={reportsError}
+          attendanceSummary={attendanceSummary}
+          attendanceLoaded={attendance.rows.length > 0}
+          pendingApprovalsCount={pendingApprovalsCount}
           onNavigate={setActiveTab}
-          onOpenKiosk={() => setKioskOpen(true)}
-          onSelectClass={(classId) => setSelectedClassFilter(classId)}
-          allClasses={combinedAllClasses}
+        />
+      ),
+    },
+    {
+      id: "team",
+      label: "Instructor Team",
+      badge: branchInstructors.length || null,
+      component: (
+        <InstructorTeam
+          workload={instructorWorkload}
+          progressCoverage={progressCoverage}
+          progressError={reportsError}
+          teamLoading={teamLoading}
+          teamError={teamError}
+          currentUid={uid}
+          onNavigate={setActiveTab}
+        />
+      ),
+    },
+    {
+      id: "coverage",
+      label: "Classes & Coverage",
+      badge: coverage.missingInstructor > 0 ? coverage.missingInstructor : null,
+      component: (
+        <ClassesCoverage
+          classes={allClasses}
+          branchInstructors={branchInstructors}
+          loading={loading}
+          error={error}
+          onNavigate={setActiveTab}
+        />
+      ),
+    },
+    {
+      id: "progress",
+      label: "Academic Progress",
+      component: (
+        <AcademicProgressLeader
+          reports={branchProgressReports}
+          progressCoverage={progressCoverage}
+          loading={reportsLoading}
+          error={reportsError}
+          branchInstructors={branchInstructors}
+          onNavigate={setActiveTab}
+          ownTeachingSlot={
+            <InstructorProgress
+              uid={uid}
+              classes={classes}
+              students={students}
+              loading={loading}
+              error={error}
+            />
+          }
         />
       ),
     },
@@ -73,27 +182,50 @@ export default function InstructorLeaderDashboard({ role = "", branch = "" }) {
       id: "attendance",
       label: "Attendance",
       component: (
-        <InstructorAttendanceView
-          classes={classes}
-          students={students}
-          uid={uid}
-          instructorName={instructorName}
-          instructorBranch={effectiveBranch}
-        />
-      ),
-    },
-    {
-      id: "directives",
-      label: "Directives",
-      badge: pendingDirectivesCount || null,
-      component: (
-        <StaffDirectivesWidget
-          activeDirectives={activeDirectives}
-          completedDirectives={completedDirectives}
-          loading={directivesLoading}
-          onToggle={handleToggleDirective}
-          roleLabel="Faculty & Instructors"
-        />
+        <div className="space-y-4">
+          <div className="flex p-1 bg-slate-100 rounded-2xl border border-slate-200/80 w-fit">
+            <button
+              type="button"
+              onClick={() => setAttendanceScope("branch")}
+              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer ${
+                attendanceScope === "branch"
+                  ? "bg-white text-[#1a3a8f] shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Branch Monitoring
+            </button>
+            <button
+              type="button"
+              onClick={() => setAttendanceScope("mine")}
+              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer ${
+                attendanceScope === "mine"
+                  ? "bg-white text-[#1a3a8f] shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              My Classes
+            </button>
+          </div>
+
+          {attendanceScope === "branch" ? (
+            <AttendanceActivity
+              classes={allClasses}
+              todayDate={todayDate}
+              attendance={attendance}
+              attendanceSummary={attendanceSummary}
+              loadAttendance={loadAttendance}
+            />
+          ) : (
+            <InstructorAttendanceView
+              classes={classes}
+              students={students}
+              uid={uid}
+              instructorName={instructorName}
+              instructorBranch={effectiveBranch}
+            />
+          )}
+        </div>
       ),
     },
     {
@@ -113,15 +245,16 @@ export default function InstructorLeaderDashboard({ role = "", branch = "" }) {
       ),
     },
     {
-      id: "progress",
-      label: "Student Progress",
+      id: "directives",
+      label: "Directives",
+      badge: pendingDirectivesCount || null,
       component: (
-        <InstructorProgress
-          uid={uid}
-          classes={classes}
-          students={students}
-          loading={loading}
-          error={error}
+        <StaffDirectivesWidget
+          activeDirectives={activeDirectives}
+          completedDirectives={completedDirectives}
+          loading={directivesLoading}
+          onToggle={handleToggleDirective}
+          roleLabel="Faculty & Instructors"
         />
       ),
     },
@@ -133,7 +266,7 @@ export default function InstructorLeaderDashboard({ role = "", branch = "" }) {
       badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
       component: (
         <ApprovalInbox
-          userRole="instructor_leader"
+          userRole="instructorleader"
           branchId={effectiveBranch}
           title="Academic & Faculty Approval Registry"
           subtitle="Dual-control authorization queue for placement level overrides and substitute instructor assignments."
@@ -149,10 +282,15 @@ export default function InstructorLeaderDashboard({ role = "", branch = "" }) {
         tabs={tabs}
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        title="Instructor Portal"
-        primaryTabIds={["overview", "attendance", "classes", "progress"]}
+        title="Instructor Leader Portal"
+        primaryTabIds={["overview", "team", "coverage", "progress", "attendance", "approvals"]}
         extraSidebarContent={
-          <KioskSidebarButton onClick={() => setKioskOpen(true)} label="Attendance & Kiosk" />
+          <div className="px-2 pb-1 space-y-2">
+            <span className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-800 text-[11px] font-black px-2.5 py-0.5 rounded-full border border-indigo-200">
+              Branch Academic Leadership
+            </span>
+            <KioskSidebarButton onClick={() => setKioskOpen(true)} label="Attendance & Kiosk" />
+          </div>
         }
       />
 

@@ -16,7 +16,7 @@ import {
   assertSucceeds,
   assertFails,
 } from "@firebase/rules-unit-testing";
-import { doc, setDoc, getDoc, updateDoc, collection, addDoc, writeBatch, deleteField, query, where, getDocs } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, addDoc, writeBatch, deleteField, query, where, getDocs } from "firebase/firestore";
 
 const RULES_PATH = join(dirname(fileURLToPath(import.meta.url)), "../../../firestore.rules");
 const HAS_EMULATOR = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
@@ -37,6 +37,10 @@ const USERS = {
   mgrUnassigned: { role: "manager" },
   insUnassigned: { role: "instructor" },
   insGto: { role: "instructor", branchId: "kota_gorontalo" },
+  ilGto: { role: "instructorleader", branchId: "kota_gorontalo", division: "kindergarten" },
+  ilLegacyGto: { role: "instructor_leader", branchId: "kota_gorontalo" },
+  ilBoba: { role: "instructorleader", branchId: "bone_bolango" },
+  ilResigned: { role: "instructorleader", branchId: "kota_gorontalo", status: "resigned" },
   mktGto: { role: "marketing", branchId: "kota_gorontalo" },
   obGto: { role: "officeboy", branchId: "kota_gorontalo" },
   cleanerGto: { role: "cleaner", branchId: "kota_gorontalo" },
@@ -842,6 +846,206 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
           method: "MANUAL",
           markedBy: "insGto",
         })
+      );
+    });
+  });
+
+  describe("Instructor Leader branch-scope academic monitoring (owner-approved 2026-10-08)", () => {
+    const CLASS_KOTA = {
+      instructorId: "insGto",
+      studentIds: ["student1"],
+      branchId: "kota_gorontalo",
+      division: "courses",
+    };
+    const CLASS_KOTA_KIDS = {
+      instructorId: "insKids",
+      studentIds: ["student3"],
+      branchId: "kota_gorontalo",
+      division: "kindergarten",
+    };
+    const CLASS_BOBA = {
+      instructorId: "insBoba",
+      studentIds: ["student2"],
+      branchId: "bone_bolango",
+    };
+
+    beforeEach(async () => {
+      await seedDoc(["classes", "classKota"], CLASS_KOTA);
+      await seedDoc(["classes", "classKotaKids"], CLASS_KOTA_KIDS);
+      await seedDoc(["classes", "classBoba"], CLASS_BOBA);
+
+      await seedDoc(["progressReports", "prKotaCourses"], {
+        instructorId: "insOther",
+        studentId: "student1",
+        classId: "classKota",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        examDate: "2026-09-20",
+      });
+      await seedDoc(["progressReports", "prKotaKids"], {
+        instructorId: "insKids",
+        studentId: "student3",
+        classId: "classKotaKids",
+        branchId: "kota_gorontalo",
+        division: "kindergarten",
+        examDate: "2026-09-21",
+      });
+      await seedDoc(["progressReports", "prBoba"], {
+        instructorId: "insBoba",
+        studentId: "student2",
+        classId: "classBoba",
+        branchId: "bone_bolango",
+        examDate: "2026-09-22",
+      });
+
+      await seedDoc(["classAttendance", "classKota_student1_2026-09-27"], {
+        classId: "classKota",
+        studentId: "student1",
+        attendanceDate: "2026-09-27",
+        status: "PRESENT",
+        method: "SCAN",
+        markedBy: "insGto",
+        branchId: "kota_gorontalo",
+      });
+      await seedDoc(["classAttendance", "classBoba_student2_2026-09-27"], {
+        classId: "classBoba",
+        studentId: "student2",
+        attendanceDate: "2026-09-27",
+        status: "PRESENT",
+        method: "SCAN",
+        markedBy: "insBoba",
+        branchId: "bone_bolango",
+      });
+    });
+
+    it("reads same-branch progress reports from both divisions, including other instructors'", async () => {
+      await assertSucceeds(getDoc(doc(authed("ilGto"), "progressReports", "prKotaCourses")));
+      await assertSucceeds(getDoc(doc(authed("ilGto"), "progressReports", "prKotaKids")));
+    });
+
+    it("resolves the legacy instructor_leader alias identically", async () => {
+      await assertSucceeds(getDoc(doc(authed("ilLegacyGto"), "progressReports", "prKotaCourses")));
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(authed("ilLegacyGto"), "progressReports"),
+            where("branchId", "==", "kota_gorontalo")
+          )
+        )
+      );
+    });
+
+    it("denies cross-branch progress reports and branchless listing", async () => {
+      await assertFails(getDoc(doc(authed("ilGto"), "progressReports", "prBoba")));
+      await assertFails(getDoc(doc(authed("ilBoba"), "progressReports", "prKotaCourses")));
+      // list requires the branch constraint: isSameBranchStrict has no fieldless fallback
+      await assertFails(getDocs(collection(authed("ilGto"), "progressReports")));
+    });
+
+    it("lists only same-branch progress reports when branch-constrained", async () => {
+      const snapshot = await assertSucceeds(
+        getDocs(
+          query(
+            collection(authed("ilGto"), "progressReports"),
+            where("branchId", "==", "kota_gorontalo")
+          )
+        )
+      );
+      const ids = snapshot.docs.map((d) => d.id);
+      expect(ids).toEqual(expect.arrayContaining(["prKotaCourses", "prKotaKids"]));
+      expect(ids).not.toContain("prBoba");
+    });
+
+    it("reads branch attendance for classes the leader does not teach, and blocks cross-branch", async () => {
+      await assertSucceeds(
+        getDoc(doc(authed("ilGto"), "classAttendance", "classKota_student1_2026-09-27"))
+      );
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(authed("ilGto"), "classAttendance"),
+            where("classId", "==", "classKota")
+          )
+        )
+      );
+      await assertFails(
+        getDoc(doc(authed("ilGto"), "classAttendance", "classBoba_student2_2026-09-27"))
+      );
+      await assertFails(
+        getDocs(
+          query(
+            collection(authed("ilGto"), "classAttendance"),
+            where("classId", "==", "classBoba")
+          )
+        )
+      );
+    });
+
+    it("does not grant any new write authority over progress reports", async () => {
+      await assertFails(
+        updateDoc(doc(authed("ilGto"), "progressReports", "prKotaCourses"), { overallScore: 99 })
+      );
+      await assertFails(deleteDoc(doc(authed("ilGto"), "progressReports", "prKotaCourses")));
+      await assertFails(
+        setDoc(doc(authed("ilGto"), "progressReports", "ilForged"), {
+          instructorId: "insOther",
+          studentId: "student1",
+          classId: "classKota",
+          branchId: "kota_gorontalo",
+        })
+      );
+    });
+
+    it("does not grant attendance write authority for classes the leader does not teach", async () => {
+      // Realigned by governance to Operational Leader / Front Office, never the Instructor Leader.
+      await assertFails(
+        setDoc(doc(authed("ilGto"), "classAttendance", "classKota_student1_2026-09-28"), {
+          classId: "classKota",
+          studentId: "student1",
+          attendanceDate: "2026-09-28",
+          status: "PRESENT",
+          method: "SCAN",
+          markedBy: "ilGto",
+        })
+      );
+      await assertFails(
+        updateDoc(doc(authed("ilGto"), "classAttendance", "classKota_student1_2026-09-27"), {
+          status: "ABSENT",
+          method: "MANUAL",
+        })
+      );
+    });
+
+    it("leaves shift records closed (financial isolation)", async () => {
+      await seedDoc(["shifts", "shiftKota"], SHIFT_KOTA);
+      // Own shift stays readable...
+      await seedDoc(["shifts", "shiftOwn"], {
+        userId: "ilGto",
+        branchId: "kota_gorontalo",
+        clockIn: "2026-09-21T01:00:00.000Z",
+        clockOut: null,
+      });
+      await assertSucceeds(getDoc(doc(authed("ilGto"), "shifts", "shiftOwn")));
+      // ...but branch shifts carrying cashReconciliation stay out of reach.
+      await assertFails(getDoc(doc(authed("ilGto"), "shifts", "shiftKota")));
+      await assertFails(
+        getDocs(
+          query(collection(authed("ilGto"), "shifts"), where("branchId", "==", "kota_gorontalo"))
+        )
+      );
+    });
+
+    it("denies a resigned Instructor Leader", async () => {
+      await assertFails(getDoc(doc(authed("ilResigned"), "progressReports", "prKotaCourses")));
+      await assertFails(
+        getDoc(doc(authed("ilResigned"), "classAttendance", "classKota_student1_2026-09-27"))
+      );
+    });
+
+    it("still denies a plain Instructor peer progress reports and unassigned attendance", async () => {
+      await assertFails(getDoc(doc(authed("insGto"), "progressReports", "prKotaKids")));
+      await assertFails(
+        getDoc(doc(authed("insGto"), "classAttendance", "classBoba_student2_2026-09-27"))
       );
     });
   });

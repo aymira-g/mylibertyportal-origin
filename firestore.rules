@@ -83,6 +83,23 @@ service cloud.firestore {
         && p.role in ['frontoffice'];
     }
 
+    // Instructor Leader (academic branch-scope leadership). Accepts the canonical
+    // role and the legacy alias, exactly like isApproverForDoc does.
+    //
+    // Authorization note (owner-approved 2026-10-08): this helper grants READ
+    // authority only, and only for academic monitoring collections
+    // (progressReports, classAttendance) at branch scope. It deliberately does NOT
+    // grant shift-record access, because shift documents carry cashReconciliation
+    // fields and Firestore rules cannot restrict which fields a read returns.
+    // See docs/reports/instructor-leader-dashboard/01-phase1-completion-report.md.
+    function isInstructorLeader() {
+      let p = userProfile();
+      return signedIn()
+        && p != null
+        && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'))
+        && p.role in ['instructorleader', 'instructor_leader'];
+    }
+
     function userBranch() {
       let p = userProfile();
       return signedIn() && p != null && ('branchId' in p)
@@ -550,6 +567,16 @@ service cloud.firestore {
           )
           && isAssignedToClass(resource.data.classId)
         )
+        // Instructor Leader branch-scope attendance monitoring (read-only).
+        // Matched against the REAL class document rather than the attendance
+        // document: classDoc() always resolves an actual document, so the branch
+        // comparison stays sound for `list` — the lenient isSameBranch() fallback
+        // documented at the top of this file treats a fieldless synthetic list doc
+        // as Kota Gorontalo and would otherwise leak every branch's records.
+        || (
+          isInstructorLeader()
+          && isSameBranch(classDoc(resource.data.classId))
+        )
         || (
           signedIn()
           && resource.data.studentId == request.auth.uid
@@ -660,11 +687,18 @@ service cloud.firestore {
       allow get: if isExecutive()
         || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data))
         || (signedIn() && resource.data.instructorId == request.auth.uid)
-        || (isParentOf(resource.data.studentId));
+        || (isParentOf(resource.data.studentId))
+        // Instructor Leader branch-scope academic monitoring (read-only).
+        // No division filter: the leader's academic scope spans both divisions
+        // within the branch, mirroring the existing instructor-family behaviour on
+        // /classes and /users (isDivisionAllowedForBranchStaff's role list omits
+        // instructor-family roles, so a division gate would be a no-op here anyway).
+        || (isInstructorLeader() && isSameBranch(resource.data));
       allow list: if isExecutive()
         || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data))
         || (signedIn() && resource.data.instructorId == request.auth.uid)
-        || (isParent() && ('childStudentIds' in userProfile()) && userProfile().childStudentIds.hasAny([resource.data.studentId]));
+        || (isParent() && ('childStudentIds' in userProfile()) && userProfile().childStudentIds.hasAny([resource.data.studentId]))
+        || (isInstructorLeader() && isSameBranchStrict(resource.data));
       allow create: if signedIn()
         && request.resource.data.instructorId == request.auth.uid
         && request.resource.data.studentId is string

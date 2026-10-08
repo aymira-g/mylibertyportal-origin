@@ -859,4 +859,127 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
       expect(canListApplications(appKidsGtlo, marketingLegacyGorontalo)).toBe(false);
     });
   });
+
+  describe("Section 3.2: Instructor Leader Branch-Scope Academic Monitoring (read-only, both divisions)", () => {
+    const leaderGorontalo = {
+      uid: "il_gtlo",
+      role: "instructorleader",
+      branchId: "kota_gorontalo",
+      division: "kindergarten",
+    };
+
+    const leaderLegacyGorontalo = {
+      uid: "il_legacy_gtlo",
+      role: "instructor_leader",
+      branchId: "kota_gorontalo",
+    };
+
+    const leaderBoneBolango = {
+      uid: "il_boba",
+      role: "instructorleader",
+      branchId: "bone_bolango",
+    };
+
+    const resignedLeader = {
+      uid: "il_resigned",
+      role: "instructorleader",
+      branchId: "kota_gorontalo",
+      status: "resigned",
+    };
+
+    const plainInstructorGorontalo = {
+      uid: "ins_gtlo",
+      role: "instructor",
+      branchId: "kota_gorontalo",
+      division: "courses",
+    };
+
+    const reportCoursesGtlo = {
+      id: "pr_c_gtlo",
+      instructorId: "ins_other",
+      studentId: "student_c",
+      classId: "c_c_gtlo",
+      branchId: "kota_gorontalo",
+      division: "courses",
+    };
+
+    const reportKidsGtlo = {
+      id: "pr_k_gtlo",
+      instructorId: "ins_kids",
+      studentId: "student_k",
+      classId: "c_k_gtlo",
+      branchId: "kota_gorontalo",
+      division: "kindergarten",
+    };
+
+    const reportBoba = {
+      id: "pr_boba",
+      instructorId: "ins_boba",
+      studentId: "student_b",
+      classId: "c_boba",
+      branchId: "bone_bolango",
+    };
+
+    it("lets a canonical Instructor Leader read same-branch progress reports from either division", () => {
+      expect(canGetProgressReport(reportCoursesGtlo, leaderGorontalo)).toBe(true);
+      expect(canGetProgressReport(reportKidsGtlo, leaderGorontalo)).toBe(true);
+      expect(canListProgressReports({ branchId: "kota_gorontalo" }, leaderGorontalo)).toBe(true);
+    });
+
+    it("lets the legacy instructor_leader alias read same-branch progress reports", () => {
+      expect(canGetProgressReport(reportCoursesGtlo, leaderLegacyGorontalo)).toBe(true);
+      expect(canListProgressReports({ branchId: "kota_gorontalo" }, leaderLegacyGorontalo)).toBe(true);
+    });
+
+    it("blocks an Instructor Leader from another branch's progress reports", () => {
+      expect(canGetProgressReport(reportBoba, leaderGorontalo)).toBe(false);
+      expect(canListProgressReports({ branchId: "bone_bolango" }, leaderGorontalo)).toBe(false);
+      expect(canGetProgressReport(reportCoursesGtlo, leaderBoneBolango)).toBe(false);
+    });
+
+    it("requires an explicit branch constraint for leader progress-report listing", () => {
+      // isSameBranchStrict has no fieldless fallback, so a query without branchId is denied.
+      expect(canListProgressReports({}, leaderGorontalo)).toBe(false);
+    });
+
+    it("denies a resigned Instructor Leader", () => {
+      expect(canGetProgressReport(reportCoursesGtlo, resignedLeader)).toBe(false);
+      expect(canListProgressReports({ branchId: "kota_gorontalo" }, resignedLeader)).toBe(false);
+    });
+
+    it("does not widen a plain Instructor to peer progress reports", () => {
+      expect(canGetProgressReport(reportCoursesGtlo, plainInstructorGorontalo)).toBe(false);
+      expect(canGetProgressReport(reportKidsGtlo, plainInstructorGorontalo)).toBe(false);
+    });
+
+    it("grants branch-scope class attendance read, including classes the leader does not teach", () => {
+      const classCoursesGtlo = { id: "c_c_gtlo", branchId: "kota_gorontalo", division: "courses" };
+      const classKidsGtlo = { id: "c_k_gtlo", branchId: "kota_gorontalo", division: "kindergarten" };
+      const classBoba = { id: "c_boba", branchId: "bone_bolango" };
+
+      const attCourses = { id: "att_c", classId: "c_c_gtlo", studentId: "student_c" };
+      const attKids = { id: "att_k", classId: "c_k_gtlo", studentId: "student_k" };
+      const attBoba = { id: "att_b", classId: "c_boba", studentId: "student_b" };
+
+      expect(canGetClassAttendance(attCourses, leaderGorontalo, classCoursesGtlo)).toBe(true);
+      expect(canGetClassAttendance(attKids, leaderGorontalo, classKidsGtlo)).toBe(true);
+      // Cross-branch attendance is denied even though the leader role is branch-scoped only.
+      expect(canGetClassAttendance(attBoba, leaderGorontalo, classBoba)).toBe(false);
+      expect(canGetClassAttendance(attCourses, leaderBoneBolango, classCoursesGtlo)).toBe(false);
+    });
+
+    it("still denies class attendance beyond assigned classes to a plain Instructor", () => {
+      const classCoursesGtlo = { id: "c_c_gtlo", branchId: "kota_gorontalo", division: "courses" };
+      const attCourses = { id: "att_c", classId: "c_c_gtlo", studentId: "student_c" };
+      expect(canGetClassAttendance(attCourses, plainInstructorGorontalo, classCoursesGtlo)).toBe(false);
+    });
+
+    it("does not grant shift-record visibility to an Instructor Leader", () => {
+      // Financial isolation: shift docs carry cashReconciliation fields, so the leader
+      // remains limited to their own shift records (see Phase 1 report, section Gap).
+      expect(canGetShift({ userId: "ins_other", branchId: "kota_gorontalo" }, leaderGorontalo)).toBe(false);
+      expect(canListShifts({ branchId: "kota_gorontalo" }, leaderGorontalo)).toBe(false);
+      expect(canGetShift({ userId: "il_gtlo", branchId: "kota_gorontalo" }, leaderGorontalo)).toBe(true);
+    });
+  });
 });

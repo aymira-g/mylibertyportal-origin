@@ -74,6 +74,19 @@ export function isFrontDeskStaff(user) {
   );
 }
 
+/**
+ * Mirrors firestore.rules `isInstructorLeader()`.
+ * Accepts the canonical role and the legacy alias. Grants READ authority only for
+ * branch-scope academic monitoring collections (progressReports, classAttendance).
+ */
+export function isInstructorLeader(user) {
+  return Boolean(
+    user &&
+      isActiveUser(user) &&
+      ["instructorleader", "instructor_leader"].includes(user.role)
+  );
+}
+
 export function isStaff(user) {
   return Boolean(
     user &&
@@ -302,6 +315,8 @@ export function canGetProgressReport(doc, user) {
     return true;
   if (doc.instructorId === user.uid) return true;
   if (isParentOf(doc.studentId, user)) return true;
+  // Instructor Leader branch-scope academic monitoring (read-only, both divisions).
+  if (isInstructorLeader(user) && isSameBranch(doc, user)) return true;
   return false;
 }
 
@@ -321,6 +336,8 @@ export function canListProgressReports(queryData, user) {
     user.childStudentIds.includes(queryData.studentId)
   )
     return true;
+  // Instructor Leader branch-scope academic monitoring (read-only, both divisions).
+  if (isInstructorLeader(user) && isSameBranchStrict(queryData, user)) return true;
   return false;
 }
 
@@ -513,6 +530,9 @@ export function canGetClassAttendance(doc, user, classDoc = null) {
     (targetClass.instructorId === user.uid || targetClass.substituteInstructorId === user.uid)
   )
     return true;
+  // Instructor Leader branch-scope attendance monitoring (read-only, both divisions).
+  // Branch-matched against the class document, mirroring the rules engine.
+  if (isInstructorLeader(user) && isSameBranch(targetClass, user)) return true;
   if (doc.studentId === user.uid) return true;
   if (isParent(user) && Array.isArray(user.childStudentIds) && user.childStudentIds.includes(doc.studentId)) return true;
   return false;

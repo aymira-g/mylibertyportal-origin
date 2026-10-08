@@ -134,3 +134,18 @@ The four branch leadership functions are peer authorities within their respectiv
 - **Staff Status / Leave Changes:** Maker is always Front Office (never the subject); checker is the subject's domain superior; peer leaders escalate to executives; executives review each other; 4-peer fallback chain when both executives are on leave.
 - **Acting Director Delegation:** Explicit, active only during Director's approved leave, excludes role elevations/executive modifications, excludes delegate's own requests, and cannot count as a second signature if delegate already signed.
 
+### 6.6 Instructor Leader Branch-Scope Academic Read Authority (Owner-Approved 2026-10-08)
+
+The Instructor Leader leads academic delivery within the assigned branch scope across **both** divisions (Blueprint v3.3 §6.11; ratified G-003 / G-011). To realize that responsibility without granting any new mutation authority, `firestore.rules` grants the role an `isInstructorLeader()` **read-only** clause on two academic monitoring collections:
+
+| Collection | Granted to `instructorleader` / `instructor_leader` | Boundary | Mutation |
+|---|---|---|---|
+| `progressReports` | `get` + `list` | Same branch (`isSameBranch` / `isSameBranchStrict`). No division filter. | None — `create` remains instructor-of-record; `update` / `delete` remain executive / Division Manager / Front Office. |
+| `classAttendance` | `read` | Same branch, matched against the **real class document** (`classDoc(resource.data.classId)`), which keeps the comparison sound for `list`. No division filter. | None — `create` / `update` / `delete` unchanged, so retroactive correction stays with the Operational Leader / Front Office. |
+
+**Explicitly NOT granted (financial isolation).** Shift records (`shifts`) remain unreadable to the Instructor Leader beyond their own `userId`. Shift documents carry `cashReconciliation` (`expectedCash`, `countedCash`, `discrepancy`, thresholds) plus punctuality data, and Firestore security rules **cannot restrict which fields a read returns** — so any read grant would disclose financial fields. Blueprint §6.11 ("does not automatically inherit general operational or financial authority") and §11.3 therefore keep this gap open until a non-financial projection exists.
+
+**Known divergence (pre-existing, not introduced here).** Layer 3 above describes `isDivisionAllowedForBranchStaff(data)` as `!(isManager() || isFrontOffice())`. The implemented helper uses a narrower role list — `role in ['manager', 'branch_manager', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'marketing']` in `firestore.rules` — so `instructor`, `instructorleader`, and `instructor_leader` are **not** division-gated on division-scoped collections. The both-divisions read scope above does not depend on that omission: it is stated explicitly by the `isInstructorLeader()` clauses. The divergence is recorded as a reconciliation item rather than silently normalized; see `docs/reports/instructor-leader-dashboard/01-phase1-completion-report.md`.
+
+**Deployment requirement.** These clauses take effect only once `firestore.rules` is deployed, and the `progressReports` branch window additionally requires the composite index `progressReports(branchId ASC, examDate DESC)` in `firestore.indexes.json`.
+

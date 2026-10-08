@@ -32,12 +32,26 @@ describe("Maker-Checker Approval Gates", () => {
     expect(GATED_ACTIONS.STAFF_DEACTIVATION.approverRole).toBe(APPROVAL_ROLES.DIRECTOR);
     expect(GATED_ACTIONS.STAFF_DEACTIVATION.mode).toBe(APPROVAL_MODES.BLOCKING);
 
-    // Executive pricing actions (Owner Decision G-009)
-    expect(GATED_ACTIONS.DISCOUNT_OR_REFUND.mode).toBe(APPROVAL_MODES.BLOCKING);
+    // Executive pricing actions (Owner Decision G-009).
+    // Mode corrected to LOGGED by owner decision 2026-10-08: PaymentModal records the
+    // payment before the envelope is submitted (the cash/transfer has already happened),
+    // so the gate is deliberately notify-first. Declaring it "blocking" made the UI show a
+    // block that does not exist. Visibility is preserved via payment approvalStatus.
+    expect(GATED_ACTIONS.DISCOUNT_OR_REFUND.mode).toBe(APPROVAL_MODES.LOGGED);
     expect(GATED_ACTIONS.DISCOUNT_OR_REFUND.approverRole).toBe(APPROVAL_ROLES.DIRECTOR);
 
     expect(GATED_ACTIONS.CASH_DISCREPANCY.mode).toBe(APPROVAL_MODES.BLOCKING);
-    expect(GATED_ACTIONS.CASH_DISCREPANCY.approverRole).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
+    // CASH_DISCREPANCY is tier-resolved at envelope-creation time (G-009); the static seed
+    // is provisional. Asserting BRANCH_MANAGER here previously passed only because that
+    // deprecated alias is literally the string "manager" — it did not test the real seed.
+    expect(GATED_ACTIONS.CASH_DISCREPANCY.approverRole).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+    expect(GATED_ACTIONS.CASH_DISCREPANCY.primaryController).toBe(APPROVAL_ROLES.OPS_LEAD);
+    expect(createApprovalEnvelope("CASH_DISCREPANCY", { branchId: "Kota Gorontalo" }, { amount: 10000 }).approverRole).toBe(
+      APPROVAL_ROLES.OPS_LEAD
+    );
+    expect(createApprovalEnvelope("CASH_DISCREPANCY", { branchId: "Kota Gorontalo" }, { amount: 75000 }).approverRole).toBe(
+      APPROVAL_ROLES.DIRECTOR
+    );
 
     expect(GATED_ACTIONS.TUITION_PLAN_CHANGE.mode).toBe(APPROVAL_MODES.BLOCKING);
     expect(GATED_ACTIONS.TUITION_PLAN_CHANGE.approverRole).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
@@ -83,7 +97,8 @@ describe("Maker-Checker Approval Gates", () => {
     );
 
     expect(envelope.status).toBe(APPROVAL_STATUS.PENDING);
-    expect(envelope.mode).toBe(APPROVAL_MODES.BLOCKING);
+    // LOGGED per owner decision 2026-10-08 (see the mode assertion above).
+    expect(envelope.mode).toBe(APPROVAL_MODES.LOGGED);
     expect(envelope.approverRole).toBe(APPROVAL_ROLES.DIRECTOR);
     expect(envelope.approverBranchId).toBe("branch_gorontalo_main");
     expect(envelope.requestedBy).toBe("Alice Frontdesk");

@@ -170,7 +170,7 @@ export const GATED_ACTIONS = Object.freeze({
       APPROVAL_ROLES.DIRECTOR,
       APPROVAL_ROLES.VICE_DIRECTOR,
     ]),
-    mode: APPROVAL_MODES.BLOCKING,
+    mode: APPROVAL_MODES.LOGGED,
     domain: "finance",
     requiredDomain: "finance",
     requiredScope: SCOPE_LEVELS.ORGANIZATION_WIDE,

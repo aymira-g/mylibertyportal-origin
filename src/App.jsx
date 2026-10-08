@@ -38,6 +38,9 @@ const OpsLeadDashboard = lazyWithRetry(() => import("./features/dashboard/OpsLea
 const FrontOfficeDashboard = lazyWithRetry(() => import("./features/dashboard/FrontOfficeDashboard"));
 const ManagerDashboard = lazyWithRetry(() => import("./features/dashboard/ManagerDashboard"));
 const InstructorDashboard = lazyWithRetry(() => import("./features/dashboard/InstructorDashboard"));
+const InstructorLeaderDashboard = lazyWithRetry(() =>
+  import("./features/dashboard/InstructorLeaderDashboard")
+);
 const MarketingDashboard = lazyWithRetry(() => import("./features/dashboard/MarketingDashboard"));
 const OfficeBoyDashboard = lazyWithRetry(() => import("./features/dashboard/OfficeBoyDashboard"));
 const KidsFrontOfficeDashboard = lazyWithRetry(() =>
@@ -566,15 +569,19 @@ function App() {
                   )}
                 </ErrorBoundary>
               )}
-              {(effectiveRole === "instructor" ||
-                effectiveRole === "instructorleader" ||
-                effectiveRole === "instructor_leader") && (
+              {effectiveRole === "instructor" && (
                 <ErrorBoundary label="Instructor dashboard">
                   {effectiveDivision === "kindergarten" ? (
                     <KidsInstructorDashboard />
                   ) : (
                     <InstructorDashboard role={effectiveRole} />
                   )}
+                </ErrorBoundary>
+              )}
+              {(effectiveRole === "instructorleader" ||
+                effectiveRole === "instructor_leader") && (
+                <ErrorBoundary label="Instructor Leader dashboard">
+                  <InstructorLeaderDashboard role={effectiveRole} />
                 </ErrorBoundary>
               )}
               {(effectiveRole === "opslead" ||

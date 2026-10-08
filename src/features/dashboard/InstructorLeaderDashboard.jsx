@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { AIAssistant, DashboardShell } from "../shared";
+import { AIAssistant, DashboardShell, ApprovalInbox, usePendingApprovalsCount } from "../shared";
 import { KioskModal, KioskSidebarButton, InstructorAttendanceView } from "../attendance";
 import { ClassPhotoShare, TeachingMaterial } from "../classes";
 import { ReportsDashboard } from "../reports";
@@ -12,7 +12,7 @@ import {
 } from "./instructor";
 import { getUrlAction, clearUrlAction } from "../../utils/urlAction.js";
 
-export default function InstructorDashboard({ role = "", branch = "" }) {
+export default function InstructorLeaderDashboard({ role = "", branch = "" }) {
   const [activeTab, setActiveTab] = useState(() => {
     const action = getUrlAction();
     if (action === "attendance") return "attendance";
@@ -47,6 +47,11 @@ export default function InstructorDashboard({ role = "", branch = "" }) {
     directivesLoading,
     handleToggleDirective,
   } = useInstructorWorkspace({ role, branch });
+
+  const pendingApprovalsCount = usePendingApprovalsCount(
+    "instructor_leader",
+    effectiveBranch
+  );
 
   const tabs = [
     {
@@ -122,6 +127,19 @@ export default function InstructorDashboard({ role = "", branch = "" }) {
     },
     { id: "materials", label: "Lesson Materials", component: <TeachingMaterial /> },
     { id: "reports", label: "Reports", component: <ReportsDashboard userBranch={effectiveBranch} /> },
+    {
+      id: "approvals",
+      label: "Academic Approvals",
+      badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
+      component: (
+        <ApprovalInbox
+          userRole="instructor_leader"
+          branchId={effectiveBranch}
+          title="Academic & Faculty Approval Registry"
+          subtitle="Dual-control authorization queue for placement level overrides and substitute instructor assignments."
+        />
+      ),
+    },
     { id: "ai", label: "AI Assistant", component: <AIAssistant /> },
   ];
 

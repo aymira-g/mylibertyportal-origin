@@ -154,7 +154,7 @@ The dashboard area contains role-specific portal entry points that realize the g
 - `AdminDashboard.jsx` (technical administration portal for `admin`: account provisioning, staff onboarding invites, kiosk terminal setup, branch isolation diagnostics, and Firestore Spark log retention);
 - `ManagerDashboard.jsx` / `dashboard/manager` (Division Manager operational oversight — Course Division Manager when division=courses, KidsManagerDashboard for Kindergarten Division Manager);
 - `FrontOfficeDashboard.jsx` / `KidsFrontOfficeDashboard.jsx` (branch reception, front desk inquiry intake, payment collection, and daily operational coordination);
-- `InstructorDashboard.jsx` / `KidsInstructorDashboard.jsx` / `dashboard/instructor` / `dashboard/kids` (academic delivery, class attendance, student grades, and parent-instructor engagement);
+- `InstructorDashboard.jsx` / `InstructorLeaderDashboard.jsx` / `KidsInstructorDashboard.jsx` / `dashboard/instructor` / `dashboard/kids` (academic delivery, class attendance, student grades, and parent-instructor engagement);
 - `MarketingDashboard.jsx` / `dashboard/marketing` (school outreach, marketing campaigns, and prospect tracking);
 - `OfficeBoyDashboard.jsx` (facility readiness and operational maintenance tasks);
 - `ParentDashboard.jsx` (authenticated parent portal with multi-child switching, attendance tracking, and schedule visibility).
@@ -569,7 +569,7 @@ The role dashboards are separate application experiences, including:
 - Admin (`AdminDashboard` strictly for technical maintenance & diagnostics);
 - Division Manager (`ManagerDashboard` for Course Division, `KidsManagerDashboard` for Kindergarten Division);
 - Marketing (`MarketingDashboard`);
-- Instructor (`InstructorDashboard`, `KidsInstructorDashboard`);
+- Instructor (`InstructorDashboard`, `InstructorLeaderDashboard`, `KidsInstructorDashboard`);
 - Front Office (`FrontOfficeDashboard`, `KidsFrontOfficeDashboard`, `CrossDivDashboard`);
 - Office Boy (`OfficeBoyDashboard`);
 - Parent (`ParentDashboard`);

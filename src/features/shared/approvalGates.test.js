@@ -180,7 +180,7 @@ describe("Maker-Checker Approval Gates", () => {
 
     // Front office / Ops Lead (covers canonical opslead and legacy aliases ops_lead, frontofficelead)
     expect(canApproveGate("frontoffice", APPROVAL_ROLES.BRANCH_MANAGER)).toBe(false);
-    expect(canApproveGate("frontoffice", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
+    expect(canApproveGate("frontoffice", APPROVAL_ROLES.OPS_LEAD)).toBe(false);
     expect(canApproveGate("opslead", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
     expect(canApproveGate("ops_lead", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
     expect(canApproveGate("frontofficelead", APPROVAL_ROLES.OPS_LEAD)).toBe(true);

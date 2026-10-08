@@ -44,6 +44,18 @@ export const foBoneBolango = {
   branchId: "bone_bolango",
 };
 
+export const opsLeadGorontalo = {
+  uid: "opslead_gtlo",
+  role: "opslead",
+  branchId: "kota_gorontalo",
+};
+
+export const opsLeadBoneBolango = {
+  uid: "opslead_boba",
+  role: "opslead",
+  branchId: "bone_bolango",
+};
+
 export const instructorLeaderGorontalo = {
   uid: "il_gtlo",
   role: "instructor_leader",

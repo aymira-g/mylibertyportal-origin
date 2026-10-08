@@ -58,6 +58,14 @@ export function isFrontOffice(user) {
   );
 }
 
+export function isOpsLead(user) {
+  return Boolean(
+    user &&
+      isActiveUser(user) &&
+      ["opslead", "ops_lead", "frontofficelead"].includes(user.role)
+  );
+}
+
 export function isStaff(user) {
   return Boolean(
     user &&
@@ -364,9 +372,11 @@ export function isApproverForDoc(data, user) {
   ) {
     roleMatches = true;
   } else if (
-    (targetRole === "ops_lead" || targetRole === "opslead" || targetRole === "frontoffice") &&
-    isFrontOffice(user)
+    (targetRole === "ops_lead" || targetRole === "opslead") &&
+    isOpsLead(user)
   ) {
+    roleMatches = true;
+  } else if (targetRole === "frontoffice" && isFrontOffice(user)) {
     roleMatches = true;
   }
 

@@ -8,7 +8,7 @@ import { DoorOpen, Clock, Users, User, BookOpen, AlertCircle } from "lucide-reac
  * Inspects classes already in memory, checking schedule overlap with today's WITA day.
  * Zero additional Firestore reads.
  */
-export default function TodayScheduleBoard({ classes = [], instructors = [], onNavigateToClasses }) {
+export default function TodayScheduleBoard({ classes = [], instructors = [], onNavigateToClasses = null }) {
   const todayDateStr = todayWita();
   const weekdayNum = getTodayWitaWeekday();
   const todayDayCode = NUM_TO_DAY_CODE[weekdayNum]; // "sun", "mon", "tue", ...

@@ -18,6 +18,8 @@ import {
   managerBoneBolango,
   foGorontalo,
   foBoneBolango,
+  opsLeadGorontalo,
+  opsLeadBoneBolango,
   instructorLeaderGorontalo,
 } from "./securityRulesMatrix.fixtures.js";
 import {
@@ -78,7 +80,7 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
       expect(canDecideApproval(approvalDoc, adminUser)).toBe(false);
     });
 
-    it("routes Operational approvals strictly to Front Office / Ops Lead of that branch", () => {
+    it("routes Operational approvals strictly to Operational Leader of that branch", () => {
       const approvalDoc = {
         actionId: "RETROACTIVE_STUDENT_ATTENDANCE",
         approverRole: "ops_lead",
@@ -86,8 +88,11 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
         requestedByUid: "ins_gtlo",
       };
 
-      expect(canDecideApproval(approvalDoc, foGorontalo)).toBe(true);
-      expect(canDecideApproval(approvalDoc, foBoneBolango)).toBe(false);
+      // Strict OD-O4: Operational Leader of the branch is authorized
+      expect(canDecideApproval(approvalDoc, opsLeadGorontalo)).toBe(true);
+      // Plain Front Office cashier is BLOCKED from signing Ops Lead tickets!
+      expect(canDecideApproval(approvalDoc, foGorontalo)).toBe(false);
+      expect(canDecideApproval(approvalDoc, opsLeadBoneBolango)).toBe(false);
       expect(canDecideApproval(approvalDoc, instructorLeaderGorontalo)).toBe(false);
       // System Admin cannot decide operational attendance approvals
       expect(canDecideApproval(approvalDoc, adminUser)).toBe(false);
@@ -387,6 +392,7 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
       { user: adminUser, role: "admin", label: "System Admin" },
       { user: managerGorontalo, role: "manager", label: "Division Manager GTLO" },
       { user: foGorontalo, role: "frontoffice", label: "Front Office GTLO" },
+      { user: { uid: "ops_1", role: "opslead", branchId: "kota_gorontalo" }, role: "opslead", label: "Operational Leader GTLO" },
       { user: instructorLeaderGorontalo, role: "instructorleader", label: "Instructor Leader GTLO" },
       { user: { uid: "ins_1", role: "instructor", branchId: "kota_gorontalo" }, role: "instructor", label: "Instructor GTLO" },
       { user: { uid: "mkt_1", role: "marketing", branchId: "kota_gorontalo" }, role: "marketing", label: "Marketing GTLO" },
@@ -396,7 +402,12 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
     it("maintains 100% parity between canApproveGate and isApproverForDoc for every gate", () => {
       Object.values(GATED_ACTIONS).forEach((gate) => {
         // Skip dynamic gates that resolve per-ticket approvers at runtime
-        if (gate.approverRole === "dynamic_hierarchy" || gate.approverRole === "dynamic_superior") return;
+        if (
+          gate.approverRole === "dynamic_hierarchy" ||
+          gate.approverRole === "dynamic_superior" ||
+          gate.id === "CASH_DISCREPANCY"
+        )
+          return;
 
         testUsers.forEach(({ user, role, label }) => {
           const clientResult = canApproveGate(role, gate);
@@ -428,13 +439,36 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
     });
 
     it("proves negative authority: Operational Leader cannot approve academic or financial gates", () => {
+      const opsLead = { uid: "ops_1", role: "opslead", branchId: "kota_gorontalo" };
       const academicDoc = { actionId: "PLACEMENT_LEVEL_OVERRIDE", approverRole: "instructor_leader", approverBranchId: "kota_gorontalo", requestedByUid: "ins_1" };
       const discountDoc = { actionId: "DISCOUNT_OR_REFUND", approverRole: "director", approverBranchId: "kota_gorontalo", requestedByUid: "fo_gtlo" };
       const tuitionDoc = { actionId: "TUITION_PLAN_CHANGE", approverRole: "manager", approverBranchId: "kota_gorontalo", requestedByUid: "fo_gtlo" };
 
+      expect(canDecideApproval(academicDoc, opsLead)).toBe(false);
+      expect(canDecideApproval(discountDoc, opsLead)).toBe(false);
+      expect(canDecideApproval(tuitionDoc, opsLead)).toBe(false);
       expect(canDecideApproval(academicDoc, foGorontalo)).toBe(false);
       expect(canDecideApproval(discountDoc, foGorontalo)).toBe(false);
       expect(canDecideApproval(tuitionDoc, foGorontalo)).toBe(false);
+    });
+
+    it("verifies tiered cash discrepancy authority under G-009", () => {
+      const opsLead = { uid: "ops_1", role: "opslead", branchId: "kota_gorontalo" };
+      const smallDoc = { actionId: "CASH_DISCREPANCY", approverRole: "ops_lead", approverBranchId: "kota_gorontalo", requestedByUid: "fo_gtlo" };
+      const mediumDoc = { actionId: "CASH_DISCREPANCY", approverRole: "vice_director", approverBranchId: "kota_gorontalo", requestedByUid: "fo_gtlo" };
+      const largeDoc = { actionId: "CASH_DISCREPANCY", approverRole: "director", approverBranchId: "kota_gorontalo", requestedByUid: "fo_gtlo" };
+
+      // Ops Lead can approve < 20k ticket (approverRole: ops_lead)
+      expect(canDecideApproval(smallDoc, opsLead)).toBe(true);
+      // Front Office peer cannot approve < 20k ticket
+      expect(canDecideApproval(smallDoc, { uid: "fo_peer", role: "frontoffice", branchId: "kota_gorontalo" })).toBe(false);
+      // Ops Lead cannot approve escalated >= 20k tickets
+      expect(canDecideApproval(mediumDoc, opsLead)).toBe(false);
+      expect(canDecideApproval(largeDoc, opsLead)).toBe(false);
+      // Vice Director approves 20k-49.9k
+      expect(canDecideApproval(mediumDoc, viceDirectorUser)).toBe(true);
+      // Director approves >= 50k
+      expect(canDecideApproval(largeDoc, directorUser)).toBe(true);
     });
 
     it("proves negative authority: Instructor Leader cannot approve operational or financial gates", () => {

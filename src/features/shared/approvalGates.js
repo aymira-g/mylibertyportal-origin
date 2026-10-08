@@ -302,7 +302,6 @@ export const GATED_ACTIONS = Object.freeze({
     primaryController: APPROVAL_ROLES.OPS_LEAD,
     eligibleApproverRoles: Object.freeze([
       APPROVAL_ROLES.OPS_LEAD,
-      "frontoffice",
     ]),
     mode: APPROVAL_MODES.LOGGED,
     domain: "classes",
@@ -323,7 +322,6 @@ export const GATED_ACTIONS = Object.freeze({
     primaryController: APPROVAL_ROLES.OPS_LEAD,
     eligibleApproverRoles: Object.freeze([
       APPROVAL_ROLES.OPS_LEAD,
-      "frontoffice",
     ]),
     mode: APPROVAL_MODES.BLOCKING,
     domain: "attendance",
@@ -342,7 +340,6 @@ export const GATED_ACTIONS = Object.freeze({
     primaryController: APPROVAL_ROLES.OPS_LEAD,
     eligibleApproverRoles: Object.freeze([
       APPROVAL_ROLES.OPS_LEAD,
-      "frontoffice",
     ]),
     mode: APPROVAL_MODES.BLOCKING,
     domain: "classes",
@@ -805,10 +802,7 @@ export function canApproveGate(userRole, approverRoleOrAction, actionId = null) 
     case APPROVAL_ROLES.OPS_LEAD:
     case "opslead":
     case "ops_lead":
-      return (
-        normalized === "frontoffice" ||
-        normalized === "opslead"
-      );
+      return normalized === "opslead";
     default:
       return false;
   }

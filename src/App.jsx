@@ -34,6 +34,7 @@ const ParentPortalPage = lazyWithRetry(() =>
 );
 const AdminDashboard = lazyWithRetry(() => import("./features/dashboard/AdminDashboard"));
 const ExecutiveDashboard = lazyWithRetry(() => import("./features/dashboard/ExecutiveDashboard"));
+const OpsLeadDashboard = lazyWithRetry(() => import("./features/dashboard/OpsLeadDashboard"));
 const FrontOfficeDashboard = lazyWithRetry(() => import("./features/dashboard/FrontOfficeDashboard"));
 const ManagerDashboard = lazyWithRetry(() => import("./features/dashboard/ManagerDashboard"));
 const InstructorDashboard = lazyWithRetry(() => import("./features/dashboard/InstructorDashboard"));
@@ -576,10 +577,14 @@ function App() {
                   )}
                 </ErrorBoundary>
               )}
-              {(effectiveRole === "frontoffice" ||
-                effectiveRole === "opslead" ||
+              {(effectiveRole === "opslead" ||
                 effectiveRole === "ops_lead" ||
                 effectiveRole === "frontofficelead") && (
+                <ErrorBoundary label="Operational Leader dashboard">
+                  <OpsLeadDashboard role={effectiveRole} branch={branch} />
+                </ErrorBoundary>
+              )}
+              {effectiveRole === "frontoffice" && (
                 <ErrorBoundary label="Front Office dashboard">
                   {effectiveDivision === "all" ? (
                     <CrossDivDashboard role={effectiveRole} />

@@ -67,6 +67,14 @@ service cloud.firestore {
         && p.role in ['frontoffice', 'opslead', 'ops_lead', 'frontofficelead'];
     }
 
+    function isOpsLead() {
+      let p = userProfile();
+      return signedIn()
+        && p != null
+        && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'))
+        && p.role in ['opslead', 'ops_lead', 'frontofficelead'];
+    }
+
     function userBranch() {
       let p = userProfile();
       return signedIn() && p != null && ('branchId' in p)
@@ -148,7 +156,8 @@ service cloud.firestore {
       let roleMatches = ((targetRole == 'director' || targetRole == 'vice_director') && (isDirector() || isViceDirector()))
         || (targetRole == 'manager' && (isManager() || isDirector() || isViceDirector()))
         || ((targetRole == 'instructor_leader' || targetRole == 'instructorleader') && (hasRole('instructorleader') || hasRole('instructor_leader')))
-        || ((targetRole == 'ops_lead' || targetRole == 'opslead' || targetRole == 'frontoffice') && isFrontOffice());
+        || ((targetRole == 'ops_lead' || targetRole == 'opslead') && isOpsLead())
+        || (targetRole == 'frontoffice' && isFrontOffice());
       // Approval docs route by approverBranchId (see approvalGates.js); fall back
       // to the generic branch fields for legacy docs.
       let branchMatches = (isDirector() || isViceDirector()) || (data != null && 'approverBranchId' in data

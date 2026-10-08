@@ -27,7 +27,7 @@ export const STAFF_ROLE_LABELS = {
   instructor: "Instructor",
   instructorleader: "Instructor Leader",
   frontoffice: "Front Office",
-  opslead: "Front Office Leader",
+  opslead: "Operational Leader",
   manager: "Division Manager",
   marketing: "Marketing Staff",
   officeboy: "Office Boy",

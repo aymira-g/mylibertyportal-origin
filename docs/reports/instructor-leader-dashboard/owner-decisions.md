@@ -74,6 +74,8 @@ These are recorded so they are not lost. **None is in scope for Phase 3** unless
 4. **Three manager dashboards advertise a queue that cannot be populated.** `ManagerDashboard.jsx:589`, `KidsManagerDashboard.jsx:511` and `ManagerOverview.jsx:151` tell Division Managers they will review "tuition plan modifications, student withdrawals" — both gates are NOT WIRED.
 5. **A test gives false assurance.** `approvalGates.test.js:40` asserts `CASH_DISCREPANCY.approverRole === APPROVAL_ROLES.BRANCH_MANAGER`. It passes only because the deprecated alias is literally the string `"manager"`, so the assertion does not test what its name implies.
 6. **A toast promises a recovery path that does not exist.** `ApprovalInbox.jsx:118` tells the approver a failed shift correction can be applied by "an admin … from Staff Duty Reports"; `applyApprovedShiftCorrection` is called from `ApprovalInbox.jsx:114` only, and there is no Staff Duty Reports call site.
+7. **NEW (found while implementing ENF2, 2026-10-08) — `users.currentLevel` is still directly writable by Front Office and Managers, so level placement is not fully leader-gated.** The student-record allow-list at `firestore.rules` includes both `level` and `currentLevel` for `isFrontDeskStaff() || isManager()`. The same roles that must obtain the Leader's approval to override a placement level on a walk-in inquiry can set that student's level directly on the student record — at registration (`StudentAcademicFields.jsx`) or afterwards. Gating it is **not** a small additive change: legitimate writers include promotions (`StudentRoster`, `progressReportsRepository.js`), batch/class-level sync (`classesRepository.js:36`), and registration, so it needs a product decision about which level changes are *authoritative* (promotion) versus *overrides*. **Recorded, not silently closed.**
+8. **NEW (same audit) — `deskInquiries` `create` accepts any `currentLevel`.** The walk-in intake form pre-fills a default level (`walkInUtils.getDefaultData` → `tierOptions[0].defaultLevel`), and the create rule does not gate the field, so a crafted client can create an inquiry at the level it wants and enroll from it without any approval. Closing this means either gating create (which would require dropping the intake default, since that default has no score behind it) or dropping the default and showing "Unassessed" until a real assessment exists. **Needs a product decision; ENF2 deliberately did not touch it.**
 
 ### The decision needed
 
@@ -102,7 +104,7 @@ For each blocking gate, one of two honest outcomes. Leaving the registry and the
 - **Option B (Relabel to `logged`):** accept notify-first for placement overrides as well.
 - **Suggested default:** **Option A.** Unlike a payment, this is an academic record that has not "already happened" anywhere physical — the student's level can be corrected before it is used, and this gate is the leader's core authority. Enforcing it is what makes the leader's approvals tab meaningful.
 - **Answer (Kifry fills in):** **OPTION A — RATIFIED BY OWNER 2026-10-08.**
-- **Status: BLOCKED ON A DESIGN DECISION — implementation not started.** Reading the write path revealed that enforcement is *not* a rules-only change, and I am not willing to ship a gate that only looks enforced.
+- **Status: IMPLEMENTED 2026-10-08 as design A′** (see `OD-IL-ENF2 — why design A was replaced` below; the plan in the next section is kept only as the reasoning trail and is **superseded**). Reading the write path showed that enforcement is *not* a rules-only change, and that design A as first written would not have gated the level at all.
 
   **The blocker.** `PlacementTestModal.jsx:52` decides `isOverride = Boolean(recLevel && assessedLevel !== recLevel)` **in the client**, and `addPlacementTestToInquiry` (`deskInquiriesRepository.js:142-186`) writes `currentLevel = assessedLevel` for **both** override and ordinary placement tests. The inquiry document never records `recommendedLevel`, so nothing in the stored data lets `firestore.rules` tell a gated override from an ungated normal assessment.
 
@@ -111,7 +113,7 @@ For each blocking gate, one of two honest outcomes. Leaving the registry and the
   - **Design B — record `recommendedLevel` and require approval when it differs (NOT enforceable).** A crafted client can simply write `recommendedLevel` equal to the level it wants, so the check is forgeable and would be advisory wearing a "blocking" label — the exact problem this phase exists to remove.
   - **Recommendation:** **Design A**, but it needs your sign-off because of the enrollment read-path change. I have not started it.
 
-### OD-IL-ENF2 Design A — file-level implementation plan (ratified, ready to execute)
+### OD-IL-ENF2 Design A — file-level implementation plan (**SUPERSEDED — see the A′ record below**)
 
 Reading the write path surfaced one further detail that **refines** the design: `PlacementTestModal.jsx:22` derives its *recommended* level from `inquiry.currentLevel`, so simply not writing `currentLevel` would silently degrade the ordinary flow (wrong recommendation, "Unassigned" in the walk-in list). `WalkInTable.jsx:111` already prefers `latestTest.assessedLevel`, so only two readers need adjusting.
 
@@ -130,7 +132,56 @@ Reading the write path surfaced one further detail that **refines** the design: 
 8. `securityRulesMatrix.helpers.js` + tests — mirror the helper; add emulator tests: allowed with an approved envelope, denied without one, denied with a wrong-role envelope, denied when the envelope names a different inquiry, denied on replay, and — critically — **an ordinary placement test (no `currentLevel` write) must still succeed**.
 9. Re-run `npm run test:rules`, `npm test`, `npm run lint`, `npm run typecheck`, `npm run build`, and a Level 1 regression check.
 
-- **Answer (Kifry fills in) — Design A or B:**
+### OD-IL-ENF2 — why design A was replaced, and what A′ does
+
+**Design A as written could not deliver the gate.** It moved the effective level out of `currentLevel`
+and told the enrollment read path to take the level from the latest assessment. But the client appends an
+override assessment to `placementTests` **immediately**, approval or not (`deskInquiriesRepository.js`).
+So "latest assessment" would have fed the *unapproved* override level straight into enrollment, and the
+rules would have been gating `currentLevel` — a field nobody enrolled from. It also caused the
+product-visible enrollment change this register already flagged.
+
+**The root constraint.** Rules cannot tell an override from an ordinary assessment unless they derive the
+recommendation themselves. Design B failed because it trusted a client-supplied `recommendedLevel`. The
+recommendation is a pure function of the score (`>=85 epic`, `>=65 master`, else `warrior`), and *that* is
+computable in rules.
+
+**Design A′ (ratified by the owner and implemented).**
+
+- `currentLevel` stays the effective level and **no read path changed** — enrollment cannot regress.
+- `firestore.rules` gains `scoreImpliedLevel()` + `placementLevelAllowed()`: a write may change
+  `currentLevel` only if it equals the level the score written in the same update implies, or an approved
+  `PLACEMENT_LEVEL_OVERRIDE` envelope (`appliedFromApproval`) authorises the exact inquiry and level, or the
+  inquiry is kindergarten (tier/age based, never score based).
+- The ordinary assessment path is unchanged and still sets `currentLevel` — it also writes
+  `latestPlacementScore`, the score the rules derive from.
+- An override is **not applied by the client at all**: `WalkInInquiryTab` submits the ticket and, if the
+  submission fails, aborts with a visible error and leaves the level untouched (previously `console.warn`
+  and the override proceeded). The request is parked on the inquiry as `pendingPlacementOverride`.
+- The leader's inbox gains the apply branch (`applyApprovedPlacementOverride` → `currentLevel` +
+  `appliedFromApproval` → `markApprovalApplied`); rejection clears the parked request
+  (`clearPendingPlacementOverride`), so an inquiry cannot stay blocked on a decision that never comes.
+- `recommendLevelFromScore()` in `src/constants/levels.js` is the single source of truth for the rubric,
+  mirrored into the rules and pinned by a drift guard in `placementLevelGate.test.js`.
+- **Owner decision recorded:** while an override is pending, front-desk enrollment is **blocked** with a
+  clear message rather than defaulting to the fluency tier — admitting the student at the wrong level is
+  worse than asking them to wait for the leader.
+- A level chosen with **no score** is treated as an override, not an assessment; otherwise omitting the
+  score would be a trivial way around the gate.
+
+**Honest limits (recorded, not engineered away).**
+
+- An assessor can **fabricate the score**, which makes their chosen level "recommended". A′ stops every
+  honest-client override of a recorded assessment; it cannot stop falsified assessment content. That needs a
+  server-side writer, which this project does not have.
+- Two *other* write paths can still set a level without this gate — recorded as §A2.7 and §A2.8 rather than
+  quietly left implied.
+
+**Verification.** `npm test` 1,251 passed · `npm run test:rules` 98/98 (14 new gate tests: ordinary
+assessment allowed, override denied without an envelope, wrong-role / cross-branch / wrong-inquiry /
+wrong-level / replayed / self-approved / pending envelopes denied, kindergarten ungated, unrelated updates
+unaffected) · lint 0 errors · typecheck 0 errors · build clean. **Not deployed.**
+- **Status: IMPLEMENTED 2026-10-08 as design A′.** Reading the write path a third time showed that **design A as written does not gate the level at all** — see `OD-IL-ENF2 — why design A was replaced`. Design A′ is in the tree and green; the enrollment read path was **not** changed.
 
 **OD-IL-ENF3 — the five NOT WIRED blocking gates: wire, enforce, or remove?**
 (`STAFF_DEACTIVATION`, `TUITION_PLAN_CHANGE`, `RETROACTIVE_STUDENT_ATTENDANCE`, `STUDENT_CLASS_TRANSFER`, `STAFF_STATUS_CHANGE`)
@@ -156,7 +207,35 @@ Reading the write path surfaced one further detail that **refines** the design: 
 - **Honest limit:** a deliberately crafted client could still declare a false "today" timestamp. It would then write a record with a *wrong date* — a separate data-integrity problem, not the same gate bypass. Full prevention needs the date set server-side, and this project has no server path for that.
 - **What it needs from you:** approval to add a Timestamp field to `classAttendance` (a schema addition, plus a backfill decision for existing records). **Not started.**
 
-- **Answer (Kifry fills in) — approve the `attendanceDateTs` schema addition?:**
+- **Answer (Kifry fills in) — approve the `attendanceDateTs` schema addition?:** **APPROVED — RATIFIED BY OWNER 2026-10-08, with the backfill UI deferred.**
+- **Status: RULES ARMED 2026-10-08; no backfill UI built, and none was needed.** What was implemented:
+  - `attendanceDateTs` (a Timestamp, written by `dateWita.witaDayStart()` as 00:00 WITA of the attendance
+    day) is now **required on create** of a `classAttendance` record, in all three create paths (scan, manual,
+    close-out).
+  - `firestore.rules` gains `isRetroactiveAttendance()` — the record is a backfill once
+    `request.time >= attendanceDateTs + 24h` — plus `isApprovedRetroactiveBackfill()`, which requires an
+    approved `RETROACTIVE_STUDENT_ATTENDANCE` envelope naming exactly that class, student and date. A same-day
+    mark behaves exactly as before.
+  - **No backfill of existing records is needed**, which was the open migration question: the update rule
+    already pins `attendanceDate` to the stored value, so old records cannot become retroactive by update,
+    and legacy documents simply stay ungated (they can never be re-dated). The schema field is optional on
+    read for that reason.
+  - **No producer exists and none was invented.** No screen can mark a past date today
+    (`InstructorAttendanceView.jsx:161` always passes today), so the registry verdict honestly remains
+    **"gate armed, capability absent"** rather than ENFORCED. The Ops Lead apply path is rules-supported and
+    emulator-tested, so a future backfill UI cannot bypass it by construction.
+- **Contrast with the earlier `RETROACTIVE_STUDENT_ATTENDANCE` (Option A) note:** the honest limit stands
+  unchanged — a crafted client can declare a false "today" timestamp and write a record with a wrong date.
+  That is a data-integrity problem, not a bypass of this gate, and closing it needs a server-side writer this
+  project does not have.
+- **Verification:** 7 new emulator tests (retroactive without approval denied, missing `attendanceDateTs`
+  denied, matching approved envelope applied by the Ops Lead allowed, wrong date / wrong gate / wrong role /
+  pending / replayed envelopes denied) · 3 new repository tests proving all three create paths stamp the WITA
+  day start. `npm run test:rules` 98/98, `npm test` 1,251 passed. **Not deployed.**
+- **Deployment caveat (must be handled before the rules go live):** because `attendanceDateTs` is now
+  **required** on create, any client still running a cached pre-change bundle will have its attendance writes
+  refused with a permission error until the service worker picks up the new build. Deploy the rules only once
+  clients have the new bundle, or accept a short window in which attendance marking fails visibly.
 
 ---
 

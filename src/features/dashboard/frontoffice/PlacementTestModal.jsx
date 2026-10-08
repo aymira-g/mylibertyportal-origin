@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { X, Award, Check, UserPlus, Sparkles } from "lucide-react";
 import { auth } from "../../../firebase";
-import { LEVEL_LIST, TIERS, TIER_KEYS } from "../../../constants/levels";
+import {
+  LEVEL_LIST,
+  TIERS,
+  TIER_KEYS,
+  recommendLevelFromScore,
+} from "../../../constants/levels";
 import { getProgramLevels } from "../../../constants/programs";
 import { todayWita } from "../../../utils/dateWita";
 
@@ -27,13 +32,10 @@ function PlacementTestModalContent({
   const [testedAt, setTestedAt] = useState(() => todayWita());
   const [notes, setNotes] = useState("");
 
-  const getRecommendedLevel = (scoreNum) => {
-    if (isNaN(scoreNum) || scoreNum === "" || isKindergarten) return null;
-    const num = Number(scoreNum);
-    if (num >= 85) return "epic";
-    if (num >= 65) return "master";
-    return "warrior";
-  };
+  // The score rubric lives in constants/levels.js because firestore.rules enforces the
+  // same mapping to decide whether a level assignment is an override.
+  const getRecommendedLevel = (scoreNum) =>
+    recommendLevelFromScore(scoreNum, { isKindergarten });
 
   const handleLevelRecommendation = (scoreNum) => {
     const rec = getRecommendedLevel(scoreNum);

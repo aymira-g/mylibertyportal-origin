@@ -98,6 +98,24 @@ export function getWitaDayRangeIso(date = new Date()) {
 }
 
 /**
+ * Returns the exact start (00:00:00.000 WITA) of a given "YYYY-MM-DD" WITA calendar day
+ * as a `Date` (which the Firestore SDK stores as a Timestamp).
+ *
+ * Used by class attendance to record which attendance *day* a record claims to belong to.
+ * Firestore rules cannot parse the "YYYY-MM-DD" string, but they can compare a Timestamp
+ * against `request.time`, which is what makes a retroactive backfill detectable at all.
+ *
+ * @param {string} dateStr "YYYY-MM-DD"
+ * @returns {Date|null} null when the string is not a WITA calendar date
+ */
+export function witaDayStart(dateStr) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr ?? "").trim());
+  if (!match) return null;
+  const [, y, m, d] = match.map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0) - WITA_OFFSET_MS);
+}
+
+/**
  * Validates whether a time string strictly matches the "HH:mm" 24-hour format.
  * Prevents malformed class schedule data from crashing time-calculation helpers.
  * @param {any} [timeStr]

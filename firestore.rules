@@ -280,6 +280,100 @@ service cloud.firestore {
         && (approval.approverRole in ['director', 'vice_director']);
     }
 
+    // ── Placement level authority (OD-IL-ENF2, design A′; owner-ratified 2026-10-08) ──
+    // An ordinary placement assessment may only set `currentLevel` to the level the score
+    // recorded in the same write actually implies. Any other level is an override and
+    // needs an approved PLACEMENT_LEVEL_OVERRIDE envelope. Without this, "blocking" was a
+    // label only: the client wrote the override immediately and rejecting the leader's
+    // ticket changed nothing.
+    //
+    // The rubric mirrors src/constants/levels.js -> recommendLevelFromScore(), which is
+    // the single source of truth; src/features/shared/placementLevelGate.test.js fails if
+    // the two drift apart.
+    function scoreImpliedLevel(score) {
+      return score >= 85 ? 'epic' : (score >= 65 ? 'master' : 'warrior');
+    }
+
+    function isApprovedPlacementLevelOverride(inquiryId, approvalId, level) {
+      let approval = get(/databases/$(database)/documents/approvals/$(approvalId)).data;
+      return approval.actionId == 'PLACEMENT_LEVEL_OVERRIDE'
+        && approval.status == 'approved'
+        && (!('applied' in approval) || approval.applied != true)
+        && approval.requestedByUid != approval.decidedByUid
+        && ('approverRole' in approval)
+        // The actionId is pinned above, so the permitted set is inlined rather than
+        // running the generic gateAllowsApprover chain (rules-engine expression budget).
+        && (approval.approverRole == 'instructorleader' || approval.approverRole == 'instructor_leader')
+        && ('payload' in approval)
+        && approval.payload != null
+        && approval.payload.inquiryId == inquiryId
+        && approval.payload.assessedLevel == level;
+    }
+
+    // Ordered cheapest-first: the approval lookup only runs on an actual override.
+    // Missing-field guards matter — an unguarded access makes the rule error (deny)
+    // instead of falling through to the next clause.
+    function placementLevelAllowed(inquiryId, req, res) {
+      return ('currentLevel' in req ? req.currentLevel : '') == ('currentLevel' in res ? res.currentLevel : '')
+        // Kindergarten placement is tier/age based, never score based: not gated.
+        || (('division' in res) && res.division == 'kindergarten'
+            && ('division' in req) && req.division == 'kindergarten')
+        // Ordinary assessment: the score written alongside justifies this level.
+        || (('currentLevel' in req)
+            && ('latestPlacementScore' in req)
+            && req.latestPlacementScore is number
+            && req.latestPlacementScore >= 0
+            && scoreImpliedLevel(req.latestPlacementScore) == req.currentLevel)
+        // Approved override.
+        || (('currentLevel' in req)
+            && ('appliedFromApproval' in req)
+            && req.appliedFromApproval is string
+            && req.appliedFromApproval != ''
+            && isApprovedPlacementLevelOverride(inquiryId, req.appliedFromApproval, req.currentLevel));
+    }
+
+    // ── Retroactive class attendance (OD-IL-ENF3, owner-ratified 2026-10-08) ─────────
+    // `attendanceDate` is a client-supplied "YYYY-MM-DD" string that rules cannot parse,
+    // so `attendanceDateTs` carries the same day as a Timestamp. A mark for a day that has
+    // already ended in WITA is a retroactive backfill and needs an approved envelope.
+    //
+    // Honest limit (recorded in the owner-decision register): a crafted client can declare
+    // a false "today" timestamp and then write a record with a wrong date. That is a
+    // data-integrity problem, not a bypass of this gate; preventing it needs a server-side
+    // writer, which this project does not have.
+    function isRetroactiveAttendance(attendanceDateTs) {
+      return request.time >= attendanceDateTs + duration.value(24, 'h');
+    }
+
+    function isApprovedRetroactiveAttendance(req) {
+      return ('appliedFromApproval' in req)
+        && req.appliedFromApproval is string
+        && req.appliedFromApproval != ''
+        && isApprovedRetroactiveBackfill(
+          req.appliedFromApproval,
+          req.classId,
+          req.studentId,
+          req.attendanceDate
+        );
+    }
+
+    function isApprovedRetroactiveBackfill(approvalId, classId, studentId, attendanceDate) {
+      let approval = get(/databases/$(database)/documents/approvals/$(approvalId)).data;
+      return approval.actionId == 'RETROACTIVE_STUDENT_ATTENDANCE'
+        && approval.status == 'approved'
+        && (!('applied' in approval) || approval.applied != true)
+        && approval.requestedByUid != approval.decidedByUid
+        && ('approverRole' in approval)
+        // The actionId is pinned above, so the permitted set is inlined rather than
+        // running the generic gateAllowsApprover chain (rules-engine expression budget).
+        && (approval.approverRole == 'opslead' || approval.approverRole == 'ops_lead')
+        && ('payload' in approval)
+        && approval.payload != null
+        && approval.payload.classId == classId
+        && approval.payload.studentId == studentId
+        && approval.payload.attendanceDate == attendanceDate;
+    }
+
     function shiftMatchesCorrectionPayload(approvalId, reqData, resData) {
       let payload = get(/databases/$(database)/documents/approvals/$(approvalId)).data.payload;
       return !('afterData' in payload) || payload.afterData == null
@@ -630,16 +724,32 @@ service cloud.firestore {
         );
 
       // First attendance creation only. Enforce deterministic document ID {classId}_{studentId}_{attendanceDate}.
+      //
+      // OD-IL-ENF3: `attendanceDateTs` is required and decides whether this is a same-day
+      // mark (the historical behaviour, unchanged) or a retroactive backfill, which needs
+      // an approved RETROACTIVE_STUDENT_ATTENDANCE envelope naming exactly this class,
+      // student and date. Today no UI writes a past date; this arms the gate so that any
+      // future backfill path is governed by construction.
       allow create: if
         attendanceId == request.resource.data.classId + '_' + request.resource.data.studentId + '_' + request.resource.data.attendanceDate
-        && canManageClassAttendance(request.resource.data.classId)
         && validClassAttendanceIdentity(request.resource.data)
-        && studentIsEnrolled(
-          request.resource.data.classId,
-          request.resource.data.studentId
-        )
         && request.resource.data.status in ['PRESENT', 'ABSENT', 'LATE', 'EXCUSED']
-        && request.resource.data.method in ['SCAN', 'MANUAL', 'CLOSE_OUT'];
+        && request.resource.data.method in ['SCAN', 'MANUAL', 'CLOSE_OUT']
+        && request.resource.data.attendanceDateTs is timestamp
+        && (
+          (
+            !isRetroactiveAttendance(request.resource.data.attendanceDateTs)
+            && canManageClassAttendance(request.resource.data.classId)
+            && studentIsEnrolled(
+              request.resource.data.classId,
+              request.resource.data.studentId
+            )
+          )
+          || (
+            isRetroactiveAttendance(request.resource.data.attendanceDateTs)
+            && isApprovedRetroactiveAttendance(request.resource.data)
+          )
+        );
 
       // Existing records must not be overwritten by scan.
       allow update: if
@@ -684,7 +794,18 @@ service cloud.firestore {
       allow get: if isExecutive() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
       allow list: if isExecutive() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data));
       allow create: if isExecutive() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(request.resource.data) && isDivisionAllowedForManager(request.resource.data));
-      allow update: if isExecutive() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(resource.data) && isSameBranch(request.resource.data) && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId) && isDivisionAllowedForManager(resource.data) && isDivisionAllowedForManager(request.resource.data));
+      // Placement level authority (OD-IL-ENF2) needs headroom under the engine's
+      // 1000-expression ceiling, and `isExecutive() || isManager() || isFrontOffice() ||
+      // isStaff()` is exactly `isStaff()` (its role list is a superset of the other three,
+      // and all four share the same signed-in / active-profile predicate). Collapsing it
+      // removes three redundant userProfile() reads per evaluation. Behaviour is identical.
+      allow update: if (isStaff()
+          && isSameBranch(resource.data) && isSameBranch(request.resource.data)
+          && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId)
+          && isDivisionAllowedForManager(resource.data) && isDivisionAllowedForManager(request.resource.data))
+        // Placement level authority (OD-IL-ENF2). Kept last: it is the only clause here
+        // that can read another document, and only when the level actually changes.
+        && placementLevelAllowed(inquiryId, request.resource.data, resource.data);
       allow delete: if isAdmin() || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
     }
 

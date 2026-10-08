@@ -102,7 +102,24 @@ export function WalkInTable({
                     </div>
                   </td>
                   <td className="py-3 px-4">
-                    {latestTest ? (
+                    {inq.pendingPlacementOverride ? (
+                      // Parked override: the level is NOT in effect yet, so this cell must
+                      // not show it as the current level. Enrollment is held meanwhile.
+                      <div className="space-y-0.5">
+                        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-50 text-rose-900 border border-rose-200 text-[11px] font-black">
+                          <Clock className="w-3 h-3 text-rose-600 shrink-0" />
+                          <span>
+                            Override pending:{" "}
+                            <span className="capitalize">
+                              {inq.pendingPlacementOverride.assessedLevel || "—"}
+                            </span>
+                          </span>
+                        </div>
+                        <p className="text-[9px] text-slate-400 font-bold">
+                          Awaiting the Instructor Leader · enrollment on hold
+                        </p>
+                      </div>
+                    ) : latestTest ? (
                       <div className="space-y-0.5">
                         <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 text-[11px] font-black">
                           <Award className="w-3 h-3 text-amber-600 shrink-0" />

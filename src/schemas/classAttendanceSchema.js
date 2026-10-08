@@ -33,6 +33,16 @@ export const classAttendanceSchema = z
     note: z.string().trim().optional().default(""),
     createdAt: z.string().trim().optional(),
     updatedAt: z.string().trim().optional(),
+    // Start of the attendance day in WITA, written by the create paths via
+    // dateWita.witaDayStart(). `z.any()` on purpose: a Date on write, but a Firestore
+    // Timestamp when a record is read back, and both must validate.
+    //
+    // firestore.rules requires this field on create and refuses a retroactive backfill
+    // (a day that has already ended in WITA) unless an approved
+    // RETROACTIVE_STUDENT_ATTENDANCE envelope authorises the exact record.
+    attendanceDateTs: z.any().optional(),
+    // Set only when an approved backfill envelope is being applied.
+    appliedFromApproval: z.string().trim().optional(),
   })
   .transform((data) => {
     const nowIso = new Date().toISOString();

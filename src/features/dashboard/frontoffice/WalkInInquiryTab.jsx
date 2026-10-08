@@ -86,6 +86,10 @@ export default function WalkInInquiryTab({
     if (!selectedInquiryForTest) return;
     setSubmitting(true);
     try {
+      // A level the score does not imply is an override: it is only *requested* here.
+      // Nothing is applied until the Instructor Leader approves it, and a failed
+      // submission must abort rather than silently record the override anyway.
+      let approvalId = null;
       if (testData.isOverride) {
         const currentUser = auth.currentUser;
         const envelope = createApprovalEnvelope(
@@ -102,36 +106,74 @@ export default function WalkInInquiryTab({
             recommendedLevel: testData.recommendedLevel,
             assessedLevel: testData.assessedLevel,
             score: testData.score,
+            testedBy: testData.testedBy,
+            testedAt: testData.testedAt,
+            notes: testData.notes,
             reason: testData.notes || `Placement level override: recommended ${testData.recommendedLevel}, assigned ${testData.assessedLevel}`,
           }
         );
 
-        if (envelope) {
-          try {
-            await submitApprovalRequest(envelope);
-          } catch (err) {
-            console.warn("Failed to submit placement level override approval request:", err);
-          }
+        if (!envelope) {
+          toast(
+            "No placement override approval ticket could be created for your account. The override was not recorded.",
+            "error"
+          );
+          return;
+        }
+
+        try {
+          const submitted = await submitApprovalRequest(envelope);
+          approvalId = submitted?.id || null;
+        } catch (err) {
+          console.error("Failed to submit placement level override approval request:", err);
+          toast(
+            `Could not send the placement override for approval (${err.message}). The override was NOT recorded and the level is unchanged.`,
+            "error"
+          );
+          return;
+        }
+
+        if (!approvalId) {
+          toast(
+            "The placement override approval ticket was not created. The override was not recorded.",
+            "error"
+          );
+          return;
         }
       }
 
-      const updated = await addPlacementTestToInquiry(selectedInquiryForTest.id, testData);
+      const updated = await addPlacementTestToInquiry(selectedInquiryForTest.id, {
+        ...testData,
+        approvalId,
+      });
+
       setInquiries((prev) =>
-        prev.map((i) =>
-          i.id === selectedInquiryForTest.id
-            ? {
-                ...i,
-                ...updated,
-                placementTests: updated.placementTests || [
-                  ...(i.placementTests || []),
-                  testData,
-                ],
-                currentLevel: testData.assessedLevel || i.currentLevel,
-              }
-            : i
-        )
+        prev.map((i) => {
+          if (i.id !== selectedInquiryForTest.id) return i;
+          if (testData.isOverride) {
+            // Parked, not applied: no level and no assessment entry until approval.
+            return { ...i, ...updated };
+          }
+          return {
+            ...i,
+            ...updated,
+            placementTests: updated.placementTests || [
+              ...(i.placementTests || []),
+              testData,
+            ],
+            currentLevel: testData.assessedLevel || i.currentLevel,
+          };
+        })
       );
       setPlacementModalOpen(false);
+
+      if (testData.isOverride) {
+        toast(
+          "Placement override sent to the Instructor Leader. Enrollment is on hold until it is approved.",
+          "info"
+        );
+        return;
+      }
 
       if (enrollImmediately && onEnrollStudent) {
         const fullUpdatedInquiry = {

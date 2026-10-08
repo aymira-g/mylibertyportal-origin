@@ -13,6 +13,7 @@ import {
   limit,
 } from "firebase/firestore";
 import { deskInquirySchema } from "../../../schemas/deskInquirySchema";
+import { recommendLevelFromScore } from "../../../constants/levels";
 import { branchToId, idToBranch, DEFAULT_BRANCH_ID } from "../../../constants/branches";
 import {
   isPermissionError,
@@ -136,8 +137,40 @@ export async function updateDeskInquiryStatus(inquiryId, newStatus) {
 }
 
 /**
- * Appends a placement test result into the inquiry's placementTests array
- * and updates its currentLevel if assessed.
+ * Reads the stored inquiry. Local ("local-") shadow records are read from storage so
+ * neither path pays for an extra read.
+ */
+async function readStoredInquiry(inquiryId) {
+  if (inquiryId.startsWith("local-")) {
+    const localInquiries = getLocalInquiries();
+    return localInquiries.find((i) => i.id === inquiryId) || {};
+  }
+  const snap = await getDoc(doc(db, "deskInquiries", inquiryId));
+  return snap.exists() ? snap.data() : {};
+}
+
+/**
+ * Appends a placement test result into the inquiry's placementTests array and, for an
+ * ordinary assessment, sets `currentLevel` to the assessed level.
+ *
+ * An assessed level the recorded score does not imply is a **placement level override**.
+ * It may only take effect through an approved PLACEMENT_LEVEL_OVERRIDE envelope, so this
+ * function does not write `currentLevel` for one: it parks the request on the inquiry as
+ * `pendingPlacementOverride` (which also blocks enrollment until the Instructor Leader
+ * decides), and `firestore.rules` independently refuses any other `currentLevel` change.
+ * Kindergarten placement is tier/age based and is never an override.
+ *
+ * @param {string} inquiryId
+ * @param {{
+ *   score?: number|string|null,
+ *   assessedLevel?: string,
+ *   testedBy?: string,
+ *   testedAt?: string,
+ *   notes?: string,
+ *   isOverride?: boolean,
+ *   approvalId?: string,
+ * }} testData
+ * @returns {Promise<any>} The written inquiry fields
  */
 export async function addPlacementTestToInquiry(inquiryId, testData) {
   if (!inquiryId) throw new Error("Inquiry ID is required");
@@ -151,6 +184,49 @@ export async function addPlacementTestToInquiry(inquiryId, testData) {
     notes: testData.notes?.trim() || "",
   };
 
+  const stored = await readStoredInquiry(inquiryId);
+  const isKindergarten = stored?.division === "kindergarten";
+  const impliedLevel = recommendLevelFromScore(testRecord.score, { isKindergarten });
+  // Kindergarten has no score rubric, so nothing there can be an override. For a course,
+  // a level the score does not imply *is* an override — including a level chosen with no
+  // score at all, which would otherwise be an easy way around the gate.
+  const isOverride =
+    !isKindergarten &&
+    Boolean(testRecord.assessedLevel) &&
+    testRecord.assessedLevel !== impliedLevel;
+
+  if (isOverride) {
+    const approvalId = testData.approvalId || null;
+    if (!approvalId) {
+      throw new Error(
+        "A placement level override needs an approved Instructor Leader ticket before it can be recorded."
+      );
+    }
+    const pendingUpdate = {
+      pendingPlacementOverride: {
+        approvalId,
+        assessedLevel: testRecord.assessedLevel,
+        recommendedLevel: impliedLevel,
+        score: testRecord.score,
+        notes: testRecord.notes,
+        testedBy: testRecord.testedBy,
+        testedAt: testRecord.testedAt,
+        requestedAt: new Date().toISOString(),
+        requestedByUid: currentUser?.uid || null,
+      },
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser?.uid || "frontoffice",
+    };
+    if (inquiryId.startsWith("local-")) {
+      updateLocalInquiry(inquiryId, pendingUpdate);
+    } else {
+      // No local-shadow fallback here on purpose: a governed action must never appear
+      // to have succeeded when the rules refused it.
+      await updateDoc(doc(db, "deskInquiries", inquiryId), pendingUpdate);
+    }
+    return { id: inquiryId, ...pendingUpdate };
+  }
+
   const updateData = {
     placementTests: [testRecord], // fallback will merge
     updatedAt: new Date().toISOString(),
@@ -159,42 +235,96 @@ export async function addPlacementTestToInquiry(inquiryId, testData) {
 
   if (testRecord.assessedLevel) {
     updateData.currentLevel = testRecord.assessedLevel;
+    // The score `firestore.rules` derives the assessed level from, written together
+    // with currentLevel so an ordinary assessment can never contradict its own score.
+    updateData.latestPlacementScore = testRecord.score;
   }
 
+  const existingTests = Array.isArray(stored?.placementTests) ? stored.placementTests : [];
+
   if (inquiryId.startsWith("local-")) {
-    const localInquiries = getLocalInquiries();
-    const existing = localInquiries.find((i) => i.id === inquiryId);
-    const existingTests = Array.isArray(existing?.placementTests) ? existing.placementTests : [];
     updateData.placementTests = [...existingTests, testRecord];
     updateLocalInquiry(inquiryId, updateData);
     return { id: inquiryId, ...updateData };
   }
 
   try {
-    const inqRef = doc(db, "deskInquiries", inquiryId);
-    const inqSnap = await getDoc(inqRef);
-    const existingData = inqSnap.exists() ? inqSnap.data() : {};
-    const existingTests = Array.isArray(existingData.placementTests) ? existingData.placementTests : [];
-    const mergedTests = [...existingTests, testRecord];
-
     const finalUpdate = {
       ...updateData,
-      placementTests: mergedTests,
+      placementTests: [...existingTests, testRecord],
     };
-
-    await updateDoc(inqRef, finalUpdate);
+    await updateDoc(doc(db, "deskInquiries", inquiryId), finalUpdate);
     return { id: inquiryId, ...finalUpdate };
   } catch (err) {
     if (isPermissionError(err)) {
-      const localInquiries = getLocalInquiries();
-      const existing = localInquiries.find((i) => i.id === inquiryId);
-      const existingTests = Array.isArray(existing?.placementTests) ? existing.placementTests : [];
       updateData.placementTests = [...existingTests, testRecord];
       updateLocalInquiry(inquiryId, updateData);
       return { id: inquiryId, ...updateData, _permissionDenied: true };
     }
     throw err;
   }
+}
+
+/**
+ * Applies an Instructor-Leader-approved PLACEMENT_LEVEL_OVERRIDE: the only path that may
+ * set a walk-in's effective level to one the recorded score does not imply. It writes
+ * `appliedFromApproval`, which `firestore.rules` requires for any such `currentLevel`
+ * change. Mirrors `applyApprovedShiftCorrection` in shiftsRepository.
+ *
+ * @param {{ approval: any, actorUid?: string|null }} params
+ * @returns {Promise<any>} The written inquiry fields
+ */
+export async function applyApprovedPlacementOverride({ approval, actorUid = null }) {
+  const inquiryId = approval?.payload?.inquiryId;
+  const level = approval?.payload?.assessedLevel;
+  if (!inquiryId || !level) {
+    throw new Error("The approval does not identify an inquiry and level to apply.");
+  }
+
+  const inqRef = doc(db, "deskInquiries", inquiryId);
+  const snap = await getDoc(inqRef);
+  if (!snap.exists()) throw new Error("The inquiry no longer exists.");
+
+  const payload = approval.payload;
+  const existingTests = Array.isArray(snap.data().placementTests)
+    ? snap.data().placementTests
+    : [];
+  const testRecord = {
+    id: `pt-${Date.now()}`,
+    score: typeof payload.score === "number" ? payload.score : null,
+    assessedLevel: level,
+    testedBy: payload.testedBy || "Front Desk Staff",
+    testedAt: payload.testedAt || new Date().toISOString().split("T")[0],
+    notes: payload.notes || "",
+    approvedOverrideRef: approval.id || null,
+  };
+
+  const finalUpdate = {
+    currentLevel: level,
+    appliedFromApproval: approval.id || null,
+    placementTests: [...existingTests, testRecord],
+    pendingPlacementOverride: null,
+    updatedAt: new Date().toISOString(),
+    updatedBy: actorUid || "instructorleader",
+  };
+
+  await updateDoc(inqRef, finalUpdate);
+  return { id: inquiryId, ...finalUpdate };
+}
+
+/**
+ * Clears a parked placement override when its ticket is rejected, so the inquiry does
+ * not stay blocked on a decision that will never arrive.
+ */
+export async function clearPendingPlacementOverride(inquiryId, actorUid = null) {
+  if (!inquiryId) throw new Error("Inquiry ID is required");
+  const update = {
+    pendingPlacementOverride: null,
+    updatedAt: new Date().toISOString(),
+    updatedBy: actorUid || "instructorleader",
+  };
+  await updateDoc(doc(db, "deskInquiries", inquiryId), update);
+  return { id: inquiryId, ...update };
 }
 
 /**

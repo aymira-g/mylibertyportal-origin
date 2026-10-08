@@ -106,6 +106,33 @@ export function getNextLevel(level) {
 }
 
 /**
+ * Placement score -> recommended level. **Single source of truth.**
+ *
+ * Used by the walk-in placement test modal and by the placement override gate.
+ * `firestore.rules` mirrors this mapping inline as `scoreImpliedLevel()` so that an
+ * ordinary assessment can only set a level the recorded score itself justifies — an
+ * override needs an approved PLACEMENT_LEVEL_OVERRIDE envelope. Changing the
+ * thresholds here without changing the rules breaks
+ * `placementLevelGate.test.js`, which reads both.
+ *
+ * Returns `null` when there is no recommendation to override:
+ * - kindergarten placement is tier/age based and carries no score rubric;
+ * - no score recorded (a level chosen without a score is a placement decision,
+ *   not an assessment result, and is treated as an override by the gate).
+ */
+export const PLACEMENT_SCORE_THRESHOLDS = Object.freeze({ epic: 85, master: 65 });
+
+export function recommendLevelFromScore(score, { isKindergarten = false } = {}) {
+  if (isKindergarten) return null;
+  if (score === "" || score == null) return null;
+  const num = Number(score);
+  if (Number.isNaN(num)) return null;
+  if (num >= PLACEMENT_SCORE_THRESHOLDS.epic) return "epic";
+  if (num >= PLACEMENT_SCORE_THRESHOLDS.master) return "master";
+  return "warrior";
+}
+
+/**
  * Option B Compatibility Rule:
  * If batch specifies minLevel / maxLevel, compares studentOrder within that range.
  * If batch only specifies classLevel, falls back to exact match.

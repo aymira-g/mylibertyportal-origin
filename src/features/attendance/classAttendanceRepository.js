@@ -13,6 +13,7 @@ import {
   runTransaction,
 } from "firebase/firestore";
 import { classAttendanceSchema } from "../../schemas/classAttendanceSchema.js";
+import { witaDayStart } from "../../utils/dateWita.js";
 
 /**
  * Returns deterministic document ID for a class attendance record.
@@ -162,6 +163,7 @@ export async function recordClassAttendanceScan({
     note: "",
     createdAt: nowIso,
     updatedAt: nowIso,
+    attendanceDateTs: witaDayStart(attendanceDate),
   };
 
   const validatedData = classAttendanceSchema.parse(rawData);
@@ -265,6 +267,7 @@ export async function updateClassAttendanceManual({
     note,
     createdAt: nowIso,
     updatedAt: nowIso,
+    attendanceDateTs: witaDayStart(attendanceDate),
   };
 
   const validatedData = classAttendanceSchema.parse(rawData);
@@ -371,6 +374,7 @@ export async function closeOutClassAttendance({
         note: "Session closed out",
         createdAt: nowIso,
         updatedAt: nowIso,
+        attendanceDateTs: witaDayStart(attendanceDate),
       };
 
       const validated = classAttendanceSchema.parse(raw);
@@ -403,6 +407,7 @@ export async function closeOutClassAttendance({
               studentName, className, branchId,
               note: "Session closed out",
               createdAt: nowIso, updatedAt: nowIso,
+              attendanceDateTs: witaDayStart(attendanceDate),
             };
             retryBatch.set(docRef, classAttendanceSchema.parse(raw));
             retryCount++;

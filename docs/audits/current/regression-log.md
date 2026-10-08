@@ -229,3 +229,72 @@ observation is carried forward as a separate risk, not as this finding.
 - Phase 1 completion report: [`../../reports/instructor-leader-dashboard/01-phase1-completion-report.md`](../../reports/instructor-leader-dashboard/01-phase1-completion-report.md) — see §6.5 for the same finding in context
 - Behavioural authorization spec (updated): [`../../specs/authorization-contract.md`](../../specs/authorization-contract.md) §6.6
 - Playbook §17 (Firestore rule change validation): [`../Light Regression Check Playbook/04-domain-playbooks-branch-data-rules-worker.md`](../Light%20Regression%20Check%20Playbook/04-domain-playbooks-branch-data-rules-worker.md)
+
+---
+
+## 2026-10-09 — Phase 3 approval enforcement (ENF1 / ENF2 / ENF3)
+
+**Level 1 Light Regression Check** for the Phase 3 changes described in
+[`../../reports/instructor-leader-dashboard/owner-decisions.md`](../../reports/instructor-leader-dashboard/owner-decisions.md) §A1.
+
+### 1. What changed (blast radius)
+
+- **Registry/UI (ENF1, already landed):** `approvalGates.js` `DISCOUNT_OR_REFUND.mode` = `LOGGED`; the rose
+  "blocking" badge became `logged`. No rule change.
+- **Rules (ENF2):** `firestore.rules` gained `scoreImpliedLevel`, `isApprovedPlacementLevelOverride`,
+  `placementLevelAllowed`, and the `deskInquiries` **update** rule now requires
+  `placementLevelAllowed(inquiryId, request.resource.data, resource.data)`. The role disjunction in that same
+  rule was collapsed to `isStaff()` (provably identical: `isExecutive() || isManager() || isFrontOffice()`
+  are all subsets of `isStaff()`), because the original form left no headroom under the engine's
+  1000-expression ceiling.
+- **Client (ENF2):** `deskInquiriesRepository.js` (override parked as `pendingPlacementOverride`, new
+  `applyApprovedPlacementOverride` + `clearPendingPlacementOverride`, ordinary writes now also stamp
+  `latestPlacementScore`), `WalkInInquiryTab.jsx` (abort visibly on ticket failure), `ApprovalInbox.jsx`
+  (apply branch on approve, release on reject), `FrontOfficeDashboard.jsx` (enrollment blocked while an
+  override is pending), `WalkInTable.jsx` (pending badge instead of showing an unapplied level),
+  `PlacementTestModal.jsx` + `src/constants/levels.js` (one shared rubric).
+- **Rules (ENF3):** `classAttendance` **create** now requires `attendanceDateTs` and routes a day that has
+  already ended in WITA through an approved `RETROACTIVE_STUDENT_ATTENDANCE` envelope.
+- **Client (ENF3):** `classAttendanceRepository.js` (all three create paths stamp `attendanceDateTs`),
+  `src/utils/dateWita.js` (`witaDayStart`), `classAttendanceSchema.js` (field added).
+
+### 2. Adjacent-workflow checks
+
+| Invariant | Check | Result |
+|---|---|---|
+| Ordinary placement test still works | emulator: score-implied `currentLevel` write by Front Office, and on a legacy inquiry with no `currentLevel` field | PASS |
+| Enrollment level is not degraded | read paths (`FrontOfficeDashboard`, `KidsFrontOfficeDashboard`, `WalkInTable`, `PlacementTestModal`) were **not** modified | PASS (unchanged by design) |
+| Kindergarten placement untouched | emulator: kindergarten inquiry level write with no score | PASS |
+| Unrelated inquiry updates unaffected | emulator: `status` + parked-override update on a doc that already has a level | PASS |
+| Same-day attendance mark untouched | emulator: assigned instructor creates today's record | PASS |
+| Attendance update path untouched | emulator: SCAN update denied, MANUAL update allowed, `hasOnly` list unchanged | PASS |
+| Branch isolation / division scope | emulator: cross-branch leader cannot apply an override; kindergarten Front Office cannot write a course inquiry | PASS |
+| Maker-checker (no self-approval) | emulator: self-approved envelope denied for both gates | PASS |
+| Legacy alias spellings | `instructor_leader`, `ops_lead` accepted in both new helpers | PASS |
+| Role boundary not widened | `deskInquiries` update is still `isStaff()`-and-branch-and-division gated; the collapse removes three redundant `userProfile()` reads without changing who passes | PASS |
+| Spark free-tier | no new collection, index, listener or scheduled work; rules `get()` only on the override/backfill paths | PASS |
+
+### 3. Commands
+
+- `npm run test:rules` (emulator at `127.0.0.1`, `firebase emulators:exec` itself cannot run under the agent
+  sandbox, so the emulator jar was started directly and `FIRESTORE_EMULATOR_HOST` was set) → **98 passed**
+  (was 77).
+- `npm test` → **1,251 passed, 98 skipped, 0 failed** (was 1,235 passed).
+- `npm run lint` → 0 errors, 0 warnings.
+- `npm run typecheck` → 0 errors.
+- `npm run build` → clean (PWA precache 68 entries).
+- **Expression budget:** exhaustion mentions measured over one full suite run: **212 before → 187 after**
+  (test count rose 77 → 98). The new `classAttendance` create rule is never named in an exhaustion message.
+  Exhaustion still occurs on the pre-existing `/users` update rule and on *deny* paths of the new
+  `deskInquiries` gate; two allow-path false denials were observed and fixed during implementation by the
+  `isStaff()` collapse.
+
+### 4. Not run / not verified
+
+- **No deployment.** `firebase deploy --only firestore:rules` was not run; production rule state is
+  unverified from the repository.
+- No manual browser walkthrough of the front-desk → leader → enrollment flow (no running app instance was
+  used); the flow is covered by repository-level and emulator tests plus code inspection only.
+- The retroactive-attendance gate has **no UI producer**, so its end-to-end user path was not exercised —
+  only the rules path, with the approval document seeded.
+- `npm run test:e2e` (Playwright) was not run.

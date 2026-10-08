@@ -7,6 +7,10 @@ import {
 } from "./approvalsRepository";
 import { canApproveGate } from "./approvalGates";
 import { applyApprovedShiftCorrection } from "../attendance/shiftsRepository";
+import {
+  applyApprovedPlacementOverride,
+  clearPendingPlacementOverride,
+} from "../dashboard/frontoffice/deskInquiriesRepository";
 import { updateStaffRecord } from "../dashboard/usersRepository";
 import { useToast } from "./useToast";
 import { useConfirm } from "./useConfirm";
@@ -119,6 +123,26 @@ export function ApprovalInbox({
             "warning"
           );
         }
+      } else if (approval.actionId === "PLACEMENT_LEVEL_OVERRIDE" && approval.payload?.inquiryId) {
+        // The override only takes effect here. Until now the inquiry carries
+        // pendingPlacementOverride and enrollment is held.
+        try {
+          await applyApprovedPlacementOverride({ approval, actorUid: currentUid });
+          try {
+            await markApprovalApplied(approval.id, currentUid);
+          } catch (markErr) {
+            console.warn("markApprovalApplied error for placement override:", markErr);
+          }
+          toast(
+            `Authorized & applied: placement level set to ${approval.payload.assessedLevel}.`,
+            "success"
+          );
+        } catch (applyErr) {
+          toast(
+            `Approved, but the placement override could not be applied (${applyErr.message}). The inquiry level is unchanged.`,
+            "warning"
+          );
+        }
       } else if (approval.actionId === "STAFF_ROLE_ELEVATION" && approval.payload?.targetUserId) {
         try {
           await updateStaffRecord(approval.payload.targetUserId, {
@@ -216,6 +240,17 @@ export function ApprovalInbox({
     setProcessingId(approval.id);
     try {
       await rejectApprovalRequest(approval.id, { reason: "Declined by approver" });
+
+      // A rejected placement override must release the inquiry, otherwise it stays
+      // blocked on a decision that will never arrive.
+      if (approval.actionId === "PLACEMENT_LEVEL_OVERRIDE" && approval.payload?.inquiryId) {
+        try {
+          await clearPendingPlacementOverride(approval.payload.inquiryId, currentUid);
+        } catch (clearErr) {
+          console.warn("Failed to clear the parked placement override:", clearErr);
+        }
+      }
+
       toast(`Rejected: ${approval.label}`, "info");
     } catch (err) {
       toast("Failed to reject: " + err.message, "error");

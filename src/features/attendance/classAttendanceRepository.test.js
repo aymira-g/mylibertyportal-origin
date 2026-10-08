@@ -308,4 +308,50 @@ describe("classAttendanceRepository", () => {
       expect(records[0].id).toBe("2");
     });
   });
+
+  // OD-IL-ENF3: firestore.rules needs a machine-comparable attendance day to tell a
+  // same-day mark from a retroactive backfill, because `attendanceDate` is a string
+  // rules cannot parse. Every create path must therefore stamp `attendanceDateTs`.
+  describe("attendanceDateTs stamping (retroactive attendance gate)", () => {
+    const expectedTs = new Date("2026-09-26T16:00:00.000Z"); // 2026-09-27 00:00 WITA
+
+    it("stamps the WITA day start on a scan create", async () => {
+      await recordClassAttendanceScan({
+        classId,
+        studentId,
+        attendanceDate: "2026-09-27",
+        markedBy,
+      });
+
+      const op = fake.find(`classAttendance/${classId}_${studentId}_2026-09-27`);
+      expect(op.data.attendanceDateTs.getTime()).toBe(expectedTs.getTime());
+    });
+
+    it("stamps the WITA day start on a manual create", async () => {
+      const res = await updateClassAttendanceManual({
+        classId,
+        studentId,
+        attendanceDate: "2026-09-27",
+        status: "PRESENT",
+        markedBy,
+      });
+
+      expect(res.status).toBe("created");
+      const op = fake.find(`classAttendance/${classId}_${studentId}_2026-09-27`);
+      expect(op.data.attendanceDateTs.getTime()).toBe(expectedTs.getTime());
+    });
+
+    it("stamps the WITA day start on a close-out create", async () => {
+      await closeOutClassAttendance({
+        classId,
+        attendanceDate: "2026-09-27",
+        rosterStudentIds: [studentId],
+        studentsMap: { [studentId]: { displayName: "Alpha", status: "active" } },
+        markedBy,
+      });
+
+      const op = fake.find(`classAttendance/${classId}_${studentId}_2026-09-27`);
+      expect(op.data.attendanceDateTs.getTime()).toBe(expectedTs.getTime());
+    });
+  });
 });

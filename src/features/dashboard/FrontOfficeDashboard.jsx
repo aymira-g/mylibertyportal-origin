@@ -102,6 +102,17 @@ export default function FrontOfficeDashboard({ role = "frontoffice", branch = nu
   };
 
   const handleEnrollProspect = (inquiry) => {
+    // A pending placement override blocks enrollment: enrolling now would either use the
+    // unapproved override level (bypassing the Instructor Leader's gate) or fall back to
+    // the fluency-tier default (the wrong level). The leader decides first.
+    if (inquiry.pendingPlacementOverride) {
+      toast(
+        `${inquiry.studentName || "This student"} has a placement level override awaiting the Instructor Leader's approval. Enrollment is on hold until it is decided.`,
+        "error"
+      );
+      return;
+    }
+
     const isKindergarten = (inquiry.division || "courses") === "kindergarten";
     const defaultProgId = isKindergarten ? "kids_school" : "english_course";
     const chosenProgId = inquiry.programId || defaultProgId;

@@ -272,6 +272,39 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         getDoc(doc(authed(FRONT_OFFICE_PROFILE_UID), "users", "student2"))
       );
     });
+
+    it("lets front office read operational staff but denies peers, leadership and executives", async () => {
+      await seedDoc(["users", "opsLeadProbe"], {
+        role: "opslead",
+        branchId: "kota_gorontalo",
+        division: "all",
+        status: "active",
+      });
+      await seedDoc(["users", "obBoba"], {
+        role: "officeboy",
+        branchId: "bone_bolango",
+        status: "active",
+      });
+
+      // Branch-level operational staff are readable by Front Office...
+      await assertSucceeds(getDoc(doc(authed("foGto"), "users", "cleanerGto")));
+      await assertSucceeds(getDoc(doc(authed("foGto"), "users", "obGto")));
+      // ...including by a Kindergarten Front Office, since these roles are branch-level
+      // rather than division-level (division filter is intentionally bypassed).
+      await assertSucceeds(getDoc(doc(authed(FRONT_OFFICE_PROFILE_UID), "users", "obGto")));
+
+      // Peers, leadership and executives in the same branch are NOT readable.
+      await assertFails(getDoc(doc(authed("foGto"), "users", "foKgGto")));
+      await assertFails(getDoc(doc(authed("foGto"), "users", "mgrGto")));
+      await assertFails(getDoc(doc(authed("foGto"), "users", "admin")));
+      await assertFails(getDoc(doc(authed("foGto"), "users", "opsLeadProbe")));
+
+      // Branch isolation still holds for operational staff.
+      await assertFails(getDoc(doc(authed("foGto"), "users", "obBoba")));
+
+      // Operational leadership keeps its broader same-branch staff oversight.
+      await assertSucceeds(getDoc(doc(authed("opsLeadProbe"), "users", "foKgGto")));
+    });
   });
 
   describe("payments get owner scoping (C1)", () => {

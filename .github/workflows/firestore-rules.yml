@@ -1,0 +1,58 @@
+name: Firestore Rules (Emulator)
+
+# Verifies firestore.rules against a real Firestore emulator.
+#
+# Why this workflow exists: `npm test` deliberately SKIPS the emulator suite
+# (`describe.skipIf(!HAS_EMULATOR)`), because it needs a Firestore emulator + JRE.
+# Until now no workflow ran `test:rules`, so a rules/permission regression could
+# sit in the repository unnoticed while `npm test` stayed green.
+#
+# This job is intentionally INDEPENDENT of the Firebase Hosting deploy workflows
+# (firebase-hosting-merge.yml / firebase-hosting-pull-request.yml) so that a rules
+# failure is visible without silently blocking production deploys. To make it
+# release-gating instead, add `npm run test:rules` to those workflows' test step.
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "firestore.rules"
+      - "firestore.indexes.json"
+      - "firebase.json"
+      - "package.json"
+      - "src/features/shared/firestoreRules.emulator.test.js"
+      - "src/features/shared/securityRulesMatrix/**"
+      - ".github/workflows/firestore-rules.yml"
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rules:
+    name: Rules emulator suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # The Firestore emulator is a Java process; ubuntu-latest does not guarantee a JRE.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      # firebase-tools is invoked via npx at a pinned version rather than added to
+      # devDependencies on purpose: the Hosting deploy workflows run `npm ci` on every
+      # push, and a local firebase-tools would slow every deploy to serve one job.
+      - name: Run Firestore rules tests against the emulator
+        run: npx --yes firebase-tools@15.32.0 emulators:exec --only firestore "npx vitest run src/features/shared/firestoreRules.emulator.test.js"

@@ -7,6 +7,7 @@ import {
   isParent,
   isParentOf,
   isSameBranch,
+  canGetUser,
   canUpdateUser,
   canDeleteUser,
 } from "./securityRulesMatrix.helpers.js";
@@ -121,21 +122,10 @@ describe("User & Parent/Student Authorization Rules Matrix", () => {
       expect(canUpdateParentProfileKeys(parentDocBoba, ["childStudentIds", "updatedAt"], adminUser)).toBe(true);
     });
 
-    function canGetUser(targetUserDoc, requester) {
-      if (!requester) return false;
-      if (isAdmin(requester)) return true;
-      if (isManager(requester) && isSameBranch(targetUserDoc, requester)) return true;
-      if (
-        isStaff(requester) &&
-        ["student", "instructor", "instructorleader", "instructor_leader", "parent"].includes(targetUserDoc.role) &&
-        isSameBranch(targetUserDoc, requester)
-      ) {
-        return true;
-      }
-      if (requester.uid && targetUserDoc.id === requester.uid) return true;
-      if (isParentOf(targetUserDoc.id, requester) && targetUserDoc.role === "student") return true;
-      return false;
-    }
+    // NOTE: this file previously defined its own local `canGetUser`, which had drifted from both
+    // firestore.rules and the shared mirror (it let a manager read any same-branch user and omitted
+    // the division check). It now uses the shared, authoritative `canGetUser` import so the matrix
+    // cannot silently disagree with the rules it is supposed to mirror.
 
     function canListUsers(requester) {
       if (!requester) return false;
@@ -182,6 +172,46 @@ describe("User & Parent/Student Authorization Rules Matrix", () => {
       expect(canGetUser({ id: "parent_a", role: "parent", branchId: "kota_gorontalo" }, foGto)).toBe(true);
       expect(canGetUser({ id: "parent_b", role: "parent", branchId: "bone_bolango" }, foGto)).toBe(false);
       expect(canGetUser({ id: "parent_b", role: "parent", branchId: "bone_bolango" }, adminUser)).toBe(true);
+    });
+
+    it("lets Front Office read operational staff but denies peers, leadership and executives", () => {
+      const opsLeadGto = { uid: "ol_1", role: "opslead", branchId: "kota_gorontalo", division: "all" };
+      const managerGto = { uid: "mgr_1", role: "manager", branchId: "kota_gorontalo", division: "all" };
+      const foKg = { uid: "fo_kg", role: "frontoffice", branchId: "kota_gorontalo", division: "kindergarten" };
+
+      const peerFrontOffice = { id: "fo_peer", role: "frontoffice", branchId: "kota_gorontalo" };
+      const officeBoy = { id: "ob_1", role: "officeboy", branchId: "kota_gorontalo" };
+      const cleanerDoc = { id: "cl_1", role: "cleaner", branchId: "kota_gorontalo" };
+      const marketing = { id: "mkt_1", role: "marketing", branchId: "kota_gorontalo" };
+      const opsLeadDoc = { id: "ol_doc", role: "opslead", branchId: "kota_gorontalo" };
+      const managerDoc = { id: "mgr_doc", role: "manager", branchId: "kota_gorontalo" };
+      const directorDoc = { id: "dir_1", role: "director", branchId: "kota_gorontalo" };
+
+      // Academic / student records Front Office legitimately needs.
+      expect(canGetUser({ id: "ins_1", role: "instructor", branchId: "kota_gorontalo" }, foGto)).toBe(true);
+      expect(canGetUser({ id: "student_1", role: "student", branchId: "kota_gorontalo" }, foGto)).toBe(true);
+      expect(canGetUser({ id: "parent_a", role: "parent", branchId: "kota_gorontalo" }, foGto)).toBe(true);
+
+      // Branch-level operational staff (facilities / kiosk) are visible to Front Office.
+      expect(canGetUser(officeBoy, foGto)).toBe(true);
+      expect(canGetUser(cleanerDoc, foGto)).toBe(true);
+      // Operational staff are branch-level, so the division filter does not block them.
+      expect(canGetUser(officeBoy, foKg)).toBe(true);
+
+      // Peers, marketing, operational leadership, managers and executives are NOT.
+      expect(canGetUser(peerFrontOffice, foGto)).toBe(false);
+      expect(canGetUser(marketing, foGto)).toBe(false);
+      expect(canGetUser(opsLeadDoc, foGto)).toBe(false);
+      expect(canGetUser(managerDoc, foGto)).toBe(false);
+      expect(canGetUser(directorDoc, foGto)).toBe(false);
+
+      // Branch isolation is unaffected.
+      expect(canGetUser({ id: "ins_boba", role: "instructor", branchId: "bone_bolango" }, foGto)).toBe(false);
+      expect(canGetUser({ id: "ob_boba", role: "officeboy", branchId: "bone_bolango" }, foGto)).toBe(false);
+
+      // Operational / division leadership keeps its broader branch staff oversight.
+      expect(canGetUser(peerFrontOffice, opsLeadGto)).toBe(true);
+      expect(canGetUser(officeBoy, managerGto)).toBe(true);
     });
 
     it("ensures parents and students cannot list /users collection", () => {

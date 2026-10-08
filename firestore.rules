@@ -301,8 +301,19 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if (signedIn() && userId == request.auth.uid)
         || isExecutive()
-        || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)))
+        // Broad same-branch profile read is scoped to division/operational leadership only
+        // (manager + ops lead family). Plain `frontoffice` is deliberately NOT included:
+        // it falls through to the allow-list clauses below so Front Office cannot read peer
+        // staff, marketing, operational leadership, manager or executive profiles.
+        // Keep in sync with `canGetUser` in
+        // src/features/shared/securityRulesMatrix/securityRulesMatrix.helpers.js.
+        || ((isManager() || isOpsLead()) && isSameBranch(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)))
         || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranch(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)))
+        // Front Office requires same-branch visibility of branch-level operational staff
+        // (facilities / kiosk clock-in). These roles are branch-level, not division-level, so
+        // — like parents — they are exempt from the division filter. This is the only role set
+        // Front Office may read beyond the academic allow-list above.
+        || (isFrontDeskStaff() && resource.data.role in ['officeboy', 'cleaner'] && isSameBranch(resource.data))
         || (isParentOf(userId) && resource.data.role == 'student');
       allow list: if isExecutive()
         || (isManager() && isSameBranchStrict(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)))

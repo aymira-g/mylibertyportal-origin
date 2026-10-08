@@ -328,8 +328,11 @@ export function canGetUser(doc, user) {
   if (!user) return false;
   if (isExecutive(user)) return true;
   if (doc.uid === user.uid || doc.id === user.uid) return true;
+  // Mirrors firestore.rules `/users/{userId}` allow get: the broad same-branch profile read is
+  // scoped to division/operational leadership only. Plain `frontoffice` must NOT reach it, so it
+  // cannot read peer staff, marketing, operational leadership, manager or executive profiles.
   if (
-    (isManager(user) || isFrontOffice(user)) &&
+    (isManager(user) || isOpsLead(user)) &&
     isSameBranch(doc, user) &&
     (doc.role === "parent" || isDivisionAllowedForBranchStaff(doc, user))
   )
@@ -341,6 +344,10 @@ export function canGetUser(doc, user) {
     (doc.role === "parent" || isDivisionAllowedForBranchStaff(doc, user))
   )
     return true;
+  // Branch-level operational staff are readable by Front Desk, division-exempt (like parents).
+  if (isFrontDeskStaff(user) && ["officeboy", "cleaner"].includes(doc.role) && isSameBranch(doc, user)) {
+    return true;
+  }
   if (isParentOf(doc.id || doc.uid, user) && doc.role === "student") return true;
   return false;
 }

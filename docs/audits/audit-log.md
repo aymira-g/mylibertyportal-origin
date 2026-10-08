@@ -372,6 +372,28 @@ Executed resolution for observations identified during inspection:
 | **Escalation Required** | No |
 | **Status** | **PASS — REFINEMENTS COMPLETED** |
 
+---
+
+## 2026-10-09 — Firestore Rules Verification Gap Closed & `/users` Read Boundary Reconciled
+
+Session began as a requested emulator run (`npm run test:rules`). It surfaced a failing committed security assertion, which in turn exposed that no CI workflow executes the rules emulator suite, and that two committed tests asserted contradictory behaviour for the same permission.
+
+| Field | Value |
+|---|---|
+| **Change** | 1) **Verification gate closed:** added `.github/workflows/firestore-rules.yml`, which runs the Firestore rules emulator suite on push/PR. Previously `npm test` skipped it (`describe.skipIf(!HAS_EMULATOR)`) and no workflow ran `test:rules`, so rules regressions were invisible. 2) **`/users/{userId}` `allow get` reconciled** in `firestore.rules`: the broad same-branch profile clause was narrowed from `(isManager() \|\| isFrontOffice())` to `(isManager() \|\| isOpsLead())`, and a new Front-Desk-scoped clause permits branch-level operational staff (`officeboy`, `cleaner`) with the division filter bypassed (they are branch-level, like parents). Owner decision 2026-10-09: "operational staff allowed, peers and leadership/executives denied". 3) Synced the hand-mirrored `canGetUser` in `securityRulesMatrix.helpers.js` and removed a duplicated, drifted local `canGetUser` in `userAuthorization.test.js` that disagreed with both the rules and the shared mirror. |
+| **Date** | 2026-10-09 |
+| **Section** | Firestore Security Rules / `/users` Read Boundary / CI Verification Gate |
+| **Workflow** | Users Collection Read Authorization -> branch staff profile boundary; CI -> rules emulator gating |
+| **Normal Test** | `npm run test:rules` -> **62 passed, 0 failed** (was 60 passed, 1 failed). Full suite `npm test` -> **1,174 passed, 62 skipped, 0 failed**. |
+| **Failure Test** | Front Office reading a peer `frontoffice`, `marketing`, `opslead`, `manager`, `admin` or `director` profile is now rejected; cross-branch reads (including cross-branch `officeboy`) remain rejected; self-approval and payment/shift boundaries unaffected. |
+| **Result Verification** | `npm run test:rules` passed (62/62); `npm test` passed (1,174, 0 failures); `npm run lint` passed (0 errors, 0 warnings); `npm run typecheck` passed (0 errors); `npm run build` passed cleanly; 100% Spark free-tier compliant (no new reads, listeners, indexes or paid services). |
+| **Findings** | **Contradiction discovered and resolved:** two committed emulator tests asserted opposite outcomes for Front Office reading `/users` — `users own profile get > does not let front office read another same-branch front office profile` (expects DENY, was failing) and `INT-004` (expects ALLOW for a same-branch `cleaner` profile, was passing). No single rule could satisfy both; reconciled per owner decision. **Two gaps remain OPEN:** (a) `OpsLeadDashboard` issues a `users` **list** query with only a `branchId` filter (`useDashboardData.js:257-270`) which `allow list` (line 309) rejects with `permission-denied`, so `OpsLeadFacilitiesTab`/`OpsLeadOverviewTab` cannot populate branch staff — whether a branch leadership role may enumerate branch staff is an unresolved authority question; (b) the `allow list` role allow-list was NOT extended, so the `get`/`list` asymmetry persists by design. Note: emulator logs still emit "maximum of 1000 expressions" evaluation errors inside rule branches; all 62 tests pass, but the `/users` `allow get` expression budget should be measured before further clauses are added. |
+| **Escalation Required** | No (boundary decided by owner 2026-10-09); open items (a)/(b) flagged for a future scoped decision. |
+| **Status** | **PASS — RULES BOUNDARY RECONCILED & CI GATE ADDED** |
+
+**Deployment note:** `firestore.rules` changes take effect only after `firebase deploy --only firestore:rules`. Not deployed by the agent; production rules state is unverified from the repository.
+
+
 
 
 

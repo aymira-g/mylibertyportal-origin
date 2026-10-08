@@ -12,7 +12,8 @@
 
 | Date | Change Summary | Section / Module | Result Status | Escalated? | Notes / Bug ID |
 |---|---|---|---|---|---|
-| 2026-10-08 | Instructor Leader dashboard Phase 1 refinement + owner-approved read-only widening of `firestore.rules` for `progressReports` / `classAttendance` | Dashboard / Instructor Leader · Firestore Rules | **PASS** (browser verification partial — see record) | No | See full evidence record below |
+| 2026-10-08 | Instructor Leader dashboard Phase 1 refinement + owner-approved read-only widening of `firestore.rules` for `progressReports` / `classAttendance` | Dashboard / Instructor Leader · Firestore Rules | **PASS** for the change itself (browser verification partial — see record) | No | Targeted checks passed; see the evidence record below |
+| 2026-10-08 | Follow-up boundary probe of the approval-gate contract (during Phase 2 scoping) | Approvals · Firestore Rules | **RESOLVED** (was `ESCALATE`) | **Yes** | `actionId → approverRole` binding was client-side only. Fixed under owner authorization the same day on the create, decision and consumption paths. See the escalation record and its resolution below |
 
 ---
 
@@ -69,6 +70,11 @@ Boundary Test (Playbook §17 four-part suite):
                 (request.auth.uid != resource.data.requestedByUid). (pre-existing emulator tests, PASS)
   Financial isolation — Instructor Leader cannot read/list branch shift records (cashReconciliation),
                 and holds no payment write path. (emulator, PASS)
+  Approval gate binding — NOT ENFORCED. A follow-up probe proved that the actionId -> approverRole mapping
+                exists only client-side (approvalGates.js) and is never bound by firestore.rules. An
+                Instructor Leader could therefore decide a CASH_DISCREPANCY ticket, and a Division Manager an
+                Ops-Lead-only class cancellation, by addressing the envelope to their own role. Self-approval
+                stayed blocked throughout (control probe DENIED). (emulator, ESCALATE)
 
 Result Verification:
   - Assertions run against the REAL rules engine via the Firestore emulator, not against a UI projection.
@@ -114,10 +120,14 @@ Findings:
     "emergency/delegation procedure" (G-008 ratified it). Rewriting a self-limiting disclaimer list is a broader
     editorial judgement; left for an explicit owner decision.
 
-Escalation Required: No
-Status: PASS
-  (Production deployment NOT performed by explicit owner instruction, so production behaviour is unverified.
-   Browser-level verification was partial: see the E2E note below.)
+Escalation Required: Yes
+Status: ESCALATE
+  (The Phase 1 change itself passed every targeted check listed above. The escalation comes from a
+   follow-up approval-boundary probe that revealed a severe PRE-EXISTING bypass of the dual-control gate
+   contract — see the escalation record below. Per Playbook §23, "ESCALATE" takes precedence over "PASS"
+   for the overall check status because the finding requires a Level 2 Section Deep Audit.
+   Production deployment was NOT performed by explicit owner instruction, so production behaviour is
+   unverified. Browser-level verification was partial: see the E2E note below.)
 
 E2E note (honest limitation):
   Three Playwright runs produced three different outcomes, all confined to tests/portal.spec.ts (login view,
@@ -136,8 +146,86 @@ E2E note (honest limitation):
 
 ---
 
+## Escalation Record — Approval Gate Binding (2026-10-08)
+
+**Finding:** `firestore.rules` never binds an approval's `actionId` to its permitted `approverRole`.
+`isApproverForDoc` validates only the document's own `approverRole` field plus branch matching, so whoever
+writes the envelope chooses who may approve it.
+
+**Evidence:** temporary emulator probe against the real `firestore.rules` (probe file removed after use):
+
+| Probe | Outcome |
+|---|---|
+| Instructor Leader decides `actionId: CASH_DISCREPANCY`, `approverRole: instructorleader` | **ALLOWED** |
+| Instructor Leader decides `actionId: RETROACTIVE_STUDENT_ATTENDANCE`, `approverRole: instructor_leader` | **ALLOWED** |
+| Division Manager decides `actionId: CLASS_CANCELLATION_OR_RESCHEDULE`, `approverRole: manager` | **ALLOWED** |
+| Self-approval (control) | DENIED (correct) |
+
+**Why it matters:** it defeats the ratified gate registry (Blueprint §26, G-006 / G-007) and the
+"capabilities are not interchangeable" principle. It also means Phase 1's acceptance criterion
+"cannot approve another role's approval" is **not** satisfied at the backend layer. `AGENTS.md` is explicit:
+"Client-side role checks are not the security boundary."
+
+**Pre-existing:** neither the `approvals` create rule nor `isApproverForDoc` was modified by Phase 1. The gap
+affects every gate except `STAFF_ROLE_ELEVATION` and `DISCOUNT_OR_REFUND`, whose `approverRole` is constrained
+at create time.
+
+**Actual exposure (checked, not assumed).** Only two gates are consumed by the backend, and their handling
+differs:
+- `STAFF_SHIFT_SELF_CORRECTION` — consumed by `isApprovedShiftCorrection()` (`firestore.rules:215`), which does
+  **not** validate `approverRole`. A self-correction that policy routes to the Operational Leader can be
+  addressed to and approved by the Instructor Leader, and the rules will apply it to the shift record.
+  **Real backend bypass (HIGH).**
+- `STAFF_ROLE_ELEVATION` — consumed by `isApprovedRoleElevation()` (`firestore.rules:225`), which *does* require
+  `approverRole in ['director','vice_director']` at line 236–237. **Protected.**
+- All remaining gates are not consumed at all: `isActionOperational()` is exported from `approvalGates.js` but
+  has no production caller, so "blocking" mode is advisory. Impact is audit-trail integrity (MEDIUM).
+
+**Not fixed here.** Closing it changes the security boundary and needs owner authorization plus its own
+verification (securityRulesMatrix sync, emulator tests, and review of how envelopes are created). Recommended as
+the opening task of Phase 2.
+
+**Escalation target:** Level 2 Section Deep Audit
+([`../Comprehensive Hidden-Bug Audit Strategy/00-README.md`](../Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md)),
+Approvals / Dual-Control domain, and the Master Bug Ledger
+([`../Comprehensive Hidden-Bug Audit Strategy/05-bug-tracking.md`](../Comprehensive%20Hidden-Bug%20Audit%20Strategy/05-bug-tracking.md)).
+
+### Resolution (2026-10-08, owner-authorized)
+
+Closed as Phase 2 step 1. Plan: [`../../plans/active/2026-10-08-instructor-leader-dashboard-phase2-approval-gate-binding.md`](../../plans/active/2026-10-08-instructor-leader-dashboard-phase2-approval-gate-binding.md).
+
+- `firestore.rules` gained `gateAllowsApprover(actionId, approverRole)`, enforced on the `approvals` **create**
+  rule, the **decision** rule (`allow update`), and **consumption** (`isApprovedShiftCorrection`). It fails
+  closed for unknown `actionId` values, and accepts legacy alias spellings so existing documents keep working.
+- The shift-correction consumption path uses an **inlined** permitted set because its actionId is already
+  pinned, keeping that rule inside the rules engine's expression budget.
+- `securityRulesMatrix.helpers.js` mirrors the binding (`GATE_APPROVER_ROLES`, `gateAllowsApprover`) and
+  `canDecideApproval` now enforces the pair.
+- New `src/features/shared/instructorLeaderApprovalProbe.test.js` asserts the hardened boundary and carries a
+  **drift guard** proving the rules-side binding table equals `GATED_ACTIONS[*].eligibleApproverRoles`.
+- Five emulator tests prove the three probed bypasses are now denied, legitimate pairs still succeed, invalid
+  pairs cannot be created, and a wrong-role approval cannot be applied to a shift record.
+- **Incidental repair:** `submitStaffOnboardingRequest` addressed `NEW_STAFF_ACCOUNT` to `admin`, which no
+  `isApproverForDoc` branch matches and `canApproveGate` also rejects — so staff onboarding approval could
+  never be decided. It now addresses the Director, matching ratified G-007.
+- **Four existing test fixtures were corrected deliberately**, because they encoded the vulnerable
+  expectation: `APPROVAL_KOTA` and `pendingApproval` used `DISCOUNT_OR_REFUND` + `manager` as a generic
+  manager ticket (retargeted to `TUITION_PLAN_CHANGE`); `approvedCorrection` omitted `approverRole` (now
+  `ops_lead`); and `approvalsRepository.test.js` asserted `approverRole === "admin"` for onboarding (now
+  `"director"`).
+- **Verification:** `npm run test:rules` 77/77; `npm test` 1,235 passed; lint 0 errors / 0 warnings;
+  typecheck 0 errors; build clean.
+- **New residual risk recorded:** the rules engine's 1000-expression ceiling is already reached on
+  `approvals` deny paths at HEAD (69 log lines, rising to 101 with this change). It is pre-existing, affects
+  deny paths only, and no allow-path test fails — but it warrants a dedicated slim-down task. **Not deployed.**
+
+**Escalation status: RESOLVED.** Retained here as the permanent record; the underlying expression-budget
+observation is carried forward as a separate risk, not as this finding.
+
+---
+
 ## Cross-references
 
-- Phase 1 completion report: [`../../reports/instructor-leader-dashboard/01-phase1-completion-report.md`](../../reports/instructor-leader-dashboard/01-phase1-completion-report.md)
+- Phase 1 completion report: [`../../reports/instructor-leader-dashboard/01-phase1-completion-report.md`](../../reports/instructor-leader-dashboard/01-phase1-completion-report.md) — see §6.5 for the same finding in context
 - Behavioural authorization spec (updated): [`../../specs/authorization-contract.md`](../../specs/authorization-contract.md) §6.6
 - Playbook §17 (Firestore rule change validation): [`../Light Regression Check Playbook/04-domain-playbooks-branch-data-rules-worker.md`](../Light%20Regression%20Check%20Playbook/04-domain-playbooks-branch-data-rules-worker.md)

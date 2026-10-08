@@ -388,6 +388,55 @@ export function canListUsers(queryData, user) {
   return false;
 }
 
+/**
+ * Ratified gate registry binding: actionId -> permitted approverRole values.
+ *
+ * Mirrors `gateAllowsApprover` in `firestore.rules` and
+ * `GATED_ACTIONS[*].eligibleApproverRoles` in `../approvalGates.js`
+ * (ratified by Blueprint v3.3 §26, G-006 / G-007). Legacy alias spellings are accepted so
+ * existing documents keep working; canonical values remain preferred.
+ *
+ * Fails closed: an actionId absent from this table permits no approver role.
+ */
+export const GATE_APPROVER_ROLES = Object.freeze({
+  STAFF_ROLE_ELEVATION: ["director", "vice_director"],
+  NEW_STAFF_ACCOUNT: ["director", "vice_director"],
+  STAFF_DEACTIVATION: ["director", "vice_director"],
+  DISCOUNT_OR_REFUND: ["director", "vice_director"],
+  TUITION_PLAN_CHANGE: ["manager", "branch_manager", "director", "vice_director"],
+  STUDENT_WITHDRAWAL_OR_FREEZE: ["manager", "branch_manager", "director", "vice_director"],
+  CASH_DISCREPANCY: ["opslead", "ops_lead", "manager", "branch_manager", "director", "vice_director"],
+  PLACEMENT_LEVEL_OVERRIDE: ["instructorleader", "instructor_leader"],
+  SUBSTITUTE_INSTRUCTOR: ["instructorleader", "instructor_leader"],
+  CLASS_CANCELLATION_OR_RESCHEDULE: ["opslead", "ops_lead"],
+  RETROACTIVE_STUDENT_ATTENDANCE: ["opslead", "ops_lead"],
+  STUDENT_CLASS_TRANSFER: ["opslead", "ops_lead"],
+  STAFF_SHIFT_SELF_CORRECTION: [
+    "opslead",
+    "ops_lead",
+    "manager",
+    "branch_manager",
+    "director",
+    "vice_director",
+  ],
+  STAFF_STATUS_CHANGE: [
+    "opslead",
+    "ops_lead",
+    "instructorleader",
+    "instructor_leader",
+    "manager",
+    "branch_manager",
+    "director",
+    "vice_director",
+  ],
+});
+
+export function gateAllowsApprover(actionId, approverRole) {
+  const allowed = GATE_APPROVER_ROLES[actionId];
+  if (!allowed) return false;
+  return allowed.includes(approverRole);
+}
+
 export function isApproverForDoc(data, user) {
   if (!user) return false;
 
@@ -396,7 +445,10 @@ export function isApproverForDoc(data, user) {
 
   if (targetRole === "director" || targetRole === "vice_director") {
     roleMatches = isDirector(user) || isViceDirector(user);
-  } else if (targetRole === "manager" && (isManager(user) || isDirector(user) || isViceDirector(user))) {
+  } else if (
+    (targetRole === "manager" || targetRole === "branch_manager") &&
+    (isManager(user) || isDirector(user) || isViceDirector(user))
+  ) {
     roleMatches = true;
   } else if (
     (targetRole === "instructor_leader" || targetRole === "instructorleader") &&
@@ -430,6 +482,12 @@ export function canDecideApproval(doc, user) {
   }
   // Target user cannot approve their own role elevation
   if (doc && doc.actionId === "STAFF_ROLE_ELEVATION" && doc.payload?.targetUserId === user.uid) {
+    return false;
+  }
+  // The (actionId, approverRole) pair must be permitted by the ratified registry. Mirrors the
+  // gateAllowsApprover condition on the `approvals` update rule in firestore.rules. It is
+  // deliberately not inside isApproverForDoc, which also backs the read path.
+  if (!doc || !("approverRole" in doc) || !gateAllowsApprover(doc.actionId, doc.approverRole)) {
     return false;
   }
   return isApproverForDoc(doc, user);
@@ -600,6 +658,9 @@ export function isApprovedShiftCorrection(approval, shiftId) {
     approval.actionId === "STAFF_SHIFT_SELF_CORRECTION" &&
     approval.status === "approved" &&
     (!("applied" in approval) || approval.applied !== true) &&
+    // The approver must be a role the registry permits for this gate.
+    "approverRole" in approval &&
+    gateAllowsApprover(approval.actionId, approval.approverRole) &&
     approval.payload != null &&
     approval.payload.shiftId === shiftId
   );

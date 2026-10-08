@@ -81,7 +81,10 @@ describe("approvalsRepository", () => {
     expect(result.actionId).toBe("NEW_STAFF_ACCOUNT");
     expect(result.requestedByUid).toBe("user_new_google");
     expect(result.status).toBe(APPROVAL_STATUS.PENDING);
-    expect(result.approverRole).toBe("admin");
+    // Ratified approver for NEW_STAFF_ACCOUNT is the Director (Vice Director fallback).
+    // This previously asserted "admin", which matches no isApproverForDoc branch and is
+    // also rejected by canApproveGate — so the ticket could be created but never decided.
+    expect(result.approverRole).toBe("director");
   });
 
   it("filters out mismatched division items in listenToPendingApprovals when options.division is provided", async () => {

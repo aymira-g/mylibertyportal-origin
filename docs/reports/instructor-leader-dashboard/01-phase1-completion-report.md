@@ -174,11 +174,43 @@ Cases proven by the emulator:
 
 ### 6.3 Financial isolation
 
-Confirmed by emulator test: the Instructor Leader cannot read branch shift records, cannot approve discounts/refunds or cash discrepancies (neither gate lists the role in `eligibleApproverRoles`), and holds no payment write path. The two gates the role does own (`PLACEMENT_LEVEL_OVERRIDE`, `SUBSTITUTE_INSTRUCTOR`) are the only ones it can decide.
+Emulator-proven: the Instructor Leader cannot read or list branch shift records, and holds no payment write path (no `payments` clause includes the role). `DISCOUNT_OR_REFUND` is genuinely closed at the rules layer, because the `approvals` create rule requires any ticket with that `actionId` to carry `approverRole in ['director','vice_director']`, and only a Director or Vice Director satisfies `isApproverForDoc`.
 
-### 6.4 Direct API bypass
+**Correction (2026-10-08, after Phase 1 was reported).** An earlier version of this section claimed emulator confirmation that the Instructor Leader "cannot approve cash discrepancies because the gate does not list the role in `eligibleApproverRoles`". That claim is **withdrawn**: no assertion in this task tested gate-level approval authority. It was read from the client-side registry in `approvalGates.js` rather than proven against `firestore.rules` — and a follow-up emulator probe proved the opposite. See §6.5.
 
-Every claim above is an emulator assertion against the rules engine, not a UI assertion. The dashboard never relies on hidden buttons for authorization: `ApprovalInbox` independently re-checks `canApproveGate` and self-request status, and the new read surfaces are governed entirely by the rule clauses proven in §6.1.
+### 6.4 Direct API bypass — partially withdrawn
+
+The rule-level claims in §6.1 and §6.2 are genuine emulator assertions against the real rules engine, and the new read surfaces depend on no UI hiding. **However, the earlier statement that "every claim above is an emulator assertion" was not true of the approval-gate claims**, which were never tested at the rules layer. The read-path and self-approval claims stand; the gate-authority claim did not. See §6.5.
+
+### 6.5 Confirmed pre-existing gap: `actionId → approverRole` is not bound by the rules
+
+A follow-up emulator probe (temporary file, removed after use) seeded approval documents and attempted decisions against the real rules engine:
+
+| Probe | Result |
+|---|---|
+| Instructor Leader decides a `CASH_DISCREPANCY` ticket whose `approverRole` is `instructorleader` | **ALLOWED** |
+| Instructor Leader decides a `RETROACTIVE_STUDENT_ATTENDANCE` ticket whose `approverRole` is `instructor_leader` | **ALLOWED** |
+| Division Manager decides a `CLASS_CANCELLATION_OR_RESCHEDULE` ticket whose `approverRole` is `manager` | **ALLOWED** |
+| Self-approval (control) | correctly DENIED |
+
+**Root cause.** `isApproverForDoc` validates only the document's own `approverRole` field plus branch matching. Nothing in `firestore.rules` links `actionId` to the permitted `approverRole`, so the ratified gate registry in `approvalGates.js` is enforced **client-side only** — which `AGENTS.md` states plainly is not the security boundary.
+
+**Scope.** General, not Instructor-Leader-specific: it affects every gate except the two whose `approverRole` is constrained at create time (`STAFF_ROLE_ELEVATION`, `DISCOUNT_OR_REFUND`). It is **pre-existing** and not introduced by this task — neither the `approvals` create rule nor `isApproverForDoc` was modified.
+
+**Impact on this task's own acceptance criteria.** The plan's §19 "Approval isolation → cannot approve another role's approval" is **NOT satisfied at the backend layer**, and was not covered by this task's tests. UI-level approval isolation holds; rule-level isolation does not.
+
+**Downstream consumability — what the bypass can actually unlock.** Not every gate is consumed by the backend, so the practical impact varies sharply:
+
+| Gate | Consumed by `firestore.rules`? | Approver role validated at the consumption point? | Net exposure |
+|---|---|---|---|
+| `STAFF_SHIFT_SELF_CORRECTION` | **Yes** — `isApprovedShiftCorrection()` (`firestore.rules:215`) gates the `shifts` update path | **No** — it checks `actionId`, `status`, not-yet-applied and `payload.shiftId`, but **never `approverRole`** | **Real backend bypass.** A self-correction that policy routes to the Operational Leader (per `getSelfCorrectionApprover`) can instead be addressed to and approved by the Instructor Leader, and the rules will apply it to the shift record. `shiftMatchesCorrectionPayload` limits *what* can be applied, not *who* authorised it. |
+| `STAFF_ROLE_ELEVATION` | Yes — `isApprovedRoleElevation()` (`firestore.rules:225`) | **Yes** — line 236–237 requires `approval.approverRole in ['director','vice_director']`, and the `approvals` create rule enforces the same | **Protected.** |
+| `DISCOUNT_OR_REFUND` | No | Create rule requires `approverRole in ['director','vice_director']` | **Protected at the boundary.** |
+| All remaining gates | **No** — `isActionOperational()` is exported from `approvalGates.js` but has **no production caller** | n/a | Approval-record integrity only: a "blocking" ticket can be decided by a role the registry never authorised, producing a misleading audit trail (and "blocking" mode is advisory, not enforced). |
+
+So the confirmed consequence is narrower than "any gate can be bypassed", but it is not merely cosmetic: at least one gate (`STAFF_SHIFT_SELF_CORRECTION`) is consumed by the rules and accepts a wrong-role approver.
+
+**Status:** **CLOSED (2026-10-08)** — owner-authorized and fixed in Phase 2 step 1. `firestore.rules` now binds `(actionId, approverRole)` on all three paths: the `approvals` create rule, the decision rule (`allow update`), and consumption (`isApprovedShiftCorrection`). An emulator suite plus `securityRulesMatrix` regressions and a new [`instructorLeaderApprovalProbe.test.js`](../../../src/features/shared/instructorLeaderApprovalProbe.test.js) prove the three probed bypasses are denied while legitimate routing — including legacy alias spellings — still works. The fix also repaired `NEW_STAFF_ACCOUNT` onboarding routing, which was already undecidable because it was addressed to `admin`. Plan: [`docs/plans/active/2026-10-08-instructor-leader-dashboard-phase2-approval-gate-binding.md`](../../plans/active/2026-10-08-instructor-leader-dashboard-phase2-approval-gate-binding.md). Evidence: the resolution section of the Level 1 log. **Not deployed.**
 
 ---
 

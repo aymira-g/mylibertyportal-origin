@@ -207,8 +207,13 @@ export async function submitStaffOnboardingRequest({ uid, email, displayName = "
     label: "New Staff Account Request",
     domain: "staff",
     mode: "blocking",
-    approverRole: "admin",
-    approverBranchId: null, // Admin queue
+    // Ratified approver for NEW_STAFF_ACCOUNT is the Director, with the Vice Director as
+    // fallback (Blueprint v3.3 §26 G-007). This previously said "admin", which no
+    // isApproverForDoc branch matches and which canApproveGate also rejects, so the ticket
+    // was created but could never be decided. Aligning it also satisfies the
+    // actionId -> approverRole binding enforced by firestore.rules.
+    approverRole: "director",
+    approverBranchId: null, // Executive queue (province-wide)
     requestedBy: displayName || email,
     requestedByUid: uid,
     requestedAt: new Date().toISOString(),

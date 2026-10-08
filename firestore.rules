@@ -176,10 +176,47 @@ service cloud.firestore {
       return isDivisionAllowedForBranchStaff(data);
     }
 
+    // ── Ratified gate registry binding (actionId -> permitted approverRole) ──
+    // Mirrors GATED_ACTIONS[*].eligibleApproverRoles in src/features/shared/approvalGates.js,
+    // ratified by Blueprint v3.3 §26 (G-006 / G-007). Legacy alias spellings are accepted so
+    // existing documents keep working; canonical values remain preferred.
+    //
+    // Why this exists: isApproverForDoc previously validated only the document's own
+    // approverRole field, so whoever wrote the envelope chose who could approve it. A probe
+    // proved an Instructor Leader could decide a CASH_DISCREPANCY ticket merely by addressing
+    // it to themselves. See docs/reports/instructor-leader-dashboard/01-phase1-completion-report.md §6.5.
+    //
+    // Written as a short-circuiting `||` chain rather than a map of lists on purpose: a map
+    // literal constructs every list on every call, which exhausted the rules engine's
+    // 1000-expression evaluation budget ("Unable to evaluate the expression as the maximum of
+    // 1000 expressions to evaluate has been reached"). Each clause here evaluates only after
+    // its actionId equality matches.
+    //
+    // Deliberately NOT called from isApproverForDoc: that helper also backs the read path, and
+    // the binding only needs to gate decisions (update) and consumption. Fails closed.
+    //
+    // Keep in sync with securityRulesMatrix.helpers.js -> GATE_APPROVER_ROLES / gateAllowsApprover().
+    function gateAllowsApprover(actionId, approverRole) {
+      return (actionId == 'STAFF_ROLE_ELEVATION' && (approverRole == 'director' || approverRole == 'vice_director'))
+        || (actionId == 'NEW_STAFF_ACCOUNT' && (approverRole == 'director' || approverRole == 'vice_director'))
+        || (actionId == 'STAFF_DEACTIVATION' && (approverRole == 'director' || approverRole == 'vice_director'))
+        || (actionId == 'DISCOUNT_OR_REFUND' && (approverRole == 'director' || approverRole == 'vice_director'))
+        || (actionId == 'TUITION_PLAN_CHANGE' && (approverRole == 'manager' || approverRole == 'branch_manager' || approverRole == 'director' || approverRole == 'vice_director'))
+        || (actionId == 'STUDENT_WITHDRAWAL_OR_FREEZE' && (approverRole == 'manager' || approverRole == 'branch_manager' || approverRole == 'director' || approverRole == 'vice_director'))
+        || (actionId == 'CASH_DISCREPANCY' && (approverRole == 'opslead' || approverRole == 'ops_lead' || approverRole == 'manager' || approverRole == 'branch_manager' || approverRole == 'director' || approverRole == 'vice_director'))
+        || (actionId == 'PLACEMENT_LEVEL_OVERRIDE' && (approverRole == 'instructorleader' || approverRole == 'instructor_leader'))
+        || (actionId == 'SUBSTITUTE_INSTRUCTOR' && (approverRole == 'instructorleader' || approverRole == 'instructor_leader'))
+        || (actionId == 'CLASS_CANCELLATION_OR_RESCHEDULE' && (approverRole == 'opslead' || approverRole == 'ops_lead'))
+        || (actionId == 'RETROACTIVE_STUDENT_ATTENDANCE' && (approverRole == 'opslead' || approverRole == 'ops_lead'))
+        || (actionId == 'STUDENT_CLASS_TRANSFER' && (approverRole == 'opslead' || approverRole == 'ops_lead'))
+        || (actionId == 'STAFF_SHIFT_SELF_CORRECTION' && (approverRole == 'opslead' || approverRole == 'ops_lead' || approverRole == 'manager' || approverRole == 'branch_manager' || approverRole == 'director' || approverRole == 'vice_director'))
+        || (actionId == 'STAFF_STATUS_CHANGE' && (approverRole == 'opslead' || approverRole == 'ops_lead' || approverRole == 'instructorleader' || approverRole == 'instructor_leader' || approverRole == 'manager' || approverRole == 'branch_manager' || approverRole == 'director' || approverRole == 'vice_director'));
+    }
+
     function isApproverForDoc(data) {
       let targetRole = data != null && 'approverRole' in data ? data.approverRole : 'manager';
       let roleMatches = ((targetRole == 'director' || targetRole == 'vice_director') && (isDirector() || isViceDirector()))
-        || (targetRole == 'manager' && (isManager() || isDirector() || isViceDirector()))
+        || ((targetRole == 'manager' || targetRole == 'branch_manager') && (isManager() || isDirector() || isViceDirector()))
         || ((targetRole == 'instructor_leader' || targetRole == 'instructorleader') && (hasRole('instructorleader') || hasRole('instructor_leader')))
         || ((targetRole == 'ops_lead' || targetRole == 'opslead') && isOpsLead())
         || (targetRole == 'frontoffice' && isFrontOffice());
@@ -217,6 +254,12 @@ service cloud.firestore {
       return approval.actionId == 'STAFF_SHIFT_SELF_CORRECTION'
         && approval.status == 'approved'
         && (!('applied' in approval) || approval.applied != true)
+        // The approver must be a role permitted for THIS gate. The actionId is already pinned
+        // to STAFF_SHIFT_SELF_CORRECTION above, so the permitted set is inlined rather than
+        // running the generic gateAllowsApprover chain — that chain pushed this update rule
+        // past the rules engine's 1000-expression evaluation budget.
+        && ('approverRole' in approval)
+        && (approval.approverRole in ['opslead', 'ops_lead', 'manager', 'branch_manager', 'director', 'vice_director'])
         && 'payload' in approval
         && approval.payload != null
         && approval.payload.shiftId == shiftId;
@@ -663,7 +706,11 @@ service cloud.firestore {
         && (
           (request.resource.data.actionId != 'STAFF_ROLE_ELEVATION' && request.resource.data.actionId != 'DISCOUNT_OR_REFUND')
           || (('approverRole' in request.resource.data) && request.resource.data.approverRole in ['director', 'vice_director'])
-        );
+        )
+        // Every envelope must name an approver role the ratified registry permits for its
+        // actionId, so a mis-addressed ticket cannot be created in the first place.
+        && ('approverRole' in request.resource.data)
+        && gateAllowsApprover(request.resource.data.actionId, request.resource.data.approverRole);
       allow update: if isApproverForDoc(resource.data)
           && request.auth.uid != resource.data.requestedByUid
           && request.resource.data.requestedByUid == resource.data.requestedByUid
@@ -679,7 +726,13 @@ service cloud.firestore {
               && request.resource.data.applied == true
               && request.resource.data.diff(resource.data).affectedKeys()
                 .hasOnly(['applied', 'appliedAt', 'appliedByUid', 'updatedAt']))
-          );
+          )
+          // The (actionId, approverRole) pair must be permitted by the ratified registry,
+          // otherwise whoever writes the envelope chooses the approver. Placed last so this
+          // chain is only evaluated once the cheaper conditions have passed (the rules engine
+          // caps a request at 1000 evaluated expressions). Fails closed.
+          && ('approverRole' in resource.data)
+          && gateAllowsApprover(resource.data.actionId, resource.data.approverRole);
       allow delete: if false; // Approvals form an immutable audit trail of operational & role decisions
     }
 

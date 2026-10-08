@@ -37,6 +37,8 @@ const USERS = {
   mgrUnassigned: { role: "manager" },
   insUnassigned: { role: "instructor" },
   insGto: { role: "instructor", branchId: "kota_gorontalo" },
+  opsGto: { role: "opslead", branchId: "kota_gorontalo" },
+  dirGto: { role: "director", branchId: "kota_gorontalo" },
   ilGto: { role: "instructorleader", branchId: "kota_gorontalo", division: "kindergarten" },
   ilLegacyGto: { role: "instructor_leader", branchId: "kota_gorontalo" },
   ilBoba: { role: "instructorleader", branchId: "bone_bolango" },
@@ -81,7 +83,11 @@ async function seedUsers() {
 const PAYMENT_KOTA = { studentId: "student1", branchId: "kota_gorontalo", amount: 449000 };
 
 const APPROVAL_KOTA = {
-  actionId: "DISCOUNT_OR_REFUND",
+  // A Division-Manager-addressed gate. This fixture previously used DISCOUNT_OR_REFUND,
+  // which the ratified registry restricts to Director / Vice Director; the gate-binding
+  // hardening now enforces that pair, so the fixture was retargeted to keep testing its
+  // stated intent ("manager approvals route to the manager of that branch").
+  actionId: "TUITION_PLAN_CHANGE",
   status: "pending",
   mode: "blocking",
   approverRole: "manager",
@@ -714,6 +720,157 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
     it("blocks instructors and other branches from applying corrections", async () => {
       await assertFails(updateDoc(doc(authed("insGto"), "shifts", "shift1"), applied("corr1")));
       await assertFails(updateDoc(doc(authed("mgrBoba"), "shifts", "shift1"), applied("corr1")));
+    });
+  });
+
+  describe("gate binding hardening (owner-approved 2026-10-08)", () => {
+    // Regression tests for the confirmed bypass: firestore.rules previously validated only
+    // the document's own approverRole, so whoever wrote the envelope chose the approver.
+    // A probe proved an Instructor Leader could decide a CASH_DISCREPANCY ticket merely by
+    // addressing it to themselves.
+    const misaddressed = (over) => ({
+      status: "pending",
+      mode: "blocking",
+      approverBranchId: "kota_gorontalo",
+      requestedBy: "Someone",
+      requestedByUid: "insGto",
+      requestedAt: "2026-10-08T00:00:00.000Z",
+      payload: null,
+      ...over,
+    });
+
+    const decide = (uid) => ({
+      status: "approved",
+      decidedBy: uid,
+      decidedByUid: uid,
+      decidedAt: "2026-10-08T01:00:00.000Z",
+      decisionNotes: "",
+      rejectionReason: "",
+      updatedAt: "2026-10-08T01:00:00.000Z",
+    });
+
+    it("denies a decision when the approverRole is not permitted for the actionId", async () => {
+      await seedDoc(
+        ["approvals", "ilCash"],
+        misaddressed({ actionId: "CASH_DISCREPANCY", approverRole: "instructorleader" })
+      );
+      await seedDoc(
+        ["approvals", "ilRetro"],
+        misaddressed({ actionId: "RETROACTIVE_STUDENT_ATTENDANCE", approverRole: "instructor_leader" })
+      );
+      await seedDoc(
+        ["approvals", "mgrCancel"],
+        misaddressed({ actionId: "CLASS_CANCELLATION_OR_RESCHEDULE", approverRole: "manager" })
+      );
+      await seedDoc(
+        ["approvals", "mgrDiscount"],
+        misaddressed({ actionId: "DISCOUNT_OR_REFUND", approverRole: "manager" })
+      );
+
+      await assertFails(updateDoc(doc(authed("ilGto"), "approvals", "ilCash"), decide("ilGto")));
+      await assertFails(updateDoc(doc(authed("ilGto"), "approvals", "ilRetro"), decide("ilGto")));
+      await assertFails(updateDoc(doc(authed("mgrGto"), "approvals", "mgrCancel"), decide("mgrGto")));
+      await assertFails(
+        updateDoc(doc(authed("mgrGto"), "approvals", "mgrDiscount"), decide("mgrGto"))
+      );
+    });
+
+    it("still allows legitimate pairs, including legacy alias spellings", async () => {
+      await seedDoc(
+        ["approvals", "okLegacy"],
+        misaddressed({ actionId: "PLACEMENT_LEVEL_OVERRIDE", approverRole: "instructor_leader" })
+      );
+      await seedDoc(
+        ["approvals", "okCash"],
+        misaddressed({ actionId: "CASH_DISCREPANCY", approverRole: "ops_lead" })
+      );
+      await seedDoc(
+        ["approvals", "okTuition"],
+        misaddressed({ actionId: "TUITION_PLAN_CHANGE", approverRole: "manager" })
+      );
+
+      await assertSucceeds(updateDoc(doc(authed("ilGto"), "approvals", "okLegacy"), decide("ilGto")));
+      await assertSucceeds(updateDoc(doc(authed("opsGto"), "approvals", "okCash"), decide("opsGto")));
+      await assertSucceeds(
+        updateDoc(doc(authed("mgrGto"), "approvals", "okTuition"), decide("mgrGto"))
+      );
+    });
+
+    it("rejects creating an envelope whose pair is not permitted, and fails closed on unknown actionIds", async () => {
+      await assertFails(
+        addDoc(collection(authed("insGto"), "approvals"), {
+          actionId: "CASH_DISCREPANCY",
+          status: "pending",
+          approverRole: "instructorleader",
+          requestedByUid: "insGto",
+        })
+      );
+      await assertFails(
+        addDoc(collection(authed("insGto"), "approvals"), {
+          actionId: "PLACEMENT_LEVEL_OVERRIDE",
+          status: "pending",
+          approverRole: "manager",
+          requestedByUid: "insGto",
+        })
+      );
+      await assertFails(
+        addDoc(collection(authed("insGto"), "approvals"), {
+          actionId: "TOTALLY_MADE_UP",
+          status: "pending",
+          approverRole: "manager",
+          requestedByUid: "insGto",
+        })
+      );
+      // A legitimate envelope is still accepted.
+      await assertSucceeds(
+        addDoc(collection(authed("insGto"), "approvals"), {
+          actionId: "PLACEMENT_LEVEL_OVERRIDE",
+          status: "pending",
+          approverRole: "instructorleader",
+          requestedByUid: "insGto",
+        })
+      );
+    });
+
+    it("prevents a wrong-role approval from being applied to a shift record", async () => {
+      await seedDoc(["shifts", "shiftBind"], SHIFT_KOTA);
+      await seedDoc(["approvals", "corrWrongRole"], {
+        ...APPROVED_CORRECTION,
+        approverRole: "instructorleader", // not permitted for STAFF_SHIFT_SELF_CORRECTION
+        payload: { shiftId: "shiftBind", afterData: { clockIn: "2026-09-21T00:30:00.000Z" } },
+      });
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "shifts", "shiftBind"), {
+          ...SHIFT_KOTA,
+          clockIn: "2026-09-21T00:30:00.000Z",
+          corrected: true,
+          reviewStatus: "pending",
+          appliedFromApproval: "corrWrongRole",
+        })
+      );
+    });
+
+    it("routes NEW_STAFF_ACCOUNT to the Director and rejects the old admin addressing", async () => {
+      await seedDoc(
+        ["approvals", "onboardDirector"],
+        misaddressed({ actionId: "NEW_STAFF_ACCOUNT", approverRole: "director" })
+      );
+      await seedDoc(
+        ["approvals", "onboardAdmin"],
+        misaddressed({ actionId: "NEW_STAFF_ACCOUNT", approverRole: "admin" })
+      );
+
+      await assertSucceeds(
+        updateDoc(doc(authed("dirGto"), "approvals", "onboardDirector"), decide("dirGto"))
+      );
+      // Admin holds no business approval authority (Blueprint §7), and the old addressing
+      // is not a permitted pair either.
+      await assertFails(
+        updateDoc(doc(authed("admin"), "approvals", "onboardDirector"), decide("admin"))
+      );
+      await assertFails(
+        updateDoc(doc(authed("dirGto"), "approvals", "onboardAdmin"), decide("dirGto"))
+      );
     });
   });
 

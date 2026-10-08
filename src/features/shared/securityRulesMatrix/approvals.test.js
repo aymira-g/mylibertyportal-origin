@@ -130,7 +130,10 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
   describe("Approval Decision Contract (C2)", () => {
     const pendingApproval = {
       id: "appr_1",
-      actionId: "DISCOUNT_OR_REFUND",
+      // A genuinely Division-Manager-addressed gate. This fixture previously used
+      // DISCOUNT_OR_REFUND, which the ratified registry restricts to Director / Vice
+      // Director — see the hardened assertion below.
+      actionId: "TUITION_PLAN_CHANGE",
       approverRole: "manager",
       approverBranchId: "kota_gorontalo",
       requestedByUid: "fo_gtlo",
@@ -148,6 +151,29 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
         updatedAt: "ts",
       };
       expect(canUpdateApproval(pendingApproval, incoming, managerGorontalo)).toBe(true);
+    });
+
+    it("HARDENED (2026-10-08): refuses a ticket whose approverRole is not permitted for its actionId", () => {
+      // Regression test for the confirmed gate-binding bypass. DISCOUNT_OR_REFUND is
+      // Director / Vice Director only, so addressing it to a manager must not make it
+      // decidable — otherwise anyone who writes the envelope picks the approver.
+      const misaddressed = { ...pendingApproval, actionId: "DISCOUNT_OR_REFUND" };
+      expect(canDecideApproval(misaddressed, managerGorontalo)).toBe(false);
+      expect(
+        canUpdateApproval(
+          misaddressed,
+          { ...misaddressed, status: "approved", decidedByUid: "mgr_gtlo" },
+          managerGorontalo
+        )
+      ).toBe(false);
+
+      // A gate the Instructor Leader does not own must likewise stay out of reach.
+      const cashMisaddressed = {
+        ...pendingApproval,
+        actionId: "CASH_DISCREPANCY",
+        approverRole: "instructorleader",
+      };
+      expect(canDecideApproval(cashMisaddressed, instructorLeaderGorontalo)).toBe(false);
     });
 
     it("rejects decisions recorded under a different uid", () => {
@@ -238,6 +264,9 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
       id: "appr_77",
       actionId: "STAFF_SHIFT_SELF_CORRECTION",
       status: "approved",
+      // An approverRole is now required, and must be permitted for this gate. It was
+      // previously absent, which let any approver role's envelope unlock the shift.
+      approverRole: "ops_lead",
       payload: { shiftId: "sh_42" },
     };
 
@@ -259,6 +288,28 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
       expect(isApprovedShiftCorrection({ ...approvedCorrection, applied: true }, "sh_42")).toBe(
         false
       );
+    });
+
+    it("HARDENED (2026-10-08): refuses a self-correction approved by a role the gate does not permit", () => {
+      // The Instructor Leader does not own STAFF_SHIFT_SELF_CORRECTION. Before this fix a
+      // wrong-role approval was still applied to the shift record.
+      expect(
+        isApprovedShiftCorrection(
+          { ...approvedCorrection, approverRole: "instructorleader" },
+          "sh_42"
+        )
+      ).toBe(false);
+      expect(
+        isApprovedShiftCorrection({ ...approvedCorrection, approverRole: "frontoffice" }, "sh_42")
+      ).toBe(false);
+      // A missing approverRole must also fail closed.
+      const withoutRole = { ...approvedCorrection };
+      delete withoutRole.approverRole;
+      expect(isApprovedShiftCorrection(withoutRole, "sh_42")).toBe(false);
+      // Legitimate roles still pass.
+      expect(
+        isApprovedShiftCorrection({ ...approvedCorrection, approverRole: "director" }, "sh_42")
+      ).toBe(true);
     });
   });
 

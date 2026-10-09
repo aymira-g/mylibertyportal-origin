@@ -374,6 +374,28 @@ service cloud.firestore {
         && approval.payload.attendanceDate == attendanceDate;
     }
 
+    // OD-IL-ENF4 (owner decision 2026-10-09): a *staff* account may not be created without
+    // an approved NEW_STAFF_ACCOUNT envelope. The app already provisions the profile inside
+    // the approval handler, so this changes nothing about the working flow — it closes the
+    // direct-creation path where an executive could mint a staff account with no decision
+    // on record. Student/parent accounts are not affected (see the create rule), and the
+    // invite-based self-registration path is authorised by the invite instead.
+    //
+    // The actionId is pinned below, so the permitted set is inlined rather than running the
+    // generic gateAllowsApprover chain (rules-engine expression budget).
+    function isApprovedNewStaffAccount(targetUserId, approvalId) {
+      let approval = get(/databases/$(database)/documents/approvals/$(approvalId)).data;
+      return approval.actionId == 'NEW_STAFF_ACCOUNT'
+        && approval.status == 'approved'
+        && (!('applied' in approval) || approval.applied != true)
+        && approval.requestedByUid != approval.decidedByUid
+        && ('approverRole' in approval)
+        && (approval.approverRole == 'director' || approval.approverRole == 'vice_director')
+        && ('payload' in approval)
+        && approval.payload != null
+        && approval.payload.uid == targetUserId;
+    }
+
     function shiftMatchesCorrectionPayload(approvalId, reqData, resData) {
       let payload = get(/databases/$(database)/documents/approvals/$(approvalId)).data.payload;
       return !('afterData' in payload) || payload.afterData == null
@@ -472,7 +494,16 @@ service cloud.firestore {
       allow list: if isExecutive()
         || (isManager() && isSameBranchStrict(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)))
         || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranchStrict(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)));
-      allow create: if isExecutive() 
+      allow create: if (isExecutive()
+          && (
+            // Student and parent accounts are ordinary intake, not a staff appointment.
+            request.resource.data.role in ['student', 'parent']
+            // A staff account requires the Director's (or Vice Director's) recorded decision.
+            || (('appliedFromApproval' in request.resource.data)
+                && request.resource.data.appliedFromApproval is string
+                && request.resource.data.appliedFromApproval != ''
+                && isApprovedNewStaffAccount(userId, request.resource.data.appliedFromApproval))
+          ))
         || (isFrontDeskStaff() && request.resource.data.role in ['student', 'parent'] && isSameBranch(request.resource.data)
           && (request.resource.data.role != 'student' || isDivisionAllowedForBranchStaff(request.resource.data))
           && (request.resource.data.role != 'parent'

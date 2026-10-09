@@ -197,7 +197,13 @@ export const GATED_ACTIONS = Object.freeze({
       APPROVAL_ROLES.VICE_DIRECTOR,
       APPROVAL_ROLES.DIRECTOR,
     ]),
-    mode: APPROVAL_MODES.BLOCKING,
+    // Owner decision 2026-10-09 (OD-IL-ENF4): relabelled from BLOCKING. Nothing in
+    // firestore.rules consumes a CASH_DISCREPANCY envelope, so a "blocking" label
+    // overstated the control. The real control is unchanged and lives in
+    // shiftsRepository: the shift cannot close unless the ticket is successfully
+    // submitted — but a merely *pending* ticket still lets it close, and by then the
+    // cash has already been counted at the desk (same reasoning as DISCOUNT_OR_REFUND).
+    mode: APPROVAL_MODES.LOGGED,
     domain: "finance",
     requiredDomain: "finance",
     requiredScope: SCOPE_LEVELS.BRANCH_LOCAL,

@@ -298,3 +298,46 @@ observation is carried forward as a separate risk, not as this finding.
 - The retroactive-attendance gate has **no UI producer**, so its end-to-end user path was not exercised —
   only the rules path, with the approval document seeded.
 - `npm run test:e2e` (Playwright) was not run.
+
+---
+
+## 2026-10-09 (later) — OD-IL-ENF4: cash relabel + new staff account enforcement
+
+Level 1 check for the two owner decisions made after the Phase 3 report.
+
+### 1. What changed
+
+- [approvalGates.js](../../../src/features/shared/approvalGates.js) — `CASH_DISCREPANCY.mode` `BLOCKING` →
+  `LOGGED`. Nothing branches on `mode` except the inbox badge, so no write behaviour changed.
+- [firestore.rules](../../../firestore.rules) — new `isApprovedNewStaffAccount()`; the `users` **create** rule
+  requires an approved envelope for staff roles (anything outside `student`/`parent`).
+- [ApprovalInbox.jsx](../../../src/features/shared/ApprovalInbox.jsx) — the onboarding provisioning write now
+  carries `appliedFromApproval`.
+- [approvalEnforcement.test.js](../../../src/features/shared/approvalEnforcement.test.js) — lists updated;
+  `BLOCKING_AWAITING_DECISION` is now empty.
+- Two test assertions corrected because they encoded the old claims: `approvalGates.test.js` (mode) and
+  `shiftsRepository.test.js` (envelope mode snapshot).
+
+### 2. Adjacent-workflow checks
+
+| Invariant | Check | Result |
+|---|---|---|
+| Shift cannot close without submitting the escalation | `shiftsRepository.test.js` — unchanged test still passes | PASS |
+| Staff onboarding still works end to end | emulator: Director provisions against an approved envelope | PASS |
+| Student intake unaffected | emulator: executive **and** Front Office create student accounts with no ticket | PASS |
+| Front Office cannot create staff accounts | emulator | PASS |
+| Maker-checker / replay / wrong role / wrong account | emulator: pending, `applied: true`, `manager`-addressed, and mismatched-uid envelopes all denied | PASS |
+| Invite-based self-registration unaffected | create rule's invite branch untouched (still authorised by `isInviteValid`) | PASS by inspection |
+| Registry no longer overstates control | guard: every `blocking` gate is enforced or recorded; no gate unclassified | PASS |
+
+### 3. Commands
+
+- `npm run test:rules` → **106 passed** (was 98; 8 new staff-account tests).
+- `npm test` → **1,257 passed, 106 skipped, 0 failed**.
+- `npm run lint` → 0 errors, 0 warnings. `npm run typecheck` → 0 errors. `npm run build` → clean.
+
+### 4. Not run / not verified
+
+- **No deployment.** `firebase deploy --only firestore:rules` was not run.
+- No manual UI walkthrough of the staff-onboarding or shift-close flows.
+- `npm run test:e2e` not run.

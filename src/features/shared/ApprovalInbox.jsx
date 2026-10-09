@@ -184,6 +184,9 @@ export function ApprovalInbox({
             photoURL: approval.payload.photoURL || "",
             joinedDate: new Date().toISOString().split("T")[0],
             createdAt: new Date().toISOString(),
+            // Required by firestore.rules: a staff account may only be created alongside an
+            // approved NEW_STAFF_ACCOUNT envelope (OD-IL-ENF4, owner decision 2026-10-09).
+            appliedFromApproval: approval.id,
           });
           try {
             await markApprovalApplied(approval.id, currentUid);

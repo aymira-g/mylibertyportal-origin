@@ -416,7 +416,11 @@ describe("Cash Reconciliation on Shift Clock-Out", () => {
     expect(escalation.data).toMatchObject({
       actionId: "CASH_DISCREPANCY",
       approverRole: "director",
-      mode: "blocking",
+      // Relabelled from "blocking" by owner decision 2026-10-09 (OD-IL-ENF4): no rule
+      // consumes this envelope, so the gate is advisory. The control that *is* real — the
+      // shift cannot close unless this escalation is submitted — is asserted by the next
+      // test and is independent of the mode.
+      mode: "logged",
       status: "pending",
       requestedBy: "Budi FO",
       requestedByUid: "fo-1",

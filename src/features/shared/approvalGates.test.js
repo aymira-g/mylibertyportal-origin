@@ -40,7 +40,10 @@ describe("Maker-Checker Approval Gates", () => {
     expect(GATED_ACTIONS.DISCOUNT_OR_REFUND.mode).toBe(APPROVAL_MODES.LOGGED);
     expect(GATED_ACTIONS.DISCOUNT_OR_REFUND.approverRole).toBe(APPROVAL_ROLES.DIRECTOR);
 
-    expect(GATED_ACTIONS.CASH_DISCREPANCY.mode).toBe(APPROVAL_MODES.BLOCKING);
+    // Mode corrected to LOGGED by owner decision 2026-10-09 (OD-IL-ENF4): no rule consumes
+    // a CASH_DISCREPANCY envelope, so a "blocking" label overstated it. The hard part — the
+    // shift cannot close unless the ticket is submitted — is unchanged in shiftsRepository.
+    expect(GATED_ACTIONS.CASH_DISCREPANCY.mode).toBe(APPROVAL_MODES.LOGGED);
     // CASH_DISCREPANCY is tier-resolved at envelope-creation time (G-009); the static seed
     // is provisional. Asserting BRANCH_MANAGER here previously passed only because that
     // deprecated alias is literally the string "manager" — it did not test the real seed.

@@ -42,6 +42,16 @@ Evidence (verified by direct inspection, not inference):
 
 ### Per-gate status
 
+**Current tally (2026-10-09, after ENF1–ENF4).** Of the 9 gates still declared `blocking`: **5 ENFORCED**
+(`STAFF_ROLE_ELEVATION`, `STAFF_SHIFT_SELF_CORRECTION`, `PLACEMENT_LEVEL_OVERRIDE`, `NEW_STAFF_ACCOUNT`, and
+`RETROACTIVE_STUDENT_ATTENDANCE` — the last has rules enforcement but **no producer**, so nothing can create
+its ticket yet), **4 TRACKED** (`STAFF_DEACTIVATION`, `TUITION_PLAN_CHANGE`, `STUDENT_CLASS_TRANSFER`,
+`STAFF_STATUS_CHANGE`), and **0 awaiting a decision**. `DISCOUNT_OR_REFUND` and `CASH_DISCREPANCY` are
+`logged`. No `blocking` gate is left advertising a block it does not deliver. The table below is the original
+audit snapshot; **the machine-checked source of truth is now
+[`approvalEnforcement.test.js`](../../../src/features/shared/approvalEnforcement.test.js)**, which fails the
+suite if any of those lists stops being true.
+
 Scope note: the counts below are over the **11 blocking** gates. Counting all 14 registry gates the totals become **2 ENFORCED, 6 ADVISORY, 6 NOT WIRED** — the extra two ADVISORY rows are the `logged` gates `SUBSTITUTE_INSTRUCTOR` and `CLASS_CANCELLATION_OR_RESCHEDULE`, for which advisory behaviour is *correct*, and the extra NOT WIRED row is the `logged` gate `STUDENT_WITHDRAWAL_OR_FREEZE`.
 
 | Gate | Declared mode | Status | Evidence |
@@ -236,6 +246,52 @@ unaffected) · lint 0 errors · typecheck 0 errors · build clean. **Not deploye
   **required** on create, any client still running a cached pre-change bundle will have its attendance writes
   refused with a permission error until the service worker picks up the new build. Deploy the rules only once
   clients have the new bundle, or accept a short window in which attendance marking fails visibly.
+
+**OD-IL-ENF4 — the last two blocking gates nothing enforces: `CASH_DISCREPANCY` and `NEW_STAFF_ACCOUNT`.**
+Surfaced on 2026-10-09 by the new drift guard, which refuses to let a `blocking` gate exist unless it is
+enforced or recorded as a decision. ENF1–ENF3 decided every other gate; these two were left undecided.
+
+- **`CASH_DISCREPANCY` (blocking, ADVISORY).** Submitting the ticket is already a *hard* precondition
+  (`shiftsRepository.js` throws, leaving the shift open), but a merely **pending** ticket still lets the shift
+  close, and no rule consults a `CASH_DISCREPANCY` envelope. The money has already been counted at the desk —
+  the same reasoning that made `DISCOUNT_OR_REFUND` a relabel in ENF1.
+  - *Option A (enforce):* the shift cannot close until an Ops Lead approves. This is cleanly enforceable
+    (`shifts.cashReconciliation.exceedsThreshold`) but risks leaving the drawer record open overnight, and
+    refusing to record a discrepancy does not remove it.
+  - *Option B (relabel to `logged`):* keep the hard submission precondition and the visibility, drop the claim
+    that it blocks. **Suggested default: Option B.**
+- **`NEW_STAFF_ACCOUNT` (blocking, ADVISORY/flow-only).** The account is only provisioned inside
+  `ApprovalInbox.handleApprove`, so the real flow is already approval-gated — but `users` create is
+  `isExecutive()`-only with no approval lookup, so an executive can create a staff account with no ticket on
+  record.
+  - *Option A (enforce):* the `users` create rule requires `appliedFromApproval` plus an approved
+    `NEW_STAFF_ACCOUNT` envelope. Cheap, because the flow already works that way; it closes direct creation.
+  - *Option B (relabel to `logged`):* accept that the Director approves by *being* the Director.
+    **Suggested default: Option A** — an account is access, and the decision is worth having on record.
+- **Answer (Kifry fills in) — `CASH_DISCREPANCY`, and `NEW_STAFF_ACCOUNT`:** **`CASH_DISCREPANCY` → Option B (relabel to `logged`); `NEW_STAFF_ACCOUNT` → Option A (enforce). RATIFIED BY OWNER 2026-10-09.**
+- **Status: IMPLEMENTED 2026-10-09.**
+  - **`CASH_DISCREPANCY` → `logged`.** `GATED_ACTIONS.CASH_DISCREPANCY.mode` changed; the inbox badge that
+    derives from `mode` stops claiming a block. **The real control is untouched:** the shift still cannot
+    close unless the escalation is submitted (`shiftsRepository`) — verified by the sibling test
+    *"refuses to close the shift when the escalation cannot be submitted"*, which passes before and after,
+    confirming the submission precondition never depended on the mode.
+  - **`NEW_STAFF_ACCOUNT` → enforced.** `firestore.rules` gains `isApprovedNewStaffAccount(targetUserId,
+    approvalId)` (actionId, `status == 'approved'`, not already applied, maker ≠ checker, approver in the
+    inlined Director/Vice-Director set, `payload.uid == targetUserId`), and the `users` **create** rule now
+    requires an approved envelope for any role outside `student`/`parent`. `ApprovalInbox`'s provisioning
+    path writes `appliedFromApproval`. Student and parent intake is unchanged, and the invite-based
+    self-registration path is still authorised by the invite rather than a ticket.
+  - **Two false starts worth recording, both caught by tests rather than by inspection:** the mode assertion
+    in `approvalGates.test.js` and a `mode: "blocking"` snapshot inside `shiftsRepository.test.js` both had to
+    be updated — the same "test encodes the old claim" pattern ENF1 hit. The second one is the useful
+    signal: it proves the shift-close protection is independent of the label.
+  - **Guard updated:** `NEW_STAFF_ACCOUNT` moved into the enforced list, `CASH_DISCREPANCY` into the `logged`
+    list, and `BLOCKING_AWAITING_DECISION` is now **empty** — kept as the ratchet so a future `blocking` gate
+    with nothing behind it must be added there deliberately, with a recorded decision, or the suite fails.
+  - **Verification:** 8 new emulator tests for the staff-account gate (denied with no ticket, allowed against a
+    matching approved envelope, denied for a wrong-role / wrong-account / pending / replayed envelope, and
+    student intake by both an executive and Front Office still allowed) · `npm run test:rules` **106/106**
+    (was 98) · `npm test` **1,257 passed** · lint 0 errors · typecheck 0 errors · build clean. **Not deployed.**
 
 ---
 

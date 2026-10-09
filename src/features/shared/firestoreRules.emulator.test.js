@@ -2033,4 +2033,114 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       );
     });
   });
+
+  // OD-IL-ENF4 (owner decision 2026-10-09): a staff account may not be created without an
+  // approved NEW_STAFF_ACCOUNT envelope. Student/parent intake and the invite-based
+  // self-registration path are deliberately unaffected.
+  describe("new staff account gate (OD-IL-ENF4)", () => {
+    const staffAccount = (over = {}) => ({
+      displayName: "New Instructor",
+      role: "instructor",
+      branch: "Kota Gorontalo",
+      branchId: "kota_gorontalo",
+      division: "courses",
+      status: "active",
+      ...over,
+    });
+
+    const approvedOnboarding = (over = {}) => ({
+      actionId: "NEW_STAFF_ACCOUNT",
+      status: "approved",
+      mode: "blocking",
+      approverRole: "director",
+      approverBranchId: "kota_gorontalo",
+      requestedBy: "FO Budi",
+      requestedByUid: "foGto",
+      decidedBy: "Director",
+      decidedByUid: "dirGto",
+      payload: { uid: "newStaff1", email: "new@example.com", displayName: "New Instructor" },
+      ...over,
+    });
+
+    it("refuses to create a staff account with no ticket on record", async () => {
+      await assertFails(
+        setDoc(doc(authed("dirGto"), "users", "newStaff1"), staffAccount())
+      );
+    });
+
+    it("lets the Director provision the account against an approved envelope", async () => {
+      await seedDoc(["approvals", "apNsa"], approvedOnboarding());
+      await assertSucceeds(
+        setDoc(
+          doc(authed("dirGto"), "users", "newStaff1"),
+          staffAccount({ appliedFromApproval: "apNsa" })
+        )
+      );
+    });
+
+    it("refuses an envelope addressed to a role the gate never assigned", async () => {
+      await seedDoc(["approvals", "apNsa"], approvedOnboarding({ approverRole: "manager" }));
+      await assertFails(
+        setDoc(
+          doc(authed("dirGto"), "users", "newStaff1"),
+          staffAccount({ appliedFromApproval: "apNsa" })
+        )
+      );
+    });
+
+    it("refuses an envelope that names a different account", async () => {
+      await seedDoc(
+        ["approvals", "apNsa"],
+        approvedOnboarding({ payload: { uid: "someoneElse" } })
+      );
+      await assertFails(
+        setDoc(
+          doc(authed("dirGto"), "users", "newStaff1"),
+          staffAccount({ appliedFromApproval: "apNsa" })
+        )
+      );
+    });
+
+    it("refuses a pending or replayed envelope", async () => {
+      await seedDoc(["approvals", "apPending"], approvedOnboarding({ status: "pending" }));
+      await assertFails(
+        setDoc(
+          doc(authed("dirGto"), "users", "newStaff1"),
+          staffAccount({ appliedFromApproval: "apPending" })
+        )
+      );
+
+      await seedDoc(["approvals", "apApplied"], approvedOnboarding({ applied: true }));
+      await assertFails(
+        setDoc(
+          doc(authed("dirGto"), "users", "newStaff1"),
+          staffAccount({ appliedFromApproval: "apApplied" })
+        )
+      );
+    });
+
+    it("still lets an executive create a student account with no ticket", async () => {
+      await assertSucceeds(
+        setDoc(
+          doc(authed("dirGto"), "users", "newStudent1"),
+          { displayName: "New Student", role: "student", branchId: "kota_gorontalo", division: "courses" }
+        )
+      );
+    });
+
+    it("still lets Front Office enrol a student directly, with no ticket", async () => {
+      await assertSucceeds(
+        setDoc(
+          doc(authed("foGto"), "users", "newStudent2"),
+          { displayName: "Walk-in Student", role: "student", branchId: "kota_gorontalo", division: "courses" }
+        )
+      );
+    });
+
+    it("still refuses Front Office creating a staff account", async () => {
+      await assertFails(
+        setDoc(doc(authed("foGto"), "users", "newStaff2"), staffAccount())
+      );
+    });
+  });
 });

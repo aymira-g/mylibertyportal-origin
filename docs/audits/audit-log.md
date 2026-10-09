@@ -414,3 +414,51 @@ Session began as a requested emulator run (`npm run test:rules`). It surfaced a 
 | **Findings** | **ENF2 design A as originally written would not have gated the level.** It moved the effective level out of `currentLevel` and pointed the enrollment read path at the latest assessment — but the client appends an override assessment immediately, approval or not, so the unapproved override level would have reached enrollment through an ungated field. That is why design A′ (rules derive the recommendation from the score; `currentLevel` stays the effective, gated field; no read path changed) replaced it. **Expression budget:** the `deskInquiries` update rule hit the engine's 1000-expression ceiling on the *override* path during implementation (two legitimate writes were false-denied). Fixed by collapsing `isExecutive() \|\| isManager() \|\| isFrontOffice() \|\| isStaff()` — which is exactly `isStaff()` — to one helper, removing three redundant `userProfile()` reads. Budget mentions measured across a full suite run: **212 before → 187 after**, and the new `classAttendance` create rule is never named in an exhaustion message. Exhaustion still occurs on the pre-existing `/users` update rule and on *deny* paths of the new gate; no allow-path test fails. **Two new residual level-authority bypasses recorded, not closed:** §A2.7 (`users.currentLevel` is still directly writable by Front Office/Managers, including promotions) and §A2.8 (`deskInquiries` create accepts any `currentLevel`, because the intake form pre-fills one). **ENF3 honest limit unchanged:** a crafted client can declare a false "today" timestamp and write a wrong-dated record; that needs a server-side writer this project does not have. |
 | **Escalation Required** | No — every option was owner-ratified 2026-10-08. §A2.7/§A2.8 and the four pre-existing §A2 defects remain unowned and need a scoping decision. |
 | **Status** | **PARTIAL — ENF1 ENFORCED/LABELLED, ENF2 ENFORCED, ENF3 ARMED (no producer); 5 gates still tracked as declared-vs-actual divergence.** H5 is no longer "blocking gates never block" as a blanket statement, but it is not fully closed: gates ratified as Option C still advertise more control than they deliver. **Not deployed.** |
+
+### 2026-10-09 (later) — Phase 3 acceptance criterion 2: registry/enforcement drift guard
+
+New [`src/features/shared/approvalEnforcement.test.js`](../../../src/features/shared/approvalEnforcement.test.js)
+(6 tests) closes the remaining Phase 3 acceptance criterion: *"a registry test fails if a future gate is added as
+`blocking` without enforcement"*.
+
+- It classifies **every** registered gate exactly once — 4 enforced by rules, 2 blocking-awaiting-decision, 4
+  tracked-not-wired (ratified Option C), 4 legitimately `logged` — and fails if a gate is added, removed, or
+  classified twice.
+- Enforcement claims are verified against the **real `firestore.rules` text**, not against a comment: each
+  enforced gate names the rule-facing predicate that must actually be *called* by a write rule, and exactly one
+  helper below it must pin that gate's `actionId`.
+- Unenforced gates may not be credited to a consumption helper, and the recorded lists must stay true (a tracked
+  gate that stops being `blocking` fails the suite, forcing the register to be revisited rather than drifting).
+- **Mutation-verified, not just green.** Removing the `placementLevelAllowed(...)` call from the `deskInquiries`
+  update rule made the guard fail with *"placementLevelAllowed() is defined but no rule calls it, so
+  PLACEMENT_LEVEL_OVERRIDE is not enforced"*; an earlier version of the guard **missed** that mutation (it
+  counted calls to the inner helper, which was still reachable from the now-uncalled predicate), which is exactly
+  why the rule-facing entry point is modelled explicitly. The rules were restored and re-verified afterwards.
+- **New finding:** building the guard surfaced two gates that ENF1–ENF3 left undecided — `CASH_DISCREPANCY` and
+  `NEW_STAFF_ACCOUNT` are still declared `blocking` with no rules enforcement behind them. Recorded as
+  **OD-IL-ENF4** in the register with suggested defaults, and held in the guard's
+  `BLOCKING_AWAITING_DECISION` list so they cannot be forgotten.
+- **Verification:** `npm test` 1,257 passed / 98 skipped; `npm run test:rules` 98/98; lint 0 errors; typecheck 0
+  errors. **Not deployed.**
+
+### 2026-10-09 — OD-IL-ENF4: the last two undecided blocking gates
+
+Surfaced by the new drift guard, decided by the owner the same day, and closed.
+
+- **`CASH_DISCREPANCY` relabelled `blocking` → `logged`.** No rule consumes a CASH_DISCREPANCY envelope, so
+  the label overstated the control. The genuine control is unchanged and independent of the mode: the shift
+  cannot close unless the escalation is submitted (`shiftsRepository`) — asserted by a test that passes both
+  before and after the relabel.
+- **`NEW_STAFF_ACCOUNT` enforced.** New `isApprovedNewStaffAccount()` in `firestore.rules`; the `users`
+  **create** rule now requires an approved envelope for any role outside `student`/`parent`;
+  `ApprovalInbox` writes `appliedFromApproval` when provisioning. Closes the path where an executive could
+  mint a staff account with no decision on record. Student/parent intake and invite-based self-registration
+  are deliberately unaffected.
+- **Two tests encoded the old claims** and were corrected: the mode assertion in `approvalGates.test.js`, and a
+  `mode: "blocking"` snapshot inside `shiftsRepository.test.js`.
+- **`BLOCKING_AWAITING_DECISION` is now empty** in
+  [`approvalEnforcement.test.js`](../../../src/features/shared/approvalEnforcement.test.js) and retained as the
+  ratchet for future gates. **No `blocking` gate now advertises a block the code does not deliver**, with the
+  four Option-C gates the only remaining declared-vs-actual divergence — recorded, as ratified.
+- **Verification:** `npm run test:rules` 106/106 (was 98); `npm test` 1,257 passed; lint 0 errors; typecheck 0
+  errors; build clean. **Not deployed.**

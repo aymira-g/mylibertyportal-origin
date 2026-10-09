@@ -471,7 +471,6 @@ const LEGACY_ROLE_ALIASES = {
   front_office_lead: "opslead",
   instructor_leader: "instructorleader",
   head_instructor: "instructorleader",
-  branch_manager: "manager",
   front_office: "frontoffice",
 };
 

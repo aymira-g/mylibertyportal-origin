@@ -25,7 +25,6 @@ export const CANONICAL_ROLES = {
  * - "vicedirector", "vice-director", "vice_dir" -> "vice_director"
  * - "ops_lead", "frontofficelead", "front_office_lead" -> "opslead"
  * - "instructor_leader", "head_instructor" -> "instructorleader"
- * - "branch_manager" -> "manager"
  * - "front_office" -> "frontoffice"
  */
 export const LEGACY_ROLE_ALIASES = {
@@ -37,7 +36,6 @@ export const LEGACY_ROLE_ALIASES = {
   front_office_lead: "opslead",
   instructor_leader: "instructorleader",
   head_instructor: "instructorleader",
-  branch_manager: "manager",
   front_office: "frontoffice",
 };
 

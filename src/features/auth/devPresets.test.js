@@ -211,10 +211,10 @@ describe("Legacy role aliases compatibility", () => {
     expect(canApproveGate("ops_lead", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
     expect(canApproveGate("frontofficelead", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
 
-    // Self-correction for all front office lead variants escalates to Branch Manager
-    expect(getSelfCorrectionApprover("opslead")).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
-    expect(getSelfCorrectionApprover("ops_lead")).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
-    expect(getSelfCorrectionApprover("frontofficelead")).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
+    // Self-correction for all front office lead variants escalates to Division Manager
+    expect(getSelfCorrectionApprover("opslead")).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+    expect(getSelfCorrectionApprover("ops_lead")).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+    expect(getSelfCorrectionApprover("frontofficelead")).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
 
     // Both canonical instructorleader and legacy instructor_leader satisfy INSTRUCTOR_LEADER approval gate
     expect(canApproveGate("instructorleader", APPROVAL_ROLES.INSTRUCTOR_LEADER)).toBe(true);

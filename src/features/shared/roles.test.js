@@ -54,8 +54,8 @@ describe("roles.js - Centralized Role Normalization", () => {
     expect(normalizeRole("INSTRUCTOR_LEADER")).toBe("instructorleader");
   });
 
-  it("normalizes manager and front office aliases", () => {
-    expect(normalizeRole("branch_manager")).toBe("manager");
+  it("normalizes front office aliases and refuses branch_manager alias", () => {
+    expect(normalizeRole("branch_manager")).toBe("branch_manager");
     expect(normalizeRole("front_office")).toBe("frontoffice");
   });
 
@@ -113,7 +113,7 @@ describe("roles.js - Centralized Role Normalization", () => {
 
     it("identifies manager roles correctly", () => {
       expect(isManagerRole("manager")).toBe(true);
-      expect(isManagerRole("branch_manager")).toBe(true);
+      expect(isManagerRole("branch_manager")).toBe(false);
       expect(isManagerRole("admin")).toBe(true);
       expect(isManagerRole("instructor")).toBe(false);
       expect(isManagerRole("opslead")).toBe(false);
@@ -174,7 +174,7 @@ describe("roles.js - Centralized Role Normalization", () => {
       expect(isStaffRole("vicedirector")).toBe(true);
       expect(isStaffRole("admin")).toBe(true);
       expect(isStaffRole("manager")).toBe(true);
-      expect(isStaffRole("branch_manager")).toBe(true);
+      expect(isStaffRole("branch_manager")).toBe(false);
       expect(isStaffRole("instructor")).toBe(true);
       expect(isStaffRole("instructorleader")).toBe(true);
       expect(isStaffRole("instructor_leader")).toBe(true);

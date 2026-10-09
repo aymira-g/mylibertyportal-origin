@@ -57,7 +57,7 @@ describe("Maker-Checker Approval Gates", () => {
     );
 
     expect(GATED_ACTIONS.TUITION_PLAN_CHANGE.mode).toBe(APPROVAL_MODES.BLOCKING);
-    expect(GATED_ACTIONS.TUITION_PLAN_CHANGE.approverRole).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
+    expect(GATED_ACTIONS.TUITION_PLAN_CHANGE.approverRole).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
 
     // Time-critical logged actions
     expect(GATED_ACTIONS.SUBSTITUTE_INSTRUCTOR.mode).toBe(APPROVAL_MODES.LOGGED);
@@ -67,7 +67,7 @@ describe("Maker-Checker Approval Gates", () => {
     expect(GATED_ACTIONS.CLASS_CANCELLATION_OR_RESCHEDULE.approverRole).toBe(APPROVAL_ROLES.OPS_LEAD);
 
     expect(GATED_ACTIONS.STUDENT_WITHDRAWAL_OR_FREEZE.mode).toBe(APPROVAL_MODES.LOGGED);
-    expect(GATED_ACTIONS.STUDENT_WITHDRAWAL_OR_FREEZE.approverRole).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
+    expect(GATED_ACTIONS.STUDENT_WITHDRAWAL_OR_FREEZE.approverRole).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
   });
 
   it("evaluates self-correction ladder correctly (Principle 5)", () => {
@@ -77,11 +77,11 @@ describe("Maker-Checker Approval Gates", () => {
     expect(getSelfCorrectionApprover("officeboy")).toBe(APPROVAL_ROLES.OPS_LEAD);
     expect(getSelfCorrectionApprover("instructor_leader")).toBe(APPROVAL_ROLES.OPS_LEAD);
 
-    // 2. Front Office Lead's own record -> Branch Manager (covers opslead, ops_lead, frontofficelead)
-    expect(getSelfCorrectionApprover("frontoffice")).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
-    expect(getSelfCorrectionApprover("opslead")).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
-    expect(getSelfCorrectionApprover("ops_lead")).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
-    expect(getSelfCorrectionApprover("frontofficelead")).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
+    // 2. Front Office Lead's own record -> Division Manager (covers opslead, ops_lead, frontofficelead)
+    expect(getSelfCorrectionApprover("frontoffice")).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+    expect(getSelfCorrectionApprover("opslead")).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+    expect(getSelfCorrectionApprover("ops_lead")).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+    expect(getSelfCorrectionApprover("frontofficelead")).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
 
     // 3. Branch Manager's own record -> Director (Owner / Director tier)
     expect(getSelfCorrectionApprover("manager")).toBe(APPROVAL_ROLES.DIRECTOR);
@@ -109,12 +109,12 @@ describe("Maker-Checker Approval Gates", () => {
     expect(envelope.reason).toBe("Family discount 10%");
     expect(envelope.decidedBy).toBeNull();
 
-    // Branch manager retains cash discrepancy escalation
+    // Division manager retains cash discrepancy escalation
     const cashEnv = createApprovalEnvelope("CASH_DISCREPANCY", {
       role: "frontoffice",
       branchId: "branch_gorontalo_main",
     });
-    expect(cashEnv.approverRole).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
+    expect(cashEnv.approverRole).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
 
     // Admin requester is NOT exempt from routine business actions (Blueprint §7 & Owner Decision 2026-10-07)
     const adminAction = createApprovalEnvelope("DISCOUNT_OR_REFUND", { role: "admin", name: "Admin" });
@@ -126,13 +126,13 @@ describe("Maker-Checker Approval Gates", () => {
     expect(adminElevation).not.toBeNull();
     expect(adminElevation.approverRole).toBe(APPROVAL_ROLES.DIRECTOR);
 
-    // Self correction for Front Office Lead -> routes to Branch Manager
+    // Self correction for Front Office Lead -> routes to Division Manager
     const foSelfCorrection = createApprovalEnvelope(
       "STAFF_SHIFT_SELF_CORRECTION",
       { name: "Budi FO Lead", uid: "u-fo-1", role: "frontoffice", branchId: "branch_gorontalo_main" },
       { reason: "Forgot to clock in after lunch" }
     );
-    expect(foSelfCorrection.approverRole).toBe(APPROVAL_ROLES.BRANCH_MANAGER);
+    expect(foSelfCorrection.approverRole).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
 
     // Self correction for Instructor -> routes to Ops Lead
     const instructorSelfCorrection = createApprovalEnvelope(
@@ -190,19 +190,23 @@ describe("Maker-Checker Approval Gates", () => {
     expect(canApproveGate("manager", APPROVAL_ROLES.OPS_LEAD)).toBe(false);
 
     // Instructor Leader
-    expect(canApproveGate("instructor", APPROVAL_ROLES.BRANCH_MANAGER)).toBe(false);
+    expect(canApproveGate("instructor", APPROVAL_ROLES.DIVISION_MANAGER)).toBe(false);
     expect(canApproveGate("instructor", APPROVAL_ROLES.INSTRUCTOR_LEADER)).toBe(false);
     expect(canApproveGate("head_instructor", APPROVAL_ROLES.INSTRUCTOR_LEADER)).toBe(true);
     expect(canApproveGate("instructor_leader", APPROVAL_ROLES.INSTRUCTOR_LEADER)).toBe(true);
     expect(canApproveGate("instructorleader", APPROVAL_ROLES.INSTRUCTOR_LEADER)).toBe(true);
 
     // Front office / Ops Lead (covers canonical opslead and legacy aliases ops_lead, frontofficelead)
-    expect(canApproveGate("frontoffice", APPROVAL_ROLES.BRANCH_MANAGER)).toBe(false);
+    expect(canApproveGate("frontoffice", APPROVAL_ROLES.DIVISION_MANAGER)).toBe(false);
     expect(canApproveGate("frontoffice", APPROVAL_ROLES.OPS_LEAD)).toBe(false);
     expect(canApproveGate("opslead", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
     expect(canApproveGate("ops_lead", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
     expect(canApproveGate("frontofficelead", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
     expect(canApproveGate("front_office_lead", APPROVAL_ROLES.OPS_LEAD)).toBe(true);
+
+    // branch_manager role removed (Blueprint v3.1 §5.4 / v3.3 §5.5)
+    expect(canApproveGate("branch_manager", APPROVAL_ROLES.DIVISION_MANAGER)).toBe(false);
+    expect(canApproveGate("branch_manager", null, "TUITION_PLAN_CHANGE")).toBe(false);
   });
 
   it("evaluates operational status according to blocking vs logged mode", () => {

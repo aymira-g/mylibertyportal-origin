@@ -40,6 +40,8 @@ const USERS = {
   insGto: { role: "instructor", branchId: "kota_gorontalo" },
   opsGto: { role: "opslead", branchId: "kota_gorontalo" },
   dirGto: { role: "director", branchId: "kota_gorontalo" },
+  vdGto: { role: "vice_director", branchId: "kota_gorontalo" },
+  bmGto: { role: "branch_manager", branchId: "kota_gorontalo" },
   ilGto: { role: "instructorleader", branchId: "kota_gorontalo", division: "kindergarten" },
   ilLegacyGto: { role: "instructor_leader", branchId: "kota_gorontalo" },
   ilBoba: { role: "instructorleader", branchId: "bone_bolango" },
@@ -2141,6 +2143,181 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       await assertFails(
         setDoc(doc(authed("foGto"), "users", "newStaff2"), staffAccount())
       );
+    });
+  });
+
+  describe("Phase 1 Security Hardening (Blueprint v3.3 & OD-MKT-8/10)", () => {
+    it("strictly prevents Admin from deleting business collection records", async () => {
+      // payments
+      await seedDoc(["payments", "paySecTest"], {
+        studentId: "student1",
+        branchId: "kota_gorontalo",
+        amount: 500000,
+      });
+      await assertFails(deleteDoc(doc(authed("admin"), "payments", "paySecTest")));
+
+      // shifts
+      await seedDoc(["shifts", "shiftSecTest"], {
+        userId: "insGto",
+        branchId: "kota_gorontalo",
+        clockIn: "2026-10-09T08:00:00Z",
+      });
+      await assertFails(deleteDoc(doc(authed("admin"), "shifts", "shiftSecTest")));
+
+      // classes
+      await seedDoc(["classes", "classSecTest"], {
+        branchId: "kota_gorontalo",
+        division: "courses",
+        instructorId: "insGto",
+        status: "active",
+        capacity: 10,
+        studentIds: ["student1"],
+      });
+      await assertFails(deleteDoc(doc(authed("admin"), "classes", "classSecTest")));
+
+      // attendance
+      await seedDoc(["attendance", "attSecTest"], {
+        branchId: "kota_gorontalo",
+        division: "courses",
+        userId: "insGto",
+        role: "instructor",
+        timestamp: "2026-10-09T08:00:00Z",
+      });
+      await assertFails(deleteDoc(doc(authed("admin"), "attendance", "attSecTest")));
+
+      // classAttendance
+      await seedDoc(["classAttendance", "cattSecTest"], {
+        branchId: "kota_gorontalo",
+        division: "courses",
+        classId: "cls1",
+        studentId: "student1",
+        attendanceDate: "2026-10-09",
+      });
+      await assertFails(deleteDoc(doc(authed("admin"), "classAttendance", "cattSecTest")));
+
+      // schoolOutreach
+      await seedDoc(["schoolOutreach", "soSecTest"], {
+        branchId: "kota_gorontalo",
+        branch: "Cabang Utama",
+        schoolName: "Test School",
+        createdAt: "2026-10-09T00:00:00Z",
+      });
+      await assertFails(deleteDoc(doc(authed("admin"), "schoolOutreach", "soSecTest")));
+
+      // corporateEvents
+      await seedDoc(["corporateEvents", "ceSecTest"], {
+        branchId: "kota_gorontalo",
+        audienceType: "branch",
+        audienceValue: "kota_gorontalo",
+        eventName: "Event",
+        eventDate: "2026-10-09T00:00:00Z",
+      });
+      await assertFails(deleteDoc(doc(authed("admin"), "corporateEvents", "ceSecTest")));
+
+      // users (staff profile delete forbidden to Admin)
+      await assertFails(deleteDoc(doc(authed("admin"), "users", "insGto")));
+    });
+
+    it("enforces that branch_manager role cannot act as manager or decide gates", async () => {
+      // Cannot decide approval gate
+      await seedDoc(["approvals", "apBmTest"], {
+        ...APPROVAL_KOTA,
+        actionId: "TUITION_PLAN_CHANGE",
+        status: "pending",
+        approverRole: "manager",
+        approverBranchId: "kota_gorontalo",
+      });
+      await assertFails(
+        updateDoc(doc(authed("bmGto"), "approvals", "apBmTest"), {
+          status: "approved",
+          decidedBy: "Branch Manager",
+          decidedByUid: "bmGto",
+          decidedAt: "2026-10-09T02:00:00.000Z",
+          updatedAt: "2026-10-09T02:00:00.000Z",
+        })
+      );
+    });
+
+    it("restricts invite creation so only Director can invite admin, director, or vice_director", async () => {
+      // Director invites admin -> succeeds
+      await assertSucceeds(
+        setDoc(doc(authed("dirGto"), "invites", "invAdmin"), {
+          email: "newadmin@myliberty.id",
+          role: "admin",
+          createdAt: "2026-10-09T00:00:00Z",
+        })
+      );
+
+      // Director invites vice_director -> succeeds
+      await assertSucceeds(
+        setDoc(doc(authed("dirGto"), "invites", "invVd"), {
+          email: "newvd@myliberty.id",
+          role: "vice_director",
+          createdAt: "2026-10-09T00:00:00Z",
+        })
+      );
+
+      // Vice Director invites admin -> fails
+      await assertFails(
+        setDoc(doc(authed("vdGto"), "invites", "invAdminByVd"), {
+          email: "admin2@myliberty.id",
+          role: "admin",
+          createdAt: "2026-10-09T00:00:00Z",
+        })
+      );
+
+      // Admin invites director -> fails
+      await assertFails(
+        setDoc(doc(authed("admin"), "invites", "invDirByAdmin"), {
+          email: "director2@myliberty.id",
+          role: "director",
+          createdAt: "2026-10-09T00:00:00Z",
+        })
+      );
+
+      // Vice Director invites non-executive staff (instructor) -> succeeds
+      await assertSucceeds(
+        setDoc(doc(authed("vdGto"), "invites", "invInsByVd"), {
+          email: "newins@myliberty.id",
+          role: "instructor",
+          createdAt: "2026-10-09T00:00:00Z",
+        })
+      );
+    });
+
+    it("strictly restricts applications and deskInquiries deletion to Vice Director and Director (OD-MKT-8)", async () => {
+      await seedDoc(["applications", "appDelTest"], {
+        branchId: "kota_gorontalo",
+        division: "courses",
+        studentName: "Test Applicant",
+        status: "pending",
+        submittedAt: "2026-10-09T00:00:00Z",
+      });
+
+      await seedDoc(["deskInquiries", "inqDelTest"], {
+        branchId: "kota_gorontalo",
+        division: "courses",
+        studentName: "Test Inquirer",
+        status: "inquired",
+        createdAt: "2026-10-09T00:00:00Z",
+      });
+
+      // Front Office cannot delete applications or deskInquiries
+      await assertFails(deleteDoc(doc(authed("foGto"), "applications", "appDelTest")));
+      await assertFails(deleteDoc(doc(authed("foGto"), "deskInquiries", "inqDelTest")));
+
+      // Manager cannot delete deskInquiries
+      await assertFails(deleteDoc(doc(authed("mgrGto"), "deskInquiries", "inqDelTest")));
+
+      // Admin cannot delete applications or deskInquiries
+      await assertFails(deleteDoc(doc(authed("admin"), "applications", "appDelTest")));
+      await assertFails(deleteDoc(doc(authed("admin"), "deskInquiries", "inqDelTest")));
+
+      // Vice Director can delete deskInquiries
+      await assertSucceeds(deleteDoc(doc(authed("vdGto"), "deskInquiries", "inqDelTest")));
+
+      // Director can delete applications
+      await assertSucceeds(deleteDoc(doc(authed("dirGto"), "applications", "appDelTest")));
     });
   });
 });

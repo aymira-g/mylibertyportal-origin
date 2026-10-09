@@ -47,7 +47,6 @@ describe("useUserProfile hook", () => {
   it("ensures normalizeRole correctly handles legacy aliases and casing", () => {
     expect(normalizeRole("ops_lead")).toBe("opslead");
     expect(normalizeRole("front_office")).toBe("frontoffice");
-    expect(normalizeRole("branch_manager")).toBe("manager");
     expect(normalizeRole("Parent")).toBe("parent");
     expect(normalizeRole("instructor_leader")).toBe("instructorleader");
   });

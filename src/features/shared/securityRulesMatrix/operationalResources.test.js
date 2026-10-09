@@ -449,8 +449,8 @@ describe("Operational Resources Security Rules Matrix", () => {
       expect(isAdmin(activeAdmin)).toBe(true);
       expect(isAdmin(terminatedAdmin)).toBe(false);
       expect(isManager(resignedManager)).toBe(false);
-      expect(isManager({ uid: "bm1", role: "branch_manager", status: "active" })).toBe(true);
-      expect(isStaff({ uid: "bm1", role: "branch_manager", status: "active" })).toBe(true);
+      expect(isManager({ uid: "bm1", role: "branch_manager", status: "active" })).toBe(false);
+      expect(isStaff({ uid: "bm1", role: "branch_manager", status: "active" })).toBe(false);
       expect(isFrontOffice(terminatedFO)).toBe(false);
       expect(isStaff(terminatedInstructor)).toBe(false);
     });
@@ -511,9 +511,8 @@ describe("Operational Resources Security Rules Matrix", () => {
       return false;
     }
 
-    function canDeletePayment(user) {
-      if (!user) return false;
-      return isAdmin(user);
+    function canDeletePayment() {
+      return false;
     }
 
     const paymentKota = {
@@ -565,10 +564,10 @@ describe("Operational Resources Security Rules Matrix", () => {
       expect(canUpdatePayment(paymentKota, tamperedAmount, adminUser)).toBe(true);
     });
 
-    it("prohibits Front Office from deleting payment records (admin-only)", () => {
+    it("prohibits all roles including Admin and Front Office from deleting payment records", () => {
       expect(canDeletePayment(foGorontalo)).toBe(false);
       expect(canDeletePayment(managerGorontalo)).toBe(false);
-      expect(canDeletePayment(adminUser)).toBe(true);
+      expect(canDeletePayment(adminUser)).toBe(false);
     });
   });
 

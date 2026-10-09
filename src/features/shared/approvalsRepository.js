@@ -58,7 +58,7 @@ export function listenToPendingApprovals(userRole, branchId, onData, onError, op
 
   if (!isExecutiveRole(normalizedRole)) {
     if (normalizedRole === "manager") {
-      constraints.push(where("approverRole", "in", [APPROVAL_ROLES.DIVISION_MANAGER, APPROVAL_ROLES.BRANCH_MANAGER, "manager"]));
+      constraints.push(where("approverRole", "==", APPROVAL_ROLES.DIVISION_MANAGER));
       constraints.push(where("approverBranchId", "==", normalizedBranch));
     } else if (normalizedRole === "instructorleader") {
       constraints.push(where("approverRole", "in", [APPROVAL_ROLES.INSTRUCTOR_LEADER, "instructor_leader", "instructorleader"]));

@@ -230,11 +230,11 @@ describe("User & Parent/Student Authorization Rules Matrix", () => {
     const viceDirectorDoc = { uid: "vice_1", role: "vice_director", branchId: "kota_gorontalo" };
     const regularStaffDoc = { uid: "ins_1", role: "instructor", branchId: "kota_gorontalo" };
 
-    it("prevents Admin from deleting Director, Vice Director, or Admin accounts", () => {
+    it("prevents Admin from deleting user accounts (Principle 13: Admin deletion revoked)", () => {
       expect(canDeleteUser(directorDoc, adminActor)).toBe(false);
       expect(canDeleteUser(viceDirectorDoc, adminActor)).toBe(false);
       expect(canDeleteUser(adminActor, adminActor)).toBe(false);
-      expect(canDeleteUser(regularStaffDoc, adminActor)).toBe(true);
+      expect(canDeleteUser(regularStaffDoc, adminActor)).toBe(false);
     });
 
     it("prevents Admin from disabling Director or Vice Director via status update", () => {

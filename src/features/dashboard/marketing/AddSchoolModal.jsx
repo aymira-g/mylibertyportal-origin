@@ -3,13 +3,17 @@ import { X, Building2, MapPin, Compass, AlertCircle } from "lucide-react";
 import { SCHOOL_TIERS } from "../../../schemas/schoolOutreachSchema";
 import { addSchool } from "./schoolOutreachRepository";
 import { useToast } from "../../shared";
+import { branchToId, idToBranch } from "../../../constants/branches";
 
-export default function AddSchoolModal({ currentUser, onClose, onSchoolAdded }) {
+export default function AddSchoolModal({ currentUser, branchId = null, onClose, onSchoolAdded }) {
   const toast = useToast();
 
+  const defaultMunicipality = branchId ? idToBranch(branchId) : "Kota Gorontalo";
+  const defaultDistrict = defaultMunicipality === "Kota Gorontalo" ? "Kota Tengah" : "";
+
   const [name, setName] = useState("");
-  const [municipality, setMunicipality] = useState("Kota Gorontalo");
-  const [district, setDistrict] = useState("Kota Tengah");
+  const [municipality, setMunicipality] = useState(defaultMunicipality);
+  const [district, setDistrict] = useState(defaultDistrict);
   const [address, setAddress] = useState("");
   const [tier, setTier] = useState("SMA");
   const [lat, setLat] = useState("0.5500");
@@ -66,6 +70,8 @@ export default function AddSchoolModal({ currentUser, onClose, onSchoolAdded }) 
           municipality: municipality.trim(),
           district: district.trim(),
           address: address.trim(),
+          branchId: branchId ? branchToId(branchId) : branchToId(municipality),
+          branch: branchId ? idToBranch(branchId) : (municipality.trim() || undefined),
           tier,
           lat: parsedLat,
           lng: parsedLng,

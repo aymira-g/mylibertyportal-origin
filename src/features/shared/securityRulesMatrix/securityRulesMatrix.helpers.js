@@ -46,7 +46,7 @@ export function isExecutive(user) {
 
 export function isManager(user) {
   return Boolean(
-    user && isActiveUser(user) && (user.role === "manager" || user.role === "branch_manager")
+    user && isActiveUser(user) && user.role === "manager"
   );
 }
 
@@ -96,7 +96,6 @@ export function isStaff(user) {
         "vice_director",
         "admin",
         "manager",
-        "branch_manager",
         "instructor",
         "instructorleader",
         "instructor_leader",
@@ -223,7 +222,6 @@ export function canUpdateUser(existing, incoming, user) {
 
 export function canDeleteUser(existing, user) {
   if (!user) return false;
-  if (isAdmin(user) && !["director", "vice_director", "admin"].includes(existing.role)) return true;
   if (
     isFrontDeskStaff(user) &&
     ["student", "parent"].includes(existing.role) &&
@@ -403,9 +401,9 @@ export const GATE_APPROVER_ROLES = Object.freeze({
   NEW_STAFF_ACCOUNT: ["director", "vice_director"],
   STAFF_DEACTIVATION: ["director", "vice_director"],
   DISCOUNT_OR_REFUND: ["director", "vice_director"],
-  TUITION_PLAN_CHANGE: ["manager", "branch_manager", "director", "vice_director"],
-  STUDENT_WITHDRAWAL_OR_FREEZE: ["manager", "branch_manager", "director", "vice_director"],
-  CASH_DISCREPANCY: ["opslead", "ops_lead", "manager", "branch_manager", "director", "vice_director"],
+  TUITION_PLAN_CHANGE: ["manager", "director", "vice_director"],
+  STUDENT_WITHDRAWAL_OR_FREEZE: ["manager", "director", "vice_director"],
+  CASH_DISCREPANCY: ["opslead", "ops_lead", "manager", "director", "vice_director"],
   PLACEMENT_LEVEL_OVERRIDE: ["instructorleader", "instructor_leader"],
   SUBSTITUTE_INSTRUCTOR: ["instructorleader", "instructor_leader"],
   CLASS_CANCELLATION_OR_RESCHEDULE: ["opslead", "ops_lead"],
@@ -415,7 +413,6 @@ export const GATE_APPROVER_ROLES = Object.freeze({
     "opslead",
     "ops_lead",
     "manager",
-    "branch_manager",
     "director",
     "vice_director",
   ],
@@ -425,7 +422,6 @@ export const GATE_APPROVER_ROLES = Object.freeze({
     "instructorleader",
     "instructor_leader",
     "manager",
-    "branch_manager",
     "director",
     "vice_director",
   ],
@@ -446,7 +442,7 @@ export function isApproverForDoc(data, user) {
   if (targetRole === "director" || targetRole === "vice_director") {
     roleMatches = isDirector(user) || isViceDirector(user);
   } else if (
-    (targetRole === "manager" || targetRole === "branch_manager") &&
+    targetRole === "manager" &&
     (isManager(user) || isDirector(user) || isViceDirector(user))
   ) {
     roleMatches = true;

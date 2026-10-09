@@ -48,7 +48,7 @@ service cloud.firestore {
       return signedIn()
         && p != null
         && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'))
-        && (p.role == 'manager' || p.role == 'branch_manager');
+        && (p.role == 'manager');
     }
 
     function isStaff() {
@@ -56,7 +56,7 @@ service cloud.firestore {
       return signedIn()
         && p != null
         && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'))
-        && p.role in ['director', 'vice_director', 'admin', 'manager', 'branch_manager', 'instructor', 'instructorleader', 'instructor_leader', 'marketing', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'officeboy'];
+        && p.role in ['director', 'vice_director', 'admin', 'manager', 'instructor', 'instructorleader', 'instructor_leader', 'marketing', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'officeboy'];
     }
 
     function isFrontOffice() {
@@ -163,7 +163,7 @@ service cloud.firestore {
     function isDivisionAllowedForBranchStaff(data) {
       let p = userProfile();
       let role = p != null && 'role' in p ? p.role : '';
-      let isStaffRole = role in ['manager', 'branch_manager', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'marketing'];
+      let isStaffRole = role in ['manager', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'marketing'];
       let uDiv = userDivision();
       return !isStaffRole
         || (uDiv == 'all')
@@ -201,22 +201,22 @@ service cloud.firestore {
         || (actionId == 'NEW_STAFF_ACCOUNT' && (approverRole == 'director' || approverRole == 'vice_director'))
         || (actionId == 'STAFF_DEACTIVATION' && (approverRole == 'director' || approverRole == 'vice_director'))
         || (actionId == 'DISCOUNT_OR_REFUND' && (approverRole == 'director' || approverRole == 'vice_director'))
-        || (actionId == 'TUITION_PLAN_CHANGE' && (approverRole == 'manager' || approverRole == 'branch_manager' || approverRole == 'director' || approverRole == 'vice_director'))
-        || (actionId == 'STUDENT_WITHDRAWAL_OR_FREEZE' && (approverRole == 'manager' || approverRole == 'branch_manager' || approverRole == 'director' || approverRole == 'vice_director'))
-        || (actionId == 'CASH_DISCREPANCY' && (approverRole == 'opslead' || approverRole == 'ops_lead' || approverRole == 'manager' || approverRole == 'branch_manager' || approverRole == 'director' || approverRole == 'vice_director'))
+        || (actionId == 'TUITION_PLAN_CHANGE' && (approverRole == 'manager' || approverRole == 'director' || approverRole == 'vice_director'))
+        || (actionId == 'STUDENT_WITHDRAWAL_OR_FREEZE' && (approverRole == 'manager' || approverRole == 'director' || approverRole == 'vice_director'))
+        || (actionId == 'CASH_DISCREPANCY' && (approverRole == 'opslead' || approverRole == 'ops_lead' || approverRole == 'manager' || approverRole == 'director' || approverRole == 'vice_director'))
         || (actionId == 'PLACEMENT_LEVEL_OVERRIDE' && (approverRole == 'instructorleader' || approverRole == 'instructor_leader'))
         || (actionId == 'SUBSTITUTE_INSTRUCTOR' && (approverRole == 'instructorleader' || approverRole == 'instructor_leader'))
         || (actionId == 'CLASS_CANCELLATION_OR_RESCHEDULE' && (approverRole == 'opslead' || approverRole == 'ops_lead'))
         || (actionId == 'RETROACTIVE_STUDENT_ATTENDANCE' && (approverRole == 'opslead' || approverRole == 'ops_lead'))
         || (actionId == 'STUDENT_CLASS_TRANSFER' && (approverRole == 'opslead' || approverRole == 'ops_lead'))
-        || (actionId == 'STAFF_SHIFT_SELF_CORRECTION' && (approverRole == 'opslead' || approverRole == 'ops_lead' || approverRole == 'manager' || approverRole == 'branch_manager' || approverRole == 'director' || approverRole == 'vice_director'))
-        || (actionId == 'STAFF_STATUS_CHANGE' && (approverRole == 'opslead' || approverRole == 'ops_lead' || approverRole == 'instructorleader' || approverRole == 'instructor_leader' || approverRole == 'manager' || approverRole == 'branch_manager' || approverRole == 'director' || approverRole == 'vice_director'));
+        || (actionId == 'STAFF_SHIFT_SELF_CORRECTION' && (approverRole == 'opslead' || approverRole == 'ops_lead' || approverRole == 'manager' || approverRole == 'director' || approverRole == 'vice_director'))
+        || (actionId == 'STAFF_STATUS_CHANGE' && (approverRole == 'opslead' || approverRole == 'ops_lead' || approverRole == 'instructorleader' || approverRole == 'instructor_leader' || approverRole == 'manager' || approverRole == 'director' || approverRole == 'vice_director'));
     }
 
     function isApproverForDoc(data) {
       let targetRole = data != null && 'approverRole' in data ? data.approverRole : 'manager';
       let roleMatches = ((targetRole == 'director' || targetRole == 'vice_director') && (isDirector() || isViceDirector()))
-        || ((targetRole == 'manager' || targetRole == 'branch_manager') && (isManager() || isDirector() || isViceDirector()))
+        || (targetRole == 'manager' && (isManager() || isDirector() || isViceDirector()))
         || ((targetRole == 'instructor_leader' || targetRole == 'instructorleader') && (hasRole('instructorleader') || hasRole('instructor_leader')))
         || ((targetRole == 'ops_lead' || targetRole == 'opslead') && isOpsLead())
         || (targetRole == 'frontoffice' && isFrontOffice());
@@ -259,7 +259,7 @@ service cloud.firestore {
         // running the generic gateAllowsApprover chain — that chain pushed this update rule
         // past the rules engine's 1000-expression evaluation budget.
         && ('approverRole' in approval)
-        && (approval.approverRole in ['opslead', 'ops_lead', 'manager', 'branch_manager', 'director', 'vice_director'])
+        && (approval.approverRole in ['opslead', 'ops_lead', 'manager', 'director', 'vice_director'])
         && 'payload' in approval
         && approval.payload != null
         && approval.payload.shiftId == shiftId;
@@ -518,7 +518,7 @@ service cloud.firestore {
               'role', 'branch', 'branchId', 'division', 'status', 'phone', 'dob',
               'educationLevel', 'inviteId', 'createdAt', 'photoURL'
             ]));
-      allow delete: if (isAdmin() && !(resource.data.role in ['director', 'vice_director', 'admin'])) || (isFrontDeskStaff() && resource.data.role in ['student', 'parent'] && isSameBranch(resource.data) && (resource.data.role != 'student' || isDivisionAllowedForBranchStaff(resource.data)));
+      allow delete: if isFrontDeskStaff() && resource.data.role in ['student', 'parent'] && isSameBranch(resource.data) && (resource.data.role != 'student' || isDivisionAllowedForBranchStaff(resource.data));
       allow update: if (
           isExecutive()
           && (
@@ -584,14 +584,15 @@ service cloud.firestore {
       allow delete: if isExecutive()
         || (signedIn() && resource.data.email == request.auth.token.email);
 
-      allow create: if isExecutive();
+      allow create: if isExecutive()
+        && (!(request.resource.data.role in ['admin', 'director', 'vice_director']) || isDirector());
     }
 
     match /applications/{applicationId} {
       allow get: if isExecutive() || ((isFrontOffice() || isManager() || hasRole('marketing')) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
       allow list: if isExecutive() || ((isFrontOffice() || isManager() || hasRole('marketing')) && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data));
       allow update: if isExecutive() || (isFrontOffice() && isSameBranch(resource.data) && isSameBranch(request.resource.data) && isDivisionAllowedForBranchStaff(resource.data) && isDivisionAllowedForBranchStaff(request.resource.data) && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId));
-      allow delete: if isAdmin() || (isFrontOffice() && isSameBranch(resource.data) && isDivisionAllowedForBranchStaff(resource.data));
+      allow delete: if isViceDirector() || isDirector();
       allow create: if false;
     }
 
@@ -612,7 +613,7 @@ service cloud.firestore {
           ))
         || (signedIn() && ('studentIds' in resource.data) && resource.data.studentIds.hasAny([request.auth.uid]))
         || (isParent() && isSameBranchStrict(resource.data) && ('childStudentIds' in userProfile()) && ('studentIds' in resource.data) && resource.data.studentIds.hasAny(userProfile().childStudentIds));
-      allow create, delete: if isAdmin();
+      allow create: if isAdmin();
       allow update: if isAdmin()
         || (isFrontOffice()
           && isSameBranch(resource.data)
@@ -679,7 +680,6 @@ service cloud.firestore {
           && isDivisionAllowedForBranchStaff(request.resource.data)
           && request.resource.data.userId == resource.data.userId
           && request.resource.data.role == resource.data.role);
-      allow delete: if isAdmin();
     }
 
     match /corporateEvents/{eventId} {
@@ -716,7 +716,7 @@ service cloud.firestore {
             || (request.resource.data.audienceValue == 'Pohuwato' && userBranch() == 'pohuwato')
             || (request.resource.data.audienceValue == 'Limboto' && userBranch() == 'limboto')
           ));
-      allow delete: if isAdmin() || ((isManager() || isFrontOffice()) && isSameBranch(resource.data));
+      allow delete: if (isManager() || isFrontOffice()) && isSameBranch(resource.data);
     }
 
     match /classAttendance/{attendanceId} {
@@ -793,8 +793,6 @@ service cloud.firestore {
         && request.resource.data.status in ['PRESENT', 'ABSENT', 'LATE', 'EXCUSED']
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['status', 'note', 'method', 'markedBy', 'markedByName', 'markedAt', 'updatedAt']);
-
-      allow delete: if isAdmin();
     }
 
     match /payments/{paymentId} {
@@ -818,7 +816,6 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['notes', 'approvalStatus', 'referenceNumber', 'updatedAt'])
         );
-      allow delete: if isAdmin();
     }
 
     match /deskInquiries/{inquiryId} {
@@ -837,7 +834,7 @@ service cloud.firestore {
         // Placement level authority (OD-IL-ENF2). Kept last: it is the only clause here
         // that can read another document, and only when the level actually changes.
         && placementLevelAllowed(inquiryId, request.resource.data, resource.data);
-      allow delete: if isAdmin() || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
+      allow delete: if isViceDirector() || isDirector();
     }
 
     match /approvals/{approvalId} {
@@ -957,7 +954,6 @@ service cloud.firestore {
         || ((isFrontOffice() || isManager())
           && isSameBranch(resource.data)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reviewStatus']));
-      allow delete: if isAdmin();
     }
 
     match /shiftAuditEvents/{eventId} {
@@ -1020,8 +1016,6 @@ service cloud.firestore {
       allow update: if (isExecutive() || ((isManager() || hasRole('marketing')) && isSameBranch(resource.data) && isSameBranch(request.resource.data)))
         && (!('createdBy' in resource.data) || request.resource.data.createdBy == resource.data.createdBy)
         && (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt);
-      allow delete: if isAdmin();
-
       match /visits/{visitId} {
         // Enforce strict branch check so visits are consistently isolated per branch across direct and collectionGroup queries
         allow read: if isExecutive()
@@ -1035,7 +1029,7 @@ service cloud.firestore {
           && request.resource.data.branchId is string
           && request.resource.data.branch is string
           && request.resource.data.source == 'schoolOutreach';
-        allow update, delete: if isAdmin();
+        allow update: if isAdmin();
       }
     }
 
@@ -1051,7 +1045,7 @@ service cloud.firestore {
         && request.resource.data.branchId is string
         && request.resource.data.branch is string
         && request.resource.data.source == 'schoolOutreach';
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin();
     }
 
     match /kioskDevices/{deviceId} {

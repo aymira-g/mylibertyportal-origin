@@ -1,23 +1,31 @@
 import { useState, useEffect, useMemo } from "react";
 import { db, auth } from "../../firebase";
-import { onAuthStateChanged } from "firebase/auth";
-import { collection, onSnapshot, doc, query, where } from "firebase/firestore";
-import { WelcomeBanner, DashboardShell, useToast } from "../shared";
-import { UserPlus, BookOpen, Users, Copy, Check, ExternalLink } from "lucide-react";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { WelcomeBanner, DashboardShell, useToast, useUserProfile } from "../shared";
+import { UserPlus, BookOpen, Users, Copy, Check, ExternalLink, FileText, AlertCircle } from "lucide-react";
 import { copyText } from "../../utils/copyText";
 import { AvailableBatches } from "../classes";
 import { useStaffDirectives, StaffDirectivesWidget } from "../staff";
 import { getRegistrationUrl } from "../../constants/externalLinks";
-import { branchToId, DEFAULT_BRANCH } from "../../constants/branches";
+import { branchToId, idToBranch } from "../../constants/branches";
 import {
   SchoolOutreachTab,
   OutreachProgressWidget,
   listenToSchools,
 } from "./marketing";
 import { WalkInInquiryTab } from "./frontoffice";
+import { StudentApplications } from "../students";
 import { getUrlAction, clearUrlAction } from "../../utils/urlAction";
 
-function MarketingOverview({ leadCount, loading, classes, openSeats, schools, onNavigate }) {
+function MarketingOverview({
+  inquiryCount,
+  onlineAppCount,
+  loading,
+  classes,
+  openSeats,
+  schools,
+  onNavigate,
+}) {
   const toast = useToast();
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -43,10 +51,16 @@ function MarketingOverview({ leadCount, loading, classes, openSeats, schools, on
         subtitle="Drive academy admissions, review prospective student inquiries, and promote available class batches."
         stats={[
           {
-            label: "Pending Inquiries",
-            value: loading ? "..." : leadCount,
+            label: "Walk-In Inquiries",
+            value: loading ? "..." : inquiryCount,
             icon: UserPlus,
             onClick: () => onNavigate("inquiries"),
+          },
+          {
+            label: "Online Applications",
+            value: loading ? "..." : onlineAppCount,
+            icon: FileText,
+            onClick: () => onNavigate("applications"),
           },
           {
             label: "Total Open Seats",
@@ -105,6 +119,13 @@ function MarketingOverview({ leadCount, loading, classes, openSeats, schools, on
             <UserPlus className="w-3.5 h-3.5 text-[#1a3a8f]" />
             <span>Walk-In Guestbook</span>
           </button>
+          <button
+            onClick={() => onNavigate("applications")}
+            className="px-3.5 py-2.5 bg-sky-50 hover:bg-sky-100 text-sky-800 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+          >
+            <FileText className="w-3.5 h-3.5 text-sky-700" />
+            <span>Online Applications</span>
+          </button>
         </div>
 
         <div className="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-200/80 text-xs text-emerald-800 font-medium">
@@ -143,7 +164,7 @@ function MarketingOverview({ leadCount, loading, classes, openSeats, schools, on
   );
 }
 
-export default function MarketingDashboard() {
+export default function MarketingDashboard({ branch = null, division = null }) {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -154,7 +175,33 @@ export default function MarketingDashboard() {
       clearUrlAction();
     }
   }, [toast]);
-  const [leadCount, setLeadCount] = useState(0);
+
+  const { profile: userProfile, loading: profileLoading, branchId: profileBranchId } = useUserProfile();
+
+  const marketingBranchId = useMemo(() => {
+    const raw = branch || profileBranchId || userProfile?.branchId || userProfile?.branch;
+    return raw ? branchToId(raw) : null;
+  }, [branch, profileBranchId, userProfile]);
+
+  const marketingBranchLabel = useMemo(() => {
+    return marketingBranchId ? idToBranch(marketingBranchId) : null;
+  }, [marketingBranchId]);
+
+  const profileDivision = useMemo(() => {
+    return division || userProfile?.division || "courses";
+  }, [division, userProfile]);
+
+  const [divisionOverride, setDivisionOverride] = useState(null);
+  const activeDivision = useMemo(() => {
+    if (profileDivision === "all") {
+      return divisionOverride || "courses";
+    }
+    return profileDivision;
+  }, [profileDivision, divisionOverride]);
+
+  const [inquiryCount, setInquiryCount] = useState(0);
+  const [onlineAppCount, setOnlineAppCount] = useState(0);
+  const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState([]);
   const [schools, setSchools] = useState([]);
@@ -168,48 +215,6 @@ export default function MarketingDashboard() {
     handleToggle: handleToggleDirective,
   } = useStaffDirectives("marketing");
 
-  const [userProfile, setUserProfile] = useState(null);
-
-  useEffect(() => {
-    /** @type {(() => void) | null} */
-    let unsubProfile = null;
-
-    const unsubAuth = onAuthStateChanged(auth, (user) => {
-      if (unsubProfile) {
-        unsubProfile();
-        unsubProfile = null;
-      }
-
-      if (!user?.uid) {
-        setUserProfile(null);
-        return;
-      }
-
-      unsubProfile = onSnapshot(
-        doc(db, "users", user.uid),
-        (snap) => {
-          if (snap.exists()) {
-            setUserProfile(snap.data());
-          } else {
-            setUserProfile(null);
-          }
-        },
-        (err) => {
-          console.error("Marketing user profile listener error:", err);
-        }
-      );
-    });
-
-    return () => {
-      if (unsubProfile) unsubProfile();
-      unsubAuth();
-    };
-  }, []);
-
-  const marketingBranchId = useMemo(() => {
-    return userProfile?.branchId || branchToId(userProfile?.branch || DEFAULT_BRANCH);
-  }, [userProfile]);
-
   useEffect(() => {
     if (!marketingBranchId) return;
 
@@ -219,15 +224,34 @@ export default function MarketingDashboard() {
         where("branchId", "==", marketingBranchId)
       ),
       (snap) => {
-        const pending = snap.docs.filter(
-          (d) => (d.data().status || "pending") === "pending"
+        const apps = snap.docs.map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }));
+        setApplications(apps);
+        const pending = apps.filter(
+          (d) => (d.status || "pending") === "pending"
         ).length;
-        setLeadCount(pending);
+        setOnlineAppCount(pending);
         setLoading(false);
       },
       (err) => {
         console.error("applications listener:", err);
         setLoading(false);
+      }
+    );
+
+    const unsubDeskInquiries = onSnapshot(
+      query(
+        collection(db, "deskInquiries"),
+        where("branchId", "==", marketingBranchId)
+      ),
+      (snap) => {
+        const inqs = snap.docs.map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }));
+        const pending = inqs.filter(
+          (d) => (d.status || "inquired") === "inquired"
+        ).length;
+        setInquiryCount(pending);
+      },
+      (err) => {
+        console.error("deskInquiries listener:", err);
       }
     );
 
@@ -237,7 +261,7 @@ export default function MarketingDashboard() {
         where("branchId", "==", marketingBranchId)
       ),
       (snap) => {
-        setClasses(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setClasses(snap.docs.map((d) => /** @type {any} */ ({ id: d.id, ...d.data() })));
       },
       (err) => {
         console.error("marketing classes listener:", err);
@@ -246,11 +270,14 @@ export default function MarketingDashboard() {
 
     return () => {
       unsubApplications();
+      unsubDeskInquiries();
       unsubClasses();
     };
   }, [marketingBranchId]);
 
   useEffect(() => {
+    if (!marketingBranchId) return;
+
     const unsubSchools = listenToSchools(
       { branchId: marketingBranchId },
       (data) => {
@@ -267,6 +294,10 @@ export default function MarketingDashboard() {
 
   const openSeats = useMemo(() => {
     return classes.reduce((sum, cls) => {
+      const status = (cls.status || "").toLowerCase();
+      if (status === "cancelled" || status === "completed") {
+        return sum;
+      }
       const studentCount = (cls.studentIds || []).length;
       const capacity = Number(cls.maxCapacity) || 15;
       return sum + Math.max(0, capacity - studentCount);
@@ -277,13 +308,37 @@ export default function MarketingDashboard() {
     return schools.filter((s) => s.status === "scheduled").length;
   }, [schools]);
 
+  if (profileLoading) {
+    return (
+      <div className="p-8 bg-[#f0f2f5] rounded-2xl min-h-[500px] flex items-center justify-center">
+        <p className="text-sm text-slate-500 font-semibold">Loading marketing admissions portal...</p>
+      </div>
+    );
+  }
+
+  if (!marketingBranchId) {
+    return (
+      <div className="p-8 bg-[#f0f2f5] rounded-2xl min-h-[500px] flex items-center justify-center">
+        <div className="bg-white p-8 rounded-3xl border border-slate-200/90 shadow-sm max-w-md text-center space-y-3">
+          <AlertCircle className="w-10 h-10 text-amber-500 mx-auto" />
+          <h3 className="text-base font-extrabold text-slate-800">Branch Assignment Required</h3>
+          <p className="text-xs text-slate-500 leading-relaxed font-medium">
+            Your marketing user account does not have an active campus branch assigned.
+            Please contact your Division Manager or Director to configure your branch assignment.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const tabs = [
     {
       id: "overview",
       label: "Campaign & Outreach",
       component: (
         <MarketingOverview
-          leadCount={leadCount}
+          inquiryCount={inquiryCount}
+          onlineAppCount={onlineAppCount}
           loading={loading}
           classes={classes}
           openSeats={openSeats}
@@ -309,10 +364,28 @@ export default function MarketingDashboard() {
     },
     {
       id: "inquiries",
-      label: "Guestbook & Inquiries",
+      label: "Walk-In Inquiries",
+      badge: inquiryCount > 0 ? `${inquiryCount} open` : null,
       component: (
         <div className="w-full">
-          <WalkInInquiryTab division="courses" branchLabel="Kota Gorontalo" />
+          <WalkInInquiryTab
+            division={activeDivision}
+            branchLabel={marketingBranchLabel || "Kota Gorontalo"}
+          />
+        </div>
+      ),
+    },
+    {
+      id: "applications",
+      label: "Online Applications",
+      badge: onlineAppCount > 0 ? `${onlineAppCount} pending` : null,
+      component: (
+        <div className="w-full">
+          <StudentApplications
+            applications={applications}
+            classes={classes}
+            readOnly={true}
+          />
         </div>
       ),
     },
@@ -346,6 +419,29 @@ export default function MarketingDashboard() {
 
   return (
     <div className="p-5 bg-[#f0f2f5] rounded-2xl min-h-[500px]">
+      {profileDivision === "all" && (
+        <div className="flex items-center gap-2 mb-3 bg-white px-3 py-1.5 rounded-xl border border-slate-200 w-fit text-xs font-bold text-slate-700">
+          <span className="text-slate-400">Division:</span>
+          <button
+            type="button"
+            onClick={() => setDivisionOverride("courses")}
+            className={`px-2.5 py-1 rounded-lg transition ${
+              activeDivision === "courses" ? "bg-[#1a3a8f] text-white" : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            Courses
+          </button>
+          <button
+            type="button"
+            onClick={() => setDivisionOverride("kindergarten")}
+            className={`px-2.5 py-1 rounded-lg transition ${
+              activeDivision === "kindergarten" ? "bg-amber-600 text-white" : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            Kindergarten
+          </button>
+        </div>
+      )}
       <DashboardShell
         tabs={tabs}
         activeTab={activeTab}

@@ -604,7 +604,7 @@ function App() {
               )}
               {effectiveRole === "marketing" && (
                 <ErrorBoundary label="Marketing dashboard">
-                  <MarketingDashboard />
+                  <MarketingDashboard branch={branch} division={effectiveDivision} />
                 </ErrorBoundary>
               )}
               {effectiveRole === "officeboy" && (

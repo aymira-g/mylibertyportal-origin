@@ -141,6 +141,7 @@ export default function SchoolOutreachTab({
       {showAddModal && (
         <AddSchoolModal
           currentUser={currentUser}
+          branchId={branchId}
           onClose={() => setShowAddModal(false)}
           onSchoolAdded={() => {
             // Updated in real-time via Firestore snapshot

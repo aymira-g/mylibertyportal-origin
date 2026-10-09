@@ -341,3 +341,67 @@ Level 1 check for the two owner decisions made after the Phase 3 report.
 - **No deployment.** `firebase deploy --only firestore:rules` was not run.
 - No manual UI walkthrough of the staff-onboarding or shift-close flows.
 - `npm run test:e2e` not run.
+
+---
+
+## 2026-10-09 — Marketing Dashboard Phase 1 Refinement & Security Hardening (Tasks 0–6)
+
+Level 1 regression check for Marketing Dashboard Phase 1 implementation under Authoritative Blueprint v3.3 and ratified Owner Decisions OD-MKT-1 through OD-MKT-13.
+
+### 1. What changed
+
+- [MarketingDashboard.jsx](../../../src/features/dashboard/MarketingDashboard.jsx):
+  - Task 1: Replaced hardcoded `"Kota Gorontalo"` with dynamic `marketingBranchId` and `marketingBranchLabel`. Added fail-closed branch-assignment banner with `AlertCircle` icon when user profile lacks a branch.
+  - Task 2: Split Overview into two accurate metrics: "Walk-In Inquiries" (`deskInquiries` with `status == "inquired"`, routing to Guestbook) and "Online Applications" (`applications` with `status == "pending"`, routing to Applications tab). Added Online Applications tab rendering read-only `<StudentApplications />`.
+  - Task 3: Excluded `cancelled` and `completed` batches from `openSeats` calculation.
+  - Task 4: Added dynamic division support and division toggle pill ("English Courses" / "Kindergarten") when profile `division === "all"`.
+- [AddSchoolModal.jsx](../../../src/features/dashboard/marketing/AddSchoolModal.jsx) & [SchoolOutreachTab.jsx](../../../src/features/dashboard/marketing/SchoolOutreachTab.jsx):
+  - Passed dynamic `branchId` to `AddSchoolModal`. Resolved default municipality and district dynamically based on branch instead of hardcoding Kota Gorontalo/Kota Tengah.
+- [AvailableBatches.jsx](../../../src/features/classes/AvailableBatches.jsx):
+  - Excluded `cancelled` and `completed` batches from `totalCapacity` and `totalEnrolled` aggregates.
+- [App.jsx](../../../src/App.jsx):
+  - Passed `branch={branch} division={effectiveDivision}` to `<MarketingDashboard />`.
+- [firestore.rules](../../../firestore.rules):
+  - Revoked `isAdmin()` delete on business collections (`users` :521, `classes` :615, `attendance` :682, `corporateEvents` :719, `classAttendance` :797, `payments` :821, `shifts` :960, `schoolOutreach` :1023, `visits` :1038, :1054) per Principle 13.
+  - Restricted `invites` create (:587) to require `isDirector()` when inviting `admin`, `director`, or `vice_director` (G-002).
+  - Restricted `applications` (:594) and `deskInquiries` (:840) delete strictly to `isViceDirector() || isDirector()` (OD-MKT-8).
+  - Removed `branch_manager` role across all rule predicates (`isManager`, `isStaff`, `isDivisionAllowedForBranchStaff`, `gateAllowsApprover`, `isApproverForDoc`, `isApprovedShiftCorrection`).
+- Repo-Wide `branch_manager` Removal (OD-MKT-10):
+  - [worker.js](../../../cloudflare-worker/worker.js:474): Removed `branch_manager: "manager"`.
+  - [roles.js](../../../src/features/shared/roles.js:40): Removed `branch_manager: "manager"`.
+  - [approvalGates.js](../../../src/features/shared/approvalGates.js): Removed `APPROVAL_ROLES.BRANCH_MANAGER` and case switch.
+  - [approvalsRepository.js](../../../src/features/shared/approvalsRepository.js:61): Updated manager pending approvals query to equality `where("approverRole", "==", APPROVAL_ROLES.DIVISION_MANAGER)`.
+  - [securityRulesMatrix.helpers.js](../../../src/features/shared/securityRulesMatrix/securityRulesMatrix.helpers.js): Removed `branch_manager` across helpers, approver sets, and removed `isAdmin()` user deletion grant.
+- Test Suite Updates:
+  - Updated [roles.test.js](../../../src/features/shared/roles.test.js), [useUserProfile.test.js](../../../src/features/shared/useUserProfile.test.js), [operationalResources.test.js](../../../src/features/shared/securityRulesMatrix/operationalResources.test.js), [approvalGates.test.js](../../../src/features/shared/approvalGates.test.js), [devPresets.test.js](../../../src/features/auth/devPresets.test.js), and [userAuthorization.test.js](../../../src/features/shared/securityRulesMatrix/userAuthorization.test.js) to assert rejection of `branch_manager` and revocation of admin deletions.
+  - Added 4 new emulator test suites in [firestoreRules.emulator.test.js](../../../src/features/shared/firestoreRules.emulator.test.js).
+- Documentation:
+  - [MYLIBERTY-AUTHORITATIVE-BLUEPRINT-v3.md](../../../MYLIBERTY-AUTHORITATIVE-BLUEPRINT-v3.md): Status updated to `RATIFIED AUTHORITATIVE BASELINE — APPROVED BY OWNER (KIFRY)`.
+  - [owner-decisions.md](../../reports/marketing-dashboard/owner-decisions.md): Updated with ratified decisions OD-MKT-1 through OD-MKT-13.
+  - [00-phase0-audit.md](../../reports/marketing-dashboard/00-phase0-audit.md): Appended Errata E1–E9, MKT-P0-024, MKT-P0-025, and duplicate-inquiry gap.
+
+### 2. Adjacent-workflow and Invariant Checks
+
+| Invariant | Check | Result |
+|---|---|---|
+| Admin cannot delete business records | Emulator: `deleteDoc` on `payments`, `shifts`, `classes`, `attendance`, `classAttendance`, `schoolOutreach`, `corporateEvents`, `users` (staff) fails | PASS |
+| `branch_manager` cannot decide gates | Emulator: `updateDoc` on `approvals` with `role: "branch_manager"` fails closed | PASS |
+| Executive/Admin invites require Director | Emulator: `dirGto` creates `admin`/`vice_director` invites (PASS); `vdGto`/`admin` creating `admin`/`director` invites fails (PASS); `vdGto` creating `instructor` invite succeeds (PASS) | PASS |
+| Admissions deletion restricted to dual-control | Emulator: Director & Vice Director can delete `applications`/`deskInquiries`; Front Office, Manager, Admin denied | PASS |
+| Division isolation & fail-closed branch | Static renders: profile without branch displays clear configuration warning; division toggle switches view | PASS |
+| Capacity aggregates exclude non-active batches | Metric unit test: cancelled/completed batches excluded from open seats and capacity sums | PASS |
+| Expression evaluation budget preserved | Emulator stderr: budget sites remained at 6 baseline locations (`:521`, `:806`, `:833`, `:863`, `:935`, `:1075`), no new budget expansion | PASS |
+
+### 3. Verification Suite Commands
+
+- `npm run test:rules` → **110 passed, 0 failed** (4 new tests added).
+- `npm test` → **1,257 passed, 110 skipped, 0 failed**.
+- `npm run typecheck` → **0 errors**.
+- `npm run lint` → **0 errors, 0 warnings**.
+- `npm run build` → **Built cleanly in 664ms**.
+
+### 4. Not run / not verified
+
+- **Zero production deployment (OD-MKT-11).** Rules and code remain local/un-deployed until explicit human authorization.
+- `npm run test:e2e` (Playwright) was not run.
+

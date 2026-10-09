@@ -23,7 +23,6 @@ export const APPROVAL_ROLES = {
   VICE_DIRECTOR: "vice_director",
   ADMIN: "admin",
   DIVISION_MANAGER: "manager", // Canonical (Authoritative Blueprint v3.1 §5.4)
-  BRANCH_MANAGER: "manager", // Deprecated alias retained for backward compatibility
   INSTRUCTOR_LEADER: "instructorleader",
   OPS_LEAD: "opslead",
 };
@@ -794,7 +793,6 @@ export function canApproveGate(userRole, approverRoleOrAction, actionId = null) 
         normalized === "vice_director"
       );
     case APPROVAL_ROLES.DIVISION_MANAGER:
-    case APPROVAL_ROLES.BRANCH_MANAGER:
     case "manager":
       return (
         normalized === "director" ||

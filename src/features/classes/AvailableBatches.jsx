@@ -113,9 +113,12 @@ export default function AvailableBatches({
 
   // Overall capacity statistics
   const stats = useMemo(() => {
+    const activeBatches = augmentedBatches.filter(
+      (b) => b.computedStatus !== "cancelled" && b.computedStatus !== "completed"
+    );
     const totalBatches = augmentedBatches.length;
-    const totalCapacity = augmentedBatches.reduce((acc, b) => acc + b.maxCapacity, 0);
-    const totalEnrolled = augmentedBatches.reduce((acc, b) => acc + b.studentCount, 0);
+    const totalCapacity = activeBatches.reduce((acc, b) => acc + b.maxCapacity, 0);
+    const totalEnrolled = activeBatches.reduce((acc, b) => acc + b.studentCount, 0);
     const totalOpenSeats = augmentedBatches
       .filter((b) => b.isAvailable)
       .reduce((acc, b) => acc + b.seatsAvailable, 0);

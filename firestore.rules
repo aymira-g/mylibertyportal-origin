@@ -518,7 +518,20 @@ service cloud.firestore {
               'role', 'branch', 'branchId', 'division', 'status', 'phone', 'dob',
               'educationLevel', 'inviteId', 'createdAt', 'photoURL'
             ]));
-      allow delete: if isFrontDeskStaff() && resource.data.role in ['student', 'parent'] && isSameBranch(resource.data) && (resource.data.role != 'student' || isDivisionAllowedForBranchStaff(resource.data));
+      // Student/parent/staff record deletion is a technical maintenance operation, NOT a desk
+      // operation. Front Office (isFrontDeskStaff) deliberately holds no delete: withdrawing or
+      // freezing a student is the gated STUDENT_WITHDRAWAL_OR_FREEZE workflow, which Front Office
+      // must not bypass by deleting the record instead.
+      //
+      // This restores the clause removed by commit 7cf64a1, which had left isFrontDeskStaff as the
+      // only role able to delete these records — a strictly worse arrangement. It is deliberately a
+      // role-EXCLUSION list (never a director / vice_director / admin target), matching the
+      // pre-existing behaviour and the StaffDirectory maintenance path wired at
+      // AdminDashboard.jsx:228, which the narrower variant left permanently failing.
+      //
+      // Scope note: this governs *record removal* only. Staff role and status changes remain gated
+      // behind STAFF_DEACTIVATION / STAFF_ROLE_ELEVATION and are unaffected by this clause.
+      allow delete: if isAdmin() && !(resource.data.role in ['director', 'vice_director', 'admin']);
       allow update: if (
           isExecutive()
           && (

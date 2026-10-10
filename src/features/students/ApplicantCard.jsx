@@ -193,15 +193,17 @@ export function ApplicantCard({
                   )}
                   <span>Restore</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onDelete(app)}
-                  disabled={isProcessing}
-                  className="flex-1 py-1.5 px-3 rounded-xl font-bold text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete</span>
-                </button>
+            {onDelete && (
+              <button
+                type="button"
+                onClick={() => onDelete(app)}
+                disabled={isProcessing}
+                className="flex-1 py-1.5 px-3 rounded-xl font-bold text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete</span>
+              </button>
+            )}
               </>
             )}
 

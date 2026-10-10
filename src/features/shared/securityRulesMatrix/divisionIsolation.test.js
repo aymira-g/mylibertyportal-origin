@@ -309,13 +309,15 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
       expect(canUpdateUser(existing, update, kidsFOGorontalo)).toBe(false);
     });
 
-    it("Kids Front Office -> delete Kindergarten student in own branch: ALLOW", () => {
+    it("Kids Front Office -> delete Kindergarten student in own branch: DENY (delete is Admin-only)", () => {
       const student = {
         role: "student",
         branchId: "kota_gorontalo",
         division: "kindergarten",
       };
-      expect(canDeleteUser(student, kidsFOGorontalo)).toBe(true);
+      // Front Office holds no delete in any division: the division boundary is no longer the
+      // operative control here, the role is.
+      expect(canDeleteUser(student, kidsFOGorontalo)).toBe(false);
     });
 
     it("Kids Front Office -> delete Courses student in own branch: DENY", () => {
@@ -809,7 +811,8 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
     });
 
     it("6. Role hierarchy permissions remain intact for division='all' users", () => {
-      // Front Office with division='all' still CANNOT delete managers or instructors
+      // Front Office with division='all' cannot delete instructors or managers — and since delete
+      // is now Admin-only, it cannot delete any record type in any division scope.
       expect(
         canDeleteUser(
           { role: "instructor", branchId: "kota_gorontalo", division: "courses" },

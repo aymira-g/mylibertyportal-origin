@@ -230,11 +230,18 @@ describe("User & Parent/Student Authorization Rules Matrix", () => {
     const viceDirectorDoc = { uid: "vice_1", role: "vice_director", branchId: "kota_gorontalo" };
     const regularStaffDoc = { uid: "ins_1", role: "instructor", branchId: "kota_gorontalo" };
 
-    it("prevents Admin from deleting user accounts (Principle 13: Admin deletion revoked)", () => {
+    it("prevents Admin from deleting executive and Admin accounts", () => {
       expect(canDeleteUser(directorDoc, adminActor)).toBe(false);
       expect(canDeleteUser(viceDirectorDoc, adminActor)).toBe(false);
       expect(canDeleteUser(adminActor, adminActor)).toBe(false);
-      expect(canDeleteUser(regularStaffDoc, adminActor)).toBe(false);
+    });
+
+    it("permits Admin to delete non-executive records (the maintenance path)", () => {
+      // Restored 2026-10-09 (Front Office Phase 1). Commit 7cf64a1 had removed the Admin clause while
+      // leaving isFrontDeskStaff delete in place, which made Front Office the only role able to delete
+      // user records and left the Admin Staff Directory delete button permanently failing with
+      // PERMISSION_DENIED. The rules restore the role-exclusion form; this asserts the mirror matches.
+      expect(canDeleteUser(regularStaffDoc, adminActor)).toBe(true);
     });
 
     it("prevents Admin from disabling Director or Vice Director via status update", () => {
@@ -266,12 +273,34 @@ describe("User & Parent/Student Authorization Rules Matrix", () => {
       expect(canUpdateUser(studentDoc, { role: "student", branchId: "kota_gorontalo", division: "courses", displayName: "Updated Student" }, opsLead)).toBe(false);
     });
 
-    it("permits Front Office receptionist to delete student within branch, but blocks Ops Lead", () => {
-      // FO receptionist can delete student
-      expect(canDeleteUser(studentDoc, foStaff)).toBe(true);
+    it("denies student deletion to both Front Office receptionist and Ops Lead", () => {
+      // Delete is a technical maintenance operation, not a desk operation. Withdrawing or freezing
+      // a student is the gated STUDENT_WITHDRAWAL_OR_FREEZE workflow — Front Office must not bypass
+      // it by deleting the record, and Ops Lead has read-only oversight.
+      expect(canDeleteUser(studentDoc, foStaff)).toBe(false);
 
-      // Ops Lead cannot delete student
       expect(canDeleteUser(studentDoc, opsLead)).toBe(false);
+    });
+
+    it("permits Admin to delete a student record, but never an executive or admin account", () => {
+      const adminActor = { uid: "admin_1", role: "admin", branchId: "kota_gorontalo" };
+
+      // Admin retains the maintenance path restored alongside the removal of Front Office delete.
+      expect(canDeleteUser(studentDoc, adminActor)).toBe(true);
+      expect(
+        canDeleteUser(
+          { id: "par_1", role: "parent", branchId: "kota_gorontalo" },
+          adminActor
+        )
+      ).toBe(true);
+
+      // Executive and Admin accounts remain permanently undeletable by Admin.
+      expect(
+        canDeleteUser({ id: "dir_1", role: "director", branchId: "kota_gorontalo" }, adminActor)
+      ).toBe(false);
+      expect(
+        canDeleteUser({ id: "vice_1", role: "vice_director", branchId: "kota_gorontalo" }, adminActor)
+      ).toBe(false);
     });
   });
 });

@@ -222,12 +222,14 @@ export function canUpdateUser(existing, incoming, user) {
 
 export function canDeleteUser(existing, user) {
   if (!user) return false;
-  if (
-    isFrontDeskStaff(user) &&
-    ["student", "parent"].includes(existing.role) &&
-    isSameBranch(existing, user) &&
-    (existing.role !== "student" || isDivisionAllowedForBranchStaff(existing, user))
-  ) {
+  // Mirrors firestore.rules `match /users/{userId}` allow delete.
+  // Record deletion is a technical maintenance operation reserved to Admin. Front Office holds NO
+  // delete: withdrawing or freezing a student is the gated STUDENT_WITHDRAWAL_OR_FREEZE workflow and
+  // must not be reachable by deleting the record instead.
+  // The guard is a role-EXCLUSION list: director, vice_director and admin accounts are never
+  // deletable. Staff role/status changes are governed separately by
+  // STAFF_DEACTIVATION / STAFF_ROLE_ELEVATION.
+  if (isAdmin(user) && !["director", "vice_director", "admin"].includes(existing.role)) {
     return true;
   }
   return false;

@@ -511,8 +511,8 @@ describe("Operational Resources Security Rules Matrix", () => {
       return false;
     }
 
-    function canDeletePayment() {
-      return false;
+    function canDeletePayment(actor = null) {
+      return Boolean(actor) && false;
     }
 
     const paymentKota = {

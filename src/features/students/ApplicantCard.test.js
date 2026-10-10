@@ -74,4 +74,41 @@ describe("ApplicantCard readOnly and executive inspection behavior", () => {
     expect(html).not.toContain("<span>Approve</span>");
     expect(html).not.toContain("<span>Reject</span>");
   });
+
+  it("suppresses Delete button for rejected view when onDelete is omitted or null", () => {
+    const rejectedApp = { ...dummyApplicant, status: "rejected" };
+    const html = renderToStaticMarkup(
+      React.createElement(ApplicantCard, {
+        app: rejectedApp,
+        activeView: "rejected",
+        users: dummyUsers,
+        classes: [],
+        applications: [],
+        isProcessing: false,
+        readOnly: false,
+        onDelete: null,
+      })
+    );
+
+    expect(html).not.toContain("<span>Delete</span>");
+  });
+
+  it("renders Delete button for rejected view when onDelete is provided", () => {
+    const rejectedApp = { ...dummyApplicant, status: "rejected" };
+    const html = renderToStaticMarkup(
+      React.createElement(ApplicantCard, {
+        app: rejectedApp,
+        activeView: "rejected",
+        users: dummyUsers,
+        classes: [],
+        applications: [],
+        isProcessing: false,
+        readOnly: false,
+        onDelete: () => {},
+      })
+    );
+
+    expect(html).toContain("<span>Delete</span>");
+  });
 });
+

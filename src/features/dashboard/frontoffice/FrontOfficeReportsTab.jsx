@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { auth } from "../../../firebase";
 import FrontDeskCashReconcile from "./FrontDeskCashReconcile";
 import { fetchRecentDeskInquiries } from "./deskInquiriesRepository";
-import { fetchUserShifts } from "../../attendance/shiftsRepository";
+import { fetchUserShifts, fetchOpenShiftFor } from "../../attendance/shiftsRepository";
 import { todayWita } from "../../../utils/dateWita";
-import { matchesBranchFilter } from "../../../constants/branches";
+import { matchesBranchFilter, branchToId } from "../../../constants/branches";
 import {
   Wallet,
   UserCheck,
@@ -28,7 +28,7 @@ import {
 export default function FrontOfficeReportsTab({
   myBranch = "Kota Gorontalo",
   students = [],
-  activeShift = null,
+  activeShift: propActiveShift = null,
   onShiftClosed = null,
 }) {
   const [activeSubTab, setActiveSubTab] = useState("cash"); // 'cash' | 'inquiries' | 'shifts'
@@ -36,12 +36,24 @@ export default function FrontOfficeReportsTab({
   const [inquiriesLoading, setInquiriesLoading] = useState(true);
   const [personalShifts, setPersonalShifts] = useState([]);
   const [shiftsLoading, setShiftsLoading] = useState(() => Boolean(auth.currentUser?.uid));
+  const [internalActiveShift, setInternalActiveShift] = useState(null);
 
+  const activeShift = propActiveShift || internalActiveShift;
   const currentUser = auth.currentUser;
   const todayStr = todayWita();
 
   useEffect(() => {
     let isMounted = true;
+
+    if (!propActiveShift && currentUser?.uid) {
+      fetchOpenShiftFor(currentUser.uid, branchToId(myBranch))
+        .then((shift) => {
+          if (isMounted) setInternalActiveShift(shift);
+        })
+        .catch((err) => {
+          console.warn("Could not load active shift in FrontOfficeReportsTab:", err);
+        });
+    }
 
     fetchRecentDeskInquiries(100, myBranch)
       .then((allInquiries) => {
@@ -80,7 +92,12 @@ export default function FrontOfficeReportsTab({
     return () => {
       isMounted = false;
     };
-  }, [myBranch, todayStr, currentUser?.uid]);
+  }, [myBranch, todayStr, currentUser?.uid, propActiveShift]);
+
+  const handleShiftClosed = () => {
+    setInternalActiveShift(null);
+    onShiftClosed?.();
+  };
 
   // Derived Inquiry counts
   const inquiryCounts = {
@@ -172,7 +189,7 @@ export default function FrontOfficeReportsTab({
             students={students}
             activeShift={activeShift}
             currentUser={currentUser || {}}
-            onShiftClosed={onShiftClosed}
+            onShiftClosed={handleShiftClosed}
           />
         </div>
       )}

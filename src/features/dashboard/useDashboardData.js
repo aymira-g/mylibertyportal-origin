@@ -331,19 +331,22 @@ export function useDashboardData({
       },
       handleListenerError("todos")
     );
-    const inviteConstraints = [];
-    if (targetBranchId) {
-      inviteConstraints.push(where("branchId", "==", targetBranchId));
-    }
-    const invitesQuery = inviteConstraints.length
-      ? query(collection(db, "invites"), ...inviteConstraints)
-      : collection(db, "invites");
+    let unsubInvites = () => {};
+    if (!restrictedRead) {
+      const inviteConstraints = [];
+      if (targetBranchId) {
+        inviteConstraints.push(where("branchId", "==", targetBranchId));
+      }
+      const invitesQuery = inviteConstraints.length
+        ? query(collection(db, "invites"), ...inviteConstraints)
+        : collection(db, "invites");
 
-    const unsubInvites = onSnapshot(
-      invitesQuery,
-      (snap) => setInvites(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
-      handleListenerError("invites")
-    );
+      unsubInvites = onSnapshot(
+        invitesQuery,
+        (snap) => setInvites(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+        handleListenerError("invites")
+      );
+    }
 
     return () => {
       unsubUsers();

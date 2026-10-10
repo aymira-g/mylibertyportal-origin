@@ -38,6 +38,7 @@ export default function StudentApplications({
   classes = [],
   users = [],
   readOnly = false,
+  canPermanentDelete = false,
   onApproveAndEdit = null,
   onViewStudent = null,
 }) {
@@ -362,7 +363,7 @@ export default function StudentApplications({
               onApprove={setPlacementApp}
               onReject={setRejectingApp}
               onRestore={handleRestore}
-              onDelete={handlePermanentDelete}
+              onDelete={canPermanentDelete ? handlePermanentDelete : null}
               onViewStudent={onViewStudent}
               onApproveAndEdit={onApproveAndEdit}
             />

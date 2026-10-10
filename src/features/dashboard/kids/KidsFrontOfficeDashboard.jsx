@@ -62,7 +62,6 @@ export default function KidsFrontOfficeDashboard({ branch = null }) {
     handleSave,
     handleEdit,
     handleAddStudent,
-    handleDelete,
     handleAddTodo,
     handleDeleteTodo,
     handleToggleTodo,
@@ -96,6 +95,14 @@ export default function KidsFrontOfficeDashboard({ branch = null }) {
   };
 
   const handleEnrollProspect = (inquiry) => {
+    if (inquiry.pendingPlacementOverride) {
+      toast(
+        `${inquiry.studentName || "This student"} has a placement level override awaiting the Instructor Leader's approval. Enrollment is on hold until it is decided.`,
+        "error"
+      );
+      return;
+    }
+
     const defaultProgId = "kids_school";
     const chosenProgId = inquiry.programId || defaultProgId;
     const prog = getProgram(chosenProgId);
@@ -284,7 +291,7 @@ export default function KidsFrontOfficeDashboard({ branch = null }) {
       component: (
         <PaymentCashierTab
           students={students}
-          branchLabel="Kota Gorontalo"
+          branchLabel={myBranch}
           division="kindergarten"
         />
       ),
@@ -296,7 +303,7 @@ export default function KidsFrontOfficeDashboard({ branch = null }) {
       component: (
         <WalkInInquiryTab
           division="kindergarten"
-          branchLabel="Kota Gorontalo"
+          branchLabel={myBranch}
           onEnrollStudent={handleEnrollProspect}
         />
       ),
@@ -328,7 +335,6 @@ export default function KidsFrontOfficeDashboard({ branch = null }) {
           getStudentClasses={getStudentClasses}
           setSelectedStudent={setSelectedStudent}
           handleEdit={handleEdit}
-          handleDelete={handleDelete}
           handleAddStudent={handleAddStudent}
           canEditStatus={false}
           userRole="frontoffice"

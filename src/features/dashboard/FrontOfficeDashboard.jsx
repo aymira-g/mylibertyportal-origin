@@ -6,9 +6,7 @@ import {
   DashboardShell,
   WelcomeBanner,
   useToast,
-  ApprovalInbox,
   PrimaryActionButton,
-  usePendingApprovalsCount,
 } from "../shared";
 import {
   StudentApplications,
@@ -72,7 +70,6 @@ export default function FrontOfficeDashboard({ role = "frontoffice", branch = nu
     handleSave,
     handleEdit,
     handleAddStudent,
-    handleDelete,
     handleAddTodo,
     handleDeleteTodo,
     handleToggleTodo,
@@ -354,17 +351,6 @@ export default function FrontOfficeDashboard({ role = "frontoffice", branch = nu
     </div>
   );
 
-  const effectiveRole = (role || "").toLowerCase().trim();
-  const isLeader =
-    effectiveRole === "opslead" ||
-    effectiveRole === "ops_lead" ||
-    effectiveRole === "frontofficelead" ||
-    effectiveRole === "front_office_lead" ||
-    effectiveRole === "manager" ||
-    effectiveRole === "admin";
-
-  const pendingApprovalsCount = usePendingApprovalsCount(isLeader ? "ops_lead" : null, myBranch);
-
   const tabs = [
     { id: "overview", label: "Overview", component: overviewTab },
     {
@@ -416,7 +402,6 @@ export default function FrontOfficeDashboard({ role = "frontoffice", branch = nu
           getStudentClasses={getStudentClasses}
           setSelectedStudent={setSelectedStudent}
           handleEdit={handleEdit}
-          handleDelete={handleDelete}
           handleAddStudent={handleAddStudent}
           canEditStatus={false}
           userRole={role || "frontoffice"}
@@ -454,23 +439,6 @@ export default function FrontOfficeDashboard({ role = "frontoffice", branch = nu
         />
       ),
     },
-    ...(isLeader
-      ? [
-          {
-            id: "approvals",
-            label: "Approvals",
-            badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
-            component: (
-              <ApprovalInbox
-                userRole="ops_lead"
-                branchId={myBranch}
-                title="Front Desk Operational Approvals"
-                subtitle="Dual-control authorization requests for desk operations and instructor escalations."
-              />
-            ),
-          },
-        ]
-      : []),
     {
       id: "misc",
       label: "Tasks",

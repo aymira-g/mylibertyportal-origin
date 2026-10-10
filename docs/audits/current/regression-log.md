@@ -405,3 +405,141 @@ Level 1 regression check for Marketing Dashboard Phase 1 implementation under Au
 - **Zero production deployment (OD-MKT-11).** Rules and code remain local/un-deployed until explicit human authorization.
 - `npm run test:e2e` (Playwright) was not run.
 
+---
+
+## 2026-10-09 — Front Office Phase 1 (F-01 record-deletion boundary)
+
+**Level 1 Light Regression Check** for the change described in
+[`../../reports/front-office-dashboard/01-phase1-completion-report.md`](../../reports/front-office-dashboard/01-phase1-completion-report.md).
+Closes Phase 0 finding **F-01** ([`00-phase0-audit.md`](../../reports/front-office-dashboard/00-phase0-audit.md) §5).
+Owner-approved scope: remove Front Office delete, restore an Admin-only path, keep the
+enrollment/parent cascade intact.
+
+### 1. What changed (blast radius)
+
+- **Rules (one clause):** `match /users/{userId}` `allow delete` replaced
+  `isFrontDeskStaff() && role in ['student','parent'] && isSameBranch(...) && (...)`
+  with `isAdmin() && !(resource.data.role in ['director','vice_director','admin'])`.
+  Front Office is removed entirely; the guard is a role-exclusion list, so executive and Admin
+  accounts stay undeletable. **The clause is restored to the exact form that existed before
+  `7cf64a1`**, which had removed Admin while leaving Front Office — leaving `isFrontDeskStaff` as the
+  only role able to delete user records, and silently breaking the Admin Staff Directory delete
+  button (`AdminDashboard.jsx:228` → `StaffDirectory.jsx:201` → `deleteUserProfile`).
+- **Client:** removed `handleDelete` from the `useDashboardData` destructuring and the
+  `StudentRoster` prop in `FrontOfficeDashboard.jsx` (`:75`, `:419`) and
+  `KidsFrontOfficeDashboard.jsx` (`:65`, `:331`). `StudentRoster` renders its delete control only
+  when that prop is present (`StudentRoster.jsx:515`, `:539`), so the affordance disappears at both
+  desks. Presentation only — the rules are the control.
+- **Retained deliberately:** `useDashboardData.handleDelete`, `usersRepository.deleteUserProfile`
+  and its cascade (class `studentIds`/`enrollments` strip, parent unlink, `usersRepository.js:227-251`)
+  remain, because `AdminDashboard` still uses them for the staff directory. Record deletion
+  therefore does **not** orphan enrolment references.
+- **JS mirror:** `canDeleteUser` in `securityRulesMatrix.helpers.js` rewritten to mirror the rules.
+  It previously encoded the Front Office branch and had drifted from the rules — that drift is what
+  let a false assertion pass (below).
+- **Tests corrected (drift, not caused by this change):**
+  `userAuthorization.test.js` asserted `canDeleteUser(instructor, admin) === false` under the title
+  *"prevents Admin from deleting user accounts (Principle 13: Admin deletion revoked)"*. That never
+  matched `firestore.rules` (the pre-`7cf64a1` clause is a role-exclusion list) and conflated
+  Principle 13 (branch authority) with OD-MKT-4 (business-record deletion). Split into two accurate
+  assertions.
+- **Emulator assertion corrected:** the existing *"users (staff profile delete forbidden to Admin)"*
+  assertion asserted the broken behaviour and **passed** — a green test protecting a defect. Now
+  inverted, with the reasoning inline.
+
+### 2. Adjacent-workflow and Invariant Checks
+
+| Invariant | Check | Result |
+|---|---|---|
+| Front Office cannot delete student or parent records | Emulator: `foGto`, `foKgGto`, `foBoba`, `foResigned` delete on `users` | PASS (all DENY) |
+| Ops Lead still holds no delete | Emulator: `opsGto` delete on `users` | PASS (DENY) |
+| Manager holds no record-deletion path | Emulator: `mgrGto` delete on `users` | PASS (DENY) |
+| Admin retains the maintenance path | Emulator: `admin` deletes a student and a parent | PASS (ALLOW) |
+| Executive/Admin accounts undeletable by Admin | Emulator: `admin` deletes `dirGto`, `vdGto`, `admin` | PASS (all DENY) |
+| Staff Directory delete is functional again | Emulator: `admin` deletes `insGto` (instructor) | PASS (ALLOW) |
+| Division is not the operative control | Reference only — both Kinders and Courses desks denied | PASS |
+| JS mirror matches the rules | Static-matrix suite: 168 assertions across 5 files | PASS |
+| Executive status protection untouched | Matrix: Admin still cannot set `terminated`/`resigned` on Director/VD | PASS |
+| Expression budget not expanded | Emulator suite clean; the clause swaps one `userProfile()`-bearing helper for another (net zero) | PASS |
+| No new collection/index/listener/cost | Permission-only change; no data migration required | PASS |
+
+### 3. Commands
+
+- `npm run test:rules` → **111 passed, 0 failed** (110 at HEAD; +1 new test, 1 assertion corrected).
+- `npm test` → **1,259 passed, 111 skipped, 0 failed** (the 111 skipped are the emulator suite).
+- `npm run lint` → **0 errors, 0 warnings**.
+- `npm run build` → clean, PWA precache 66 entries.
+- `npm run typecheck` → **3 errors, all pre-existing and unrelated.** Confirmed pre-existing by
+  stashing every change in this entry and re-running at HEAD — identical three errors:
+  `operationalResources.test.js(568–570) TS2554`, a local stub `function canDeletePayment()`
+  (`:514`) declared with no parameters but called with one, in a file this change does not touch.
+  **This contradicts the marketing entry above, which recorded `typecheck → 0 errors`**; the drift
+  was introduced between that run and HEAD. Recorded as an open item, not fixed here (out of scope).
+
+### 4. Not run / not verified
+
+- **No deployment.** `firebase deploy --only firestore:rules` was not run; production rule state is
+  unverified from the repository.
+- **No browser walkthrough.** The absent delete control is proven by props, not by a running app.
+- **The Admin Staff Directory path was not exercised end-to-end** (confirm modal → batch cascade →
+  parent unlink). The emulator proves the *rule* now permits the write and that the clause matches
+  the pre-`7cf64a1` form; the full UI path was not run.
+- `npm run test:e2e` (Playwright) was not run.
+- Still open from Phase 0: deferred F-07 (Courses division filter awaits R5 backfill) and F-09 / F-10.
+
+---
+
+## 2026-10-10 — Front Office Dashboard Phase 2: Owner Decisions OD-FO-1..3 Implementation & Finding Closures (F-02, F-03, F-04, F-08, F-12, F-13, F-14)
+
+Level 1 regression check for Front Office Dashboard Phase 2 implementation under Authoritative Blueprint v3.3, ratified Owner Decisions OD-FO-1 through OD-FO-3, and Phase 0 audit finding closures.
+
+### 1. What changed
+
+- **Owner Decision Register:**
+  - Created [`docs/reports/front-office-dashboard/owner-decisions.md`](../../reports/front-office-dashboard/owner-decisions.md) codifying ratified decisions OD-FO-1 (F-03 Option A: `opslead` only), OD-FO-2 (F-01: Remove Hard Delete from Front Office), and OD-FO-3 (F-11: Authoritative academic promotions vs gated placement overrides).
+- **TypeScript & Matrix Test Hygiene:**
+  - `src/features/shared/securityRulesMatrix/operationalResources.test.js`: Updated `canDeletePayment(actor = null)` to reference parameter, clearing all 3 pre-existing TS2554 errors without triggering ESLint `no-unused-vars`. `npm run typecheck` now exits cleanly (0 errors).
+- **Gate Authority & Dead Tab Retirement (OD-FO-1, F-03, F-04, F-08):**
+  - `FrontOfficeDashboard.jsx`: Removed unused `ApprovalInbox` and `usePendingApprovalsCount` imports. Removed unreachable `isLeader` role check and retired the dead `approvals` tab, confirming Front Office is reception/cashiering with no gate approval authority.
+- **Cash Reconciliation Control Connection (F-02):**
+  - `src/features/attendance/shiftsRepository.js`: Added `limit(1)` to `fetchOpenShiftFor(uid, branchId)` to bound query reads for zero-budget Spark plan compliance.
+  - `PaymentCashierTab.jsx`: Added `activeShift` state fetched via `fetchOpenShiftFor`, passing `activeShift={activeShift}`, `currentUser={auth.currentUser}`, and `onShiftClosed={handleShiftClosed}` to `FrontDeskCashReconcile`.
+  - `FrontOfficeReportsTab.jsx`: Added internal fallback resolution of `activeShift` via `fetchOpenShiftFor` when not passed as a prop, ensuring "End Shift & Count Drawer" is reachable.
+- **Kindergarten Placement Override Guard & Dynamic Branch (F-12, F-06):**
+  - `KidsFrontOfficeDashboard.jsx`: Added pending placement override guard to `handleEnrollProspect` (blocking direct enrollment while awaiting Instructor Leader approval). Replaced hard-coded `"Kota Gorontalo"` strings with dynamic `myBranch`.
+- **Application Permanent Delete Affordance Gated (F-13):**
+  - `ApplicantCard.jsx`: Guarded `Delete` button with `{onDelete && (...)}`.
+  - `StudentApplications.jsx`: Added `canPermanentDelete = false` prop, passing `onDelete={canPermanentDelete ? handlePermanentDelete : null}` so unauthorized non-executive users are never shown dead delete buttons that rules deny.
+  - `ApplicantCard.test.js`: Added 2 unit tests verifying Delete button is suppressed when `onDelete` is omitted/null and rendered when provided.
+- **Unused Invites Listener Suppressed (F-14):**
+  - `src/features/dashboard/useDashboardData.js`: Guarded realtime `invites` collection listener with `if (!restrictedRead)`, eliminating redundant Firestore snapshot subscriptions on Front Office dashboards.
+
+### 2. Adjacent-workflow and Invariant Checks
+
+| Invariant | Check | Result |
+|---|---|---|
+| Front Office has no gate approvals | Dead tab and `usePendingApprovalsCount` retired; rules enforce `opslead` only | PASS |
+| Cash reconciliation drawer count reachable | `activeShift` resolved and passed; `ShiftReconciliationModal` renders on active shift | PASS |
+| Kindergarten enrollment blocked on pending override | Guarded in `handleEnrollProspect`; surfaces descriptive toast | PASS |
+| Admissions delete button suppressed for non-executives | `ApplicantCard.test.js` (5 tests pass); `canPermanentDelete` defaults false | PASS |
+| Invites listener not opened for restrictedRead | Guarded with `!restrictedRead` in `useDashboardData.js` | PASS |
+| TypeScript check completely clean | `npm run typecheck` exits 0 (0 errors) | PASS |
+| ESLint check completely clean | `npm run lint` exits 0 (0 errors, 0 warnings) | PASS |
+| Full Vitest suite passes | 102 test files passed, 1,261 tests passed | PASS |
+| Production build succeeds | `npm run build` exits 0, PWA precache 66 entries | PASS |
+
+### 3. Commands
+
+- `npm run typecheck` → **0 errors**.
+- `npm run lint` → **0 errors, 0 warnings**.
+- `npm test` → **1,261 passed, 111 skipped, 0 failed**.
+- `npm run build` → clean, PWA precache 66 entries.
+
+### 4. Not run / not verified
+
+- No deployment. Production rules and application code remain strictly un-deployed.
+- No manual browser UI walkthrough.
+- `npm run test:e2e` was not run.
+
+
+

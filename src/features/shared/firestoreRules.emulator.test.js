@@ -2214,8 +2214,55 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       });
       await assertFails(deleteDoc(doc(authed("admin"), "corporateEvents", "ceSecTest")));
 
-      // users (staff profile delete forbidden to Admin)
-      await assertFails(deleteDoc(doc(authed("admin"), "users", "insGto")));
+      // users: Admin may delete a non-executive staff profile.
+      // Corrected 2026-10-09 (Front Office Phase 1): this previously asserted the delete FAILED.
+      // That assertion matched commit 7cf64a1's shortened clause, but it contradicted the Admin
+      // Staff Directory delete button (AdminDashboard.jsx:228 -> StaffDirectory.jsx:201 ->
+      // deleteUserProfile), which was left permanently failing with PERMISSION_DENIED. Executive and
+      // Admin targets remain undeletable — asserted in the dedicated test below.
+      await assertSucceeds(deleteDoc(doc(authed("admin"), "users", "insGto")));
+    });
+
+    it("removes user-record deletion from Front Office and confines it to Admin (Front Office Phase 1)", async () => {
+      await seedDoc(["users", "delStdTest"], {
+        role: "student",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        displayName: "Deletable Student",
+      });
+      await seedDoc(["users", "delParTest"], {
+        role: "parent",
+        branchId: "kota_gorontalo",
+        displayName: "Deletable Parent",
+      });
+
+      // Front Office holds no delete in any division: withdraw/freeze is the gated
+      // STUDENT_WITHDRAWAL_OR_FREEZE workflow and must not be bypassable by deleting the record.
+      // Before this change isFrontDeskStaff was the ONLY role able to delete these records.
+      await assertFails(deleteDoc(doc(authed("foGto"), "users", "delStdTest")));
+      await assertFails(deleteDoc(doc(authed("foGto"), "users", "delParTest")));
+
+      // The Kindergarten desk path is closed too — the role is the control, not the division.
+      await assertFails(deleteDoc(doc(authed("foKgGto"), "users", "delStdTest")));
+
+      // Ops Lead has read-only oversight of desk records and never held delete.
+      await assertFails(deleteDoc(doc(authed("opsGto"), "users", "delStdTest")));
+
+      // Cross-branch and resigned desk staff are refused as well.
+      await assertFails(deleteDoc(doc(authed("foBoba"), "users", "delStdTest")));
+      await assertFails(deleteDoc(doc(authed("foResigned"), "users", "delStdTest")));
+
+      // Manager is not an administrator and holds no record-deletion path either.
+      await assertFails(deleteDoc(doc(authed("mgrGto"), "users", "delStdTest")));
+
+      // Executive and Admin accounts remain undeletable by Admin.
+      await assertFails(deleteDoc(doc(authed("admin"), "users", "dirGto")));
+      await assertFails(deleteDoc(doc(authed("admin"), "users", "vdGto")));
+      await assertFails(deleteDoc(doc(authed("admin"), "users", "admin")));
+
+      // Admin retains the maintenance path for student and parent records.
+      await assertSucceeds(deleteDoc(doc(authed("admin"), "users", "delStdTest")));
+      await assertSucceeds(deleteDoc(doc(authed("admin"), "users", "delParTest")));
     });
 
     it("enforces that branch_manager role cannot act as manager or decide gates", async () => {

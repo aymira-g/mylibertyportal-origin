@@ -66,7 +66,7 @@ export async function fetchOpenShiftFor(uid, branchId = null) {
     constraints.push(where("branchId", "==", branchId));
   }
   const snap = await getDocs(
-    query(collection(db, "shifts"), ...constraints)
+    query(collection(db, "shifts"), ...constraints, limit(1))
   );
   return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
 }

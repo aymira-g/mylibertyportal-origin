@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { auth } from "../../../firebase";
 import { getRecentPayments } from "../../finance/paymentsRepository";
+import { fetchOpenShiftFor } from "../../attendance/shiftsRepository";
 import { formatIDR, buildWhatsAppReceiptMessage, normalizeWhatsAppNumber } from "../../finance/receiptMessages";
 import { PaymentModal } from "../../finance";
 import FrontDeskCashReconcile from "./FrontDeskCashReconcile";
@@ -48,6 +50,24 @@ export default function PaymentCashierTab({
   const cashierBranchId = branchToId(branchLabel || "");
   const serverDivision = division === "kindergarten" ? "kindergarten" : null;
 
+  const [activeShift, setActiveShift] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    if (auth.currentUser?.uid) {
+      fetchOpenShiftFor(auth.currentUser.uid, cashierBranchId)
+        .then((shift) => {
+          if (active) setActiveShift(shift);
+        })
+        .catch((err) => {
+          if (active) console.warn("Could not load active shift for cashier:", err);
+        });
+    }
+    return () => {
+      active = false;
+    };
+  }, [cashierBranchId]);
+
   const loadPayments = useCallback(async () => {
     setLoading(true);
     try {
@@ -60,6 +80,11 @@ export default function PaymentCashierTab({
       setLoading(false);
     }
   }, [toast, cashierBranchId, serverDivision]);
+
+  const handleShiftClosed = () => {
+    setActiveShift(null);
+    loadPayments();
+  };
 
   useEffect(() => {
     let active = true;
@@ -144,6 +169,9 @@ export default function PaymentCashierTab({
         branchLabel={branchLabel}
         students={students}
         division={serverDivision}
+        activeShift={activeShift}
+        currentUser={auth.currentUser}
+        onShiftClosed={handleShiftClosed}
       />
 
       {/* 2. Cashier Header & Actions */}

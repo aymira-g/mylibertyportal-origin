@@ -18,6 +18,7 @@ import { branchToId } from "../../constants/branches.js";
 export function useStaffDirectives(role, explicitBranch = null) {
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const currentUser = auth.currentUser;
   const {
     branchId: profileBranchId,
@@ -51,10 +52,12 @@ export function useStaffDirectives(role, explicitBranch = null) {
       (snap) => {
         const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         setTodos(list);
+        setError(null);
         setLoading(false);
       },
       (err) => {
         console.error("Staff directives listener error:", err);
+        setError(err);
         setLoading(false);
       }
     );
@@ -137,6 +140,7 @@ export function useStaffDirectives(role, explicitBranch = null) {
     completedDirectives,
     pendingCount: activeDirectives.length,
     loading,
+    error,
     handleToggle,
   };
 }

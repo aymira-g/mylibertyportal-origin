@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useToast, WelcomeBanner } from "../shared";
 import {
   CheckSquare,
-  Sparkles,
   AlertTriangle,
   Clock,
   ChevronDown,
@@ -50,8 +49,16 @@ export default function OfficeBoyDashboard() {
     activeDirectives: tasks,
     completedDirectives,
     loading,
+    error,
     handleToggle,
   } = useStaffDirectives("officeboy");
+
+  const urgentOverdueCount = useMemo(() => {
+    return tasks.filter((t) => {
+      const dueInfo = formatDueDate(t.dueDate);
+      return t.priority === "urgent" || dueInfo?.label === "Overdue";
+    }).length;
+  }, [tasks]);
 
   const handleComplete = async (taskId) => {
     setProcessingId(taskId);
@@ -79,9 +86,9 @@ export default function OfficeBoyDashboard() {
             icon: CheckSquare,
           },
           {
-            label: "Active Tasks",
-            value: tasks.length === 0 ? "None Pending" : `${tasks.length} Active`,
-            icon: Sparkles,
+            label: "Urgent / Overdue",
+            value: loading ? "..." : urgentOverdueCount,
+            icon: AlertTriangle,
           },
         ]}
       />
@@ -90,6 +97,18 @@ export default function OfficeBoyDashboard() {
         <p className="text-center text-slate-400 py-10 animate-pulse font-medium text-xs">
           Checking assigned tasks...
         </p>
+      ) : error ? (
+        <div className="bg-rose-50 p-6 rounded-2xl border border-rose-200 text-center space-y-2">
+          <div className="w-10 h-10 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+          <p className="text-sm font-bold text-rose-900">
+            Unable to load assigned directives
+          </p>
+          <p className="text-xs text-rose-700 max-w-sm mx-auto">
+            {error.message || "A network or permission error occurred while checking tasks. Please check your connection or contact reception."}
+          </p>
+        </div>
       ) : tasks.length === 0 ? (
         <div className="bg-slate-50 p-10 rounded-2xl border border-dashed border-slate-300 text-center">
           <p className="text-3xl mb-2">✨</p>

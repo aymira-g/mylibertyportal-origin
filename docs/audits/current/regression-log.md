@@ -16,6 +16,7 @@
 | 2026-10-08 | Follow-up boundary probe of the approval-gate contract (during Phase 2 scoping) | Approvals · Firestore Rules | **RESOLVED** (was `ESCALATE`) | **Yes** | `actionId → approverRole` binding was client-side only. Fixed under owner authorization the same day on the create, decision and consumption paths. See the escalation record and its resolution below |
 | 2026-10-10 | Actions 1–5 Directives hardening: Admin business-authority removal, supervisor reconciliation, attribution display name binding & emulator suite | Office Boy · Facilities · Firestore Rules · Todos | **PASS** | No | Live deployed to `mylibertyies-f2f38` by operator at commit `19fd280`; 121/121 emulator tests pass |
 | 2026-10-10 | Directives timestamp integrity (`serverTimestamp` enforcement), reopening contract formalization & expanded security suite | Office Boy · Facilities · Firestore Rules · Todos | **PASS** | No | Strict `req.completedAt == request.time`; forged times blocked; Layer 4 spec formalized; 121/121 emulator tests pass; pending live deploy |
+| 2026-10-10 | Office Boy dashboard polish: surface directive-list failure state & de-duplicate stat cards to Urgent/Overdue | Office Boy · Facilities · Dashboard · Staff Directives | **PASS** | No | All quality gates pass (1,289 unit tests, 0 lint, 0 typecheck, build clean). No rules changed. Browser smoke attempted (driver CDN 404 logged). |
 
 ---
 
@@ -721,6 +722,51 @@ Readiness & Governance Alignment:
   - Deployment separation maintained: live rules deployment held pending operator execution.
 ```
 
+---
 
+## Evidence Record — 2026-10-10 (OB Dashboard Polish: Failure State & Stat Cards Deduplication)
 
+```text
+Change: 1) useStaffDirectives.js:
+           - Additive exposure of `error` state from onSnapshot error callback.
+           - Cleared error on snapshot receipt.
+           - Existing return shape and consumers preserved without regressions.
+        2) OfficeBoyDashboard.jsx:
+           - Destructured `error` from `useStaffDirectives`.
+           - Explicit failure state card rendered when error occurs (render order: loading -> error -> empty -> list),
+             preventing misleading "All caught up!" display on listener failures or permission-denied.
+           - De-duplicated WelcomeBanner stat cards: replaced duplicate "Active Tasks" with "Urgent / Overdue",
+             counting tasks with priority === "urgent" or formatDueDate(dueDate)?.label === "Overdue" (renders "..." while loading).
+        3) OfficeBoyDashboard.test.js:
+           - Added unit tests verifying error card rendering on hook failure without showing "All caught up!".
+           - Added unit tests verifying Urgent / Overdue count calculation in stat card.
+           - Verified clean TypeScript conformance (error: null in mock).
 
+Date: 2026-10-10
+Section: Office Boy & Facilities Dashboard / UI Polish
+Workflow: Directive status tracking, failure state surfacing, stat card accuracy
+Tester / Agent: Pair programming agent under Kifry's authorization
+
+Risk classification (Playbook §9): LOW-RISK — Pure frontend UI polish; zero security-rule or schema changes.
+
+Normal Test:
+  - Workspace test suite: npm test -> 1,289 passed, 121 skipped, 0 failed (102 test files).
+  - Component unit tests: npm test src/features/dashboard/OfficeBoyDashboard.test.js -> 4 passed, 0 failed.
+  - ESLint: npm run lint -> 0 errors, 0 warnings.
+  - TypeScript: npm run typecheck (tsc --noEmit) -> 0 errors.
+  - Build: npm run build -> built cleanly in 659ms (PWA precache 66 entries).
+
+Failure Test:
+  - useStaffDirectives returning Error("Permission denied to read directives") renders explicit
+    "Unable to load assigned directives" card with error message; "All caught up! No tasks right now."
+    is NOT displayed (OfficeBoyDashboard.test.js, PASS).
+  - Empty tasks list with error: null renders "All caught up! No tasks right now." and does NOT display
+    error card (OfficeBoyDashboard.test.js, PASS).
+
+Not Run / Limitations:
+  - firestore.rules emulator suite (npm run test:rules): NOT RUN — no firestore.rules or backend permissions were modified.
+  - Automated browser smoke walkthrough (browser subagent): ATTEMPTED on localhost:3000 but halted due to external
+    Playwright driver CDN 404 (playwright-1.57.0-win32_x64.zip). Proceeded per user authorization; visual rendering verified
+    via renderToStaticMarkup tests.
+  - Production deployment: NOT PERFORMED — strictly operator-controlled.
+```

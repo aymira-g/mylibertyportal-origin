@@ -14,6 +14,7 @@
 |---|---|---|---|---|---|
 | 2026-10-08 | Instructor Leader dashboard Phase 1 refinement + owner-approved read-only widening of `firestore.rules` for `progressReports` / `classAttendance` | Dashboard / Instructor Leader · Firestore Rules | **PASS** for the change itself (browser verification partial — see record) | No | Targeted checks passed; see the evidence record below |
 | 2026-10-08 | Follow-up boundary probe of the approval-gate contract (during Phase 2 scoping) | Approvals · Firestore Rules | **RESOLVED** (was `ESCALATE`) | **Yes** | `actionId → approverRole` binding was client-side only. Fixed under owner authorization the same day on the create, decision and consumption paths. See the escalation record and its resolution below |
+| 2026-10-10 | FO-02 & FO-03 Placement-level authority and branch validation hardening | Front Office · Firestore Rules · Students | **PASS** | No | F-11 & §A2.7/§A2.8 closed at code/rules/emulator layer; 117/117 emulator tests pass; FO-02 closed; pending live rules deploy |
 
 ---
 
@@ -599,6 +600,48 @@ its *authority*. A crafted client can write any `currentLevel` with a Front Offi
   in `firestoreRules.emulator.test.js` that document the current capability. `npm run test:rules` →
   **114 passed, 0 failed**.
 - F-02's end-to-end drawer-count path was not exercised; only its wiring was confirmed present.
+
+---
+
+## Evidence Record — 2026-10-10 (FO-02 & FO-03 Remediation)
+
+```text
+Change: 1) firestore.rules deskInquiries create rule hardened to reject graded course levels;
+        2) deskInquiriesRepository.js createDeskInquiry sanitizes currentLevel to empty string;
+        3) deskInquiriesRepository.js enforces required canonical/alias branch (FO-02);
+        4) StudentAcademicFields.jsx locks academic level picker for enrolled students (editId);
+        5) firestoreRules.emulator.test.js expanded with negative authorization assertions.
+
+Date: 2026-10-10
+Section: Front Office Dashboard / Firestore Security Rules / Academic Level Authority
+Workflow: Walk-in inquiry logging, prospective student placement, student enrollment & profile updates
+Tester / Agent: Pair programming agent under Kifry's authorization
+
+Risk classification (Playbook §9): HIGH-RISK — Firestore security rules + authorization boundaries.
+
+Normal Test:
+  - Firestore rules emulator suite: npm run test:rules -> 117 passed, 0 failed.
+  - Workspace test suite: npm test -> 1,285 passed, 117 skipped, 0 failed (102 test files).
+  - ESLint: npm run lint -> 0 errors, 0 warnings.
+  - TypeScript: npm run typecheck (tsc --noEmit) -> 0 errors.
+  - Build: npm run build -> built cleanly in 656ms.
+
+Negative Authorization / Failure Tests:
+  - Front Office / Manager updating currentLevel ("elite", "master", "q") on student doc -> DENIED (assertFails).
+  - Front Office updating legacy level ("Advanced") on student doc -> DENIED (assertFails).
+  - Class-level sync fan-out write updating student level -> DENIED (assertFails).
+  - Front Office / Manager creating course inquiry with pre-assigned currentLevel ("master") -> DENIED (assertFails).
+  - Placement level override attempted without envelope, with score mismatch, with invalid approver role,
+    with cross-branch approver, with pending envelope, or self-approved -> DENIED (assertFails).
+  - createDeskInquiry with missing or invalid branch -> throws explicit Error (FO-02).
+
+Deployment Parity Verification:
+  - Working tree: clean on origin/main at commit 777a5a0.
+  - Dry run compilation: npx firebase deploy --only firestore:rules --dry-run passed cleanly against
+    production project mylibertyies-f2f38.
+  - Production live rules status: Not deployed by agent (requires manual operator execution:
+    firebase deploy --only firestore:rules).
+```
 
 
 

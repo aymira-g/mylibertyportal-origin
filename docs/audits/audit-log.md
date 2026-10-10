@@ -3,7 +3,7 @@ title: MyLiberty Portal — Operational Audit Log
 type: audit
 status: active
 created: 2026-09-24
-last_verified: 2026-09-28
+last_verified: 2026-10-10
 supersedes: null
 superseded_by: null
 ---
@@ -462,3 +462,20 @@ Surfaced by the new drift guard, decided by the owner the same day, and closed.
   four Option-C gates the only remaining declared-vs-actual divergence — recorded, as ratified.
 - **Verification:** `npm run test:rules` 106/106 (was 98); `npm test` 1,257 passed; lint 0 errors; typecheck 0
   errors; build clean. **Not deployed.**
+
+---
+
+## 2026-10-10 — Front Office Placement-Level & Branch Authority Audit (FO-02 & FO-03 Remediation)
+
+| Field | Value |
+|---|---|
+| **Change** | 1) **FO-02 (Missing Branch Fallback Eliminated):** `createDeskInquiry` validates branch via `isValidBranch(rawBranch)` and throws explicit errors rather than falling back to `DEFAULT_BRANCH_ID`. `WalkInInquiryTab` defaults `branchLabel` to `""` and blocks submission with error toast if branch is missing. All 5 dashboard callers pass explicit `branchLabel` from active context. 2) **FO-03 / §A2.7 (Student Academic Level Mutation Gated):** Confirmed `firestore.rules:554-574` excludes `currentLevel` and `level` from the Front Office and Manager update allow-list. Hardened `StudentAcademicFields.jsx` so existing enrolled students (`editId` truthy) have the academic level dropdown and tier buttons locked, preventing unauthorized mutation attempts and saving errors. 3) **FO-03 / §A2.8 (Desk Inquiry Creation Bypass Closed):** Hardened `firestore.rules:837-841` `deskInquiries` `allow create` rule to reject initial creation with a graded course level unless division is kindergarten or level is empty/unassessed. In `deskInquiriesRepository.js`, `createDeskInquiry` sanitizes `currentLevel` to `""` for course inquiries. 4) **Negative Authorization Tests Added:** Expanded `firestoreRules.emulator.test.js` with tests asserting failure on pre-assigned inquiry levels, direct student level mutations, and placement override bypass attempts. |
+| **Date** | 2026-10-10 |
+| **Section** | Front Office Dashboard / Firestore Security Rules / Academic Level Authority |
+| **Workflow** | Walk-in inquiry logging, prospective student placement, student enrollment & profile updates |
+| **Normal Test** | Real Firestore Emulator suite (`npm run test:rules`) -> **117 passed, 0 failed** (was 114 passed). Full Vitest suite (`npm test`) -> **1,285 passed, 117 skipped, 0 failed** (102 test files). `npm run lint` -> **0 errors, 0 warnings**. `npm run typecheck` (`tsc --noEmit`) -> **0 errors**. `npm run build` -> **Built cleanly in 656ms**. |
+| **Failure Test** | 1) Front Office / Manager updating `currentLevel: "elite"`, `"master"`, or `"q"` on student records -> **DENIED (`assertFails`)**; 2) Front Office updating legacy `level: "Advanced"` -> **DENIED (`assertFails`)**; 3) Front Office class-level sync fan-out writing student level -> **DENIED (`assertFails`)**; 4) Front Office / Manager creating course `deskInquiries` with pre-set `currentLevel: "master"` -> **DENIED (`assertFails`)**; 5) Desk inquiry override attempted without approval envelope, with mismatched score, with invalid approver role (`manager`), with cross-branch approver, with pending envelope, or self-approved -> **DENIED (`assertFails`)**; 6) `createDeskInquiry` with missing or invalid branch -> **DENIED (`rejects.toThrow`)**. |
+| **Result Verification** | All negative authorization scenarios confirmed with live emulator execution. Spark free-tier: 0 new database reads/listeners, zero index additions, and rule expression count well within 1000-expression ceiling. |
+| **Deployment Parity Evidence** | 1) Reviewed code and rules committed to `main` at commit `777a5a0`. 2) Compilation check against production Firebase project (`mylibertyies-f2f38`) validated cleanly via `npx firebase deploy --only firestore:rules --dry-run`. 3) CI inspection confirms that `.github/workflows/firebase-hosting-merge.yml` deploys **hosting only** (`action-hosting-deploy`), and `.github/workflows/firestore-rules.yml` runs the emulator suite without deploying. 4) In compliance with project governance (`AGENTS.md`), live rules are **not deployed by the agent**. Deployment to production requires manual execution: `firebase deploy --only firestore:rules`. |
+| **Findings Closure** | - **FO-02 (Missing branch fallback): CLOSED** (fully enforced in repository & UI; covered by unit tests).<br>- **FO-03 / §A2.7 (`users.currentLevel` direct mutation): CLOSED at code/rules/emulator level** (enforced by `firestore.rules:554-574`; UI locked for enrolled students in `StudentAcademicFields.jsx`; verified by emulator tests).<br>- **FO-03 / §A2.8 (`deskInquiries` creation level bypass): CLOSED at code/rules/emulator level** (enforced by `firestore.rules:837-841`; sanitized in `deskInquiriesRepository.js`; verified by emulator tests).<br>- **Production Status:** Findings are closed at code, architectural, and emulator verification levels; live deployment to production remains **PENDING OPERATOR DEPLOYMENT**. |
+| **Status** | **PASS — EMULATOR & REPOSITORY VERIFIED (PENDING LIVE RULES DEPLOYMENT)** |

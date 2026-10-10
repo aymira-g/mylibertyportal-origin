@@ -2474,5 +2474,250 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       // Director can delete applications
       await assertSucceeds(deleteDoc(doc(authed("dirGto"), "applications", "appDelTest")));
     });
+
+    describe("todos directives authorization and completion integrity (OB-SEC-01)", () => {
+      beforeEach(async () => {
+        await seedUsers();
+      });
+
+      it("permits assignees to complete assigned directives and enforces self-attribution", async () => {
+        // Broadcast task (assignee: 'all')
+        await seedDoc(["todos", "todoBroadcast"], {
+          text: "Campus morning sweep",
+          assignee: "all",
+          completed: false,
+          branchId: "kota_gorontalo",
+          branch: "Kota Gorontalo",
+          createdBy: "mgrGto",
+        });
+
+        // Role-targeted task (assignee: 'officeboy')
+        await seedDoc(["todos", "todoRoleOb"], {
+          text: "Restock restroom supplies",
+          assignee: "officeboy",
+          completed: false,
+          branchId: "kota_gorontalo",
+          branch: "Kota Gorontalo",
+          createdBy: "mgrGto",
+        });
+
+        // Individual-targeted task (assignee: 'obGto')
+        await seedDoc(["todos", "todoIndividualOb"], {
+          text: "Repair whiteboard easel",
+          assignee: "obGto",
+          completed: false,
+          branchId: "kota_gorontalo",
+          branch: "Kota Gorontalo",
+          createdBy: "mgrGto",
+        });
+
+        // Office boy completes broadcast task with valid self-attribution -> succeeds
+        await assertSucceeds(
+          updateDoc(doc(authed("obGto"), "todos", "todoBroadcast"), {
+            completed: true,
+            completedAt: "2026-10-10T08:00:00Z",
+            completedBy: "obGto",
+            completedByName: "Support Staff",
+          })
+        );
+
+        // Office boy completes role-targeted task with valid self-attribution -> succeeds
+        await assertSucceeds(
+          updateDoc(doc(authed("obGto"), "todos", "todoRoleOb"), {
+            completed: true,
+            completedAt: "2026-10-10T08:05:00Z",
+            completedBy: "obGto",
+            completedByName: "Support Staff",
+          })
+        );
+
+        // Office boy completes individual-targeted task -> succeeds
+        await assertSucceeds(
+          updateDoc(doc(authed("obGto"), "todos", "todoIndividualOb"), {
+            completed: true,
+            completedAt: "2026-10-10T08:10:00Z",
+            completedBy: "obGto",
+            completedByName: "Support Staff",
+          })
+        );
+      });
+
+      it("denies completion attempts by non-assignees and forged attribution", async () => {
+        // Task assigned to instructor
+        await seedDoc(["todos", "todoForInstructor"], {
+          text: "Submit lesson plan",
+          assignee: "instructor",
+          completed: false,
+          branchId: "kota_gorontalo",
+          branch: "Kota Gorontalo",
+          createdBy: "mgrGto",
+        });
+
+        // Task assigned individually to insGto
+        await seedDoc(["todos", "todoIndividualIns"], {
+          text: "Review gradebook",
+          assignee: "insGto",
+          completed: false,
+          branchId: "kota_gorontalo",
+          branch: "Kota Gorontalo",
+          createdBy: "mgrGto",
+        });
+
+        // Broadcast task for testing forged attribution
+        await seedDoc(["todos", "todoBroadcastForged"], {
+          text: "Tidy front desk",
+          assignee: "all",
+          completed: false,
+          branchId: "kota_gorontalo",
+          branch: "Kota Gorontalo",
+          createdBy: "mgrGto",
+        });
+
+        // Office boy attempts to complete task assigned to instructor role -> fails
+        await assertFails(
+          updateDoc(doc(authed("obGto"), "todos", "todoForInstructor"), {
+            completed: true,
+            completedAt: "2026-10-10T08:00:00Z",
+            completedBy: "obGto",
+            completedByName: "Support Staff",
+          })
+        );
+
+        // Office boy attempts to complete task assigned individually to insGto -> fails
+        await assertFails(
+          updateDoc(doc(authed("obGto"), "todos", "todoIndividualIns"), {
+            completed: true,
+            completedAt: "2026-10-10T08:00:00Z",
+            completedBy: "obGto",
+            completedByName: "Support Staff",
+          })
+        );
+
+        // Office boy attempts to forge completion attribution by setting completedBy to insGto -> fails
+        await assertFails(
+          updateDoc(doc(authed("obGto"), "todos", "todoBroadcastForged"), {
+            completed: true,
+            completedAt: "2026-10-10T08:00:00Z",
+            completedBy: "insGto",
+            completedByName: "Instructor Staff",
+          })
+        );
+
+        // Office boy attempts to complete without completedBy -> fails
+        await assertFails(
+          updateDoc(doc(authed("obGto"), "todos", "todoBroadcastForged"), {
+            completed: true,
+            completedAt: "2026-10-10T08:00:00Z",
+            completedBy: null,
+          })
+        );
+      });
+
+      it("restricts reopening completed directives to task creator and authorized supervisors", async () => {
+        // Completed task created by Manager
+        await seedDoc(["todos", "todoCompletedByMgr"], {
+          text: "Quarterly inventory check",
+          assignee: "officeboy",
+          completed: true,
+          completedAt: "2026-10-10T07:00:00Z",
+          completedBy: "obGto",
+          branchId: "kota_gorontalo",
+          branch: "Kota Gorontalo",
+          createdBy: "mgrGto",
+        });
+
+        // Office boy (assignee, but not creator or supervisor) cannot reopen -> fails
+        await assertFails(
+          updateDoc(doc(authed("obGto"), "todos", "todoCompletedByMgr"), {
+            completed: false,
+            completedAt: null,
+            completedBy: null,
+            completedByName: null,
+          })
+        );
+
+        // Instructor cannot reopen manager's completed task -> fails
+        await assertFails(
+          updateDoc(doc(authed("insGto"), "todos", "todoCompletedByMgr"), {
+            completed: false,
+            completedAt: null,
+            completedBy: null,
+            completedByName: null,
+          })
+        );
+
+        // Operational Leader (supervisor) can reopen -> succeeds
+        await assertSucceeds(
+          updateDoc(doc(authed("opsGto"), "todos", "todoCompletedByMgr"), {
+            completed: false,
+            completedAt: null,
+            completedBy: null,
+            completedByName: null,
+          })
+        );
+
+        // Completed task created by Front Office
+        await seedDoc(["todos", "todoCompletedByFo"], {
+          text: "Replenish admission forms",
+          assignee: "officeboy",
+          completed: true,
+          completedAt: "2026-10-10T07:00:00Z",
+          completedBy: "obGto",
+          branchId: "kota_gorontalo",
+          branch: "Kota Gorontalo",
+          createdBy: "foGto",
+        });
+
+        // Front Office (task creator) can reopen -> succeeds
+        await assertSucceeds(
+          updateDoc(doc(authed("foGto"), "todos", "todoCompletedByFo"), {
+            completed: false,
+            completedAt: null,
+            completedBy: null,
+            completedByName: null,
+          })
+        );
+      });
+
+      it("enforces branch boundary and blocks ordinary staff from editing directive fields or deleting", async () => {
+        // Task in Bone Bolango
+        await seedDoc(["todos", "todoBobaBranch"], {
+          text: "Clean Boba reception",
+          assignee: "all",
+          completed: false,
+          branchId: "bone_bolango",
+          branch: "Bone Bolango",
+          createdBy: "mgrBoba",
+        });
+
+        // Kota Gorontalo office boy cannot touch Bone Bolango task -> fails
+        await assertFails(
+          updateDoc(doc(authed("obGto"), "todos", "todoBobaBranch"), {
+            completed: true,
+            completedAt: "2026-10-10T08:00:00Z",
+            completedBy: "obGto",
+            completedByName: "Support Staff",
+          })
+        );
+
+        // Office boy cannot alter directive text or delete
+        await seedDoc(["todos", "todoTamperTest"], {
+          text: "Original directive",
+          assignee: "officeboy",
+          completed: false,
+          branchId: "kota_gorontalo",
+          branch: "Kota Gorontalo",
+          createdBy: "mgrGto",
+        });
+
+        await assertFails(
+          updateDoc(doc(authed("obGto"), "todos", "todoTamperTest"), {
+            text: "Tampered directive text",
+          })
+        );
+
+        await assertFails(deleteDoc(doc(authed("obGto"), "todos", "todoTamperTest")));
+      });
+    });
   });
 });

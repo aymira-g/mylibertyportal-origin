@@ -15,6 +15,7 @@
 | 2026-10-08 | Instructor Leader dashboard Phase 1 refinement + owner-approved read-only widening of `firestore.rules` for `progressReports` / `classAttendance` | Dashboard / Instructor Leader · Firestore Rules | **PASS** for the change itself (browser verification partial — see record) | No | Targeted checks passed; see the evidence record below |
 | 2026-10-08 | Follow-up boundary probe of the approval-gate contract (during Phase 2 scoping) | Approvals · Firestore Rules | **RESOLVED** (was `ESCALATE`) | **Yes** | `actionId → approverRole` binding was client-side only. Fixed under owner authorization the same day on the create, decision and consumption paths. See the escalation record and its resolution below |
 | 2026-10-10 | FO-02 & FO-03 Placement-level authority and branch validation hardening | Front Office · Firestore Rules · Students | **PASS** | No | F-11 & §A2.7/§A2.8 closed at code/rules/emulator layer; 117/117 emulator tests pass; FO-02 closed; pending live rules deploy |
+| 2026-10-10 | OB-SEC-01 & OB-GOV-01/02 Directive completion authorization, reopen restriction & readiness wording | Office Boy · Facilities · Firestore Rules · Todos | **PASS** | No | 121/121 emulator tests pass; zero 1000-expression overflows; completed tasks read-only on OB dashboard |
 
 ---
 
@@ -641,6 +642,54 @@ Deployment Parity Verification:
     production project mylibertyies-f2f38.
   - Production live rules status: Not deployed by agent (requires manual operator execution:
     firebase deploy --only firestore:rules).
+```
+
+---
+
+## Evidence Record — 2026-10-10 (OB-SEC-01 & OB-GOV-01/02 Remediation)
+
+```text
+Change: 1) firestore.rules match /todos/{todoId} hardened with canUpdateTodo() and isTodoAssignee():
+           - Restricts completion (completed: true) to eligible assignees (all, uid, or role).
+           - Enforces self-attribution integrity (completedBy == request.auth.uid).
+           - Restricts reopening (completed: false) strictly to task creator or branch supervisors
+             (Executive, Manager, Ops Lead) and requires clearing completedBy.
+           - Factored out isDocSameBranch() to completely eliminate redundant 1000-expression overflows.
+        2) todosRepository.js: toggleTodoComplete falls back to auth?.currentUser when currentUser is omitted.
+        3) OfficeBoyDashboard.jsx:
+           - Changed stat card from misleading "Campus Readiness: All Clear" to "Active Tasks: None Pending".
+           - Removed unauthorized Undo2 reopen button and handleReopen handler; completed tasks rendered read-only.
+        4) Tests expanded:
+           - firestoreRules.emulator.test.js: 4 new suites covering positive/negative completion, forged attribution,
+             reopening restrictions, and branch boundary isolation (121 passed, 0 failed).
+           - todosRepository.test.js: test verifying auth.currentUser fallback.
+           - OfficeBoyDashboard.test.js: tests verifying stat card wording and absence of reopen button.
+
+Date: 2026-10-10
+Section: Office Boy & Facilities / Firestore Security Rules / Operational Directives
+Workflow: Daily facility checklist, task completion, supervisor reopening, branch isolation
+Tester / Agent: Pair programming agent under Kifry's authorization
+
+Risk classification (Playbook §9): HIGH-RISK — Firestore security rules + role authorization boundaries.
+
+Normal Test:
+  - Firestore rules emulator suite: npm run test:rules -> 121 passed, 0 failed.
+  - Workspace test suite: npm test -> 1,288 passed, 121 skipped, 0 failed (102 test files).
+  - ESLint: npm run lint -> 0 errors, 0 warnings.
+  - TypeScript: npm run typecheck (tsc --noEmit) -> 0 errors.
+  - Build: npm run build -> built cleanly in 655ms.
+
+Negative Authorization / Boundary Tests:
+  - Staff completing task assigned to different role or individual -> DENIED (assertFails).
+  - Staff attempting to forge completedBy with another user's UID or null -> DENIED (assertFails).
+  - Ordinary staff (Office Boy, Instructor) attempting to reopen task created by Manager -> DENIED (assertFails).
+  - Cross-branch task completion (Kota Gorontalo staff touching Bone Bolango task) -> DENIED (assertFails).
+  - Ordinary staff attempting to edit directive text or delete -> DENIED (assertFails).
+  - Authorized supervisor (Ops Lead, Manager) or task creator reopening task -> ALLOWED (assertSucceeds).
+
+Readiness & Governance Alignment:
+  - Office Boy dashboard displays "Active Tasks: None Pending" when empty; zero supervisory campus readiness claims.
+  - Completed directives list displays read-only audit log without undo/reopen controls.
 ```
 
 

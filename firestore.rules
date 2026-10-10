@@ -114,9 +114,9 @@ service cloud.firestore {
           : null);
     }
 
-    function isSameBranch(data) {
+    function isDocSameBranch(data) {
       let ub = userBranch();
-      return isExecutive() || (signedIn() && ub != null && (
+      return signedIn() && ub != null && (
         (data != null && 'branchId' in data && data.branchId == ub) ||
         (data != null && !('branchId' in data) && 'branch' in data && (
           (data.branch == 'Bone Bolango' && ub == 'bone_bolango') ||
@@ -126,7 +126,11 @@ service cloud.firestore {
           (data.branch == 'Kota Gorontalo' && ub == 'kota_gorontalo')
         )) ||
         (data != null && !('branchId' in data) && !('branch' in data) && ub == 'kota_gorontalo')
-      ));
+      );
+    }
+
+    function isSameBranch(data) {
+      return isExecutive() || isDocSameBranch(data);
     }
 
     // For `list` only: isSameBranch's no-branch-fields -> kota_gorontalo fallback
@@ -174,6 +178,55 @@ service cloud.firestore {
 
     function isDivisionAllowedForManager(data) {
       return isDivisionAllowedForBranchStaff(data);
+    }
+
+    function isTodoAssignee(data) {
+      let p = userProfile();
+      let r = p != null && ('role' in p) ? p.role : '';
+      return data != null && (
+        !('assignee' in data)
+        || data.assignee == 'all'
+        || data.assignee == request.auth.uid
+        || data.assignee == r
+        || (data.assignee == 'opslead' && r == 'ops_lead')
+        || (data.assignee == 'ops_lead' && r == 'opslead')
+        || (data.assignee == 'instructorleader' && r == 'instructor_leader')
+        || (data.assignee == 'instructor_leader' && r == 'instructorleader')
+      );
+    }
+
+    function canUpdateTodo() {
+      let p = userProfile();
+      let active = signedIn() && p != null && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'));
+      let r = active && ('role' in p) ? p.role : '';
+      let isSameBranchOrAll = isDocSameBranch(resource.data)
+        || (('branch' in resource.data) && (resource.data.branch == 'all' || resource.data.branch == 'All'))
+        || (('branchId' in resource.data) && resource.data.branchId == 'all');
+      return r in ['director', 'vice_director', 'admin']
+        || (
+          r in ['manager', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead']
+          && isSameBranchOrAll
+          && (
+            isDocSameBranch(request.resource.data)
+            || (('branch' in request.resource.data) && (request.resource.data.branch == 'all' || request.resource.data.branch == 'All'))
+            || (('branchId' in request.resource.data) && request.resource.data.branchId == 'all')
+          )
+        )
+        || (
+          r in ['instructor', 'instructorleader', 'instructor_leader', 'marketing', 'officeboy']
+          && isSameBranchOrAll
+          && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['completed', 'completedAt', 'completedBy', 'completedByName', 'updatedAt'])
+          && (
+            (request.resource.data.completed == true
+              && isTodoAssignee(resource.data)
+              && ('completedBy' in request.resource.data)
+              && request.resource.data.completedBy == request.auth.uid)
+            || (request.resource.data.completed == false
+              && (('createdBy' in resource.data) && resource.data.createdBy == request.auth.uid)
+              && (!('completedBy' in request.resource.data) || request.resource.data.completedBy == null))
+          )
+        );
     }
 
     // ── Ratified gate registry binding (actionId -> permitted approverRole) ──
@@ -657,17 +710,9 @@ service cloud.firestore {
       allow create, delete: if isExecutive()
         || ((isManager() || isFrontOffice()) && isSameBranch(request.resource.data));
       // Executives, Managers, and Front Office can update any directive field;
-      // other staff can only toggle completion status and attribution
-      allow update: if isExecutive()
-        || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isSameBranch(request.resource.data))
-        || (isStaff()
-            && (
-              isSameBranch(resource.data)
-              || (('branch' in resource.data) && (resource.data.branch == 'all' || resource.data.branch == 'All'))
-              || (('branchId' in resource.data) && resource.data.branchId == 'all')
-            )
-            && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['completed', 'completedAt', 'completedBy', 'completedByName', 'updatedAt']));
+      // other staff can only toggle completion status and attribution when assigned,
+      // and only creators or supervisors can reopen completed directives.
+      allow update: if canUpdateTodo();
     }
 
     match /attendance/{attendanceId} {

@@ -92,6 +92,31 @@ describe("toggleTodoComplete", () => {
       completedByName: null,
     });
   });
+
+  it("falls back to auth.currentUser when currentUser parameter is omitted", async () => {
+    const { auth } = await import("../../firebase");
+    Object.defineProperty(auth, "currentUser", {
+      value: { uid: "fallback_uid", displayName: "Fallback Staff" },
+      configurable: true,
+      writable: true,
+    });
+    try {
+      await toggleTodoComplete("t2", true);
+      const op = fake.find("todos/t2");
+      expect(op.kind).toBe("update");
+      expect(op.data).toMatchObject({
+        completed: true,
+        completedBy: "fallback_uid",
+        completedByName: "Fallback Staff",
+      });
+    } finally {
+      Object.defineProperty(auth, "currentUser", {
+        value: null,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
 });
 
 describe("updateTodo", () => {

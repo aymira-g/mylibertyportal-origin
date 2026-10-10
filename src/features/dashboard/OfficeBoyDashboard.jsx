@@ -7,7 +7,6 @@ import {
   Clock,
   ChevronDown,
   ChevronRight,
-  Undo2,
 } from "lucide-react";
 import { useStaffDirectives } from "../staff";
 import { getUrlAction, clearUrlAction } from "../../utils/urlAction";
@@ -66,18 +65,6 @@ export default function OfficeBoyDashboard() {
     }
   };
 
-  const handleReopen = async (taskId) => {
-    setProcessingId(taskId);
-    try {
-      await handleToggle(taskId, false);
-      toast("Task reopened.", "info");
-    } catch (err) {
-      toast("Error reopening task: " + err.message, "error");
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
   return (
     <div className="max-w-xl mx-auto space-y-4">
       <WelcomeBanner
@@ -92,8 +79,8 @@ export default function OfficeBoyDashboard() {
             icon: CheckSquare,
           },
           {
-            label: "Campus Readiness",
-            value: tasks.length === 0 ? "All Clear" : "Active Tasks",
+            label: "Active Tasks",
+            value: tasks.length === 0 ? "None Pending" : `${tasks.length} In Progress`,
             icon: Sparkles,
           },
         ]}
@@ -200,13 +187,6 @@ export default function OfficeBoyDashboard() {
                       Completed by {task.completedByName || "Staff"}
                     </p>
                   </div>
-                  <button
-                    onClick={() => handleReopen(task.id)}
-                    className="p-1.5 text-slate-400 hover:text-[#1a3a8f] rounded hover:bg-slate-200 transition"
-                    title="Reopen task"
-                  >
-                    <Undo2 className="w-3.5 h-3.5" />
-                  </button>
                 </div>
               ))}
             </div>

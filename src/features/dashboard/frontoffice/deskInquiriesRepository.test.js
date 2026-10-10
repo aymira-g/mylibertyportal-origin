@@ -90,6 +90,36 @@ describe("deskInquiriesRepository statuses", () => {
     expect(op.data.branchId).toBe("bone_bolango");
   });
 
+  it("sanitizes or resets currentLevel to empty string for course inquiries on creation (FO-03)", async () => {
+    const result = await createDeskInquiry({
+      parentName: "Parent One",
+      studentName: "Child One",
+      phone: "08123456789",
+      branch: "Kota Gorontalo",
+      division: "courses",
+      currentLevel: "master",
+    });
+
+    expect(result.currentLevel).toBe("");
+    const op = fake.opsOf("add").slice(-1)[0];
+    expect(op.data.currentLevel).toBe("");
+  });
+
+  it("preserves level or tier for kindergarten inquiries on creation", async () => {
+    const result = await createDeskInquiry({
+      parentName: "Parent One",
+      studentName: "Child One",
+      phone: "08123456789",
+      branch: "Kota Gorontalo",
+      division: "kindergarten",
+      currentLevel: "tk_a",
+    });
+
+    expect(result.currentLevel).toBe("tk_a");
+    const op = fake.opsOf("add").slice(-1)[0];
+    expect(op.data.currentLevel).toBe("tk_a");
+  });
+
   it("fetches recent desk inquiries scoped to branchId when provided", async () => {
     fake.seed("deskInquiries", [
       {

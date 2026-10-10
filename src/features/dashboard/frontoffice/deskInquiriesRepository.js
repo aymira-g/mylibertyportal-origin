@@ -79,11 +79,18 @@ export async function createDeskInquiry(inquiryData) {
   }
   const branchId = branchToId(rawBranch);
   const branch = idToBranch(branchId);
+  const isKindergarten = inquiryData?.division === "kindergarten";
+
+  // Placement level authority (FO-03 / OD-IL-ENF2): A new course inquiry cannot be
+  // created with a pre-set academic level. Level assignment must be recorded via
+  // addPlacementTestToInquiry (which verifies the score rubric or approved override).
+  const currentLevel = isKindergarten ? (inquiryData?.currentLevel || "") : "";
 
   const parseResult = deskInquirySchema.safeParse({
     ...inquiryData,
     branch,
     branchId,
+    currentLevel,
     createdAt: new Date().toISOString(),
     createdBy: currentUser?.uid || "frontoffice",
     createdByName: currentUser?.displayName || currentUser?.email || "Front Desk",

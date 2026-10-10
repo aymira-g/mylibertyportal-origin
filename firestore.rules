@@ -834,7 +834,11 @@ service cloud.firestore {
     match /deskInquiries/{inquiryId} {
       allow get: if isExecutive() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
       allow list: if isExecutive() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data));
-      allow create: if isExecutive() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(request.resource.data) && isDivisionAllowedForManager(request.resource.data));
+      // Placement level authority (FO-03 / OD-IL-ENF2): A course inquiry cannot be created
+      // with a graded academic level; placement levels must be assigned via an assessment score
+      // rubric or an approved PLACEMENT_LEVEL_OVERRIDE envelope.
+      allow create: if (isExecutive() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(request.resource.data) && isDivisionAllowedForManager(request.resource.data)))
+        && (!('currentLevel' in request.resource.data) || request.resource.data.currentLevel in ['', 'unassessed'] || (('division' in request.resource.data) && request.resource.data.division == 'kindergarten'));
       // Placement level authority (OD-IL-ENF2) needs headroom under the engine's
       // 1000-expression ceiling, and `isExecutive() || isManager() || isFrontOffice() ||
       // isStaff()` is exactly `isStaff()` (its role list is a superset of the other three,

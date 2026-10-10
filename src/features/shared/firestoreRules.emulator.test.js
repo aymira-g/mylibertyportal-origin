@@ -1953,6 +1953,41 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       ...over,
     });
 
+    it("refuses creating a course inquiry with an arbitrary pre-set currentLevel (FO-03)", async () => {
+      await assertFails(
+        addDoc(collection(authed("foGto"), "deskInquiries"), {
+          ...COURSE_INQUIRY,
+          currentLevel: "master",
+        })
+      );
+    });
+
+    it("allows creating a course inquiry with empty or unassessed currentLevel", async () => {
+      await assertSucceeds(
+        addDoc(collection(authed("foGto"), "deskInquiries"), {
+          ...COURSE_INQUIRY,
+          currentLevel: "",
+        })
+      );
+      await assertSucceeds(
+        addDoc(collection(authed("foGto"), "deskInquiries"), {
+          ...COURSE_INQUIRY,
+          currentLevel: "unassessed",
+        })
+      );
+    });
+
+    it("allows creating a kindergarten inquiry with tier-based currentLevel", async () => {
+      await assertSucceeds(
+        addDoc(collection(authed("foKgGto"), "deskInquiries"), {
+          studentName: "Little Kevin",
+          branchId: "kota_gorontalo",
+          division: "kindergarten",
+          currentLevel: "tk_a",
+        })
+      );
+    });
+
     it("lets an ordinary assessment set the level its own score implies", async () => {
       await seedDoc(["deskInquiries", "inq1"], COURSE_INQUIRY);
       await assertSucceeds(

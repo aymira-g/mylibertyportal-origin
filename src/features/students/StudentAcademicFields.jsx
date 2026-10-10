@@ -40,7 +40,9 @@ export default function StudentAcademicFields({ formData, field, setAcademicLeve
     };
     const updatedTests = [...placementTests, newTest];
     field("placementTests", updatedTests);
-    setAcademicLevel(testLevel);
+    if (!editId) {
+      setAcademicLevel(testLevel);
+    }
     setShowAddTest(false);
     setTestScore("");
     setTestNotes("");
@@ -234,8 +236,9 @@ export default function StudentAcademicFields({ formData, field, setAcademicLeve
               Fluency Tier &amp; Placement Level *
             </label>
             <p className="text-[11px] text-slate-500">
-              Determines eligible batches and cohort placement. Select a quick tier shortcut
-              or pick the exact track.
+              {editId
+                ? "Academic level is locked for enrolled students. Levels advance via term Progress Reports and evaluations."
+                : "Determines eligible batches and cohort placement. Select a quick tier shortcut or pick the exact track."}
             </p>
           </div>
           {formData.currentLevel && (
@@ -243,57 +246,69 @@ export default function StudentAcademicFields({ formData, field, setAcademicLeve
           )}
         </div>
 
-        {/* 3-Tier Shortcut Buttons */}
-        <div className="grid grid-cols-3 gap-2">
-          {TIER_KEYS.map((tierKey) => {
-            const tier = TIERS[tierKey];
-            const currentTier = getTier(formData.currentLevel);
-            const isSelected = currentTier === tierKey;
-            return (
-              <button
-                key={tierKey}
-                type="button"
-                onClick={() => {
-                  if (!tier.levels.includes(formData.currentLevel)) {
-                    setAcademicLevel(tier.levels[0]);
-                  }
-                }}
-                className={`p-3 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1 cursor-pointer ${
-                  isSelected
-                    ? "bg-[#1a3a8f] text-white border-[#1a3a8f] shadow-xs"
-                    : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-100"
-                }`}
-              >
-                <span className="text-sm font-black">{tier.starText}</span>
-                <span className="text-xs font-extrabold">{tier.label}</span>
-                <span
-                  className={`text-[10px] ${isSelected ? "text-indigo-200" : "text-slate-500"}`}
-                >
-                  {tier.levels.map((l) => LEVELS[l]?.label).join(" / ")}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        {editId ? (
+          <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-700">Enrolled Student Level:</span>
+            <div className="flex items-center gap-2">
+              <LevelBadge level={formData.currentLevel || "unassessed"} showStars={true} showTier={true} />
+              <span className="text-[10px] text-slate-400 font-semibold">(Promotion Gated)</span>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* 3-Tier Shortcut Buttons */}
+            <div className="grid grid-cols-3 gap-2">
+              {TIER_KEYS.map((tierKey) => {
+                const tier = TIERS[tierKey];
+                const currentTier = getTier(formData.currentLevel);
+                const isSelected = currentTier === tierKey;
+                return (
+                  <button
+                    key={tierKey}
+                    type="button"
+                    onClick={() => {
+                      if (!tier.levels.includes(formData.currentLevel)) {
+                        setAcademicLevel(tier.levels[0]);
+                      }
+                    }}
+                    className={`p-3 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                      isSelected
+                        ? "bg-[#1a3a8f] text-white border-[#1a3a8f] shadow-xs"
+                        : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span className="text-sm font-black">{tier.starText}</span>
+                    <span className="text-xs font-extrabold">{tier.label}</span>
+                    <span
+                      className={`text-[10px] ${isSelected ? "text-indigo-200" : "text-slate-500"}`}
+                    >
+                      {tier.levels.map((l) => LEVELS[l]?.label).join(" / ")}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
 
-        {/* Exact Level Track Dropdown */}
-        <div className="pt-1">
-          <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-            Specific Academic Track (Stored Level)
-          </label>
-          <select
-            value={formData.currentLevel || "warrior"}
-            onChange={(e) => setAcademicLevel(e.target.value)}
-            className="w-full p-2.5 border rounded-xl bg-white font-bold text-xs capitalize text-slate-800 focus:border-[#1a3a8f] outline-none"
-          >
-            {LEVEL_LIST.map((lvl) => (
-              <option key={lvl.id} value={lvl.id}>
-                {lvl.label} ({lvl.starText || "⭐".repeat(lvl.stars)} {TIERS[lvl.tier]?.label}
-                )
-              </option>
-            ))}
-          </select>
-        </div>
+            {/* Exact Level Track Dropdown */}
+            <div className="pt-1">
+              <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                Specific Academic Track (Stored Level)
+              </label>
+              <select
+                value={formData.currentLevel || "warrior"}
+                onChange={(e) => setAcademicLevel(e.target.value)}
+                className="w-full p-2.5 border rounded-xl bg-white font-bold text-xs capitalize text-slate-800 focus:border-[#1a3a8f] outline-none"
+              >
+                {LEVEL_LIST.map((lvl) => (
+                  <option key={lvl.id} value={lvl.id}>
+                    {lvl.label} ({lvl.starText || "⭐".repeat(lvl.stars)} {TIERS[lvl.tier]?.label}
+                    )
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

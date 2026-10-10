@@ -24,6 +24,9 @@ export {
   getStarText,
   getNextLevel,
   isCompatible,
+  UNASSESSED,
+  hasAssessedLevel,
+  resolveLevel,
 } from "./levels";
 export {
   PAYMENT_PLANS,

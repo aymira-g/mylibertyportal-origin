@@ -209,9 +209,9 @@ export default function StudentRoster({
   }, [pendingPromotions]);
 
   const handlePromote = async (student, report) => {
-    const nextLevel = getNextLevel(student.currentLevel || "warrior");
+    const nextLevel = report?.recommendedLevel || getNextLevel(student.currentLevel || "warrior");
     if (!nextLevel) {
-      toast(`${student.displayName || "Student"} is already at the highest level!`, "info");
+      toast(`${student.displayName || "Student"} has no higher level recommended!`, "info");
       return;
     }
 

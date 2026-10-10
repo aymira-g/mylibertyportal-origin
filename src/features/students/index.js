@@ -18,5 +18,7 @@ export {
   isActiveStudent,
   STUDENT_STATUS_MAP,
   STUDENT_STATUS_OPTIONS,
+  hasLevelProvenance,
+  getStudentLevelDisplay,
 } from "./studentRecord";
 export { createProgressReport, fetchInstructorProgressReports } from "./progressReportsRepository";

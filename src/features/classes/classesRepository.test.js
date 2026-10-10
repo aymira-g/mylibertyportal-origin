@@ -5,7 +5,6 @@ import {
   createClass,
   removeStudentFromClass,
   setClassGroupLevel,
-  syncStudentsCurrentLevel,
   transferStudentBetweenClasses,
   updateClass,
 } from "./classesRepository.js";
@@ -57,16 +56,23 @@ describe("transferStudentBetweenClasses", () => {
     });
   });
 
-  it("updates the student's own level to the target class level after the batch lands", async () => {
+  it("does NOT rewrite the student's assessed level when transferring between classes", async () => {
+    // Inverted 2026-10-10 (Phase 3 / F-11). This previously asserted
+    // `users/s1.currentLevel === "elite"`, encoding the authority inversion OD-FO-3 forbids:
+    // class placement overwriting the student's academic record. Class-side level now lives
+    // only on the class and its `enrollments` entries.
     await transferStudentBetweenClasses({
       sourceClass: source,
       targetClassId: "B",
       targetClass: target,
       studentId: "s1",
     });
-    await vi.waitFor(() =>
-      expect(fake.find("users/s1")).toMatchObject({ data: { currentLevel: "elite" } })
-    );
+    // No student-record write should have occurred at all.
+    const studentWrites = fake.opsOf("update").filter((o) => String(o.path).startsWith("users/"));
+    expect(studentWrites).toEqual([]);
+    // The class-side enrollment still records the target class level (that is correct and
+    // unchanged) — what must not happen is a write to the student's own record.
+    expect(fake.find("classes/B").data.enrollments.items[0].level).toBe("elite");
   });
 
   it("leaves transferReason out when it is blank", async () => {
@@ -304,18 +310,10 @@ describe("setClassGroupLevel", () => {
   });
 });
 
-describe("syncStudentsCurrentLevel", () => {
-  it("updates each student and swallows a failure for one of them", async () => {
-    fake.failWhen = (op) => (op.path === "users/s2" ? new Error("nope") : null);
-    await expect(syncStudentsCurrentLevel(["s1", "s2", "s3"], "elite")).resolves.toBeDefined();
-    expect(
-      fake
-        .opsOf("update")
-        .map((o) => o.path)
-        .sort()
-    ).toEqual(["users/s1", "users/s3"]);
-  });
-});
+// `syncStudentsCurrentLevel` was REMOVED in Phase 3 / F-11 — it wrote class levels onto
+// student academic records. Its test is deleted with it; the replacement guarantee is
+// asserted in "does NOT rewrite the student's assessed level when transferring between
+// classes" above.
 
 describe("createClass", () => {
   it("validates and saves a valid class batch to classes collection", async () => {

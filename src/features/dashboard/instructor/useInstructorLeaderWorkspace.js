@@ -10,6 +10,7 @@ import {
   buildDivisionBreakdown,
   buildInstructorWorkload,
   countUniqueStudents,
+  findClassLevelMismatches,
   findCoverageExceptions,
   isLiveClass,
   resolveClassDivision,
@@ -39,7 +40,7 @@ const STALE_PROGRESS_DAYS = 30;
  */
 export function useInstructorLeaderWorkspace({ role = "", branch = "" } = {}) {
   const workspace = useInstructorWorkspace({ role, branch });
-  const { effectiveBranch, allClasses } = workspace;
+  const { effectiveBranch, allClasses, students } = workspace;
 
   // Owned here rather than by the dashboard because the pending-approval queue must
   // be scoped to the RESOLVED branch, which only exists after the profile loads.
@@ -149,6 +150,11 @@ export function useInstructorLeaderWorkspace({ role = "", branch = "" } = {}) {
     [attendance.rows]
   );
 
+  const levelMismatches = useMemo(
+    () => findClassLevelMismatches(allClasses, students || []),
+    [allClasses, students]
+  );
+
   const attentionItems = useMemo(
     () =>
       buildAttentionItems({
@@ -156,8 +162,17 @@ export function useInstructorLeaderWorkspace({ role = "", branch = "" } = {}) {
         pendingApprovalsCount,
         progressCoverage: reportsError ? undefined : progressCoverage,
         attendance: attendance.rows.length > 0 ? attendanceSummary : undefined,
+        levelMismatchesCount: levelMismatches.length,
       }),
-    [coverage, pendingApprovalsCount, progressCoverage, reportsError, attendance.rows.length, attendanceSummary]
+    [
+      coverage,
+      pendingApprovalsCount,
+      progressCoverage,
+      reportsError,
+      attendance.rows.length,
+      attendanceSummary,
+      levelMismatches.length,
+    ]
   );
 
   const loadAttendance = useCallback(
@@ -219,6 +234,7 @@ export function useInstructorLeaderWorkspace({ role = "", branch = "" } = {}) {
     instructorWorkload,
     progressCoverage,
     attentionItems,
+    levelMismatches,
     pendingApprovalsCount,
 
     // on-demand attendance monitoring

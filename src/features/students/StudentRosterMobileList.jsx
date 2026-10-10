@@ -9,7 +9,12 @@ import {
   Shield,
 } from "lucide-react";
 import { getNextLevel } from "../shared";
-import { isActiveStudent, STUDENT_STATUS_OPTIONS } from "./studentRecord";
+import {
+  isActiveStudent,
+  STUDENT_STATUS_OPTIONS,
+  hasLevelProvenance,
+  getStudentLevelDisplay,
+} from "./studentRecord";
 import {
   getInitials,
   getStudentPlanLabel,
@@ -53,7 +58,9 @@ export default function StudentRosterMobileList({
             health.status === "pending") &&
           (s.parentPhone || s.phone);
         const pendingPromotion = pendingPromotionsMap[s.id];
-        const nextLevel = pendingPromotion ? getNextLevel(s.currentLevel || "warrior") : null;
+        const nextLevel = pendingPromotion
+          ? pendingPromotion.recommendedLevel || getNextLevel(s.currentLevel || "warrior")
+          : null;
 
         return (
           <article
@@ -104,8 +111,15 @@ export default function StudentRosterMobileList({
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <p className="text-[11px] font-mono text-slate-400">ID: {s.id.slice(0, 10)}</p>
                     {s.currentLevel && (
-                      <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-100 uppercase">
-                        {s.currentLevel}
+                      <span
+                        className={`text-[10px] font-bold px-1.5 py-0.2 rounded border uppercase ${
+                          !hasLevelProvenance(s)
+                            ? "text-slate-600 bg-slate-50 border-slate-200"
+                            : "text-indigo-700 bg-indigo-50 border-indigo-100"
+                        }`}
+                        title={!hasLevelProvenance(s) ? "Academic level has not yet been verified by formal assessment" : undefined}
+                      >
+                        {getStudentLevelDisplay(s)}
                       </span>
                     )}
                   </div>

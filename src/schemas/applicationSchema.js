@@ -3,6 +3,7 @@ import { normalizeBranch, branchToId } from "../constants/branches.js";
 import { normalizeProgram } from "../constants/programs.js";
 import { divisionOfProgram } from "../constants/divisions.js";
 import { normalizeBatchType } from "../constants/batchTypes.js";
+import { UNASSESSED } from "../constants/levels.js";
 import { placementTestItemSchema } from "./deskInquirySchema.js";
 
 export const applicationSchema = z
@@ -39,7 +40,9 @@ export const applicationSchema = z
     parentPhone: z.string().trim().optional().default(""),
     photoURL: z.string().trim().optional().default(""),
     referralSource: z.string().trim().optional().default(""),
-    currentLevel: z.string().trim().optional().default("warrior"),
+    // No fabricated default (Phase 3 / F-11): an applicant has not been assessed at
+    // application time, so the honest value is the explicit UNASSESSED sentinel.
+    currentLevel: z.string().trim().optional().default(UNASSESSED),
     placementTests: z
       .preprocess((v) => (Array.isArray(v) ? v : []), z.array(placementTestItemSchema))
       .optional()

@@ -180,6 +180,8 @@ The `users` delete clause is not a `get()`-bearing predicate and the change does
 
 Nothing else from F-01 is outstanding. Still open, in the order Phase 0 recommended:
 
+- **F-15** (S1, **new** — see [`00-phase0-audit.md`](./00-phase0-audit.md) §11) — a failed inquiry save is reported to staff as a successful save that is *"safely stored"*, and the prospect is routed into enrolment anyway. **This is now the highest-severity open finding** and its first step is diagnostic: determine whether `deskInquiries` writes are actually denied in production.
+- **F-16 / F-17** (new) — prospect PII persists in `localStorage` with no retention or logout cleanup, and local-only inquiries are invisible to every role except the Front Office tab.
 - **F-03** (blocking) — the three G-007 gates: `opslead`-only, or both roles. Requires an owner decision.
 - **F-11** — which `currentLevel` changes are authoritative. Requires an owner decision.
 - **F-02** — wire `activeShift` so the drawer-count control is reachable; add `limit(1)`; decide whether `/kiosk/staff` may close a cashier shift without a drawer count.

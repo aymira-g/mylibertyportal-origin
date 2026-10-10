@@ -1,12 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { buildStudentRecord, isActiveStudent, STUDENT_STATUS_OPTIONS } from "./studentRecord.js";
+import {
+  buildStudentRecord,
+  isActiveStudent,
+  STUDENT_STATUS_OPTIONS,
+  hasLevelProvenance,
+  getStudentLevelDisplay,
+} from "./studentRecord.js";
 
 describe("buildStudentRecord", () => {
   it("fills safe defaults for an empty form", () => {
     const r = buildStudentRecord();
     expect(r).toMatchObject({
       displayName: "",
-      currentLevel: "warrior",
+      // Phase 3 / F-11: no fabricated "warrior" default. An unassessed student is stated
+      // as such, so their level is distinguishable from a genuine beginner placement.
+      currentLevel: "unassessed",
       rating: "1",
       paymentPlan: "monthly",
       status: "active",
@@ -147,5 +155,41 @@ describe("STUDENT_STATUS_OPTIONS", () => {
       "inactive",
       "archived",
     ]);
+  });
+});
+
+describe("hasLevelProvenance & getStudentLevelDisplay", () => {
+  it("recognizes non-default levels as provenanced", () => {
+    expect(hasLevelProvenance({ currentLevel: "master" })).toBe(true);
+    expect(hasLevelProvenance({ currentLevel: "epic" })).toBe(true);
+    expect(getStudentLevelDisplay({ currentLevel: "master" })).toBe("master");
+  });
+
+  it("marks default levels without placement tests as unverified", () => {
+    expect(hasLevelProvenance({ currentLevel: "warrior" })).toBe(false);
+    expect(hasLevelProvenance({ currentLevel: "nursery" })).toBe(false);
+    expect(getStudentLevelDisplay({ currentLevel: "warrior" })).toBe("warrior (unverified)");
+  });
+
+  it("marks default levels WITH placement tests or report as provenanced", () => {
+    const assessed = {
+      currentLevel: "warrior",
+      placementTests: [{ score: 55, assessedLevel: "warrior" }],
+    };
+    expect(hasLevelProvenance(assessed)).toBe(true);
+    expect(getStudentLevelDisplay(assessed)).toBe("warrior");
+
+    const reportStudent = {
+      currentLevel: "warrior",
+      lastAssessmentDate: "2026-09-01",
+    };
+    expect(hasLevelProvenance(reportStudent)).toBe(true);
+    expect(getStudentLevelDisplay(reportStudent)).toBe("warrior");
+  });
+
+  it("handles unassessed or null student gracefully", () => {
+    expect(hasLevelProvenance(null)).toBe(false);
+    expect(hasLevelProvenance({ currentLevel: "unassessed" })).toBe(false);
+    expect(getStudentLevelDisplay({ currentLevel: "unassessed" })).toBe("unassessed");
   });
 });

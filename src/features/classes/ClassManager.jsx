@@ -1,10 +1,9 @@
 import { useState, useMemo } from "react";
-import { useToast, useConfirm } from "../shared";
+import { useToast, useConfirm, hasAssessedLevel } from "../shared";
 import {
   deleteClass,
   addStudentToClass,
   removeStudentFromClass,
-  syncStudentsCurrentLevel,
 } from "./classesRepository";
 import AvailableBatches from "./AvailableBatches";
 import BatchModal from "./BatchModal";
@@ -106,7 +105,13 @@ export default function ClassManager({
     const targetLevel = cls?.classLevel || "warrior";
     const student = users.find((u) => u.id === studentId);
 
-    if (student?.currentLevel && student.currentLevel !== targetLevel) {
+    // Only warn when the student HAS an assessed level that conflicts with the class.
+    // An unassessed student has nothing to mismatch against, and saying "recorded at
+    // level unassessed" would be noise (Phase 3 / F-11).
+    if (
+      hasAssessedLevel(student?.currentLevel) &&
+      student.currentLevel !== targetLevel
+    ) {
       if (
         !(await confirm(
           `${student.displayName} is recorded at level "${student.currentLevel}", but this class is "${targetLevel}".\n\nEnroll anyway?`
@@ -122,7 +127,9 @@ export default function ClassManager({
         dateJoined: dateJoined || todayWita(),
         level: targetLevel,
       });
-      await syncStudentsCurrentLevel([studentId], targetLevel);
+      // The student's assessed level is deliberately NOT written here. Class placement
+      // and assessed level are separate concepts: enrollment used to overwrite the
+      // academic record with the class level via syncStudentsCurrentLevel (F-11).
       toast("Student enrolled successfully!", "success");
       return true;
     } catch (err) {

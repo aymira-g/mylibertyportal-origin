@@ -44,7 +44,7 @@ All decisions below were reviewed and ratified by the Owner (Kifry) on **2026-10
 - **Implementation Status:**
   - **COMPLETED & VERIFIED in Phase 1** (commit pending).
   - Client: Removed `handleDelete` destructuring and prop from `FrontOfficeDashboard.jsx` and `KidsFrontOfficeDashboard.jsx`. Roster renders no delete control for front desk personnel.
-  - Rules: `firestore.rules:521` replaced `isFrontDeskStaff()` with `isAdmin() && !(resource.data.role in ['director', 'vice_director', 'admin'])`.
+  - Rules: the `users` delete clause (then at `firestore.rules:521`, now `:534`) replaced `isFrontDeskStaff()` with `isAdmin() && !(resource.data.role in ['director', 'vice_director', 'admin'])`.
   - Automated tests: 111 rules emulator tests passed. Front desk profile deletion denied; Admin non-executive deletion permitted.
 
 ---

@@ -3,7 +3,6 @@ import { UserPlus, ArrowRightLeft, X } from "lucide-react";
 import { LevelBadge, isCompatible, useToast } from "../shared";
 import {
   addStudentToClass,
-  syncStudentsCurrentLevel,
   transferStudentBetweenClasses,
 } from "./classesRepository";
 import { todayWita } from "../../utils/dateWita.js";
@@ -107,7 +106,8 @@ export default function EnrollModal({
           dateJoined: effectiveDate,
           level: targetLevel,
         });
-        await syncStudentsCurrentLevel([selectedStudentId], targetLevel);
+        // The student's assessed level is deliberately NOT written here (Phase 3 / F-11).
+        // Class placement no longer overwrites the academic record.
         toast(
           `Enrolled "${selectedStudent?.displayName || "Student"}" into ${batch.className}!`,
           "success"

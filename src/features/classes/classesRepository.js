@@ -26,16 +26,11 @@ import { branchToId, idToBranch } from "../../constants/branches.js";
  * are unchanged for now — same pattern, applied one domain at a time.
  */
 
-// Single source of truth for "these students just got assigned this
-// level" — used by class creation, adding a student to an existing class,
-// and bulk group-level changes below. Errors are swallowed per-student
-// (same behavior as before this was pulled out of ClassManager) so one
-// failed write doesn't block the class-side change that already succeeded.
-export function syncStudentsCurrentLevel(studentIds, level) {
-  return Promise.all(
-    studentIds.map((id) => updateDoc(doc(db, "users", id), { currentLevel: level }).catch(() => {}))
-  );
-}
+// NOTE (Phase 3 / F-11): `syncStudentsCurrentLevel(studentIds, level)` was REMOVED here.
+// It wrote the target class's level onto every enrolled student's `users.currentLevel`,
+// inverting the authority OD-FO-3 ratifies: a student's level is an academic fact owned
+// by instructor assessment and recorded placement, never a side effect of class placement.
+// Class-side level lives on the class and in its `enrollments` entries.
 
 export async function createClass(classData) {
   const validated = batchSchema.parse(classData);
@@ -149,8 +144,6 @@ export async function transferStudentBetweenClasses({
     throw new Error("Cannot transfer a student to the same class.");
   }
 
-  let finalTargetLevel = newLevel;
-
   await runTransaction(db, async (tx) => {
     const sourceRef = doc(db, "classes", sourceClassId);
     const targetRef = doc(db, "classes", targetClassId);
@@ -191,7 +184,6 @@ export async function transferStudentBetweenClasses({
 
     // 2. Add student to target class
     const targetLevel = newLevel || liveTarget.classLevel || liveSource.classLevel || "warrior";
-    finalTargetLevel = targetLevel;
     const enrollmentRecord = {
       studentId,
       dateJoined: dateTransferred,
@@ -209,8 +201,9 @@ export async function transferStudentBetweenClasses({
     });
   });
 
-  // 3. Sync student user currentLevel if target class level is defined
-  if (finalTargetLevel) {
-    syncStudentsCurrentLevel([studentId], finalTargetLevel).catch(() => {});
-  }
+  // NOTE (Phase 3 / F-11): this function deliberately does NOT write the student's
+  // `currentLevel`. Class placement and assessed level are separate concepts; the
+  // enrollment record above already carries the class-side `level`. The previous
+  // syncStudentsCurrentLevel() call here overwrote the academic record with the class
+  // level, which is the authority inversion OD-FO-3 forbids.
 }

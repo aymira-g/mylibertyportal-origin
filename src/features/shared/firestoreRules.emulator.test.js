@@ -605,6 +605,79 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       await assertSucceeds(updateDoc(doc(authed("insGto"), "users", "insGto"), { displayName: "Rina S." }));
       await assertFails(updateDoc(doc(authed("insGto"), "users", "insGto"), { level: "Advanced" }));
     });
+
+    // ---------------------------------------------------------------------
+    // F-11 CLOSED — Front Office and Manager level-write capability revoked
+    //
+    // Following owner ratification of OD-FO-3 (Q3), `level` and `currentLevel`
+    // have been removed from the `(isFrontDeskStaff() || isManager())` student
+    // update allow-list. Neither front desk staff nor division managers may
+    // directly mutate academic levels.
+    // ---------------------------------------------------------------------
+    it("PREVENTS F-11 BYPASS: Front Office and Manager cannot write student levels", async () => {
+      // Front office cannot write canonical levels directly
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "users", "student1"), {
+          currentLevel: "elite",
+          rating: "5",
+        })
+      );
+
+      // Arbitrary, non-canonical values are denied
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "users", "student1"), { currentLevel: "q" })
+      );
+
+      // The legacy `level` field is equally denied
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "users", "student1"), { level: "Advanced" })
+      );
+
+      // Managers are equally denied per confirmed Q3 decision
+      await assertFails(
+        updateDoc(doc(authed("mgrGto"), "users", "student1"), { currentLevel: "master" })
+      );
+    });
+
+    it("PREVENTS F-11 BYPASS: the class-level sync fan-out write is denied to Front Office", async () => {
+      // classesRepository.syncStudentsCurrentLevel() fan-out shape is denied at rules layer.
+      await seedDoc(["users", "syncStudentA"], {
+        role: "student",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        displayName: "Sync A",
+      });
+      await seedDoc(["users", "syncStudentB"], {
+        role: "student",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        displayName: "Sync B",
+      });
+
+      // Front Office writing student levels during cohort sync is rejected
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "users", "syncStudentA"), { currentLevel: "warrior" })
+      );
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "users", "syncStudentB"), { currentLevel: "warrior" })
+      );
+    });
+
+    it("confirms the level gap is about authority over the value, not scope", async () => {
+      // The enrolled path IS gated (PLACEMENT_LEVEL_OVERRIDE, OD-IL-ENF2): deskInquiries
+      // updates require a score-implied level or an approved envelope. The users path
+      // asserted above has no equivalent. This pair is the finding in one comparison.
+      //
+      // Branch and division boundaries still hold on the users path, so the gap is
+      // narrower than "Front Office can do anything" — it is specifically that the
+      // level VALUE carries no authority in the rules.
+      await assertFails(
+        updateDoc(doc(authed("foBoba"), "users", "student1"), { currentLevel: "elite" })
+      );
+      await assertFails(
+        updateDoc(doc(authed("foKg"), "users", "student1"), { currentLevel: "elite" })
+      );
+    });
   });
 
   describe("shifts kiosk flow (C3 guard, H2 autoClosed)", () => {

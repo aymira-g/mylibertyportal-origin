@@ -1,6 +1,6 @@
 import { useState, useMemo, Fragment } from "react";
 import { LevelBadge, LEVELS, LEVEL_KEYS, exportTableCSV } from "../shared";
-import { setClassGroupLevel, syncStudentsCurrentLevel } from "./classesRepository";
+import { setClassGroupLevel } from "./classesRepository";
 import BatchCard from "./BatchCard";
 import { CohortRosterMobileList } from "./CohortRosterMobileList";
 import { Search, Download, ChevronDown, ChevronRight } from "lucide-react";
@@ -142,8 +142,9 @@ export default function CohortRosterTable({
   const handleSetGroupLevel = async (group, level) => {
     try {
       await setClassGroupLevel(group.items, level);
-      const studentIds = [...new Set(group.items.flatMap((cls) => cls.studentIds || []))];
-      await syncStudentsCurrentLevel(studentIds, level);
+      // Deliberately no syncStudentsCurrentLevel here (Phase 3 / F-11): changing a cohort's
+      // level is a CLASS-side decision and must not rewrite each member's assessed level.
+      // The student's academic record is owned by instructor assessment.
       setEditingLevelKey(null);
       if (toast) toast("Cohort level updated!", "success");
     } catch (err) {

@@ -89,6 +89,7 @@ export default function InstructorLeaderDashboard({ role = "", branch = "" }) {
     instructorWorkload,
     progressCoverage,
     attentionItems,
+    levelMismatches,
     pendingApprovalsCount,
     attendance,
     attendanceSummary,
@@ -149,6 +150,7 @@ export default function InstructorLeaderDashboard({ role = "", branch = "" }) {
         <ClassesCoverage
           classes={allClasses}
           branchInstructors={branchInstructors}
+          levelMismatches={levelMismatches}
           loading={loading}
           error={error}
           onNavigate={setActiveTab}

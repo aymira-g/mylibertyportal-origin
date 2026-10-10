@@ -9,11 +9,10 @@ import {
   CheckCircle,
   Search,
 } from "lucide-react";
-import { LevelBadge, useToast, isCompatible } from "../shared";
+import { LevelBadge, useToast, isCompatible, hasAssessedLevel } from "../shared";
 import {
   transferStudentBetweenClasses,
   addStudentToClass,
-  syncStudentsCurrentLevel,
 } from "./classesRepository";
 import { todayWita } from "../../utils/dateWita.js";
 
@@ -88,7 +87,7 @@ export default function TransferModal({
 
   const levelMismatch = Boolean(
     selectedTargetClass &&
-    student?.currentLevel &&
+    hasAssessedLevel(student?.currentLevel) &&
     !isCompatible(student.currentLevel, selectedTargetClass)
   );
 
@@ -132,7 +131,7 @@ export default function TransferModal({
           dateJoined: effectiveDate,
           level: targetLevel,
         });
-        await syncStudentsCurrentLevel([student.id], targetLevel);
+        // No student-level sync (Phase 3 / F-11) — see classesRepository.js.
 
         toast(
           `Enrolled "${student.displayName || "Student"}" into ${selectedTargetClass.className}!`,

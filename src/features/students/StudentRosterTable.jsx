@@ -11,7 +11,12 @@ import {
   Shield,
 } from "lucide-react";
 import { getNextLevel } from "../shared";
-import { isActiveStudent, STUDENT_STATUS_OPTIONS } from "./studentRecord";
+import {
+  isActiveStudent,
+  STUDENT_STATUS_OPTIONS,
+  hasLevelProvenance,
+  getStudentLevelDisplay,
+} from "./studentRecord";
 import {
   getInitials,
   getStudentPlanLabel,
@@ -152,7 +157,9 @@ export default function StudentRosterTable({
                 health.status === "pending") &&
               (s.parentPhone || s.phone);
             const pendingPromotion = pendingPromotionsMap[s.id];
-            const nextLevel = pendingPromotion ? getNextLevel(s.currentLevel || "warrior") : null;
+            const nextLevel = pendingPromotion
+              ? pendingPromotion.recommendedLevel || getNextLevel(s.currentLevel || "warrior")
+              : null;
 
             return (
               <tr key={s.id} className="hover:bg-slate-50/60 transition group">
@@ -183,8 +190,15 @@ export default function StudentRosterTable({
                           ID: {s.id.slice(0, 10)}
                         </span>
                         {s.currentLevel && (
-                          <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-100 uppercase">
-                            {s.currentLevel}
+                          <span
+                            className={`text-[9px] font-bold px-1.5 py-0.2 rounded border uppercase ${
+                              !hasLevelProvenance(s)
+                                ? "text-slate-600 bg-slate-50 border-slate-200"
+                                : "text-indigo-700 bg-indigo-50 border-indigo-100"
+                            }`}
+                            title={!hasLevelProvenance(s) ? "Academic level has not yet been verified by formal assessment" : undefined}
+                          >
+                            {getStudentLevelDisplay(s)}
                           </span>
                         )}
                       </div>

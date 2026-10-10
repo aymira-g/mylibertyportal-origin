@@ -21,6 +21,7 @@ import {
   matchesDivisionFilter,
 } from "../../constants/divisions";
 import { getProgram, normalizeProgram } from "../../constants/programs";
+import { UNASSESSED, hasAssessedLevel } from "../../constants/levels";
 import { isInstructorRole, normalizeRole, isExecutiveRole } from "../shared/roles";
 import { useUserProfile } from "../shared/useUserProfile";
 
@@ -39,7 +40,7 @@ const emptyFormData = {
   joinedDate: "",
   parentName: "",
   parentPhone: "",
-  currentLevel: "warrior",
+  currentLevel: UNASSESSED,
   placementTests: [],
   inquiryId: "",
   rating: "1",
@@ -392,7 +393,9 @@ export function useDashboardData({
           parentPhone: formData.parentPhone,
           referralSource: formData.referralSource,
           photoURL: formData.photoURL,
-          currentLevel: formData.currentLevel || "warrior",
+          // Preserve the assessed level verbatim. Never fabricate a default (Phase 3 / F-11):
+          // a fabricated "warrior" is indistinguishable from a real beginner placement.
+          currentLevel: hasAssessedLevel(formData.currentLevel) ? formData.currentLevel : UNASSESSED,
           placementTests: Array.isArray(formData.placementTests) ? formData.placementTests : [],
           inquiryId: formData.inquiryId || "",
           rating: formData.rating,
@@ -552,7 +555,9 @@ export function useDashboardData({
       program:
         defaultProg?.label ||
         (isKindergarten ? "Kids School (Kindergarten)" : "English Course"),
-      currentLevel: isKindergarten ? "nursery" : "warrior",
+      // New students start unassessed. The level is set by an instructor assessment or a
+      // recorded placement test, never by the registration form (Phase 3 / F-11).
+      currentLevel: UNASSESSED,
       paymentPlan: "monthly",
       status: "active",
       ...prefill,
@@ -583,7 +588,7 @@ export function useDashboardData({
       joinedDate: user.joinedDate || "",
       parentName: user.parentName || user.fatherName || user.motherName || "",
       parentPhone: user.parentPhone || user.fatherPhone || user.motherPhone || "",
-      currentLevel: user.currentLevel || "warrior",
+      currentLevel: hasAssessedLevel(user.currentLevel) ? user.currentLevel : UNASSESSED,
       placementTests: Array.isArray(user.placementTests) ? user.placementTests : [],
       inquiryId: user.inquiryId || "",
       paymentPlan: user.paymentPlan || "monthly",

@@ -2,6 +2,7 @@ import { normalizeBranch, branchToId } from "../../constants/branches.js";
 import { normalizeProgram, getProgram } from "../../constants/programs.js";
 import { divisionOfProgram } from "../../constants/divisions.js";
 import { normalizeBatchType } from "../../constants/batchTypes.js";
+import { UNASSESSED, hasAssessedLevel } from "../../constants/levels.js";
 
 function clean(value) {
   return (value || "").toString().trim();
@@ -64,7 +65,9 @@ export function buildStudentRecord(fields = {}) {
     parentPhone: fatherPhone || motherPhone || clean(fields.parentPhone),
     photoURL: clean(fields.photoURL),
     referralSource: clean(fields.referralSource),
-    currentLevel: clean(fields.currentLevel) || "warrior",
+    // Never default a fabricated level (Phase 3 / F-11). An unassessed student is
+    // explicitly UNASSESSED, which is distinguishable from a genuine beginner placement.
+    currentLevel: hasAssessedLevel(clean(fields.currentLevel)) ? clean(fields.currentLevel) : UNASSESSED,
     placementTests: Array.isArray(fields.placementTests) ? fields.placementTests : [],
     inquiryId: clean(fields.inquiryId),
     rating: fields.rating || "1",
@@ -96,3 +99,48 @@ export function isActiveStudent(student) {
   if (!student) return false;
   return (student.status || "active") === "active";
 }
+
+/**
+ * Evaluates whether a student's academic level has documented assessment provenance.
+ *
+ * Provenance is derived at read time (OD-FO-3 / Phase 3 Q5):
+ * - If holding UNASSESSED or missing, returns false (not assessed).
+ * - If holding an advanced/non-default level (elite, master, grandmaster, epic), returns true.
+ * - If holding the legacy intake default ("warrior" / "nursery"):
+ *   - Returns true IF supported by recorded placement tests (placementTests.length > 0)
+ *     or progress reports.
+ *   - Returns false (unverified) IF neither assessment record exists.
+ *
+ * @param {any} student
+ * @returns {boolean}
+ */
+export function hasLevelProvenance(student) {
+  if (!student) return false;
+  const level = (student.currentLevel || "").toLowerCase();
+  if (!hasAssessedLevel(level)) return false;
+
+  const isDefaultLevel = level === "warrior" || level === "nursery";
+  if (!isDefaultLevel) return true;
+
+  const hasPlacement = Array.isArray(student.placementTests) && student.placementTests.length > 0;
+  const hasReport = Boolean(student.lastAssessmentDate || student.progressReportId || student.assessedAt);
+
+  return hasPlacement || hasReport;
+}
+
+/**
+ * Returns a display-safe descriptor of the student's level.
+ *
+ * @param {any} student
+ * @returns {string}
+ */
+export function getStudentLevelDisplay(student) {
+  if (!student) return "";
+  const level = student.currentLevel;
+  if (!hasAssessedLevel(level)) return "unassessed";
+  if (!hasLevelProvenance(student)) {
+    return `${level} (unverified)`;
+  }
+  return level;
+}
+

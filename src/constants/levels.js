@@ -47,6 +47,41 @@ export const LEVELS = {
 export const LEVEL_KEYS = Object.keys(LEVELS);
 export const LEVEL_LIST = Object.values(LEVELS);
 
+/**
+ * Explicit "not yet assessed" sentinel for `currentLevel`.
+ *
+ * Deliberately NOT a member of LEVELS / LEVEL_LIST, so ladder helpers
+ * (`getNextLevel`) return null for it by construction rather than by special case.
+ *
+ * Why an explicit sentinel instead of a missing field (OD-FO-3 / Phase 3, F-11):
+ * level is an academic fact owned by instructors and recorded assessments. Previously
+ * every student was seeded with a fabricated default ("warrior" / "nursery"), which is
+ * indistinguishable from a genuine beginner placement. "unassessed" states the truth.
+ *
+ * HAZARD: this is a TRUTHY string, so it defeats every `currentLevel || "warrior"`
+ * fallback in the codebase. Always read levels through `hasAssessedLevel()`.
+ */
+export const UNASSESSED = "unassessed";
+
+/**
+ * True only when `level` represents a real assessment outcome.
+ *
+ * The single predicate every level read should route through. See UNASSESSED.
+ */
+export function hasAssessedLevel(level) {
+  return Boolean(level) && level !== UNASSESSED;
+}
+
+/**
+ * Resolve a stored level to a valid LEVELS key, or null when unassessed/unknown.
+ *
+ * Use this wherever a caller previously wrote `currentLevel || "warrior"` — that
+ * fallback silently relabels an unassessed student as a beginner.
+ */
+export function resolveLevel(level) {
+  return hasAssessedLevel(level) && LEVELS[level] ? level : null;
+}
+
 export const TIERS = {
   beginner: {
     id: "beginner",
@@ -85,10 +120,12 @@ import {
 } from "./programs.js";
 
 export function getTier(level) {
+  if (!hasAssessedLevel(level)) return null;
   return LEVELS[level]?.tier || null;
 }
 
 export function getStars(level) {
+  if (!hasAssessedLevel(level)) return null;
   return LEVELS[level]?.stars || null;
 }
 
@@ -99,6 +136,7 @@ export function getStarText(level) {
 }
 
 export function getNextLevel(level) {
+  if (!hasAssessedLevel(level)) return null;
   const current = LEVELS[level];
   if (!current) return null;
   const next = LEVEL_LIST.find((lvl) => lvl.order === current.order + 1);
@@ -141,7 +179,8 @@ export function recommendLevelFromScore(score, { isKindergarten = false } = {}) 
  * If studentProgram is provided, student and batch must belong to the same program.
  */
 export function isCompatible(studentLevel, batch, studentProgram = null) {
-  if (!studentLevel || !batch) return true;
+  if (!batch || Object.keys(batch).length === 0) return true;
+  if (!hasAssessedLevel(studentLevel)) return false;
 
   const batchProg = getBatchProgram(batch);
 
@@ -153,7 +192,7 @@ export function isCompatible(studentLevel, batch, studentProgram = null) {
   }
 
   const studentLvlObj = getProgramLevel(batchProg, studentLevel) || LEVELS[studentLevel];
-  if (!studentLvlObj) return true;
+  if (!studentLvlObj) return false;
 
   const studentOrder = studentLvlObj.order;
 

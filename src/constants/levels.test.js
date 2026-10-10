@@ -8,6 +8,7 @@ import {
   LEVEL_KEYS,
   LEVELS,
   TIERS,
+  UNASSESSED,
 } from "./levels.js";
 
 describe("level data", () => {
@@ -48,11 +49,21 @@ describe("level helpers", () => {
 });
 
 describe("isCompatible", () => {
-  it("allows anything when there is nothing to compare", () => {
-    expect(isCompatible(undefined, { classLevel: "epic" })).toBe(true);
+  it("treats a missing or unassessed student level as NOT comparable to a class", () => {
+    // Inverted 2026-10-10 (Phase 3 / F-11). This previously returned `true` for an absent or
+    // unknown level, which meant an unassessed student silently matched EVERY class and the
+    // enrollment mismatch warning never fired. A silent wrong answer is worse than a prompt.
+    expect(isCompatible(undefined, { classLevel: "epic" })).toBe(false);
+    expect(isCompatible(UNASSESSED, { classLevel: "epic" })).toBe(false);
+    expect(isCompatible("", { classLevel: "epic" })).toBe(false);
+    expect(isCompatible("unknown-level", { classLevel: "epic" })).toBe(false);
+  });
+
+  it("allows anything when there is no class to compare against", () => {
+    // Unchanged: a missing batch is a different question from a missing student level.
     expect(isCompatible("elite", null)).toBe(true);
-    expect(isCompatible("unknown-level", { classLevel: "epic" })).toBe(true);
     expect(isCompatible("elite", {})).toBe(true);
+    expect(isCompatible(UNASSESSED, null)).toBe(true);
   });
 
   it("requires an exact match when the batch only has classLevel", () => {

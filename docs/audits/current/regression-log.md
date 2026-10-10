@@ -475,6 +475,9 @@ enrollment/parent cascade intact.
   (`:514`) declared with no parameters but called with one, in a file this change does not touch.
   **This contradicts the marketing entry above, which recorded `typecheck → 0 errors`**; the drift
   was introduced between that run and HEAD. Recorded as an open item, not fixed here (out of scope).
+  **RESOLVED in the Front Office Phase 2 entry below** — the stub signature was corrected and
+  `npm run typecheck` now reports 0 errors. The underlying lesson stands: a green test suite
+  coexisted with a red typecheck, and nothing gated on it.
 
 ### 4. Not run / not verified
 
@@ -540,6 +543,63 @@ Level 1 regression check for Front Office Dashboard Phase 2 implementation under
 - No deployment. Production rules and application code remain strictly un-deployed.
 - No manual browser UI walkthrough.
 - `npm run test:e2e` was not run.
+
+---
+
+## 2026-10-10 — Errata: F-11 status correction (no code change)
+
+**Appended by a second verification pass over commit `da49d2d`. This entry changes no production code.**
+
+### 1. What is being corrected
+
+`02-phase2-completion-report.md` §4 marks **F-11 as "CLOSED (Clarified in OD-FO-3)"**. It is not
+closed, and this entry does not rewrite that report — the correction is recorded here and in
+[`00-phase0-audit.md` §11 E3](../../reports/front-office-dashboard/00-phase0-audit.md).
+
+Note the internal inconsistency in the Phase 2 record itself: this regression entry's §1 and §2 do
+**not** list F-11 or an F-11 invariant, while the Phase 2 completion report's findings table does.
+The two documents disagree about whether F-11 was addressed.
+
+### 2. Evidence
+
+| Claim | Verified state | Evidence |
+|---|---|---|
+| F-11 closed | **NO** — the write path is unchanged | `firestore.rules:562-574` |
+| FO immune to direct level writes | **NO** — `level` + `currentLevel` still in the `isFrontDeskStaff()` allow-list | `firestore.rules:567` |
+| Promotion enforced as report-derived | **NO** — no rule references a report, `eligibleForPromotion`, `promotedAt`, or instructor approval | zero matches in `firestore.rules` |
+| Roster promotes to the report's level | **NO** — level comes from a ladder; `report` only clears the eligibility flag | `StudentRoster.jsx:212`, `:224`; `progressReportsRepository.js:65-73` |
+
+**Now emulator-confirmed** (added 2026-10-10). Three diagnostic tests in `firestoreRules.emulator.test.js`
+pass, documenting current behaviour: Front Office can write `currentLevel: "elite"`, a non-canonical
+`currentLevel: "q"`, and the legacy `level` field on a same-branch student; Manager can do the same; and
+the `syncStudentsCurrentLevel` fan-out shape succeeds on two seeded records. Cross-branch and
+division-boundary writes still fail, so the gap is authority over the *value*, not scope.
+
+**Consequence for the fix:** because `syncStudentsCurrentLevel` (`classesRepository.js:34-38`) is
+indistinguishable from the bypass at the rules layer, a rule keyed on a promotion marker alone would
+block four legitimate class-management paths. Closing F-11 properly needs **two** markers — see
+[`00-phase0-audit.md` §11 E5](../../reports/front-office-dashboard/00-phase0-audit.md) for the design and
+the one question (is the in-app promotion workflow actually used?) that decides between it and the cheap
+remedy.
+
+OD-FO-3's substance is sound — a promotion is authoritative only *"upon issuance"* from an instructor's
+progress-report evaluation. The gap is that the rules validate the *shape* of a student update, never
+its *authority*. A crafted client can write any `currentLevel` with a Front Office token.
+
+### 3. Confirmed sound (no action needed)
+
+- **F-14 is safe.** `AdminDashboard.jsx` calls `useDashboardData({ setActiveTab: handleTabChange })`
+  with no `restrictedRead`, so the `!restrictedRead` guard retains the Admin invites listener while
+  suppressing it for Front Office. The fix is correct as reported.
+- **The typecheck drift is resolved** (see the Phase 1 entry's §3).
+
+### 4. Not verified
+
+- F-11's remediation was **not** implemented. Only the diagnostic evidence was added — three green tests
+  in `firestoreRules.emulator.test.js` that document the current capability. `npm run test:rules` →
+  **114 passed, 0 failed**.
+- F-02's end-to-end drawer-count path was not exercised; only its wiring was confirmed present.
+
 
 
 

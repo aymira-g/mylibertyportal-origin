@@ -564,7 +564,7 @@ service cloud.firestore {
               'displayName', 'name', 'phone', 'dob', 'address', 'parentName', 'parentPhone',
               'emergencyContact', 'emergencyPhone', 'notes', 'placementTests', 'status',
               'statusUpdatedAt', 'statusUpdatedBy',
-              'level', 'currentLevel', 'enrollmentDate',
+              'enrollmentDate',
               'updatedAt', 'photoURL', 'nickname', 'gender', 'nis', 'school', 'grade',
               'placeOfBirth', 'religion', 'programId', 'program', 'batchType', 'classType',
               'schoolOrJob', 'classOrSemester', 'joinedDate', 'fatherName', 'fatherJob',

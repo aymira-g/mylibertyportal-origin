@@ -48,6 +48,7 @@ const COVERAGE_FILTERS = [
 export default function ClassesCoverage({
   classes = [],
   branchInstructors = [],
+  levelMismatches = [],
   loading = false,
   error = "",
   onNavigate = noopNavigate,
@@ -132,6 +133,19 @@ export default function ClassesCoverage({
 
   return (
     <div className="space-y-5 w-full">
+      {levelMismatches.length > 0 && (
+        <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200/90 flex items-start gap-3">
+          <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+          <div className="text-xs text-amber-900 leading-relaxed">
+            <span className="font-bold">
+              {levelMismatches.length} Student Level Placement Mismatch{levelMismatches.length > 1 ? "es" : ""}:
+            </span>{" "}
+            Students enrolled in batches differing from their assessed level (or not yet formally assessed).
+            Front desk enrollment proceeds normally; academic adjustment remains under Instructor Leadership review.
+          </div>
+        </div>
+      )}
+
       {/* ── Summary + filters ── */}
       <Card>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

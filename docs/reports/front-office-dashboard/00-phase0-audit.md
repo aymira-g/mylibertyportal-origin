@@ -34,6 +34,15 @@ A refinement of the Front Office experience was proposed on the premise that "we
 | 9 | Kindergarten Front Office is **missing the pending-override enrollment guard** that Courses has | Proven by file/line |
 | 10 | An **unused realtime listener** on `invites` runs on every Front Office dashboard load | Proven by file/line |
 
+**Added in the §11 errata pass** (after this audit was first published):
+
+| # | Conclusion | Confidence |
+|---|---|---|
+| 11 | A **failed inquiry save is reported to staff as a successful save that is "safely stored"** — with a `success` toast and the prospect routed straight into enrolment (F-15, S1) | Proven by file/line |
+| 12 | Prospect/parent PII persists in `localStorage` with **no retention bound and no logout cleanup** (F-16, S2) | Proven by file/line |
+| 13 | Local-only inquiries are **invisible to every consumer except the Front Office tab** — no leader or manager can see them, and nothing ever syncs them upward (F-17, S3) | Proven by file/line |
+| 14 | **F-01 is closed** (Phase 1, emulator-verified), and implementing it exposed a further defect this audit had missed: the Admin Staff Directory delete button was broken at HEAD (E1) | Proven by file/line + emulator |
+
 ### 1.3 The single blocking question
 
 Everything in Phase 1 depends on one answer that is **not** an implementation detail:
@@ -44,12 +53,17 @@ Until that is answered by the owner, an implementer cannot know whether to add F
 
 ### 1.4 Headline conclusion
 
-**Front Office holds two genuinely unreviewed mutation powers over academic and identity records, and one of them is subtle.**
+**The most serious finding is not an over-privileged role. It is a lie told to staff by the interface (F-15).**
 
-1. **Blunt:** it can permanently delete a student or parent profile, with no approval, no four-eyes check, and no recoverable intermediate step (F-01).
-2. **Subtle:** it can write a student's `currentLevel` directly — both by promoting from the roster (F-11) and by the ordinary student-update allow-list — while the `PLACEMENT_LEVEL_OVERRIDE` gate that exists specifically to control level changes is enforced only on the *walk-in inquiry* path. The gate is real, correctly built, and enforced on the wrong door.
+When a walk-in inquiry fails to save, the Front Office clerk is shown a **green success toast** reading *"Prospect saved locally! Opening Student Registration form..."*, and the prospect is routed straight into enrolment. The collection of failed records sits in a banner that says walk-in visitors are *"safely stored"* and *"can be immediately enrolled as students."* Both statements are false. The repository's own code states the correct rule three lines away from one of the violations: *"a governed action must never appear to have succeeded when the rules refused it."*
 
-Its third-largest problem is the opposite of privilege: desk staff appear unable to complete a cash shift honestly at all, because the control designed to make them accountable is unreachable in two independent ways (F-02).
+Behind that, three further exposures:
+
+1. **Blunt:** Front Office could permanently delete student or parent records, with no approval and no audit trail (F-01 — **now closed**; see §11 E1).
+2. **Subtle:** Front Office can write a student's `currentLevel` directly — both by promoting from the roster (F-11) and by the ordinary student-update allow-list — while the `PLACEMENT_LEVEL_OVERRIDE` gate that exists specifically to control level changes is enforced only on the *walk-in inquiry* path. The gate is real, correctly built, and enforced on the wrong door.
+3. **Silent:** A failed enrolment conversion leaves the student created and the inquiry unconverted **with no warning at all**, because the caller's `try/catch` reacts only to a throw and the permission path returns instead (F-15, §"blast radius").
+
+And the inverse problem: desk staff appear unable to complete a cash shift honestly, because the control designed to make them accountable is unreachable in two independent ways (F-02).
 
 ---
 
@@ -66,6 +80,7 @@ Its third-largest problem is the opposite of privilege: desk staff appear unable
 - `docs/audits/current/regression-log.md` — Phase 3 ENF1/ENF2/ENF3 verification record
 - `src/App.jsx`, `src/features/dashboard/FrontOfficeDashboard.jsx`, `KidsFrontOfficeDashboard.jsx`, `CrossDivDashboard.jsx`, `OpsLeadDashboard.jsx`, `useDashboardData.js`
 - `src/features/dashboard/frontoffice/*` (all 10 modules), `src/features/dashboard/usersRepository.js`
+- `src/features/dashboard/frontoffice/walkInUtils.js`, `WalkInInquiryTab.jsx`, `deskInquiriesRepository.js` *(added in the §11 errata pass — F-15/F-16/F-17)*
 - `src/features/shared/approvalGates.js`, `ApprovalInbox.jsx`, `approvalsRepository.js`, `roles.js`
 - `src/features/reports/ReportsDashboard.jsx`
 - `src/features/attendance/kioskScanProcessor.js`, `StandaloneKioskPage.jsx`, `KioskModal.jsx`
@@ -128,7 +143,7 @@ Overview, Cashier & Tuition, Guestbook & Inquiries, Applications, Learners, Clas
 |---|---|---|
 | Create/update student record (bounded field allow-list) | **Yes** | `firestore.rules:541-561` **[rules text only]** |
 | Create parent account, edit parent record | **Yes** | `firestore.rules:507-511`, `:562-569` **[rules text only]** |
-| **Permanently delete a student or parent profile** | **Yes** | `FrontOfficeDashboard.jsx:419`; `KidsFrontOfficeDashboard.jsx:331` → `useDashboardData.js:617-642` → `usersRepository.js:186,227-251` (`batch.delete(doc(db,"users",uid))` at `:228`); permitted by `firestore.rules:521` **[rules text only]** |
+| **Permanently delete a student or parent profile** | **Yes** *(at audit time — **closed** in Phase 1, see §11 E1)* | `FrontOfficeDashboard.jsx:419`; `KidsFrontOfficeDashboard.jsx:331` → `useDashboardData.js:617-642` → `usersRepository.js:186,227-251` (`batch.delete(doc(db,"users",uid))` at `:228`); permitted by the `users` delete clause **[rules text only]**. That clause now reads `allow delete: if isAdmin() && !(resource.data.role in ['director','vice_director','admin'])` at `firestore.rules:534` |
 | **Promote a student's level from the roster** | **Yes** — `currentLevel` is written directly | `StudentRoster.jsx:510`/`:534` → `progressReportsRepository.js:65-69`; permitted by `firestore.rules:912` **[rules text only]** (see F-11) |
 | Permanently delete an application | Affordance shown; **rules deny** | `StudentApplications.jsx:154` → `applicationsRepository.js:180`; denied by `firestore.rules:595` **[rules text only]** (see F-13) |
 | Record tuition payment | **Yes** | `PaymentCashierTab` / `PaymentModal` |
@@ -399,11 +414,11 @@ if (inquiry.pendingPlacementOverride) { toast(`${…} has a placement level over
 
 ## 6. The decision required from the owner
 
-**F-03 is the blocker.** Phase 1 ("define the Front Office boundaries") cannot be written until one of these is ratified:
+**F-03 was the blocker, and it is now resolved.** OD-FO-1 (ratified 2026-10-10) selected Option A. The text below records the options as they were presented, for the decision trail.
 
 | Option | Meaning | Consequence |
 |---|---|---|
-| **A — `opslead` only (codify the current implementation)** | The Front Office *role* is reception and cashiering; approval authority for these three gates sits with the Front Desk Operations Lead. G-007's `frontoffice` spelling is corrected to `opslead`. | **Lowest cost, no code change.** Requires a Blueprint amendment (§26 G-007) — an owner action, not an agent action. Preserves the current, working separation of duties. |
+| **A — `opslead` only (codify the current implementation)** | The Front Office *role* is reception and cashiering; approval authority for these three gates sits with the Front Desk Operations Lead. G-007's `frontoffice` spelling is corrected to `opslead`. | **Lowest cost, no code change.** Requires a Blueprint amendment (§26 G-007) — an owner action, not an agent action. Preserves the current, working separation of duties. **RATIFIED 2026-10-10 as OD-FO-1 — this is the implemented outcome.** |
 | **B — both roles (implement G-007 as ratified)** | Any `frontoffice` user may approve these three gates. | A **governance-consequential** widening of approval authority. Touches the gate registry, `canApproveGate`, the queue query, `gateAllowsApprover`/`isApproverForDoc` in `firestore.rules`, and the Approvals tab gating — with rules-test coverage. Interacts with the 1000-expression ceiling. |
 | **C — both roles, but only where no `opslead` is posted** | Front Office may act as approver only when the branch has no Operations Lead. | Highest complexity; requires a new resolvable branch-state input and a rule-expressible predicate. Not recommended. |
 
@@ -414,6 +429,12 @@ if (inquiry.pendingPlacementOverride) { toast(`${…} has a placement level over
 **A third decision is needed for F-11**, and it is the one with the largest downstream scope: **which `currentLevel` changes are authoritative, and which are overrides?** `PLACEMENT_LEVEL_OVERRIDE` is a `BLOCKING` gate owned by the Instructor Leader, but the level can also legitimately change through promotion, class/batch sync, and registration. Until the owner states which of those four paths is the authoritative one, the gate cannot be closed without breaking the other three — this is the same conclusion already recorded at `owner-decisions.md:87`, reached here from the Front Office side.
 
 **Confirmed before Phase 1 (F-12 only, no decision needed):** determine whether `pendingPlacementOverride` can ever be truthy on a *kindergarten* inquiry. If it cannot, F-12 is latent rather than exploitable and should be recorded as such rather than fixed.
+
+> **All three decisions in this section were ratified by the owner on 2026-10-10** — see
+> [`owner-decisions.md`](./owner-decisions.md): **OD-FO-1** (F-03 → Option A), **OD-FO-2** (F-01 → remove
+> Front Office hard delete), **OD-FO-3** (F-11 → authoritative promotions vs gated overrides). The text
+> above is preserved as the decision trail. **OD-FO-3 did not settle F-11's enforcement**, which is why
+> §11 E5 and [`03-phase3-brief.md`](./03-phase3-brief.md) carry it forward.
 
 ---
 
@@ -457,8 +478,10 @@ Stated plainly, per this repository's reporting standard.
 
 **Not verified — no command was run:**
 
-1. **No rules test, and no emulator.** Every `firestore.rules` claim above is marked **[rules text only]**. Given the recorded 1000-expression-budget hazard (`regression-log.md:286-290`), rule *text* is not proof of rule *behaviour*. This matters most for **F-01** (the `users` delete permission), **F-11** (`progressReports` and `users` `currentLevel` updates), and **F-13** (the `applications` delete denial) — all three **must** be emulator-confirmed before remediation is scoped.
-2. **No `npm test`, `npm run lint`, `npm run typecheck`, or `npm run build`.** This audit changed no source file, so there was nothing to regress — but this also means the current tree's test state was not independently confirmed by this audit. The most recent recorded run is `regression-log.md:279-285` (98 rules tests; 1,251 unit tests; lint/typecheck/build clean).
+0. **This section records the state at the time of the original audit. Two items are now superseded by the §11 errata pass** — F-01 (limitation 1's delete permission) is closed, and the typecheck failure noted in limitation 2 has been fixed in Phase 2. Both are marked here rather than silently rewritten.
+
+1. **No rules test, and no emulator.** Every `firestore.rules` claim above is marked **[rules text only]**. Given the recorded 1000-expression-budget hazard (`regression-log.md:286-290`), rule *text* is not proof of rule *behaviour*. This matters most for **F-11** (`progressReports` and `users` `currentLevel` updates) and **F-13** (the `applications` delete denial) — both **must** be emulator-confirmed before remediation is scoped.
+2. **No `npm test`, `npm run lint`, `npm run typecheck`, or `npm run build`.** This audit changed no source file, so there was nothing to regress — but this also means the current tree's test state was not independently confirmed by this audit. The most recent recorded run is `regression-log.md:279-285` (98 rules tests; 1,251 unit tests; lint/typecheck/build clean). *(Superseded: Phase 2 reports 1,261 unit tests passing and `typecheck` at 0 errors after resolving the `operationalResources.test.js` stub signature — see §11 E4.)*
 3. **No production/deployed-state check.** Whether the deployed `firestore.rules` matches the repository is unverified; `regression-log.md:294-295` records that a rules deploy was not performed as of 2026-10-09.
 4. **No browser walkthrough.** Every reachability claim is static analysis of JSX and call sites. F-02's "unreachable" conclusion rests on the absence of any `activeShift` assignment in `src/` — a whole-tree search, not a runtime observation. F-11 and F-13 rest on props (`readOnly`, `onPromote`, `onDeleteStudent`) being supplied, which is proven by the JSX but not exercised in a running app.
 5. **F-12 is unresolved on purpose.** Whether `pendingPlacementOverride` can be truthy on a kindergarten inquiry was **not** established. The finding is recorded as conditional, not as exploitable.
@@ -481,4 +504,331 @@ Stated plainly, per this repository's reporting standard.
 - Verification record: [`regression-log.md`](../../audits/current/regression-log.md)
 - Audit method: [`Comprehensive Hidden-Bug Audit Strategy`](../../audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md) (Level 2 — the correct level for role-by-role dashboard refinement)
 
-**Status: Phase 0 complete, no production changes.** Phase 1 is blocked on three owner decisions in §6 — **F-03** (who may approve the three G-007 gates), **F-01** (whether Front Office keeps permanent delete), and **F-11** (which `currentLevel` changes are authoritative). Nothing in §7 should begin before those are ratified.
+**Status: Phase 0 complete, no production changes.** Phase 1 on deletion (F-01) is complete — see §11 E1. The remaining work is blocked on **two** owner decisions in §6 — **F-03** (who may approve the three G-007 gates) and **F-11** (which `currentLevel` changes are authoritative). Nothing in §7 should begin before those are ratified, and **F-15** (§11) should be diagnosed first regardless.
+
+See **§11 Errata** below: F-01 is now closed, and two new findings (F-15, F-16) were added after this audit.
+
+---
+
+## 11. Errata (post-audit verification pass)
+
+Appended 2026-10-09 after an independent review pass. **No historical finding above has been rewritten or removed** — corrections are recorded here, per the Blueprint §27 / G-010 supersession protocol.
+
+### E1 — F-01 is CLOSED (implemented and emulator-verified)
+
+F-01 (Front Office permanent delete over student/parent records) was fixed in
+[`01-phase1-completion-report.md`](./01-phase1-completion-report.md). Front Office no longer holds `delete`
+at either layer; the `users` delete clause is Admin-only. Verified by `npm run test:rules` → 111 passed.
+
+While implementing it, a **second defect was exposed that this audit had missed**: commit `7cf64a1`
+had removed the Admin clause while leaving the Front Office clause, which left `isFrontDeskStaff` as
+the **only** role able to delete user records and silently broke the Admin Staff Directory delete
+button (`AdminDashboard.jsx:228` → `StaffDirectory.jsx:201`). The restored clause is the exact
+pre-`7cf64a1` form. See that report §4 for detail and the one-line revert.
+
+### E2 — F-03, F-11 and the rest of §7 remain open and unchanged
+
+Nothing in this errata alters §6 or §7. **F-03 remains the blocker.** An independent review proposed
+beginning a fresh Phase 0 audit; that is unnecessary — this document is that audit, and its remaining
+items are listed in §7.
+
+### E3 — F-11 is NOT closed by OD-FO-3: the policy is ratified, the enforcement is absent (**EMULATOR-PROVEN 2026-10-10**)
+
+Commit `da49d2d` ("front office dahsboard refinement phase 2") marks F-11 **CLOSED** in
+[`02-phase2-completion-report.md`](./02-phase2-completion-report.md) §4 with the note *"CLOSED (Clarified
+in OD-FO-3)"*. `owner-decisions.md` OD-FO-3 does ratify a sound boundary — a promotion is authoritative
+*"upon issuance"* from an instructor's progress-report evaluation, while placement overrides stay gated
+by the Instructor Leader.
+
+**But the ratified boundary is not implemented, so the bypass Phase 0 found is still live.** Verified on
+the current working tree:
+
+| Claim | Verified state | Evidence |
+|---|---|---|
+| F-11 closed | **NO** — the write path is unchanged | `firestore.rules:562-574` |
+| Front Office immune to direct level writes | **NO** — `level` and `currentLevel` are still in the student-update allow-list for `isFrontDeskStaff()` | `firestore.rules:567` |
+| Promotion is enforced as report-derived | **NO** — no rule references a report, `eligibleForPromotion`, `promotedAt`, or instructor approval for promotions | repo-wide search of `firestore.rules` for `eligibleForPromotion`/`isApprovedPromotion`/`promotedAt` → **zero matches** |
+| The roster promotes to the report's level | **NO** — the level is derived from a **ladder**, not the report; `report` is used only to clear the eligibility flag | `StudentRoster.jsx:212` (`getNextLevel(student.currentLevel \|\| "warrior")`), `:224` (`promoteStudentLevel(student.id, nextLevel, report?.id)`), `progressReportsRepository.js:65-73` |
+
+**Reading OD-FO-3 precisely.** The decision states the promotion path is authoritative *"recorded via
+progress report evaluations by instructors"*, and that Front Office *"cannot unilaterally tamper with or
+bypass placement determinations."* An API client is not the roster button. Anyone with the Front Office
+token can `updateDoc` on a student document with `currentLevel` set to any value — the rules validate the
+*shape* of a student update, never its *authority*. So the decision as written is **not** what the code
+does, and the divergence is now a ratified-intent-vs-implementation gap rather than an open policy
+question.
+
+**What "closed" would actually require** — and this does not change OD-FO-3's substance, which this audit
+agrees with:
+
+1. Remove `level` and `currentLevel` from the `isFrontDeskStaff()` allow-list at `:567` (they may remain
+   for `isManager()` only if that is separately intended).
+2. Give the promotion write its own rules branch keyed on a marker proving an approved, unreplayed report
+   — the same shape already used for `attendanceDateTs` (retroactive attendance, `firestore.rules:360-375`)
+   and `isApprovedPlacementOverride`. There is an existing pattern to copy; this is not novel design.
+3. Enumerate the other legitimate `currentLevel` writers before changing anything — class/batch sync
+   (`classesRepository.js:36`), registration (`useDashboardData.js:392`, `:552`, `:583`), and promotion all
+   touch the same field. This is the "not a small additive change" caution already recorded at
+   `owner-decisions.md:87`, and it applies unchanged.
+
+**Recommendation:** re-open F-11 in the Phase 2 report's findings table (a documentation edit for its
+author, not made here), or record an explicit owner decision that the rule-level write is accepted as
+ungated. Leaving a ratified policy marked "closed" while the bypass it describes remains reachable is the
+one outcome that is not defensible.
+
+#### E3.1 — Emulator confirmation (2026-10-10)
+
+The bypass is no longer inferred from rule text. Three diagnostic tests were added to
+`firestoreRules.emulator.test.js` and **all pass** (`npm run test:rules` → **114 passed, 0 failed**).
+They are deliberately written green, documenting current behaviour, with the reasoning inline; a future
+change that gates level writes must flip them to `assertFails`.
+
+| Probe | Result |
+|---|---|
+| Front Office writes `currentLevel: "elite"` + `rating` on a same-branch student | **ALLOWED** |
+| Front Office writes a non-canonical `currentLevel: "q"` | **ALLOWED** — nothing validates the value against `src/constants/levels.js` |
+| Front Office writes the legacy `level: "Advanced"` field | **ALLOWED** |
+| Manager writes `currentLevel` | **ALLOWED** — same allow-list branch, so this is not Front-Office-specific |
+| Front Office writes `currentLevel` on **two seeded records** in sequence (the `syncStudentsCurrentLevel` fan-out shape) | **ALLOWED** |
+| Cross-branch Front Office writes `currentLevel` | **DENIED** (scope still holds) |
+| Kindergarten Front Office writes a Courses student's `currentLevel` | **DENIED** (division still holds) |
+
+**The class-sync probe is the load-bearing result.** It confirms that a rule keyed solely on a promotion
+marker would block the legitimate paths too, because `syncStudentsCurrentLevel`
+(`classesRepository.js:34-38`) is indistinguishable from the bypass at the rules layer. This is the
+concrete reason the two-marker design in §"What 'closed' would actually require" is required rather than
+a single marker — see E5.
+
+### E5 — F-11 remediation: why a promotion marker alone is insufficient, and the question that decides the fix
+
+Added after the emulator confirmation above, because it changes what the fix has to be.
+
+**The promotion proposal path exists and is real.** `eligibleForPromotion` is written by an
+instructor-facing form — `StudentProgressForm.jsx:112` sets it from the "eligible for promotion"
+checkbox — so `fetchPendingPromotions` (`progressReportsRepository.js:42`) is not dead code. The
+in-app promotion workflow is a genuine, if thin, feature.
+
+**But `currentLevel` is written from at least six independent paths**, and most are *class* operations
+rather than promotions:
+
+| Path | Call site | Shape |
+|---|---|---|
+| Roster promotion button | `StudentRoster.jsx:224` | 1 student |
+| Roster → Transfer batch | `TransferModal.jsx:135` | 1 student |
+| Classes → Enroll | `ClassManager.jsx:125` | 1 student |
+| Available Batches → Enroll | `EnrollModal.jsx:110` | 1 student |
+| Cohort group level change | `CohortRosterTable.jsx:146` | **whole cohort array** |
+| Enrollment level sync | `classesRepository.js:214` | 1 student |
+
+Every one issues the same `updateDoc(users/{id}, { currentLevel })`. **Rules see a payload, not an
+intent** — which the class-sync probe above demonstrates empirically. Therefore:
+
+- a rule requiring a promotion marker would block all four class-side paths, three of which write a
+  single student and would break ordinary class management;
+- closing the gap properly requires **two** markers: one proving an instructor's report authorised the
+  promotion, and one proving the write originated from a class-level operation. The second is the hard
+  one, precisely because class operations legitimately touch one student at a time.
+
+This corroborates the existing caution at `owner-decisions.md:87` (*"not a small additive change"*) with
+direct evidence, and it is why this audit no longer frames F-11 as a one-line rules fix.
+
+**The question that decides the remedy:**
+
+> **Is the in-app promotion workflow in operational use — do instructors actually file progress reports
+> that Front Office then promotes from?**
+
+| Answer | Remedy | Cost |
+|---|---|---|
+| **No** | The bypass *is* the only working path. Remove `level` and `currentLevel` from the Front Office allow-list outright, and resolve the class-side sync separately. No marker needed. | **Low** — one rules edit + test flips |
+| **Yes** | The two-marker design. Scope as its own task with its own Phase 0; do not bundle into cleanup. | **High** — schema addition, multiple writers, migration question |
+
+**Recommendation, stated plainly:** answer that question first, then act. Given class-level sync appears
+to be the dominant real-world flow for a school of this size, the low-cost remedy is the more likely
+correct one — but asserting that without knowing whether instructors file promotion reports would be
+substituting a guess for a decision.
+
+### E4 — Phase 2 changes spot-verified: two confirmed sound, one stale note corrected
+
+Verified while reviewing commit `da49d2d`. These are **confirmations, not findings** — the work is correct.
+
+1. **F-14 (unused `invites` listener) is safe.** The `if (!restrictedRead)` guard suppresses the listener
+   for Front Office without breaking Admin: `AdminDashboard.jsx` calls
+   `useDashboardData({ setActiveTab: handleTabChange })` with **no `restrictedRead`**, so its invites
+   listener is retained. The fix is correct as reported.
+2. **The pre-existing typecheck failure is fixed.** This audit's §9 limitation 2 and the Phase 1 report §7
+   both recorded 3 × `TS2554` errors at `operationalResources.test.js:568-570` from a zero-parameter
+   `canDeletePayment()` stub. Phase 2 corrected the signature. **Those two notes are now stale** and
+   `npm run typecheck` reports 0 errors. The underlying observation stands: a green test suite coexisted
+   with a red typecheck for an unknown period, and nothing gated on it.
+3. **F-02's `limit(1)` and `activeShift` wiring** are present (`shiftsRepository.js`,
+   `PaymentCashierTab.jsx:53-58`, `:172`). Full acceptance of F-02 needs the end-to-end drawer-count path
+   exercised, which this pass did not do — see §9 limitation 4.
+
+---
+
+### F-15 — A failed inquiry save is reported to staff as a successful save that is "safely stored" (S1 — **new, not previously recorded**)
+
+**This is the most serious finding in this document.** Phase 0's inventory listed the local-inquiry
+fallback (§3.4, "Create walk-in inquiry, park a placement override — **Yes**") without examining what
+the fallback *tells the user*. That was a gap in this audit.
+
+**The mechanism.** `createDeskInquiry` does not throw on a permission denial — it converts the failure
+into a **success-shaped return value**:
+
+```js
+// deskInquiriesRepository.js:100-103
+if (isPermissionError(err)) {
+  const localRecord = saveLocalInquiry(validated);
+  return { ...localRecord, _permissionDenied: true };
+}
+```
+
+The caller branches on that flag — but shows a **success** toast in the failure branch and then routes
+the prospect into enrolment:
+
+```js
+// WalkInInquiryTab.jsx:303-314  — this is the FAILURE branch
+if (savedInquiry._permissionDenied) {
+  setHasPermission(false);
+  …
+  if (enrollImmediately && onEnrollStudent) {
+    toast("Prospect saved locally! Opening Student Registration form...", "success");   // :310
+    onEnrollStudent(savedInquiry);                                                       // :311
+  } else {
+    toast("Prospect saved locally! Deploy firestore.rules to enable cloud sync.", "warning"); // :313
+  }
+}
+```
+
+The `"success"` variant fires exactly when a parent is standing at the desk asking to enrol. The
+`"warning"` variant — the only one that hints at a problem — fires only when enrolment was *not*
+requested.
+
+**The banner compounds it.** When the desk has lost write access, this is what the staff member reads:
+
+```js
+// WalkInInquiryTab.jsx:436-437
+or update your Firebase Console. Walk-in visitors logged now are safely stored in your
+local session and can be immediately enrolled as students.
+```
+
+*"Safely stored"* and *"can be immediately enrolled"* are both false claims of durability. The banner
+also instructs staff to run a deployment command, which is not a Front Office action under any
+governance document.
+
+**The codebase already knows the rule it is breaking.** The same file implements the correct
+behaviour for placement tests, with an explicit comment stating the principle:
+
+```js
+// deskInquiriesRepository.js:220-225
+if (inquiryId.startsWith("local-")) {
+  updateLocalInquiry(inquiryId, pendingUpdate);
+} else {
+  // No local-shadow fallback here on purpose: a governed action must never appear
+  // to have succeeded when the rules refused it.
+  await updateDoc(doc(db, "deskInquiries", inquiryId), pendingUpdate);
+}
+```
+
+**This makes F-15 an inconsistency bug, not a design decision.** The repository's own authors
+articulated the correct rule for one governed action and then violated it on inquiry creation and
+inquiry conversion. The comment at `:223-224` is the finding's own specification.
+
+**Blast radius — four producers, one consumer.**
+
+| Producer | `_permissionDenied` returned | Consumer handles it? |
+|---|---|---|
+| `createDeskInquiry` (`:102`) | Yes | `WalkInInquiryTab.jsx:303` — **handled, but as success** |
+| `updateDeskInquiryStatus` (`:133`) | Yes | **No consumer** |
+| `addPlacementTestToInquiry` (`:262`) | Yes | **No consumer** |
+| `markInquiryConverted` (`:359`) | Yes | **No consumer** — `useDashboardData.js:412` ignores the flag |
+
+For `markInquiryConverted`: the caller wraps it in a `try/catch` that only reacts to a **throw**
+(`useDashboardData.js:410-416`), but the permission-denied path **returns rather than throws**. So when
+a conversion fails on permissions, the student is created, no warning is shown, and the inquiry is
+silently left unconverted — the exact reconciliation break the ENF work was built to prevent.
+
+**Severity justification (S1).** Two ratified concerns intersect:
+
+- Blueprint §17 lists *"deletion of important business records"* and *"broad data exports"* as candidate
+  sensitive actions, and Principle 7 requires auditability. Business data that exists only in one
+  browser, behind a message promising it is safely stored, is neither auditable nor durable.
+- Blueprint §18 / G-009 govern money. A prospect who "enrolled" from a local-only record can be
+  recorded as a student and take a payment while the originating inquiry has no server-side record —
+  producing a payment whose supporting intake document does not exist centrally.
+
+**Not established:** whether production currently reaches this path at all. It requires
+`deskInquiries` writes to be denied by rules. The banner exists precisely because that was once true
+(`2026-10-01-front-office-login-audit.md` §16 records a live `users-staff` denial in this area), and no
+closure evidence for `deskInquiries` specifically was found. **The first task is to determine whether
+the fallback is currently live in production, not to fix it.** If writes succeed, F-15 is latent — but
+the misleading copy and the three unhandled producers are real regardless.
+
+### F-16 — Prospect and parent PII persists in browser storage with no retention or logout cleanup (S2 — **new, not previously recorded**)
+
+**Mechanism.** Local inquiries are written to `window.localStorage` under a single key:
+
+- Key: `myliberty_desk_inquiries_local_v1` — `walkInUtils.js:38`
+- Fields persisted (`DeskInquiryItem`, `walkInUtils.js:43-58`): `parentName`, `studentName`, `phone`,
+  `dob`, `ageOrGrade`, `notes`, plus `placementTests` (which carries placement scores and assessed
+  levels, i.e. academic records about a child).
+- Write sites: `walkInUtils.js:130`, `:157`, `:174`
+
+**Findings.**
+
+1. **No expiry and no retention bound.** Entries persist until individually deleted or the browser
+   storage is cleared. There is no TTL, no cap, and no "older than N days" rule.
+2. **No logout or account-change cleanup.** The only `removeItem` in the codebase for this key is in a
+   **test** (`WalkInInquiryTab.test.js:72`). No production path clears it on sign-out or when a
+   different staff member signs in at the same desk.
+3. **Shared-reception exposure.** A Front Office PC is routinely shared between shifts. Prospect names,
+   parent names, phone numbers, dates of birth, notes, and children's placement-test results survive
+   logout and are readable by the next user of that machine — and by any script running on the same
+   origin.
+4. **Sibling precedent worth noting:** `DevQuickSwitcher.jsx:75` purges its own stale credential from
+   `localStorage` on mount. The repository is aware of the pattern elsewhere; this cache has no such
+   handling.
+
+**Governance.** Blueprint Principle 5 (least necessary authority) and Principle 7 (auditability) both
+bear on this, and §11.2 (no accidental organization-wide access) is engaged by persistence beyond the
+session. No Blueprint clause was found that authorizes or prohibits an offline desk cache, so this is
+**not** a governance conflict — it is an **undocumented data-retention practice**, which is exactly why
+the independent review's recommendation to *document a policy rather than remove the fallback* is the
+right instinct.
+
+**Not established:** whether staff operationally depend on the fallback. Removing it before knowing that
+would be a real service risk, so **no removal is proposed here.**
+
+### F-17 — Local-only inquiries are invisible to every consumer except the Front Office tab (S3 — **new**)
+
+Local records are readable **only** through `getLocalInquiries()`, called from `WalkInInquiryTab.jsx`
+(`:218`, `:245`). Nothing else in the application reads the local cache: the Manager dashboard, the
+Operational Leader dashboard, reporting surfaces, and the Executive views read `deskInquiries` via
+`fetchRecentDeskInquiries` (`deskInquiriesRepository.js:30`), which queries Firestore only.
+
+**Consequence.** A prospect captured while writes were denied appears in the Front Office tab and
+**nowhere else**. The role accountable for desk performance (Operational Leader, Blueprint §6.8) and the
+Division Manager responsible for `STUDENT_WITHDRAWAL_OR_FREEZE` and `TUITION_PLAN_CHANGE` see no record
+of that prospect existing. Local records are also never reconciled upward — there is no sync, retry, or
+promotion path from `localStorage` to Firestore anywhere in the repository.
+
+This is the "single source of truth" concern the independent review raised, confirmed as a concrete
+divergence rather than a theoretical one.
+
+### F-15/F-16/F-17 — scoped remediation (NOT authorized; listed for a decision)
+
+Deliberately ordered so that the cheapest, highest-value change comes first. **Nothing here should
+start before the §6 decisions, and F-15's first step is diagnostic, not a fix.**
+
+| Step | Change | Risk | Verification |
+|---|---|---|---|
+| 0 | **Determine whether `deskInquiries` writes are currently denied in production.** If they are not, F-15 is latent and only the copy (step 2) is urgent. | None — diagnostic | Inspect the deployed rules; confirm `deskInquiries` create/update paths |
+| 1 | **Make failure unmistakable.** Stop returning a success-shaped object: throw, or return a discriminated result that every caller must handle. Align all four producers with the existing `:223-224` precedent. | Low–medium; touches the tab and `useDashboardData` | Unit: a denied write produces a failure state and **no** success toast; enrolment is not offered from a record that failed to persist |
+| 2 | **Fix the copy.** Remove "safely stored" and "can be immediately enrolled"; replace the deploy instruction with a plain "not saved to the school system — tell the Operational Leader" message. | Very low | Copy review |
+| 3 | **Handle the three unhandled producers** (`updateDeskInquiryStatus`, `addPlacementTestToInquiry`, `markInquiryConverted`). | Low | Unit tests per producer, following the ENF2 pattern |
+| 4 | **Make local-only records visible as such** — an explicit "NOT SAVED" badge, and a count surfaced to the Operational Leader. | Low–medium | Snapshot test; confirm the leader surface is read-only |
+| 5 | **Publish a minimal offline-data policy** (fields retained, TTL, logout clearing, shared-station handling) and implement the retention bound it states. | Low | Policy reviewed by the owner; unit test on the TTL/clear path |
+
+**Explicitly not proposed:** removing the offline fallback (dependency unproven), adding a sync/retry
+queue (new architecture, unbounded cost, and it would need its own conflict rules), and any change to
+`firestore.rules`. No step introduces a new collection, index, listener, or paid service.

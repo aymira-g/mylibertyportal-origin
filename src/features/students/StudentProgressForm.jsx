@@ -13,6 +13,7 @@ import {
 import { LevelBadge, LEVEL_KEYS, LEVELS } from "../shared";
 import { todayWita } from "../../utils/dateWita.js";
 import { divisionOfProgram } from "../../constants/divisions.js";
+import { recommendLevelFromScore, getNextLevel } from "../../constants/levels.js";
 const SCORE_FIELDS = [
   {
     field: "pronunciation",
@@ -92,6 +93,12 @@ export default function StudentProgressForm({ classes, students, onSaved }) {
         selectedStudent.division ||
         divisionOfProgram(selectedClass.programId || selectedClass.program) ||
         "courses";
+      const isKindergarten = reportDivision === "kindergarten";
+      const calculatedLevel = recommendLevelFromScore(overallScore, { isKindergarten });
+      const recommendedLevel = isEligibleForPromotion && markPromotion
+        ? (calculatedLevel || getNextLevel(selectedStudent?.currentLevel || level || "warrior"))
+        : null;
+
       await createProgressReport({
         studentId: selectedStudent.id,
         studentName: selectedStudent.displayName || "",
@@ -110,13 +117,14 @@ export default function StudentProgressForm({ classes, students, onSaved }) {
         comprehensionScore: Number(scores.comprehension),
         overallScore,
         eligibleForPromotion: Boolean(isEligibleForPromotion && markPromotion),
+        recommendedLevel: recommendedLevel || null,
         notes: notes.trim(),
         submittedAt: new Date().toISOString(),
       });
       setScores({ pronunciation: "", fluency: "", vocabulary: "", comprehension: "" });
       setNotes("");
       setFeedback({
-        message: `Evaluation submitted successfully for ${selectedStudent.displayName}! Overall Band: ${overallScore}%${isEligibleForPromotion && markPromotion ? " (Flagged for level promotion)" : ""}`,
+        message: `Evaluation submitted successfully for ${selectedStudent.displayName}! Overall Band: ${overallScore}%${isEligibleForPromotion && markPromotion ? ` (Flagged for level promotion${recommendedLevel ? ` to ${recommendedLevel.toUpperCase()}` : ""})` : ""}`,
         type: "success",
       });
       onSaved?.();

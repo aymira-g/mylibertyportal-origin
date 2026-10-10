@@ -21,6 +21,7 @@
 
 import { normalizeDivision, divisionOfProgram } from "../../../constants/divisions.js";
 import { parseScheduleDayCodes } from "../../../constants/scheduleDays.js";
+import { hasAssessedLevel } from "../../../constants/levels.js";
 // Imported from their modules rather than the `classes` barrel so this pure utility
 // does not pull React components (and their Firebase imports) into its module graph.
 import { findScheduleConflicts } from "../../classes/scheduleConflict";
@@ -415,12 +416,19 @@ const SEVERITY_RANK = { critical: 0, attention: 1, info: 2 };
  *   coverage?: { missingInstructor?: number, teacherConflicts?: number, roomConflicts?: number, overCapacity?: number, scheduleUnknown?: number },
  *   pendingApprovalsCount?: number,
  *   progressCoverage?: { staleAfterDays?: number, staleCount?: number },
- *   attendance?: { incomplete?: Array<any> }
+ *   attendance?: { incomplete?: Array<any> },
+ *   levelMismatchesCount?: number
  * }} input
  * @returns {Array<{ id: string, label: string, count: number, severity: ExceptionSeverity, targetTab: string }>}
  */
 export function buildAttentionItems(input = {}) {
-  const { coverage, pendingApprovalsCount = 0, progressCoverage, attendance } = input;
+  const {
+    coverage,
+    pendingApprovalsCount = 0,
+    progressCoverage,
+    attendance,
+    levelMismatchesCount = 0,
+  } = input;
   const items = [];
 
   const push = (id, label, count, severity, targetTab) => {
@@ -436,6 +444,16 @@ export function buildAttentionItems(input = {}) {
   }
 
   push("pending_approvals", "approvals awaiting your decision", pendingApprovalsCount, "attention", "approvals");
+
+  if (levelMismatchesCount > 0) {
+    push(
+      "level_mismatches",
+      "students placed in mismatched class levels (academic review pending)",
+      levelMismatchesCount,
+      "attention",
+      "coverage"
+    );
+  }
 
   if (progressCoverage) {
     push("stale_progress", `instructors with no progress report in ${progressCoverage.staleAfterDays} days`, progressCoverage.staleCount, "attention", "progress");
@@ -477,6 +495,7 @@ export function formatClassSchedule(cls) {
  * @returns {Record<string, string>}
  */
 export function buildInstructorNameMap(instructors = []) {
+  /** @type {Record<string, string>} */
   const map = {};
   (instructors || []).forEach((instructor) => {
     const uid = instructor?.id || instructor?.uid;
@@ -492,7 +511,7 @@ export function buildInstructorNameMap(instructors = []) {
  * Never invents a name.
  *
  * @param {any} cls
- * @param {Record<string, string>} nameMap
+ * @param {Record<string, string>} [nameMap]
  * @returns {string}
  */
 export function resolveInstructorLabel(cls, nameMap = {}) {
@@ -520,3 +539,57 @@ export function noopNavigate(tabId) {
 export function noopLoadAttendance(date) {
   void date;
 }
+
+/**
+ * Detects student-to-class level placement mismatches computed at read time (OD-FO-3 / Q4).
+ *
+ * An enrolled student in a class with a differing classLevel represents an academic
+ * placement condition requiring Instructor Leader review, without blocking the enrollment flow.
+ *
+ * @param {Array<any>} classes
+ * @param {Array<any>} students
+ * @returns {Array<{
+ *   studentId: string,
+ *   studentName: string,
+ *   studentLevel: string,
+ *   classId: string,
+ *   className: string,
+ *   classLevel: string,
+ *   division: string,
+ * }>}
+ */
+export function findClassLevelMismatches(classes = [], students = []) {
+  if (!classes?.length || !students?.length) return [];
+  const studentMap = new Map();
+  students.forEach((s) => {
+    if (s?.id) studentMap.set(s.id, s);
+  });
+
+  const mismatches = [];
+  classes.forEach((cls) => {
+    if (!cls || !isLiveClass(cls)) return;
+    const targetLevel = (cls.classLevel || cls.level || "").toLowerCase().trim();
+    if (!hasAssessedLevel(targetLevel)) return;
+
+    const studentIds = Array.isArray(cls.studentIds) ? cls.studentIds : [];
+    studentIds.forEach((sid) => {
+      const student = studentMap.get(sid);
+      if (!student) return;
+      const currentLevel = (student.currentLevel || "").toLowerCase().trim();
+      if (!hasAssessedLevel(currentLevel) || currentLevel !== targetLevel) {
+        mismatches.push({
+          studentId: sid,
+          studentName: student.displayName || "Student",
+          studentLevel: hasAssessedLevel(currentLevel) ? currentLevel : "unassessed",
+          classId: cls.id,
+          className: cls.className || "Class",
+          classLevel: targetLevel,
+          division: resolveClassDivision(cls),
+        });
+      }
+    });
+  });
+
+  return mismatches;
+}
+

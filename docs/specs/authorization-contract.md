@@ -84,10 +84,24 @@ The Role × Branch × Division contract is enforced across five distinct system 
   3. `userDivision() == 'kindergarten'` $\rightarrow$ Strictly requires `data.division == 'kindergarten'`.
   4. Non-kindergarten (`"courses"`) $\rightarrow$ Requires `data.division != 'kindergarten'`.
 
-### Layer 4: Directive & Task Execution (`useStaffDirectives.js`)
-- Staff with `division = null` (e.g. `officeboy`) receive all branch facility tasks.
-- Staff with `division = "all"` receive directives for `courses`, `kindergarten`, and `all`.
-- Staff with `courses` or `kindergarten` receive only their division's directives plus academy-wide directives.
+### Layer 4: Directive & Task Execution (`useStaffDirectives.js`, `firestore.rules`)
+- **Division Scoping:**
+  - Staff with `division = null` (e.g. `officeboy`) receive all branch facility tasks.
+  - Staff with `division = "all"` receive directives for `courses`, `kindergarten`, and `all`.
+  - Staff with `courses` or `kindergarten` receive only their division's directives plus academy-wide directives.
+- **Directive Issuance Authority:**
+  - Province-wide: `director`, `vice_director`.
+  - Branch-scoped: `manager`, `opslead`, `ops_lead`, and `frontoffice` (desk directives in their branch).
+  - System Admin (`admin`) holds technical system access only and cannot issue or delete organizational directives (Principle 3).
+- **Completion Authority & Attribution Integrity:**
+  - Enforced by `isTodoAssignee(doc)`: only the designated assignee (specific UID, matching role, or `'all'`) can complete.
+  - Missing assignment (`assignee` missing or `null`) is strictly non-actionable (never treated as implicit authorization).
+  - Direct writes require valid self-attribution (`completedBy == auth.uid`, `completedByName == userProfile.displayName`).
+  - Timestamp integrity is strictly enforced via trusted server timestamp (`completedAt == request.time`). Client-specified strings or forged times are rejected.
+- **Reopening Authority & State Reset:**
+  - Reopening (`completed: false`) is strictly restricted to the directive creator (`isCreator`) within branch scope or an authorized supervisor (`director`, `vice_director` province-wide; `manager`, `opslead`, `ops_lead` same branch).
+  - Assignees, peer staff, and System Admin cannot reopen completed directives.
+  - Reopening requires complete attribution reset: `completedBy: null`, `completedByName: null`, `completedAt: null`. Retaining completion attribution on an open directive is rejected.
 
 ### Layer 5: Presentation & Routing (`App.jsx` & Segmented Container)
 - `division === "courses"` $\rightarrow$ Native Courses Dashboard.

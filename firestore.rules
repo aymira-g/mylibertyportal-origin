@@ -219,7 +219,7 @@ service cloud.firestore {
             (req.completed == true
               && isTodoAssignee(res)
               && ('completedBy' in req) && req.completedBy == request.auth.uid
-              && ('completedAt' in req) && (req.completedAt == request.time || (req.completedAt is string && req.completedAt.size() > 0))
+              && ('completedAt' in req) && req.completedAt == request.time
               && ('completedByName' in req) && (pName != '' ? req.completedByName == pName : (req.completedByName is string && req.completedByName.size() > 0)))
             || (req.completed == false
               && (isSupervisor || isCreator)

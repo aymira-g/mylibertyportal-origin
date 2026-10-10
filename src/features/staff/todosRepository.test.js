@@ -78,7 +78,7 @@ describe("toggleTodoComplete", () => {
       completedBy: "u1",
       completedByName: "Rina",
     });
-    expect(op.data.completedAt).toBeDefined();
+    expect(op.data.completedAt).toEqual({ __op: "serverTimestamp" });
   });
 
   it("unmarks todo as complete and clears audit info", async () => {

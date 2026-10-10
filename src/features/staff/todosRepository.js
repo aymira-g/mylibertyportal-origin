@@ -1,5 +1,5 @@
 import { auth, db } from "../../firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
 import { DEFAULT_BRANCH, normalizeBranch, branchToId } from "../../constants/branches.js";
 
 /**
@@ -49,7 +49,7 @@ export function toggleTodoComplete(todoId, completed, currentUser = null) {
   const updates = completed
     ? {
         completed: true,
-        completedAt: new Date().toISOString(),
+        completedAt: serverTimestamp(),
         completedBy: user?.uid || null,
         completedByName: user?.displayName || user?.email || "Staff Member",
       }

@@ -16,7 +16,7 @@ import {
   assertSucceeds,
   assertFails,
 } from "@firebase/rules-unit-testing";
-import { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, addDoc, writeBatch, deleteField, query, where, getDocs } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, addDoc, writeBatch, deleteField, query, where, getDocs, serverTimestamp } from "firebase/firestore";
 import { todayWita, witaDayStart } from "../../utils/dateWita.js";
 
 const RULES_PATH = join(dirname(fileURLToPath(import.meta.url)), "../../../firestore.rules");
@@ -2515,7 +2515,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         await assertSucceeds(
           updateDoc(doc(authed("obGto"), "todos", "todoBroadcast"), {
             completed: true,
-            completedAt: "2026-10-10T08:00:00Z",
+            completedAt: serverTimestamp(),
             completedBy: "obGto",
             completedByName: "obGto",
           })
@@ -2525,7 +2525,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         await assertSucceeds(
           updateDoc(doc(authed("obGto"), "todos", "todoRoleOb"), {
             completed: true,
-            completedAt: "2026-10-10T08:05:00Z",
+            completedAt: serverTimestamp(),
             completedBy: "obGto",
             completedByName: "obGto",
           })
@@ -2535,7 +2535,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         await assertSucceeds(
           updateDoc(doc(authed("obGto"), "todos", "todoIndividualOb"), {
             completed: true,
-            completedAt: "2026-10-10T08:10:00Z",
+            completedAt: serverTimestamp(),
             completedBy: "obGto",
             completedByName: "obGto",
           })
@@ -2592,13 +2592,33 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
           createdBy: "mgrGto",
         });
 
+        // Task with explicit null assignee (OB-SEC-02)
+        await seedDoc(["todos", "todoExplicitNullAssignee"], {
+          text: "Null assignee task",
+          assignee: null,
+          completed: false,
+          branchId: "kota_gorontalo",
+          branch: "Kota Gorontalo",
+          createdBy: "mgrGto",
+        });
+
         // Office boy attempts to complete task assigned to instructor role -> fails
         await assertFails(
           updateDoc(doc(authed("obGto"), "todos", "todoForInstructor"), {
             completed: true,
-            completedAt: "2026-10-10T08:00:00Z",
+            completedAt: serverTimestamp(),
             completedBy: "obGto",
-            completedByName: "Support Staff",
+            completedByName: "obGto",
+          })
+        );
+
+        // Instructor attempts to complete task assigned to office boy role -> fails
+        await assertFails(
+          updateDoc(doc(authed("insGto"), "todos", "todoForObDeskCheck"), {
+            completed: true,
+            completedAt: serverTimestamp(),
+            completedBy: "insGto",
+            completedByName: "insGto",
           })
         );
 
@@ -2606,19 +2626,29 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         await assertFails(
           updateDoc(doc(authed("obGto"), "todos", "todoIndividualIns"), {
             completed: true,
-            completedAt: "2026-10-10T08:00:00Z",
+            completedAt: serverTimestamp(),
             completedBy: "obGto",
-            completedByName: "Support Staff",
+            completedByName: "obGto",
           })
         );
 
-        // OB-SEC-02: Office boy attempts to complete unassigned task -> fails (missing assignment is NOT authorization)
+        // OB-SEC-02: Office boy attempts to complete unassigned task (missing assignee field) -> fails
         await assertFails(
           updateDoc(doc(authed("obGto"), "todos", "todoMissingAssignee"), {
             completed: true,
-            completedAt: "2026-10-10T08:00:00Z",
+            completedAt: serverTimestamp(),
             completedBy: "obGto",
-            completedByName: "Support Staff",
+            completedByName: "obGto",
+          })
+        );
+
+        // OB-SEC-02: Office boy attempts to complete task with explicit null assignee -> fails
+        await assertFails(
+          updateDoc(doc(authed("obGto"), "todos", "todoExplicitNullAssignee"), {
+            completed: true,
+            completedAt: serverTimestamp(),
+            completedBy: "obGto",
+            completedByName: "obGto",
           })
         );
 
@@ -2626,9 +2656,9 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         await assertFails(
           updateDoc(doc(authed("foGto"), "todos", "todoMissingAssignee"), {
             completed: true,
-            completedAt: "2026-10-10T08:00:00Z",
+            completedAt: serverTimestamp(),
             completedBy: "foGto",
-            completedByName: "Front Desk",
+            completedByName: "foGto",
           })
         );
 
@@ -2636,9 +2666,9 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         await assertFails(
           updateDoc(doc(authed("foGto"), "todos", "todoForObDeskCheck"), {
             completed: true,
-            completedAt: "2026-10-10T08:00:00Z",
+            completedAt: serverTimestamp(),
             completedBy: "foGto",
-            completedByName: "Front Desk",
+            completedByName: "foGto",
           })
         );
 
@@ -2646,9 +2676,9 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         await assertFails(
           updateDoc(doc(authed("obGto"), "todos", "todoBroadcastForged"), {
             completed: true,
-            completedAt: "2026-10-10T08:00:00Z",
+            completedAt: serverTimestamp(),
             completedBy: "insGto",
-            completedByName: "Instructor Staff",
+            completedByName: "insGto",
           })
         );
 
@@ -2656,7 +2686,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         await assertFails(
           updateDoc(doc(authed("obGto"), "todos", "todoBroadcastForged"), {
             completed: true,
-            completedAt: "2026-10-10T08:00:00Z",
+            completedAt: serverTimestamp(),
             completedBy: null,
             completedByName: "obGto",
           })
@@ -2666,7 +2696,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         await assertFails(
           updateDoc(doc(authed("obGto"), "todos", "todoBroadcastForged"), {
             completed: true,
-            completedAt: "2026-10-10T08:00:00Z",
+            completedAt: serverTimestamp(),
             completedBy: "obGto",
           })
         );
@@ -2675,7 +2705,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         await assertFails(
           updateDoc(doc(authed("obGto"), "todos", "todoBroadcastForged"), {
             completed: true,
-            completedAt: "2026-10-10T08:00:00Z",
+            completedAt: serverTimestamp(),
             completedBy: "obGto",
             completedByName: "Managing Director",
           })
@@ -2685,9 +2715,39 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         await assertFails(
           updateDoc(doc(authed("obGto"), "todos", "todoBroadcastForged"), {
             completed: true,
-            completedAt: "2026-10-10T08:00:00Z",
+            completedAt: serverTimestamp(),
             completedBy: "obGto",
             completedByName: "",
+          })
+        );
+
+        // Direct write with forged past ISO completion time string -> fails (Item 1 timestamp integrity)
+        await assertFails(
+          updateDoc(doc(authed("obGto"), "todos", "todoBroadcastForged"), {
+            completed: true,
+            completedAt: "2026-10-10T08:00:00Z",
+            completedBy: "obGto",
+            completedByName: "obGto",
+          })
+        );
+
+        // Direct write with forged future ISO completion time string -> fails (Item 1 timestamp integrity)
+        await assertFails(
+          updateDoc(doc(authed("obGto"), "todos", "todoBroadcastForged"), {
+            completed: true,
+            completedAt: "2099-01-01T00:00:00Z",
+            completedBy: "obGto",
+            completedByName: "obGto",
+          })
+        );
+
+        // Direct write with forged client Date object -> fails
+        await assertFails(
+          updateDoc(doc(authed("obGto"), "todos", "todoBroadcastForged"), {
+            completed: true,
+            completedAt: new Date(),
+            completedBy: "obGto",
+            completedByName: "obGto",
           })
         );
 
@@ -2838,9 +2898,62 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
           createdBy: "foGto",
         });
 
+        // Assignee (obGto) cannot reopen Front Office's task -> fails (unauthorized reopening)
+        await assertFails(
+          updateDoc(doc(authed("obGto"), "todos", "todoCompletedByFo"), {
+            completed: false,
+            completedAt: null,
+            completedBy: null,
+            completedByName: null,
+          })
+        );
+
+        // Cross-branch supervisor: Bone Bolango manager cannot reopen Kota Gorontalo task -> fails (cross-branch access)
+        await assertFails(
+          updateDoc(doc(authed("mgrBoba"), "todos", "todoCompletedByMgr"), {
+            completed: false,
+            completedAt: null,
+            completedBy: null,
+            completedByName: null,
+          })
+        );
+
         // Front Office (task creator) can reopen -> succeeds
         await assertSucceeds(
           updateDoc(doc(authed("foGto"), "todos", "todoCompletedByFo"), {
+            completed: false,
+            completedAt: null,
+            completedBy: null,
+            completedByName: null,
+          })
+        );
+
+        // Completed task created by Instructor
+        await seedDoc(["todos", "todoCompletedByIns"], {
+          text: "Prep classroom A audio cable",
+          assignee: "officeboy",
+          completed: true,
+          completedAt: "2026-10-10T07:00:00Z",
+          completedBy: "obGto",
+          completedByName: "obGto",
+          branchId: "kota_gorontalo",
+          branch: "Kota Gorontalo",
+          createdBy: "insGto",
+        });
+
+        // Non-creator peer staff (foGto) cannot reopen instructor's task -> fails
+        await assertFails(
+          updateDoc(doc(authed("foGto"), "todos", "todoCompletedByIns"), {
+            completed: false,
+            completedAt: null,
+            completedBy: null,
+            completedByName: null,
+          })
+        );
+
+        // Instructor (task creator) can reopen their own task -> succeeds (creator reopening)
+        await assertSucceeds(
+          updateDoc(doc(authed("insGto"), "todos", "todoCompletedByIns"), {
             completed: false,
             completedAt: null,
             completedBy: null,
@@ -2860,15 +2973,28 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
           createdBy: "mgrBoba",
         });
 
-        // Kota Gorontalo office boy cannot touch Bone Bolango task -> fails
+        // Kota Gorontalo office boy cannot touch Bone Bolango task -> fails (cross-branch access)
         await assertFails(
           updateDoc(doc(authed("obGto"), "todos", "todoBobaBranch"), {
             completed: true,
-            completedAt: "2026-10-10T08:00:00Z",
+            completedAt: serverTimestamp(),
             completedBy: "obGto",
-            completedByName: "Support Staff",
+            completedByName: "obGto",
           })
         );
+
+        // Bone Bolango manager cannot touch or complete Kota Gorontalo task -> fails (cross-branch access)
+        await assertFails(
+          updateDoc(doc(authed("mgrBoba"), "todos", "todoTamperTest"), {
+            completed: true,
+            completedAt: serverTimestamp(),
+            completedBy: "mgrBoba",
+            completedByName: "mgrBoba",
+          })
+        );
+
+        // Kota Gorontalo Front Office cannot delete Bone Bolango task -> fails (cross-branch access)
+        await assertFails(deleteDoc(doc(authed("foGto"), "todos", "todoBobaBranch")));
 
         // Office boy cannot alter directive text or delete
         await seedDoc(["todos", "todoTamperTest"], {

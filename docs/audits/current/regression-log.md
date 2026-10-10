@@ -14,8 +14,8 @@
 |---|---|---|---|---|---|
 | 2026-10-08 | Instructor Leader dashboard Phase 1 refinement + owner-approved read-only widening of `firestore.rules` for `progressReports` / `classAttendance` | Dashboard / Instructor Leader · Firestore Rules | **PASS** for the change itself (browser verification partial — see record) | No | Targeted checks passed; see the evidence record below |
 | 2026-10-08 | Follow-up boundary probe of the approval-gate contract (during Phase 2 scoping) | Approvals · Firestore Rules | **RESOLVED** (was `ESCALATE`) | **Yes** | `actionId → approverRole` binding was client-side only. Fixed under owner authorization the same day on the create, decision and consumption paths. See the escalation record and its resolution below |
-| 2026-10-10 | FO-02 & FO-03 Placement-level authority and branch validation hardening | Front Office · Firestore Rules · Students | **PASS** | No | F-11 & §A2.7/§A2.8 closed at code/rules/emulator layer; 117/117 emulator tests pass; FO-02 closed; pending live rules deploy |
-| 2026-10-10 | Actions 1–5 Directives hardening: Admin business-authority removal, supervisor reconciliation, attribution display name binding & emulator suite | Office Boy · Facilities · Firestore Rules · Todos | **PASS** | No | 121/121 emulator tests pass; Admin blocked from directive reopen/edit/delete; supervisor roles reconciled; display name spoofing blocked |
+| 2026-10-10 | Actions 1–5 Directives hardening: Admin business-authority removal, supervisor reconciliation, attribution display name binding & emulator suite | Office Boy · Facilities · Firestore Rules · Todos | **PASS** | No | Live deployed to `mylibertyies-f2f38` by operator at commit `19fd280`; 121/121 emulator tests pass |
+| 2026-10-10 | Directives timestamp integrity (`serverTimestamp` enforcement), reopening contract formalization & expanded security suite | Office Boy · Facilities · Firestore Rules · Todos | **PASS** | No | Strict `req.completedAt == request.time`; forged times blocked; Layer 4 spec formalized; 121/121 emulator tests pass; pending live deploy |
 
 ---
 

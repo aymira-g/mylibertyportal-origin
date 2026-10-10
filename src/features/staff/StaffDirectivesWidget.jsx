@@ -315,7 +315,11 @@ export default function StaffDirectivesWidget({
                           <>
                             {" "}
                             ·{" "}
-                            {new Date(item.completedAt).toLocaleString("en-US", {
+                            {new Date(
+                              item.completedAt?.toDate
+                                ? item.completedAt.toDate()
+                                : item.completedAt
+                            ).toLocaleString("en-US", {
                               month: "short",
                               day: "numeric",
                               hour: "2-digit",

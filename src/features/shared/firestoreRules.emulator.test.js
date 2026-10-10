@@ -2517,7 +2517,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
             completed: true,
             completedAt: "2026-10-10T08:00:00Z",
             completedBy: "obGto",
-            completedByName: "Support Staff",
+            completedByName: "obGto",
           })
         );
 
@@ -2527,7 +2527,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
             completed: true,
             completedAt: "2026-10-10T08:05:00Z",
             completedBy: "obGto",
-            completedByName: "Support Staff",
+            completedByName: "obGto",
           })
         );
 
@@ -2537,7 +2537,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
             completed: true,
             completedAt: "2026-10-10T08:10:00Z",
             completedBy: "obGto",
-            completedByName: "Support Staff",
+            completedByName: "obGto",
           })
         );
       });
@@ -2658,7 +2658,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
             completed: true,
             completedAt: "2026-10-10T08:00:00Z",
             completedBy: null,
-            completedByName: "Support Staff",
+            completedByName: "obGto",
           })
         );
 
@@ -2671,12 +2671,42 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
           })
         );
 
+        // Direct write with spoofed display name (does not match profile displayName) -> fails
+        await assertFails(
+          updateDoc(doc(authed("obGto"), "todos", "todoBroadcastForged"), {
+            completed: true,
+            completedAt: "2026-10-10T08:00:00Z",
+            completedBy: "obGto",
+            completedByName: "Managing Director",
+          })
+        );
+
+        // Direct write with empty display name string -> fails
+        await assertFails(
+          updateDoc(doc(authed("obGto"), "todos", "todoBroadcastForged"), {
+            completed: true,
+            completedAt: "2026-10-10T08:00:00Z",
+            completedBy: "obGto",
+            completedByName: "",
+          })
+        );
+
         // Office boy attempts to complete without completedAt -> fails
         await assertFails(
           updateDoc(doc(authed("obGto"), "todos", "todoBroadcastForged"), {
             completed: true,
             completedBy: "obGto",
-            completedByName: "Support Staff",
+            completedByName: "obGto",
+          })
+        );
+
+        // Office boy attempts to complete with empty string completedAt -> fails
+        await assertFails(
+          updateDoc(doc(authed("obGto"), "todos", "todoBroadcastForged"), {
+            completed: true,
+            completedAt: "",
+            completedBy: "obGto",
+            completedByName: "obGto",
           })
         );
       });
@@ -2735,9 +2765,59 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
           })
         );
 
+        // Action 1: System Admin (technical role only, no business supervisor authority) cannot reopen directives -> fails
+        await assertFails(
+          updateDoc(doc(authed("admin"), "todos", "todoCompletedByMgr"), {
+            completed: false,
+            completedAt: null,
+            completedBy: null,
+            completedByName: null,
+          })
+        );
+
+        // System Admin cannot edit directive content -> fails
+        await assertFails(
+          updateDoc(doc(authed("admin"), "todos", "todoCompletedByMgr"), {
+            text: "Admin altered directive text",
+          })
+        );
+
+        // System Admin cannot delete directives -> fails
+        await assertFails(deleteDoc(doc(authed("admin"), "todos", "todoCompletedByMgr")));
+
         // Operational Leader (supervisor) can reopen with full attribution reset -> succeeds
         await assertSucceeds(
           updateDoc(doc(authed("opsGto"), "todos", "todoCompletedByMgr"), {
+            completed: false,
+            completedAt: null,
+            completedBy: null,
+            completedByName: null,
+          })
+        );
+
+        // Division Manager (supervisor) can reopen -> succeeds
+        await assertSucceeds(
+          updateDoc(doc(authed("mgrGto"), "todos", "todoCompletedByMgr"), {
+            completed: false,
+            completedAt: null,
+            completedBy: null,
+            completedByName: null,
+          })
+        );
+
+        // Vice Director (executive operational control) can reopen -> succeeds
+        await assertSucceeds(
+          updateDoc(doc(authed("vdGto"), "todos", "todoCompletedByMgr"), {
+            completed: false,
+            completedAt: null,
+            completedBy: null,
+            completedByName: null,
+          })
+        );
+
+        // Director (strategic executive control) can reopen -> succeeds
+        await assertSucceeds(
+          updateDoc(doc(authed("dirGto"), "todos", "todoCompletedByMgr"), {
             completed: false,
             completedAt: null,
             completedBy: null,

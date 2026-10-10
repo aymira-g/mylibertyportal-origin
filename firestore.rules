@@ -199,16 +199,17 @@ service cloud.firestore {
       let r = signedIn() && p != null && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated')) && ('role' in p) ? p.role : '';
       let req = request.resource.data;
       let res = resource.data;
-      let isSupervisor = r in ['director', 'vice_director', 'admin', 'manager', 'opslead', 'ops_lead', 'frontofficelead'];
+      let isSupervisor = r in ['director', 'vice_director', 'manager', 'opslead', 'ops_lead'];
       let isCreator = ('createdBy' in res) && res.createdBy == request.auth.uid;
+      let pName = p != null && ('displayName' in p) && p.displayName is string ? p.displayName : '';
       let diffKeys = req.diff(res).affectedKeys();
 
       return (isSupervisor || r in ['frontoffice', 'instructor', 'instructorleader', 'instructor_leader', 'marketing', 'officeboy'])
-        && (r in ['director', 'vice_director', 'admin']
+        && (r in ['director', 'vice_director']
           || isDocSameBranch(res)
           || (('branch' in res) && (res.branch == 'all' || res.branch == 'All'))
           || (('branchId' in res) && res.branchId == 'all'))
-        && (r in ['director', 'vice_director', 'admin']
+        && (r in ['director', 'vice_director']
           || isDocSameBranch(req)
           || (('branch' in req) && (req.branch == 'all' || req.branch == 'All'))
           || (('branchId' in req) && req.branchId == 'all'))
@@ -218,8 +219,8 @@ service cloud.firestore {
             (req.completed == true
               && isTodoAssignee(res)
               && ('completedBy' in req) && req.completedBy == request.auth.uid
-              && ('completedAt' in req) && req.completedAt is string
-              && ('completedByName' in req) && req.completedByName is string)
+              && ('completedAt' in req) && (req.completedAt == request.time || (req.completedAt is string && req.completedAt.size() > 0))
+              && ('completedByName' in req) && (pName != '' ? req.completedByName == pName : (req.completedByName is string && req.completedByName.size() > 0)))
             || (req.completed == false
               && (isSupervisor || isCreator)
               && (!('completedBy' in req) || req.completedBy == null)
@@ -710,10 +711,10 @@ service cloud.firestore {
           || (('branchId' in resource.data) && resource.data.branchId == 'all')
           || (('branch' in resource.data) && (resource.data.branch == 'all' || resource.data.branch == 'All'))
         ));
-      // Executives and Managers issue directives; Front Office can manage desk directives in their branch
-      allow create: if isExecutive()
-        || ((isManager() || isFrontOffice()) && isSameBranch(request.resource.data));
-      allow delete: if isExecutive()
+      // Organizational leadership issues directives; Front Office can manage desk directives in their branch
+      allow create: if isDirector() || isViceDirector()
+        || ((isManager() || isOpsLead() || isFrontOffice()) && isSameBranch(request.resource.data));
+      allow delete: if isDirector() || isViceDirector()
         || ((isManager() || isOpsLead() || (('createdBy' in resource.data) && resource.data.createdBy == request.auth.uid)) && isSameBranch(resource.data));
       // Directive updates strictly governed by canUpdateTodo():
       // - Assignees can only complete assigned directives with valid self-attribution

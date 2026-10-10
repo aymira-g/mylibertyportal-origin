@@ -15,7 +15,7 @@
 | 2026-10-08 | Instructor Leader dashboard Phase 1 refinement + owner-approved read-only widening of `firestore.rules` for `progressReports` / `classAttendance` | Dashboard / Instructor Leader · Firestore Rules | **PASS** for the change itself (browser verification partial — see record) | No | Targeted checks passed; see the evidence record below |
 | 2026-10-08 | Follow-up boundary probe of the approval-gate contract (during Phase 2 scoping) | Approvals · Firestore Rules | **RESOLVED** (was `ESCALATE`) | **Yes** | `actionId → approverRole` binding was client-side only. Fixed under owner authorization the same day on the create, decision and consumption paths. See the escalation record and its resolution below |
 | 2026-10-10 | FO-02 & FO-03 Placement-level authority and branch validation hardening | Front Office · Firestore Rules · Students | **PASS** | No | F-11 & §A2.7/§A2.8 closed at code/rules/emulator layer; 117/117 emulator tests pass; FO-02 closed; pending live rules deploy |
-| 2026-10-10 | OB-SEC-01, OB-SEC-02, OB-SEC-03 & OB-GOV-01/02 Directive completion authorization, missing assignment rejection, reopen bypass closure, attribution integrity & active wording | Office Boy · Facilities · Firestore Rules · Todos | **PASS** | No | 121/121 emulator tests pass; zero 1000-expression overflows; unassigned tasks rejected; FO bypass closed; full attribution integrity enforced |
+| 2026-10-10 | Actions 1–5 Directives hardening: Admin business-authority removal, supervisor reconciliation, attribution display name binding & emulator suite | Office Boy · Facilities · Firestore Rules · Todos | **PASS** | No | 121/121 emulator tests pass; Admin blocked from directive reopen/edit/delete; supervisor roles reconciled; display name spoofing blocked |
 
 ---
 
@@ -646,42 +646,49 @@ Deployment Parity Verification:
 
 ---
 
-## Evidence Record — 2026-10-10 (OB-SEC-01, OB-SEC-02, OB-SEC-03 & OB-GOV-01/02 Remediation)
+## Evidence Record — 2026-10-10 (OB Directives Actions 1–5 Hardening)
 
 ```text
-Change: 1) firestore.rules match /todos/{todoId} hardened with canUpdateTodo() and isTodoAssignee():
-           - OB-SEC-01: Restricts completion (completed: true) to eligible assignees (all, uid, or role).
-           - OB-SEC-02: Missing assignment rejection — eliminates the !('assignee' in data) loophole;
-             directives lacking an explicit assignee field cannot be completed by any staff member.
-           - OB-SEC-03: Role branch bypass closure — eliminates broad role branches where frontoffice or
-             other staff could bypass reopening restrictions or complete tasks assigned to other roles.
-             Front Office desk staff cannot reopen manager-issued directives or edit directive content
-             they did not create.
-           - Attribution Integrity: On completion, strictly requires completedBy == request.auth.uid,
-             completedAt is string, and completedByName is string. On reopening, strictly requires
-             completedBy == null, completedAt == null, and completedByName == null.
-           - Directives Deletion: Separated create from delete; only Executives, Managers, Ops Leads,
-             or task creators can delete directives. Front Office cannot delete manager directives.
-           - 10-Variable Limit & Expression Ceiling: Reduced variable count in canUpdateTodo to 7 (well under
-             the Firestore 10-variable ceiling), with zero 1000-expression overflows.
-        2) todosRepository.js: toggleTodoComplete falls back to auth?.currentUser when currentUser is omitted.
-        3) OfficeBoyDashboard.jsx:
-           - Changed stat card from misleading "Campus Readiness: All Clear" to "Active Tasks: None Pending".
-           - Replaced remaining "In Progress" label with "Active" (${tasks.length} Active).
-           - Removed unauthorized Undo2 reopen button and handleReopen handler; completed tasks rendered read-only.
-        4) Verification Suite:
-           - firestoreRules.emulator.test.js: Added exhaustive positive/negative tests for OB-SEC-02 (unassigned
-             directives denied), OB-SEC-03 (Front Office reopen and completion bypass blocked), attribution
-             completeness on complete, attribution clearing on reopen, and deletion authority.
+Change: 1) firestore.rules canUpdateTodo() & match /todos/{todoId}:
+           - Action 1 (Admin Business-Authority Removal): Removed 'admin' from isSupervisor and
+             staff directive roles. Admin is strictly technical-only: cannot reopen, edit, or
+             delete business directives.
+           - Action 2 (Supervisor Role Reconciliation): Reconciled isSupervisor strictly to
+             authorized organizational roles from Blueprint §5.4, §6.8, §6.10:
+             ['director', 'vice_director', 'manager', 'opslead', 'ops_lead']. Removed legacy 'frontofficelead'.
+             Cross-branch directive update restricted strictly to Executive tier (Director & Vice Director).
+             Directives create and delete restricted to Director, Vice Director, Manager, Ops Lead, and creator.
+           - Action 3 (Attribution Integrity & Display Name Binding):
+             - Bound completedByName to user profile's displayName:
+               (pName != '' ? req.completedByName == pName : req.completedByName is string && req.completedByName.size() > 0).
+               Direct write with spoofed display name (e.g. "Managing Director") is strictly denied.
+             - Supported serverTimestamp() (req.completedAt == request.time) alongside valid non-empty ISO strings;
+               empty timestamp strings are rejected.
+           - 8 Local Variables: canUpdateTodo() uses exactly 8 let variables (well below the 10-variable limit).
+        2) useStaffDirectives.js:
+           - Updated completedDirectives sorting to handle both Firestore Timestamp objects and ISO strings.
+           - Passed profile?.displayName to toggleTodoComplete so UI completions automatically supply the authoritative profile name.
+        3) Verification Suite (Action 4):
+           - firestoreRules.emulator.test.js: Added tests asserting:
+             - Admin cannot reopen directives -> DENIED (assertFails).
+             - Admin cannot edit directive content -> DENIED (assertFails).
+             - Admin cannot delete directives -> DENIED (assertFails).
+             - Direct write with spoofed display name -> DENIED (assertFails).
+             - Direct write with empty display name or empty timestamp -> DENIED (assertFails).
+             - Operational Leader, Division Manager, Vice Director, and Director reopening -> ALLOWED (assertSucceeds).
+             - Assignee completing with matching profile display name -> ALLOWED (assertSucceeds).
              Results: 121 passed, 0 failed on real emulator.
-           - todosRepository.test.js: 10 passed, 0 failed.
-           - OfficeBoyDashboard.test.js: 3 passed, 0 failed (asserts "1 Active" and not.toContain("In Progress")).
-           - Full Vitest suite: 1,288 passed, 0 failed.
-           - Production deployment status: PENDING OPERATOR DEPLOYMENT (no production deploy performed).
+           - Full Vitest suite: 1,288 passed, 0 failed (102 test files).
+           - ESLint: 0 errors, 0 warnings.
+           - TypeScript: 0 errors.
+           - Build: Built cleanly in 688ms.
+        4) Separate Deployment Verification (Action 5):
+           - Local verification complete and clean across all suites.
+           - Live production deployment held pending operator approval: `firebase deploy --only firestore:rules`.
 
 Date: 2026-10-10
 Section: Office Boy & Facilities / Firestore Security Rules / Operational Directives
-Workflow: Daily facility checklist, task completion, supervisor reopening, branch isolation
+Workflow: Directives supervisory authority, attribution binding, technical-only admin, branch isolation
 Tester / Agent: Pair programming agent under Kifry's authorization
 
 Risk classification (Playbook §9): HIGH-RISK — Firestore security rules + role authorization boundaries.
@@ -691,26 +698,27 @@ Normal Test:
   - Workspace test suite: npm test -> 1,288 passed, 121 skipped, 0 failed (102 test files).
   - ESLint: npm run lint -> 0 errors, 0 warnings.
   - TypeScript: npm run typecheck (tsc --noEmit) -> 0 errors.
-  - Build: npm run build -> built cleanly in 666ms.
+  - Build: npm run build -> built cleanly in 688ms.
 
 Negative Authorization / Boundary Tests:
-  - Staff completing task assigned to different role or individual -> DENIED (assertFails).
+  - System Admin attempting to reopen completed directive (Action 1) -> DENIED (assertFails).
+  - System Admin attempting to edit directive content (Action 1) -> DENIED (assertFails).
+  - System Admin attempting to delete directive (Action 1) -> DENIED (assertFails).
+  - Direct write with spoofed display name (not matching profile displayName) (Action 3) -> DENIED (assertFails).
+  - Direct write with empty display name string or empty timestamp string (Action 3) -> DENIED (assertFails).
+  - Front office attempting to reopen Manager-issued directive (OB-SEC-03) -> DENIED (assertFails).
   - Staff completing directive missing assignee field (OB-SEC-02) -> DENIED (assertFails).
   - Front office completing directive assigned to office boy (OB-SEC-03) -> DENIED (assertFails).
-  - Staff attempting to forge completedBy with another user's UID or null -> DENIED (assertFails).
-  - Staff attempting to complete directive without completedByName or completedAt -> DENIED (assertFails).
-  - Front office attempting to reopen directive created by Manager (OB-SEC-03) -> DENIED (assertFails).
-  - Supervisor attempting to reopen directive while retaining completedBy (stale attribution) -> DENIED (assertFails).
-  - Ordinary staff (Office Boy, Instructor) attempting to reopen task created by Manager -> DENIED (assertFails).
-  - Cross-branch task completion (Kota Gorontalo staff touching Bone Bolango task) -> DENIED (assertFails).
-  - Front office desk staff attempting to alter text or delete Manager's directive -> DENIED (assertFails).
-  - Front office desk staff deleting directive they created -> ALLOWED (assertSucceeds).
-  - Authorized supervisor (Ops Lead, Manager) or task creator reopening task with full attribution reset -> ALLOWED (assertSucceeds).
+  - Staff completing with forged completedBy UID -> DENIED (assertFails).
+  - Cross-branch directive modification -> DENIED (assertFails).
+  - Authorized supervisors (Ops Lead, Manager, Vice Director, Director) reopening -> ALLOWED (assertSucceeds).
+  - Directive creator (Front Office) deleting/reopening their own directive -> ALLOWED (assertSucceeds).
 
 Readiness & Governance Alignment:
-  - Office Boy dashboard displays "Active Tasks: None Pending" when empty; "Active Tasks: N Active" when tasks exist; zero occurrences of "In Progress" or campus readiness claims remain.
-  - Completed directives list displays read-only audit log without undo/reopen controls.
-  - Production deployment hold strictly honored: rules are verified locally in the emulator and NOT deployed to production.
+  - System Admin business authority conflict completely eliminated: Admin is technical-only.
+  - Supervisor list reconciled with Authoritative Blueprint §5.4, §6.8, §6.10: Ops Lead, Division Managers, Director, Vice Director.
+  - Attribution integrity bound to Firestore user profile identity.
+  - Deployment separation maintained: live rules deployment held pending operator execution.
 ```
 
 

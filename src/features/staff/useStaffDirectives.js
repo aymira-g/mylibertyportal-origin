@@ -113,15 +113,22 @@ export function useStaffDirectives(role, explicitBranch = null) {
   }, [directives]);
 
   const completedDirectives = useMemo(() => {
+    const toMs = (ts) => {
+      if (!ts) return 0;
+      if (typeof ts.toMillis === "function") return ts.toMillis();
+      if (typeof ts.toDate === "function") return ts.toDate().getTime();
+      return new Date(ts).getTime() || 0;
+    };
     return directives
       .filter((d) => d.completed)
-      .sort(
-        (a, b) => new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime()
-      );
+      .sort((a, b) => toMs(b.completedAt) - toMs(a.completedAt));
   }, [directives]);
 
   const handleToggle = async (todoId, completed) => {
-    return toggleTodoComplete(todoId, completed, currentUser);
+    const userToPass = profile?.displayName
+      ? { ...currentUser, displayName: profile.displayName }
+      : currentUser;
+    return toggleTodoComplete(todoId, completed, userToPass);
   };
 
   return {

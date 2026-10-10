@@ -47,7 +47,8 @@ describe("OfficeBoyDashboard Component", () => {
     expect(html).toContain("Campus Support");
     expect(html).toContain("Clean classrooms and prep whiteboards");
     expect(html).toContain("Active Tasks");
-    expect(html).toContain("1 In Progress");
+    expect(html).toContain("1 Active");
+    expect(html).not.toContain("In Progress");
     expect(html).not.toContain("Campus Readiness");
     expect(html).not.toContain("All Clear");
   });

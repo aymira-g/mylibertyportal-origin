@@ -80,7 +80,7 @@ export default function OfficeBoyDashboard() {
           },
           {
             label: "Active Tasks",
-            value: tasks.length === 0 ? "None Pending" : `${tasks.length} In Progress`,
+            value: tasks.length === 0 ? "None Pending" : `${tasks.length} Active`,
             icon: Sparkles,
           },
         ]}

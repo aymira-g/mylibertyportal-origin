@@ -2542,7 +2542,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         );
       });
 
-      it("denies completion attempts by non-assignees and forged attribution", async () => {
+      it("denies completion attempts by non-assignees, unassigned directives, and forged attribution (OB-SEC-02)", async () => {
         // Task assigned to instructor
         await seedDoc(["todos", "todoForInstructor"], {
           text: "Submit lesson plan",
@@ -2573,6 +2573,25 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
           createdBy: "mgrGto",
         });
 
+        // Task missing assignee field entirely (OB-SEC-02)
+        await seedDoc(["todos", "todoMissingAssignee"], {
+          text: "Unassigned facility task",
+          completed: false,
+          branchId: "kota_gorontalo",
+          branch: "Kota Gorontalo",
+          createdBy: "mgrGto",
+        });
+
+        // Task assigned to officeboy to test front office non-assignee completion
+        await seedDoc(["todos", "todoForObDeskCheck"], {
+          text: "Mop front lobby",
+          assignee: "officeboy",
+          completed: false,
+          branchId: "kota_gorontalo",
+          branch: "Kota Gorontalo",
+          createdBy: "mgrGto",
+        });
+
         // Office boy attempts to complete task assigned to instructor role -> fails
         await assertFails(
           updateDoc(doc(authed("obGto"), "todos", "todoForInstructor"), {
@@ -2593,6 +2612,36 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
           })
         );
 
+        // OB-SEC-02: Office boy attempts to complete unassigned task -> fails (missing assignment is NOT authorization)
+        await assertFails(
+          updateDoc(doc(authed("obGto"), "todos", "todoMissingAssignee"), {
+            completed: true,
+            completedAt: "2026-10-10T08:00:00Z",
+            completedBy: "obGto",
+            completedByName: "Support Staff",
+          })
+        );
+
+        // OB-SEC-02: Front Office desk staff attempts to complete unassigned task -> fails
+        await assertFails(
+          updateDoc(doc(authed("foGto"), "todos", "todoMissingAssignee"), {
+            completed: true,
+            completedAt: "2026-10-10T08:00:00Z",
+            completedBy: "foGto",
+            completedByName: "Front Desk",
+          })
+        );
+
+        // Front Office desk staff attempts to complete task assigned to officeboy -> fails
+        await assertFails(
+          updateDoc(doc(authed("foGto"), "todos", "todoForObDeskCheck"), {
+            completed: true,
+            completedAt: "2026-10-10T08:00:00Z",
+            completedBy: "foGto",
+            completedByName: "Front Desk",
+          })
+        );
+
         // Office boy attempts to forge completion attribution by setting completedBy to insGto -> fails
         await assertFails(
           updateDoc(doc(authed("obGto"), "todos", "todoBroadcastForged"), {
@@ -2609,11 +2658,30 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
             completed: true,
             completedAt: "2026-10-10T08:00:00Z",
             completedBy: null,
+            completedByName: "Support Staff",
+          })
+        );
+
+        // Office boy attempts to complete without completedByName -> fails
+        await assertFails(
+          updateDoc(doc(authed("obGto"), "todos", "todoBroadcastForged"), {
+            completed: true,
+            completedAt: "2026-10-10T08:00:00Z",
+            completedBy: "obGto",
+          })
+        );
+
+        // Office boy attempts to complete without completedAt -> fails
+        await assertFails(
+          updateDoc(doc(authed("obGto"), "todos", "todoBroadcastForged"), {
+            completed: true,
+            completedBy: "obGto",
+            completedByName: "Support Staff",
           })
         );
       });
 
-      it("restricts reopening completed directives to task creator and authorized supervisors", async () => {
+      it("restricts reopening completed directives to task creator and authorized supervisors (OB-SEC-03)", async () => {
         // Completed task created by Manager
         await seedDoc(["todos", "todoCompletedByMgr"], {
           text: "Quarterly inventory check",
@@ -2621,6 +2689,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
           completed: true,
           completedAt: "2026-10-10T07:00:00Z",
           completedBy: "obGto",
+          completedByName: "Support Staff",
           branchId: "kota_gorontalo",
           branch: "Kota Gorontalo",
           createdBy: "mgrGto",
@@ -2646,7 +2715,27 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
           })
         );
 
-        // Operational Leader (supervisor) can reopen -> succeeds
+        // OB-SEC-03: Front Office desk staff (not creator and not supervisor) cannot reopen manager's task -> fails
+        await assertFails(
+          updateDoc(doc(authed("foGto"), "todos", "todoCompletedByMgr"), {
+            completed: false,
+            completedAt: null,
+            completedBy: null,
+            completedByName: null,
+          })
+        );
+
+        // Operational Leader (supervisor) attempting to reopen while retaining completedBy -> fails (attribution integrity)
+        await assertFails(
+          updateDoc(doc(authed("opsGto"), "todos", "todoCompletedByMgr"), {
+            completed: false,
+            completedAt: null,
+            completedBy: "obGto",
+            completedByName: null,
+          })
+        );
+
+        // Operational Leader (supervisor) can reopen with full attribution reset -> succeeds
         await assertSucceeds(
           updateDoc(doc(authed("opsGto"), "todos", "todoCompletedByMgr"), {
             completed: false,
@@ -2663,6 +2752,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
           completed: true,
           completedAt: "2026-10-10T07:00:00Z",
           completedBy: "obGto",
+          completedByName: "Support Staff",
           branchId: "kota_gorontalo",
           branch: "Kota Gorontalo",
           createdBy: "foGto",
@@ -2679,7 +2769,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         );
       });
 
-      it("enforces branch boundary and blocks ordinary staff from editing directive fields or deleting", async () => {
+      it("enforces branch boundary and blocks unauthorized editing or deleting of directives", async () => {
         // Task in Bone Bolango
         await seedDoc(["todos", "todoBobaBranch"], {
           text: "Clean Boba reception",
@@ -2717,6 +2807,28 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         );
 
         await assertFails(deleteDoc(doc(authed("obGto"), "todos", "todoTamperTest")));
+
+        // Front Office desk staff cannot alter text of manager's directive -> fails
+        await assertFails(
+          updateDoc(doc(authed("foGto"), "todos", "todoTamperTest"), {
+            text: "Front office altered text",
+          })
+        );
+
+        // Front Office desk staff cannot delete manager's directive -> fails
+        await assertFails(deleteDoc(doc(authed("foGto"), "todos", "todoTamperTest")));
+
+        // Front Office CAN delete a directive they created
+        await seedDoc(["todos", "todoFoCreatedToDelete"], {
+          text: "Desk note",
+          assignee: "all",
+          completed: false,
+          branchId: "kota_gorontalo",
+          branch: "Kota Gorontalo",
+          createdBy: "foGto",
+        });
+
+        await assertSucceeds(deleteDoc(doc(authed("foGto"), "todos", "todoFoCreatedToDelete")));
       });
     });
   });

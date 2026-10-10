@@ -88,6 +88,8 @@ export async function approveApplication({
       motherName: app.motherName,
       motherJob: app.motherJob,
       motherPhone: app.motherPhone,
+      parentName: app.parentName,
+      parentPhone: app.parentPhone,
       photoURL: app.photoURL || "",
       currentLevel: finalLevel,
       placementTests: Array.isArray(app.placementTests) ? app.placementTests : [],

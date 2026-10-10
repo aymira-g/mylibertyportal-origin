@@ -19,9 +19,8 @@ import {
   TuitionDueWidget,
   PaymentCashierTab,
   WalkInInquiryTab,
+  mapInquiryToEnrollment,
 } from "../frontoffice";
-import { getProgram } from "../../../constants/programs";
-import { normalizeBranch } from "../../../constants/branches";
 import {
   ScanLine,
   Send,
@@ -103,40 +102,11 @@ export default function KidsFrontOfficeDashboard({ branch = null }) {
       return;
     }
 
-    const defaultProgId = "kids_school";
-    const chosenProgId = inquiry.programId || defaultProgId;
-    const prog = getProgram(chosenProgId);
-
-    let level = inquiry.currentLevel;
-    if (!level) {
-      level =
-        inquiry.fluencyTier === "intermediate"
-          ? "tk_a"
-          : inquiry.fluencyTier === "fluent"
-            ? "tk_b"
-            : "nursery";
-    }
-
-    handleAddStudent({
-      displayName: inquiry.studentName || "",
-      firstName: inquiry.studentName?.split(" ")[0] || "",
-      lastName: inquiry.studentName?.split(" ").slice(1).join(" ") || "",
-      dob: inquiry.dob || "",
-      phone: inquiry.phone || "",
-      parentName: inquiry.parentName || "",
-      parentPhone: inquiry.phone || "",
-      fatherName: inquiry.parentName || "",
-      fatherPhone: inquiry.phone || "",
-      motherName: inquiry.parentName || "",
-      motherPhone: inquiry.phone || "",
-      branch: normalizeBranch(inquiry.branch || "Kota Gorontalo"),
+    const prefill = mapInquiryToEnrollment(inquiry, {
+      branch: myBranch,
       division: "kindergarten",
-      programId: chosenProgId,
-      program: prog?.label || inquiry.program || "Kids School (Kindergarten)",
-      currentLevel: level || "nursery",
-      referralSource: "Walk-in Front Desk",
-      notes: `Walk-in prospect enrolled directly.${inquiry.notes ? ` Inquired: ${inquiry.notes}` : ""}`,
     });
+    handleAddStudent(prefill);
   };
 
   const handleSaveAndCollectPayment = async (e) => {

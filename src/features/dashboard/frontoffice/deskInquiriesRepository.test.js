@@ -6,6 +6,7 @@ import {
   fetchRecentDeskInquiries,
   markInquiryConverted,
   updateDeskInquiryStatus,
+  deleteDeskInquiry,
 } from "./deskInquiriesRepository";
 
 vi.mock(
@@ -141,6 +142,41 @@ describe("deskInquiriesRepository statuses", () => {
     const res = await markInquiryConverted("inq-1", "student-123");
     expect(res.status).toBe("enrolled");
     expect(res.convertedStudentId).toBe("student-123");
+  });
+
+  describe("fail-closed permission error handling (FO-A / F-15)", () => {
+    it("throws when Firestore denies permission during createDeskInquiry", async () => {
+      fake.failWhen = () => new Error("permission-denied");
+      await expect(
+        createDeskInquiry({
+          parentName: "Parent One",
+          studentName: "Child One",
+          phone: "08123456789",
+        })
+      ).rejects.toThrow("permission-denied");
+    });
+
+    it("throws when Firestore denies permission during updateDeskInquiryStatus", async () => {
+      fake.seed("deskInquiries", [{ id: "inq-1", status: "inquired" }]);
+      fake.failWhen = () => new Error("permission-denied");
+      await expect(updateDeskInquiryStatus("inq-1", "follow_up_sent")).rejects.toThrow(
+        "permission-denied"
+      );
+    });
+
+    it("throws when Firestore denies permission during markInquiryConverted", async () => {
+      fake.seed("deskInquiries", [{ id: "inq-1", status: "inquired" }]);
+      fake.failWhen = () => new Error("permission-denied");
+      await expect(markInquiryConverted("inq-1", "student-123")).rejects.toThrow(
+        "permission-denied"
+      );
+    });
+
+    it("throws when Firestore denies permission during deleteDeskInquiry", async () => {
+      fake.seed("deskInquiries", [{ id: "inq-1", status: "inquired" }]);
+      fake.failWhen = () => new Error("permission-denied");
+      await expect(deleteDeskInquiry("inq-1")).rejects.toThrow("permission-denied");
+    });
   });
 });
 

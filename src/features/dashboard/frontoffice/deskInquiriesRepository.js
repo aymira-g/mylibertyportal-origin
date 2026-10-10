@@ -17,7 +17,6 @@ import { recommendLevelFromScore } from "../../../constants/levels";
 import { branchToId, idToBranch, DEFAULT_BRANCH_ID } from "../../../constants/branches";
 import {
   isPermissionError,
-  saveLocalInquiry,
   updateLocalInquiry,
   deleteLocalInquiry,
   getLocalInquiries,
@@ -93,16 +92,8 @@ export async function createDeskInquiry(inquiryData) {
   }
 
   const validated = parseResult.data;
-  try {
-    const docRef = await addDoc(collection(db, "deskInquiries"), validated);
-    return { id: docRef.id, ...validated };
-  } catch (err) {
-    if (isPermissionError(err)) {
-      const localRecord = saveLocalInquiry(validated);
-      return { ...localRecord, _permissionDenied: true };
-    }
-    throw err;
-  }
+  const docRef = await addDoc(collection(db, "deskInquiries"), validated);
+  return { id: docRef.id, ...validated };
 }
 
 export async function updateDeskInquiryStatus(inquiryId, newStatus) {
@@ -124,16 +115,8 @@ export async function updateDeskInquiryStatus(inquiryId, newStatus) {
     return { id: inquiryId, ...updateData };
   }
 
-  try {
-    await updateDoc(doc(db, "deskInquiries", inquiryId), updateData);
-    return { id: inquiryId, ...updateData };
-  } catch (err) {
-    if (isPermissionError(err)) {
-      updateLocalInquiry(inquiryId, updateData);
-      return { id: inquiryId, ...updateData, _permissionDenied: true };
-    }
-    throw err;
-  }
+  await updateDoc(doc(db, "deskInquiries", inquiryId), updateData);
+  return { id: inquiryId, ...updateData };
 }
 
 /**
@@ -248,21 +231,12 @@ export async function addPlacementTestToInquiry(inquiryId, testData) {
     return { id: inquiryId, ...updateData };
   }
 
-  try {
-    const finalUpdate = {
-      ...updateData,
-      placementTests: [...existingTests, testRecord],
-    };
-    await updateDoc(doc(db, "deskInquiries", inquiryId), finalUpdate);
-    return { id: inquiryId, ...finalUpdate };
-  } catch (err) {
-    if (isPermissionError(err)) {
-      updateData.placementTests = [...existingTests, testRecord];
-      updateLocalInquiry(inquiryId, updateData);
-      return { id: inquiryId, ...updateData, _permissionDenied: true };
-    }
-    throw err;
-  }
+  const finalUpdate = {
+    ...updateData,
+    placementTests: [...existingTests, testRecord],
+  };
+  await updateDoc(doc(db, "deskInquiries", inquiryId), finalUpdate);
+  return { id: inquiryId, ...finalUpdate };
 }
 
 /**
@@ -350,17 +324,8 @@ export async function markInquiryConverted(inquiryId, studentId) {
     return { id: inquiryId, ...updateData };
   }
 
-  try {
-    await updateDoc(doc(db, "deskInquiries", inquiryId), updateData);
-    return { id: inquiryId, ...updateData };
-  } catch (err) {
-    if (isPermissionError(err)) {
-      updateLocalInquiry(inquiryId, updateData);
-      return { id: inquiryId, ...updateData, _permissionDenied: true };
-    }
-    console.warn("markInquiryConverted failed:", err);
-    throw err;
-  }
+  await updateDoc(doc(db, "deskInquiries", inquiryId), updateData);
+  return { id: inquiryId, ...updateData };
 }
 
 export async function deleteDeskInquiry(inquiryId) {
@@ -371,16 +336,8 @@ export async function deleteDeskInquiry(inquiryId) {
     return inquiryId;
   }
 
-  try {
-    await deleteDoc(doc(db, "deskInquiries", inquiryId));
-    deleteLocalInquiry(inquiryId);
-    return inquiryId;
-  } catch (err) {
-    if (isPermissionError(err)) {
-      deleteLocalInquiry(inquiryId);
-      return inquiryId;
-    }
-    throw err;
-  }
+  await deleteDoc(doc(db, "deskInquiries", inquiryId));
+  deleteLocalInquiry(inquiryId);
+  return inquiryId;
 }
 

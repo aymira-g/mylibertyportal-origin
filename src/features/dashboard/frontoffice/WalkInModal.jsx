@@ -114,11 +114,9 @@ export function WalkInModal({
                 value={formData.fluencyTier}
                 onChange={(e) => {
                   const selectedId = e.target.value;
-                  const matched = tierOptions.find((t) => t.id === selectedId);
                   setFormData({
                     ...formData,
                     fluencyTier: selectedId,
-                    currentLevel: matched?.defaultLevel || "warrior",
                   });
                 }}
                 className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs focus:bg-white focus:border-[#1a3a8f] outline-none cursor-pointer"

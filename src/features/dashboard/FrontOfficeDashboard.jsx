@@ -25,10 +25,8 @@ import {
   PaymentCashierTab,
   WalkInInquiryTab,
   FrontOfficeReportsTab,
+  mapInquiryToEnrollment,
 } from "./frontoffice";
-import { getProgram } from "../../constants/programs";
-import { normalizeBranch } from "../../constants/branches";
-import { normalizeDivision } from "../../constants/divisions";
 import { getUrlAction, clearUrlAction } from "../../utils/urlAction.js";
 import {
   ScanLine,
@@ -110,55 +108,11 @@ export default function FrontOfficeDashboard({ role = "frontoffice", branch = nu
       return;
     }
 
-    const isKindergarten = (inquiry.division || "courses") === "kindergarten";
-    const defaultProgId = isKindergarten ? "kids_school" : "english_course";
-    const chosenProgId = inquiry.programId || defaultProgId;
-    const prog = getProgram(chosenProgId);
-
-    let level = inquiry.currentLevel;
-    if (!level) {
-      if (isKindergarten) {
-        level =
-          inquiry.fluencyTier === "intermediate"
-            ? "tk_a"
-            : inquiry.fluencyTier === "fluent"
-              ? "tk_b"
-              : "nursery";
-      } else {
-        level =
-          inquiry.fluencyTier === "intermediate"
-            ? "master"
-            : inquiry.fluencyTier === "fluent"
-              ? "epic"
-              : "warrior";
-      }
-    }
-
-    handleAddStudent({
-      displayName: inquiry.studentName || "",
-      firstName: inquiry.studentName?.split(" ")[0] || "",
-      lastName: inquiry.studentName?.split(" ").slice(1).join(" ") || "",
-      dob: inquiry.dob || "",
-      phone: inquiry.phone || "",
-      parentName: inquiry.parentName || "",
-      parentPhone: inquiry.phone || "",
-      fatherName: inquiry.parentName || "",
-      fatherPhone: inquiry.phone || "",
-      motherName: inquiry.parentName || "",
-      motherPhone: inquiry.phone || "",
-      branch: normalizeBranch(inquiry.branch || "Kota Gorontalo"),
-      division: normalizeDivision(inquiry.division || "courses"),
-      programId: chosenProgId,
-      program:
-        prog?.label ||
-        inquiry.program ||
-        (isKindergarten ? "Kids School (Kindergarten)" : "English Course"),
-      currentLevel: level || (isKindergarten ? "nursery" : "warrior"),
-      placementTests: Array.isArray(inquiry.placementTests) ? inquiry.placementTests : [],
-      inquiryId: inquiry.id || "",
-      referralSource: "Walk-in Front Desk",
-      notes: `Walk-in prospect enrolled directly.${inquiry.notes ? ` Inquired: ${inquiry.notes}` : ""}`,
+    const prefill = mapInquiryToEnrollment(inquiry, {
+      branch: myBranch,
+      division: "courses",
     });
+    handleAddStudent(prefill);
   };
 
   const handleSaveAndCollectPayment = async (e) => {

@@ -99,6 +99,44 @@ export default function StudentFamilyFields({ formData, field, editId, readOnly 
           </div>
         </div>
 
+        {/* Primary Contact / Guardian (when specified from intake/applications) */}
+        {(formData.parentName || formData.parentPhone) && (
+          <div className="p-3.5 bg-blue-50/50 rounded-xl border border-blue-200/80 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-bold text-[#1a3a8f] uppercase">
+                Primary Contact / Guardian (Wali / Kontak Pendaftar)
+              </p>
+              <span className="text-[10px] text-slate-500 font-medium">From intake record</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">
+                  Guardian / Contact Name (Nama Wali)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Guardian / Contact Name"
+                  value={formData.parentName || ""}
+                  onChange={(e) => field("parentName", e.target.value)}
+                  className="w-full p-2 border rounded-lg bg-white text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">
+                  WhatsApp Phone (No HP Wali)
+                </label>
+                <input
+                  type="tel"
+                  placeholder="08..."
+                  value={formData.parentPhone || ""}
+                  onChange={(e) => field("parentPhone", e.target.value)}
+                  className="w-full p-2 border rounded-lg bg-white text-xs"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Authenticated Parent Accounts Linkage */}
         <div className="pt-2">
           <StudentParentLinkage

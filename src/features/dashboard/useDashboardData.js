@@ -51,6 +51,7 @@ const emptyFormData = {
   religion: "",
   address: "",
   branch: DEFAULT_BRANCH,
+  branchId: branchToId(DEFAULT_BRANCH),
   division: DEFAULT_DIVISION,
   programId: "",
   program: "",
@@ -534,8 +535,11 @@ export function useDashboardData({
 
   const handleAddStaff = () => {
     setEditId(null);
+    const assignedBranch = effectiveBranch || DEFAULT_BRANCH;
     setFormData({
       ...emptyFormData,
+      branch: assignedBranch,
+      branchId: branchToId(assignedBranch),
       division: division || DEFAULT_DIVISION,
     });
     setActiveTab?.("addUser");
@@ -547,10 +551,13 @@ export function useDashboardData({
     const isKindergarten = effectiveDivision === "kindergarten";
     const defaultProgramId = isKindergarten ? "kids_school" : "english_course";
     const defaultProg = getProgram(prefill.programId || defaultProgramId);
+    const assignedBranch = prefill.branch || effectiveBranch || DEFAULT_BRANCH;
     setFormData({
       ...emptyFormData,
       role: "student",
       division: isKindergarten ? "kindergarten" : "courses",
+      branch: assignedBranch,
+      branchId: branchToId(assignedBranch),
       programId: defaultProg?.id || defaultProgramId,
       program:
         defaultProg?.label ||
@@ -599,6 +606,7 @@ export function useDashboardData({
       religion: user.religion || "",
       address: user.address || "",
       branch: normalizeBranch(user.branch),
+      branchId: user.branchId || branchToId(normalizeBranch(user.branch)),
       division: normalizeStaffDivision(
         user.division || (user.role === "student" ? divisionOfProgram(canonicalProg?.id || user.programId || user.program) : "courses"),
         user.role

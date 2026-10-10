@@ -10,9 +10,8 @@ import {
   COURSE_TIER_OPTIONS,
   KINDERGARTEN_TIER_OPTIONS,
   isPermissionError,
-  getLocalInquiries,
-  saveLocalInquiry,
 } from "./walkInUtils";
+import { DEFAULT_BRANCH } from "../../../constants/branches";
 import { INQUIRY_STATUSES } from "../../../schemas/deskInquirySchema";
 import { normalizeWhatsAppNumber } from "../../finance/receiptMessages";
 import { useToast, createApprovalEnvelope, submitApprovalRequest } from "../../shared";
@@ -26,7 +25,6 @@ import { PlacementTestModal } from "./PlacementTestModal";
 
 function getDefaultFormData(division) {
   const isKg = division === "kindergarten";
-  const tierOptions = isKg ? KINDERGARTEN_TIER_OPTIONS : COURSE_TIER_OPTIONS;
   const defaultProgramId = isKg ? "kids_school" : "english_course";
   const defaultProg = getProgram(defaultProgramId);
 
@@ -37,7 +35,7 @@ function getDefaultFormData(division) {
     dob: "",
     ageOrGrade: "",
     fluencyTier: "beginner",
-    currentLevel: tierOptions[0]?.defaultLevel || "warrior",
+    currentLevel: "",
     programId: defaultProgramId,
     program: defaultProg?.label || "English Course",
     notes: "",
@@ -53,7 +51,7 @@ function getDefaultFormData(division) {
  */
 export default function WalkInInquiryTab({
   division = "courses",
-  branchLabel = "Kota Gorontalo",
+  branchLabel = DEFAULT_BRANCH,
   onEnrollStudent = null,
 }) {
   const toast = useToast();
@@ -211,11 +209,11 @@ export default function WalkInInquiryTab({
     } catch (err) {
       if (isPermissionError(err)) {
         console.warn(
-          "deskInquiries: permission denied by Firestore rules. Loading local inquiries cache.",
+          "deskInquiries: permission denied by Firestore rules.",
           err?.message
         );
         setHasPermission(false);
-        setInquiries(getLocalInquiries());
+        setInquiries([]);
       } else {
         console.error("Failed to load desk inquiries:", err);
         toast("Could not load walk-in inquiries.", "error");
@@ -238,11 +236,11 @@ export default function WalkInInquiryTab({
         if (!active) return;
         if (isPermissionError(err)) {
           console.warn(
-            "deskInquiries: permission denied by Firestore rules. Loading local inquiries cache.",
+            "deskInquiries: permission denied by Firestore rules.",
             err?.message
           );
           setHasPermission(false);
-          setInquiries(getLocalInquiries());
+          setInquiries([]);
         } else {
           console.error("Failed to load desk inquiries:", err);
           toast("Could not load walk-in inquiries.", "error");
@@ -293,58 +291,27 @@ export default function WalkInInquiryTab({
         phone,
         ageOrGrade: formData.ageOrGrade.trim() || ageText || "",
         division,
-        branch: branchLabel || "Kota Gorontalo",
+        branch: branchLabel || DEFAULT_BRANCH,
         status: statusToSave,
       });
 
       setModalOpen(false);
       setFormData(getDefaultFormData(division));
+      loadInquiries();
 
-      if (savedInquiry._permissionDenied) {
-        setHasPermission(false);
-        setInquiries((prev) => [
-          savedInquiry,
-          ...prev.filter((i) => i.id !== savedInquiry.id),
-        ]);
-        if (enrollImmediately && onEnrollStudent) {
-          toast("Prospect saved locally! Opening Student Registration form...", "success");
-          onEnrollStudent(savedInquiry);
-        } else {
-          toast("Prospect saved locally! Deploy firestore.rules to enable cloud sync.", "warning");
-        }
+      if (enrollImmediately && onEnrollStudent) {
+        toast("Prospect saved! Opening Student Registration form...", "success");
+        onEnrollStudent(savedInquiry);
       } else {
-        loadInquiries();
-        if (enrollImmediately && onEnrollStudent) {
-          toast("Prospect saved! Opening Student Registration form...", "success");
-          onEnrollStudent(savedInquiry);
-        } else {
-          toast("Walk-in prospect logged successfully!", "success");
-        }
+        toast("Walk-in prospect logged successfully!", "success");
       }
     } catch (err) {
       if (isPermissionError(err)) {
-        const localRecord = saveLocalInquiry({
-          ...formData,
-          parentName,
-          studentName,
-          phone,
-          division,
-          branch: branchLabel || "Kota Gorontalo",
-          status: "inquired",
-        });
         setHasPermission(false);
-        setInquiries((prev) => [
-          localRecord,
-          ...prev.filter((i) => i.id !== localRecord.id),
-        ]);
-        setModalOpen(false);
-        setFormData(getDefaultFormData(division));
-        if (enrollImmediately && onEnrollStudent) {
-          toast("Prospect saved locally! Opening Student Registration form...", "success");
-          onEnrollStudent(localRecord);
-        } else {
-          toast("Prospect saved locally! Deploy firestore.rules to enable cloud sync.", "warning");
-        }
+        toast(
+          "Permission denied: You are not authorized to log inquiries for this branch or division.",
+          "error"
+        );
       } else {
         console.error("Failed to save walk-in prospect:", err);
         reportError(err, "walk_in_inquiry_save");
@@ -420,21 +387,12 @@ export default function WalkInInquiryTab({
       {!hasPermission && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 space-y-1.5 shadow-xs">
           <div className="flex items-center gap-2 font-black text-amber-950">
-            <span className="text-base">ℹ️</span>
-            <span>Firestore Rules Deployment Required for Live Cloud Sync</span>
+            <span className="text-base">⚠️</span>
+            <span>Access Restricted</span>
           </div>
           <p className="leading-relaxed text-amber-800">
-            Your live Firebase project currently restricts access on the{" "}
-            <code className="bg-amber-100 font-mono px-1 py-0.5 rounded font-bold">
-              /deskInquiries
-            </code>{" "}
-            collection. To enable cloud sync across all front desk stations, deploy the updated
-            security rules with{" "}
-            <code className="bg-amber-100 px-1 py-0.5 rounded font-mono font-bold">
-              firebase deploy --only firestore:rules
-            </code>{" "}
-            or update your Firebase Console. Walk-in visitors logged now are safely stored in your
-            local session and can be immediately enrolled as students.
+            Your account does not have authorization to view or log inquiries for this branch and division.
+            Please ensure you are signed in with the correct front office credentials or contact your division manager or system administrator.
           </p>
         </div>
       )}

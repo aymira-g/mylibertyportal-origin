@@ -7,6 +7,7 @@ import {
   markInquiryConverted,
   updateDeskInquiryStatus,
   deleteDeskInquiry,
+  addPlacementTestToInquiry,
 } from "./deskInquiriesRepository";
 
 vi.mock(
@@ -31,6 +32,7 @@ describe("deskInquiriesRepository statuses", () => {
         parentName: "",
         studentName: "Child",
         phone: "0812345678",
+        branch: "Kota Gorontalo",
       })
     ).rejects.toThrow("Parent / visitor name is required.");
 
@@ -39,6 +41,7 @@ describe("deskInquiriesRepository statuses", () => {
         parentName: "Parent",
         studentName: "",
         phone: "0812345678",
+        branch: "Kota Gorontalo",
       })
     ).rejects.toThrow("Prospective student name is required.");
 
@@ -47,8 +50,28 @@ describe("deskInquiriesRepository statuses", () => {
         parentName: "Parent",
         studentName: "Child",
         phone: "123",
+        branch: "Kota Gorontalo",
       })
     ).rejects.toThrow("Valid phone number is required");
+  });
+
+  it("rejects inquiry creation when branch is missing or invalid (FO-02)", async () => {
+    await expect(
+      createDeskInquiry({
+        parentName: "Parent",
+        studentName: "Child",
+        phone: "08123456789",
+      })
+    ).rejects.toThrow("Branch is required to log a desk inquiry.");
+
+    await expect(
+      createDeskInquiry({
+        parentName: "Parent",
+        studentName: "Child",
+        phone: "08123456789",
+        branch: "Nonexistent Province",
+      })
+    ).rejects.toThrow('Invalid branch specified: "Nonexistent Province".');
   });
 
   it("creates inquiry with normalized branch and branchId", async () => {
@@ -152,6 +175,7 @@ describe("deskInquiriesRepository statuses", () => {
           parentName: "Parent One",
           studentName: "Child One",
           phone: "08123456789",
+          branch: "Kota Gorontalo",
         })
       ).rejects.toThrow("permission-denied");
     });
@@ -176,6 +200,40 @@ describe("deskInquiriesRepository statuses", () => {
       fake.seed("deskInquiries", [{ id: "inq-1", status: "inquired" }]);
       fake.failWhen = () => new Error("permission-denied");
       await expect(deleteDeskInquiry("inq-1")).rejects.toThrow("permission-denied");
+    });
+
+    it("throws when Firestore denies permission during addPlacementTestToInquiry (FO-01)", async () => {
+      fake.seed("deskInquiries", [
+        {
+          id: "inq-pt-1",
+          branch: "Kota Gorontalo",
+          branchId: "kota_gorontalo",
+          division: "courses",
+          placementTests: [],
+        },
+      ]);
+      fake.failWhen = (op) => {
+        if (op.kind === "update" && op.path === "deskInquiries/inq-pt-1") {
+          return new Error("permission-denied");
+        }
+        return null;
+      };
+
+      await expect(
+        addPlacementTestToInquiry("inq-pt-1", {
+          score: 80,
+          assessedLevel: "master",
+        })
+      ).rejects.toThrow("permission-denied");
+    });
+
+    it("rejects recording placement test on unpersisted local inquiry (FO-01)", async () => {
+      await expect(
+        addPlacementTestToInquiry("local-12345", {
+          score: 80,
+          assessedLevel: "master",
+        })
+      ).rejects.toThrow("Cannot record placement test: this inquiry is not saved on the server.");
     });
   });
 });

@@ -27,6 +27,23 @@ export const LEGACY_BRANCH_MAP = {
 };
 
 /**
+ * Validates whether a raw branch name or ID maps to a known MY LIBERTY branch.
+ *
+ * @param {string | null | undefined} raw
+ * @returns {boolean}
+ */
+export function isValidBranch(raw) {
+  if (!raw || typeof raw !== "string") return false;
+  const clean = raw.trim().toLowerCase();
+  if (!clean) return false;
+  return (
+    BRANCHES.some((b) => b.toLowerCase() === clean) ||
+    Boolean(BRANCH_MAP[clean]) ||
+    Boolean(LEGACY_BRANCH_MAP[clean])
+  );
+}
+
+/**
  * Converts a branch name or legacy alias into a canonical branchId slug.
  *
  * @param {string | null | undefined} raw

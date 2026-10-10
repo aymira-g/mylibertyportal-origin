@@ -9,6 +9,7 @@ import {
   matchesBranchFilter,
   branchToId,
   idToBranch,
+  isValidBranch,
 } from "./branches";
 
 describe("branches constants and utilities", () => {
@@ -89,5 +90,18 @@ describe("branches constants and utilities", () => {
     expect(normalizeBranch("bone_bolango")).toBe("Bone Bolango");
     expect(normalizeBranch("pohuwato")).toBe("Pohuwato");
     expect(normalizeBranch("limboto")).toBe("Limboto");
+  });
+
+  it("validates canonical branches, slugs, and legacy aliases with isValidBranch", () => {
+    expect(isValidBranch("Kota Gorontalo")).toBe(true);
+    expect(isValidBranch("kota_gorontalo")).toBe(true);
+    expect(isValidBranch("Cabang Utama")).toBe(true);
+    expect(isValidBranch("Limboto")).toBe(true);
+    expect(isValidBranch("Bone Bolango")).toBe(true);
+    expect(isValidBranch("Pohuwato")).toBe(true);
+    expect(isValidBranch("Nonexistent Branch")).toBe(false);
+    expect(isValidBranch("")).toBe(false);
+    expect(isValidBranch(null)).toBe(false);
+    expect(isValidBranch(undefined)).toBe(false);
   });
 });

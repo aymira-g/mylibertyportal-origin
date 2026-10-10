@@ -11,7 +11,6 @@ import {
   KINDERGARTEN_TIER_OPTIONS,
   isPermissionError,
 } from "./walkInUtils";
-import { DEFAULT_BRANCH } from "../../../constants/branches";
 import { INQUIRY_STATUSES } from "../../../schemas/deskInquirySchema";
 import { normalizeWhatsAppNumber } from "../../finance/receiptMessages";
 import { useToast, createApprovalEnvelope, submitApprovalRequest } from "../../shared";
@@ -51,7 +50,7 @@ function getDefaultFormData(division) {
  */
 export default function WalkInInquiryTab({
   division = "courses",
-  branchLabel = DEFAULT_BRANCH,
+  branchLabel = "",
   onEnrollStudent = null,
 }) {
   const toast = useToast();
@@ -76,6 +75,13 @@ export default function WalkInInquiryTab({
   };
 
   const handleOpenPlacementTest = (inquiry) => {
+    if (inquiry?.id?.startsWith("local-")) {
+      toast(
+        "Cannot record placement test: this inquiry is not saved on the server. An authoritative server record is required.",
+        "error"
+      );
+      return;
+    }
     setSelectedInquiryForTest(inquiry);
     setPlacementModalOpen(true);
   };
@@ -145,6 +151,10 @@ export default function WalkInInquiryTab({
         approvalId,
       });
 
+      if (updated?._permissionDenied) {
+        throw new Error("Permission denied by server security rules.");
+      }
+
       setInquiries((prev) =>
         prev.map((i) => {
           if (i.id !== selectedInquiryForTest.id) return i;
@@ -189,8 +199,16 @@ export default function WalkInInquiryTab({
         toast("Placement test recorded successfully!", "success");
       }
     } catch (err) {
-      console.error("Failed to save placement test:", err);
-      toast("Failed to save placement test: " + err.message, "error");
+      if (isPermissionError(err)) {
+        setHasPermission(false);
+        toast(
+          "Permission denied: You are not authorized to record placement tests for this branch or division.",
+          "error"
+        );
+      } else {
+        console.error("Failed to save placement test:", err);
+        toast("Failed to save placement test: " + err.message, "error");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -284,6 +302,11 @@ export default function WalkInInquiryTab({
       const ageText = calculatedAge !== null ? `${calculatedAge} yo` : formData.ageOrGrade;
       const statusToSave = "inquired";
 
+      if (!branchLabel) {
+        setSubmitting(false);
+        return toast("Cannot log inquiry: active branch assignment is required.", "error");
+      }
+
       const savedInquiry = await createDeskInquiry({
         ...formData,
         parentName,
@@ -291,7 +314,7 @@ export default function WalkInInquiryTab({
         phone,
         ageOrGrade: formData.ageOrGrade.trim() || ageText || "",
         division,
-        branch: branchLabel || DEFAULT_BRANCH,
+        branch: branchLabel,
         status: statusToSave,
       });
 
@@ -343,6 +366,13 @@ export default function WalkInInquiryTab({
   };
 
   const handleEnrollFromList = async (inquiry) => {
+    if (inquiry?.id?.startsWith("local-")) {
+      toast(
+        "Cannot enroll an unpersisted local inquiry. Authoritative server record is required.",
+        "error"
+      );
+      return;
+    }
     try {
       if (onEnrollStudent) {
         toast(`Opening student registration for ${inquiry.studentName}...`, "info");

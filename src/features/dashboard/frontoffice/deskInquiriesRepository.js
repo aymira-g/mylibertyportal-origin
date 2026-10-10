@@ -14,12 +14,10 @@ import {
 } from "firebase/firestore";
 import { deskInquirySchema } from "../../../schemas/deskInquirySchema";
 import { recommendLevelFromScore } from "../../../constants/levels";
-import { branchToId, idToBranch, DEFAULT_BRANCH_ID } from "../../../constants/branches";
+import { branchToId, idToBranch, isValidBranch } from "../../../constants/branches";
 import {
   isPermissionError,
-  updateLocalInquiry,
   deleteLocalInquiry,
-  getLocalInquiries,
 } from "./walkInUtils";
 
 /**
@@ -72,7 +70,13 @@ export async function fetchRecentDeskInquiries(limitCount = 50, branchId = null,
  */
 export async function createDeskInquiry(inquiryData) {
   const currentUser = auth.currentUser;
-  const rawBranch = inquiryData.branch || inquiryData.branchId || DEFAULT_BRANCH_ID;
+  const rawBranch = inquiryData?.branch || inquiryData?.branchId;
+  if (!rawBranch) {
+    throw new Error("Branch is required to log a desk inquiry.");
+  }
+  if (!isValidBranch(rawBranch)) {
+    throw new Error(`Invalid branch specified: "${rawBranch}".`);
+  }
   const branchId = branchToId(rawBranch);
   const branch = idToBranch(branchId);
 
@@ -111,8 +115,9 @@ export async function updateDeskInquiryStatus(inquiryId, newStatus) {
   };
 
   if (inquiryId.startsWith("local-")) {
-    updateLocalInquiry(inquiryId, updateData);
-    return { id: inquiryId, ...updateData };
+    throw new Error(
+      "Cannot update status for an unpersisted local inquiry. Authoritative server record is required."
+    );
   }
 
   await updateDoc(doc(db, "deskInquiries", inquiryId), updateData);
@@ -125,8 +130,9 @@ export async function updateDeskInquiryStatus(inquiryId, newStatus) {
  */
 async function readStoredInquiry(inquiryId) {
   if (inquiryId.startsWith("local-")) {
-    const localInquiries = getLocalInquiries();
-    return localInquiries.find((i) => i.id === inquiryId) || {};
+    throw new Error(
+      "Cannot access unpersisted local inquiry. Authoritative server record is required."
+    );
   }
   const snap = await getDoc(doc(db, "deskInquiries", inquiryId));
   return snap.exists() ? snap.data() : {};
@@ -157,6 +163,11 @@ async function readStoredInquiry(inquiryId) {
  */
 export async function addPlacementTestToInquiry(inquiryId, testData) {
   if (!inquiryId) throw new Error("Inquiry ID is required");
+  if (inquiryId.startsWith("local-")) {
+    throw new Error(
+      "Cannot record placement test: this inquiry is not saved on the server. An authoritative server record is required."
+    );
+  }
   const currentUser = auth.currentUser;
   const testRecord = {
     id: `pt-${Date.now()}`,
@@ -200,13 +211,7 @@ export async function addPlacementTestToInquiry(inquiryId, testData) {
       updatedAt: new Date().toISOString(),
       updatedBy: currentUser?.uid || "frontoffice",
     };
-    if (inquiryId.startsWith("local-")) {
-      updateLocalInquiry(inquiryId, pendingUpdate);
-    } else {
-      // No local-shadow fallback here on purpose: a governed action must never appear
-      // to have succeeded when the rules refused it.
-      await updateDoc(doc(db, "deskInquiries", inquiryId), pendingUpdate);
-    }
+    await updateDoc(doc(db, "deskInquiries", inquiryId), pendingUpdate);
     return { id: inquiryId, ...pendingUpdate };
   }
 
@@ -224,12 +229,6 @@ export async function addPlacementTestToInquiry(inquiryId, testData) {
   }
 
   const existingTests = Array.isArray(stored?.placementTests) ? stored.placementTests : [];
-
-  if (inquiryId.startsWith("local-")) {
-    updateData.placementTests = [...existingTests, testRecord];
-    updateLocalInquiry(inquiryId, updateData);
-    return { id: inquiryId, ...updateData };
-  }
 
   const finalUpdate = {
     ...updateData,
@@ -320,8 +319,9 @@ export async function markInquiryConverted(inquiryId, studentId) {
   };
 
   if (inquiryId.startsWith("local-")) {
-    updateLocalInquiry(inquiryId, updateData);
-    return { id: inquiryId, ...updateData };
+    throw new Error(
+      "Cannot convert unpersisted local inquiry to student. Authoritative server record is required."
+    );
   }
 
   await updateDoc(doc(db, "deskInquiries", inquiryId), updateData);

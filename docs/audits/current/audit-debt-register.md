@@ -14,18 +14,18 @@
 | 1 | Auth / Roles / Permissions | 2026-10-12 (`L2-DOM01`) | — | No |
 | 2 | Branch Isolation / Firestore Rules | 2026-10-12 (`L2-DOM02`) | P-03 list-rule fix + timestamp-integrity rules emulator-verified, **live deploy pending** | No — light re-verify after next rules deploy |
 | 3 | Attendance + Kiosk | 2026-10-12 (`L2-DOM03`) | — | No |
-| 4 | Payments / Cash / Financial State | 2026-10-12 (`L2-DOM04`) | 4 findings identified (DOM04-SEC-01, DOM04-IDX-01, DOM04-COR-01, DOM04-GOV-01) — remediation plan awaiting operator approval | No — remediate, then re-verify per Level 1 playbook |
-| 5 | Students / Admissions / Profiles | never | Parent-linkage surface (P-01..P-08 fixes), progress reports / promotion flow | **Yes** |
-| 6 | Classes / Rosters / Scheduling | never | — | **Yes** |
-| 7 | Corporate Events / Staff Shifts / Leave | partial 2026-10-12 (via DOM03 kiosk/shift chain) | Overnight-event fix (DOM03-COR-01) | Partial — leave + non-kiosk shift paths remain |
-| 8 | Parent Portal | partial 2026-10-12 (P-01..P-08 remediation, external-audit driven) | P-01/P-02 accepted residual risks; rules deploy pending | Light follow-up after rules deploy |
-| 9 | Approvals / Maker-Checker / Directives / Audit Logs | partial 2026-10-10 (OB-SEC-01..03) + 2026-10-10 timestamp integrity | Full envelope-family audit (NEW_STAFF_ACCOUNT, elevation, deactivation, retroactive attendance, placement override, withdrawal/freeze) still pending | Partial — schedule full envelope audit |
-| 10 | PWA / Network / Service Worker | never | — | **Yes** |
-| 11 | Reports / Dashboards / Derived Data | never | Dashboard-by-dashboard refinement series ongoing (front office, instructor leader, office boy, marketing, kindergarten, executive) | **Yes** — pair per-dashboard checks with each refinement phase |
-| 12 | UX / Navigation / Mobile | never | DOM01-UX-01 (student login routing) found via auth audit | **Yes** |
-| 13 | Cloudflare Worker / Integrations | partial 2026-10-12 (via DOM03 worker branch validation) | DOM03-SEC-01 fix | Partial — full surface (signature, replay, rate limits, multi-instance) remains |
-| 13b | External Integrations & Ops Tooling (`FormSync.gs`, `scripts/`) | never | `FormSync.gs` live admissions sync, 5 backfill scripts in `scripts/` | **Yes (HIGH PRIORITY)** — service-account writes bypass all Firestore rules; live admissions pipeline integration |
-| 14 | Final Cross-Feature Attack Audit | never | Run after domains 4–13 | Scheduled at milestone |
+| 4 | Payments / Cash / Financial State | 2026-10-12 (`L2-DOM04`) | 4 findings remediated & verified (DOM04-SEC-01, DOM04-IDX-01, DOM04-COR-01, DOM04-GOV-01) | No |
+| 5 | Students / Admissions / Profiles | 2026-10-12 (`L2-DOM05`) | 4 findings remediated & verified (DOM05-SEC-01, DOM05-COR-01, DOM05-GOV-01, DOM05-RES-01) | No |
+| 6 | Classes / Rosters / Scheduling | 2026-10-12 (`L2-DOM06`) | 5 findings remediated & verified (DOM06-SEC-01..03, DOM06-COR-01, DOM06-GOV-01) | No |
+| 7 | Corporate Events / Staff Shifts / Leave | 2026-10-12 (`L2-DOM07`) | 6 findings remediated & verified (DOM07-SEC-01..03, DOM07-COR-01..03) | No |
+| 8 | Parent Portal | 2026-10-12 (`L2-DOM08`) | 6 findings remediated & verified (DOM08-IDX-01, DOM08-COR-01..03, DOM08-SEC-01, DOM08-UX-01) | No — light re-verify after next rules deploy |
+| 9 | Approvals / Maker-Checker / Directives / Audit Logs | 2026-10-12 (`L2-DOM09`) | 6 findings remediated & verified (DOM09-SEC-01..05, DOM09-COR-01) | No |
+| 10 | PWA / Network / Service Worker | 2026-10-12 (`L2-DOM10`) | 7 findings remediated & verified (DOM10-SW-01..02, DOM10-COR-01, DOM10-UX-01..03, DOM10-PERF-01) | No |
+| 11 | Reports / Dashboards / Derived Data | 2026-10-12 (`L2-DOM11`) | 6 findings remediated & verified (DOM11-COR-01..03, DOM11-PERF-01, DOM11-GOV-01, DOM11-TECH-01) | No |
+| 12 | UX / Navigation / Mobile | 2026-10-12 (`L2-DOM12`) | 5 findings remediated & verified (DOM12-A11Y-01..03, DOM12-UX-01..02) | No |
+| 13 | Cloudflare Worker / Integrations | 2026-10-12 (`L2-DOM13`) | 6 findings remediated & verified (DOM13-SEC-01, DOM13-COR-01..02, DOM13-RES-01, DOM13-INT-01, DOM13-TECH-01) | No |
+| 13b | External Integrations & Ops Tooling (`FormSync.gs`, `scripts/`) | 2026-10-12 (`L2-DOM13`) | Audited and closed within Domain 13 report | No |
+| 14 | Final Cross-Feature Attack Audit | 2026-10-12 (`L2-LIFECYCLE-ATTACK-2026-10-12`) | 5 findings remediated & verified (DOM-LIFE-01..05) | No |
 
 ## Rules for This Register
 

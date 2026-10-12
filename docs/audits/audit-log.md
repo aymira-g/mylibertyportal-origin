@@ -531,4 +531,22 @@ Surfaced by the new drift guard, decided by the owner the same day, and closed.
 | **Findings Closure** | - **Item 1 (Directives Failure State): CLOSED**.<br>- **Item 2 (Stat Card Deduplication): CLOSED**.<br>- **Item 3 (Browser Smoke Walkthrough): COMPLETED (automated browser engine CDN failure noted; unit & static markup verified; approved by user)**. |
 | **Status** | **PASS — UNIT & BUILD VERIFIED** |
 
+---
+
+## 2026-10-12 — Parent Portal Refinement (Items 1–3: Payment Status, Attendance Formula & Error Propagation)
+
+| Field | Value |
+|---|---|
+| **Change** | 1) **P-04 (Payment Summary Verification & Status Fix):** In `buildPaymentSummary` (`parentPortalRepository.js`), explicitly honored `paid`, `pending`, and `unpaid` payment statuses written by the finance flow. Historical field inference (`hasRecords ? "paid" : "none"`) is now strictly a fallback for legacy records lacking a `paymentStatus` field. Closes the defect where students marked "unpaid" by staff showed as "Lunas" to parents. In `ParentDashboard.jsx`, added "Belum Lunas" badge (tone: rose).<br>2) **P-05 (Attendance Metrics Correction):** In `ParentDashboard.jsx`, corrected attendance rate calculation: `LATE` counts as attended, `EXCUSED` is excluded from the denominator (`effectiveTotal = present + late + absent`), and rate = `effectiveTotal > 0 ? Math.round((attended / effectiveTotal) * 100) : null`. When no records exist, Tingkat Kehadiran displays "Belum ada data" instead of misleading 100%. "Total Sesi Hadir" card displays `stats.attended / stats.total`, and "Sesi Izin" card displays `stats.excused` independently.<br>3) **P-06 (Query Error Propagation & Inline Retry):** In `parentPortalRepository.js`, updated `getChildAttendanceAndClasses` to capture query failures and return `errorClasses` and `errorAttendance` rather than silently masking them as empty arrays. In `ParentDashboard.jsx`, added inline error banners with "Coba Lagi" (retry) buttons for both subsections and display "-" in the metrics grid during query failure.<br>4) **Verification Suite:** Added unit tests in `parentPortalRepository.test.js` covering `unpaid` status, legacy fallback, and query error propagation. |
+| **Date** | 2026-10-12 |
+| **Section** | Parent Portal / Students Repository / Attendance & Payment UI |
+| **Workflow** | Parent portal student monitoring, payment transparency, attendance veracity |
+| **Normal Test** | Full Vitest suite (`npm test`) -> **1,292 passed, 121 skipped, 0 failed** (102 test files). Repository unit tests (`parentPortalRepository.test.js`) -> **12 passed, 0 failed** (3 new tests). `npm run lint` -> **0 errors, 0 warnings**. `npm run typecheck` (`tsc --noEmit`) -> **0 errors**. `npm run build` -> **Built cleanly in 4.00s**. |
+| **Failure Test** | 1) `buildPaymentSummary({ paymentStatus: "unpaid", lastPaymentPeriod: "Sept 2026" })` returns `status: "unpaid"` -> **PASS**.<br>2) `getChildAttendanceAndClasses` propagates network rejection to `errorClasses` -> **PASS**.<br>3) Zero attendance records displays "Belum ada data" instead of 100% -> **PASS**. |
+| **Result Verification** | 0 extra reads/writes, 0 rules changes, 0 schema changes, 0 budget impact. |
+| **Deployment Parity Evidence** | Changes verified locally across all suites. P-03 rules fix slated for Change Set 2. Production hosting deployment remains operator-controlled. |
+| **Findings Closure** | - **P-04 (Payment displays "Lunas" incorrectly): CLOSED**.<br>- **P-05 (Attendance metrics misleading): CLOSED**.<br>- **P-06 (Failed reads look like "no records"): CLOSED**.<br>- **P-03 (Rules list asymmetry): PENDING CHANGE SET 2**. |
+| **Status** | **PASS — UNIT & BUILD VERIFIED** |
+
+
 

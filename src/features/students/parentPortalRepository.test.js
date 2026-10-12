@@ -52,7 +52,30 @@ describe("buildPaymentSummary", () => {
     expect(summary.status).toBe("pending");
   });
 
-  it("reports none when the student has no payment records", () => {
+  it("reports unpaid when paymentStatus is unpaid, even with historical payment records", () => {
+    const summaryWithHistory = buildPaymentSummary({
+      paymentStatus: "unpaid",
+      lastPaymentPeriod: "September 2026",
+      lastPaymentDate: "2026-09-01",
+      lastPaymentAmount: 350000,
+    });
+    expect(summaryWithHistory.status).toBe("unpaid");
+
+    const summaryWithoutHistory = buildPaymentSummary({
+      paymentStatus: "unpaid",
+    });
+    expect(summaryWithoutHistory.status).toBe("unpaid");
+  });
+
+  it("falls back to paid on legacy records with historical fields but no explicit paymentStatus", () => {
+    const legacyPaid = buildPaymentSummary({
+      lastPaymentPeriod: "July 2026",
+      lastPaymentDate: "2026-07-15",
+    });
+    expect(legacyPaid.status).toBe("paid");
+  });
+
+  it("reports none when the student has no payment records and no status", () => {
     expect(buildPaymentSummary({ displayName: "Ani" }).status).toBe("none");
     expect(buildPaymentSummary({}).status).toBe("none");
   });
@@ -91,13 +114,13 @@ describe("getAuthenticatedParentBundle", () => {
 describe("getChildAttendanceAndClasses", () => {
   it("fails early and returns empty bundle if childId or branchId is missing", async () => {
     const noChild = await getChildAttendanceAndClasses(null, "kota_gorontalo");
-    expect(noChild).toEqual({ classes: [], attendance: [] });
+    expect(noChild).toEqual({ classes: [], attendance: [], errorClasses: null, errorAttendance: null });
 
     const noBranch = await getChildAttendanceAndClasses("child_1", null);
-    expect(noBranch).toEqual({ classes: [], attendance: [] });
+    expect(noBranch).toEqual({ classes: [], attendance: [], errorClasses: null, errorAttendance: null });
 
     const emptyBoth = await getChildAttendanceAndClasses("", "");
-    expect(emptyBoth).toEqual({ classes: [], attendance: [] });
+    expect(emptyBoth).toEqual({ classes: [], attendance: [], errorClasses: null, errorAttendance: null });
   });
 
   it("fetches enrolled open classes and attendance records scoped to the canonical branch", async () => {
@@ -121,10 +144,24 @@ describe("getChildAttendanceAndClasses", () => {
     expect(result.classes[0].id).toBe("c1");
     expect(result.classes[0].className).toBe("English 1");
     expect(result.attendance.length).toBe(2);
+    expect(result.errorClasses).toBeNull();
+    expect(result.errorAttendance).toBeNull();
 
     // Verify exact Firestore query constraints constructed
     expect(firestoreModule.where).toHaveBeenCalledWith("branchId", "==", "kota_gorontalo");
     expect(firestoreModule.where).toHaveBeenCalledWith("studentIds", "array-contains", "child_1");
     expect(firestoreModule.where).toHaveBeenCalledWith("status", "==", "open");
+  });
+
+  it("propagates query errors rather than silently masking them as empty arrays", async () => {
+    const getDocsSpy = vi.spyOn(firestoreModule, "getDocs");
+    getDocsSpy.mockRejectedValueOnce(new Error("Network connection lost"));
+
+    const result = await getChildAttendanceAndClasses("child_1", "kota_gorontalo");
+    expect(result.classes).toEqual([]);
+    expect(result.errorClasses).toBe("Network connection lost");
+    expect(result.errorAttendance).toBeNull();
+
+    getDocsSpy.mockRestore();
   });
 });

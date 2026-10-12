@@ -17,6 +17,7 @@
 | 2026-10-10 | Actions 1–5 Directives hardening: Admin business-authority removal, supervisor reconciliation, attribution display name binding & emulator suite | Office Boy · Facilities · Firestore Rules · Todos | **PASS** | No | Live deployed to `mylibertyies-f2f38` by operator at commit `19fd280`; 121/121 emulator tests pass |
 | 2026-10-10 | Directives timestamp integrity (`serverTimestamp` enforcement), reopening contract formalization & expanded security suite | Office Boy · Facilities · Firestore Rules · Todos | **PASS** | No | Strict `req.completedAt == request.time`; forged times blocked; Layer 4 spec formalized; 121/121 emulator tests pass; pending live deploy |
 | 2026-10-10 | Office Boy dashboard polish: surface directive-list failure state & de-duplicate stat cards to Urgent/Overdue | Office Boy · Facilities · Dashboard · Staff Directives | **PASS** | No | All quality gates pass (1,289 unit tests, 0 lint, 0 typecheck, build clean). No rules changed. Browser smoke attempted (driver CDN 404 logged). |
+| 2026-10-12 | Parent Portal refinement (Items 1–3): P-04 payment status fix, P-05 attendance metrics formula & P-06 inline retry errors | Parent Portal · Students · Dashboard · Repository | **PASS** | No | 1,292 passed (3 new tests); lint, typecheck, build 0 errors; no rules changed |
 
 ---
 
@@ -768,5 +769,52 @@ Not Run / Limitations:
   - Automated browser smoke walkthrough (browser subagent): ATTEMPTED on localhost:3000 but halted due to external
     Playwright driver CDN 404 (playwright-1.57.0-win32_x64.zip). Proceeded per user authorization; visual rendering verified
     via renderToStaticMarkup tests.
+  - Production deployment: NOT PERFORMED — strictly operator-controlled.
+```
+
+---
+
+## Evidence Record — 2026-10-12 (Parent Portal Refinement: Items 1–3)
+
+```text
+Change: 1) parentPortalRepository.js & ParentDashboard.jsx (P-04):
+           - In buildPaymentSummary, explicitly honors "paid", "pending", and "unpaid" paymentStatus values.
+             Falls back to historical inference (hasRecords ? "paid" : "none") strictly for legacy docs lacking status.
+             Prevents students marked "unpaid" by staff from falsely displaying as "Lunas".
+           - In ParentDashboard.jsx, added "Belum Lunas" badge (tone: rose) for unpaid status.
+        2) ParentDashboard.jsx (P-05):
+           - Aligned attendance statistics formula: LATE counts as attended; EXCUSED excluded from denominator;
+             rate = effectiveTotal > 0 ? Math.round((attended / effectiveTotal) * 100) : null.
+           - If no attendance records exist, Tingkat Kehadiran displays "Belum ada data" instead of misleading 100%.
+           - Card 1 (Total Sesi Hadir) renders stats.attended / stats.total; Card 3 (Sesi Izin) displays stats.excused independently.
+        3) parentPortalRepository.js & ParentDashboard.jsx (P-06):
+           - In getChildAttendanceAndClasses, query errors for classes and attendance are captured and returned
+             (errorClasses, errorAttendance) rather than silently swallowed into empty arrays.
+           - In ParentDashboard.jsx, subsections display explicit inline error banners with "Coba Lagi" (retry)
+             buttons rather than misrepresenting failures as "Belum terdaftar" / "Belum ada riwayat".
+           - Quick metrics grid displays "-" for failed sections instead of false zeros.
+
+Date: 2026-10-12
+Section: Parent Portal / Students Repository / Attendance & Payment UI
+Workflow: Parent student monitoring, attendance metrics veracity, payment status transparency
+Tester / Agent: Pair programming agent under Kifry's authorization
+
+Risk classification (Playbook §9): LOW-RISK — Pure frontend and repository data-flow refinement; zero rules or schema changes.
+
+Normal Test:
+  - Workspace test suite: npm test -> 1,292 passed, 121 skipped, 0 failed (102 test files).
+  - Repository unit tests: npm test src/features/students/parentPortalRepository.test.js -> 12 passed, 0 failed (3 new tests).
+  - Component unit tests: npm test src/features/dashboard/ParentDashboard.test.js -> 1 passed, 0 failed.
+  - ESLint: npm run lint -> 0 errors, 0 warnings.
+  - TypeScript: npm run typecheck (tsc --noEmit) -> 0 errors.
+  - Build: npm run build -> built cleanly in 4.00s (PWA precache 66 entries).
+
+Failure Test:
+  - buildPaymentSummary({ paymentStatus: "unpaid", lastPaymentPeriod: "Sept 2026" }) returns status: "unpaid" (PASS).
+  - getChildAttendanceAndClasses propagates network/permission rejection to errorClasses without masking (PASS).
+  - ParentDashboard renders inline error card with retry button when errorClasses or errorAttendance is present.
+
+Not Run / Limitations:
+  - firestore.rules emulator suite (npm run test:rules): NOT RUN — no firestore.rules modified in Items 1–3 (P-03 rules fix slated for Change Set 2).
   - Production deployment: NOT PERFORMED — strictly operator-controlled.
 ```

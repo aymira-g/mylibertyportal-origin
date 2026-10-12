@@ -20,6 +20,7 @@ import {
   MessageSquare,
   ShieldCheck,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 
 export default function ParentDashboard({ user = null }) {
@@ -38,15 +39,31 @@ export default function ParentDashboard({ user = null }) {
   const [children, setChildren] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState(null);
   const [prevChildId, setPrevChildId] = useState(null);
-  const [childDetails, setChildDetails] = useState({ classes: [], attendance: [] });
+  const [childDetails, setChildDetails] = useState({
+    classes: [],
+    attendance: [],
+    errorClasses: null,
+    errorAttendance: null,
+  });
   const [loadingInitial, setLoadingInitial] = useState(Boolean(currentUid));
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState("");
+
+  const handleRetryDetails = () => {
+    setLoadingDetails(true);
+    setReloadKey((k) => k + 1);
+  };
 
   // Reset child details and set loadingDetails immediately when child changes
   if (selectedChildId !== prevChildId) {
     setPrevChildId(selectedChildId);
-    setChildDetails({ classes: [], attendance: [] });
+    setChildDetails({
+      classes: [],
+      attendance: [],
+      errorClasses: null,
+      errorAttendance: null,
+    });
     setLoadingDetails(Boolean(selectedChildId));
   }
 
@@ -95,6 +112,11 @@ export default function ParentDashboard({ user = null }) {
       .catch((err) => {
         if (!active) return;
         console.error("Failed loading child classes/attendance:", err);
+        setChildDetails((prev) => ({
+          ...prev,
+          errorClasses: err?.message || "Gagal memuat data kelas",
+          errorAttendance: err?.message || "Gagal memuat riwayat kehadiran",
+        }));
       })
       .finally(() => {
         if (active) {
@@ -105,13 +127,13 @@ export default function ParentDashboard({ user = null }) {
     return () => {
       active = false;
     };
-  }, [selectedChildId, parentProfile?.branchId]);
+  }, [selectedChildId, parentProfile?.branchId, reloadKey]);
 
   const selectedChild = useMemo(() => {
     return children.find((c) => c.id === selectedChildId) || null;
   }, [children, selectedChildId]);
 
-  // Attendance Statistics
+  // Attendance Statistics (LATE counts as attended; EXCUSED excluded from denominator)
   const stats = useMemo(() => {
     const list = childDetails.attendance || [];
     const total = list.length;
@@ -119,8 +141,10 @@ export default function ParentDashboard({ user = null }) {
     const late = list.filter((a) => a.status === "LATE").length;
     const excused = list.filter((a) => a.status === "EXCUSED").length;
     const absent = list.filter((a) => a.status === "ABSENT").length;
-    const rate = total > 0 ? Math.round(((present + late) / total) * 100) : 100;
-    return { total, present, late, excused, absent, rate };
+    const attended = present + late;
+    const effectiveTotal = present + late + absent;
+    const rate = effectiveTotal > 0 ? Math.round((attended / effectiveTotal) * 100) : null;
+    return { total, present, late, excused, absent, attended, effectiveTotal, rate };
   }, [childDetails.attendance]);
 
   const paymentSummary = useMemo(() => {
@@ -294,6 +318,8 @@ export default function ParentDashboard({ user = null }) {
                       ? "emerald"
                       : paymentSummary.status === "pending"
                       ? "amber"
+                      : paymentSummary.status === "unpaid"
+                      ? "rose"
                       : "slate"
                   }
                 >
@@ -301,6 +327,8 @@ export default function ParentDashboard({ user = null }) {
                     ? "Lunas"
                     : paymentSummary.status === "pending"
                     ? "Menunggu"
+                    : paymentSummary.status === "unpaid"
+                    ? "Belum Lunas"
                     : "Belum Ada"}
                 </Badge>
               </div>
@@ -314,8 +342,12 @@ export default function ParentDashboard({ user = null }) {
                 Total Sesi Hadir
               </p>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-slate-800">{stats.present}</span>
-                <span className="text-xs text-slate-400">/ {stats.total} sesi</span>
+                <span className="text-2xl font-black text-slate-800">
+                  {childDetails.errorAttendance ? "-" : stats.attended}
+                </span>
+                <span className="text-xs text-slate-400">
+                  {childDetails.errorAttendance ? "" : `/ ${stats.total} sesi`}
+                </span>
               </div>
             </div>
 
@@ -324,23 +356,33 @@ export default function ParentDashboard({ user = null }) {
                 Tingkat Kehadiran
               </p>
               <div className="flex items-baseline gap-1.5">
-                <span
-                  className={`text-2xl font-black ${
-                    stats.rate >= 80 ? "text-emerald-600" : stats.rate >= 60 ? "text-amber-600" : "text-red-600"
-                  }`}
-                >
-                  {stats.rate}%
-                </span>
+                {childDetails.errorAttendance ? (
+                  <span className="text-sm font-bold text-slate-400">-</span>
+                ) : stats.rate !== null ? (
+                  <span
+                    className={`text-2xl font-black ${
+                      stats.rate >= 80 ? "text-emerald-600" : stats.rate >= 60 ? "text-amber-600" : "text-red-600"
+                    }`}
+                  >
+                    {stats.rate}%
+                  </span>
+                ) : (
+                  <span className="text-xs font-bold text-slate-400">Belum ada data</span>
+                )}
               </div>
             </div>
 
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-1">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                Izin / Terlambat
+                Sesi Izin
               </p>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-amber-600">{stats.late + stats.excused}</span>
-                <span className="text-xs text-slate-400">kali</span>
+                <span className="text-2xl font-black text-amber-600">
+                  {childDetails.errorAttendance ? "-" : stats.excused}
+                </span>
+                <span className="text-xs text-slate-400">
+                  {childDetails.errorAttendance ? "" : "kali"}
+                </span>
               </div>
             </div>
 
@@ -349,8 +391,12 @@ export default function ParentDashboard({ user = null }) {
                 Kelas Terdaftar
               </p>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-[#1a3a8f]">{childDetails.classes.length}</span>
-                <span className="text-xs text-slate-400">kelas aktif</span>
+                <span className="text-2xl font-black text-[#1a3a8f]">
+                  {childDetails.errorClasses ? "-" : childDetails.classes.length}
+                </span>
+                <span className="text-xs text-slate-400">
+                  {childDetails.errorClasses ? "" : "kelas aktif"}
+                </span>
               </div>
             </div>
           </div>
@@ -365,6 +411,20 @@ export default function ParentDashboard({ user = null }) {
             {loadingDetails ? (
               <div className="p-4 flex items-center justify-center text-xs text-slate-400">
                 <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> Memuat kelas...
+              </div>
+            ) : childDetails.errorClasses ? (
+              <div className="p-4 bg-rose-50 rounded-2xl border border-rose-200 text-xs text-rose-700 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                  <span>Gagal memuat data kelas ({childDetails.errorClasses}).</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRetryDetails}
+                  className="px-3 py-1 bg-white hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0"
+                >
+                  <RefreshCw className="w-3 h-3" /> Coba Lagi
+                </button>
               </div>
             ) : childDetails.classes.length === 0 ? (
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-500 text-center">
@@ -415,6 +475,20 @@ export default function ParentDashboard({ user = null }) {
             {loadingDetails ? (
               <div className="p-4 flex items-center justify-center text-xs text-slate-400">
                 <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> Memuat data kehadiran...
+              </div>
+            ) : childDetails.errorAttendance ? (
+              <div className="p-4 bg-rose-50 rounded-2xl border border-rose-200 text-xs text-rose-700 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                  <span>Gagal memuat riwayat kehadiran ({childDetails.errorAttendance}).</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRetryDetails}
+                  className="px-3 py-1 bg-white hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0"
+                >
+                  <RefreshCw className="w-3 h-3" /> Coba Lagi
+                </button>
               </div>
             ) : childDetails.attendance.length === 0 ? (
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-500 text-center">

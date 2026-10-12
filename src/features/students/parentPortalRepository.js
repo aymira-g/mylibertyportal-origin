@@ -17,15 +17,23 @@ export function normalizePhoneDigits(phoneStr = "") {
 /**
  * Builds the tuition summary shown on the authenticated Parent Portal from the
  * denormalized payment fields on the student document (written by the
- * finance flow in paymentsRepository.recordPayment). The payments
- * collection itself is staff-only in Firestore rules, so parent views
- * read this summary directly from the linked student document.
+ * finance flow in paymentsRepository.recordPayment). Parent views read this
+ * summary directly from the linked student document for 1-read efficiency.
  */
 export function buildPaymentSummary(student) {
   if (!student || typeof student !== "object") return null;
   const hasRecords = Boolean(student.lastPaymentPeriod || student.lastPaymentDate || student.paidUntil);
+
+  let status;
+  if (student.paymentStatus === "paid" || student.paymentStatus === "pending" || student.paymentStatus === "unpaid") {
+    status = student.paymentStatus;
+  } else {
+    // Fall back to historical inference only when paymentStatus is absent on legacy records
+    status = hasRecords ? "paid" : "none";
+  }
+
   return {
-    status: student.paymentStatus === "pending" ? "pending" : hasRecords ? "paid" : "none",
+    status,
     lastPaymentPeriod: student.lastPaymentPeriod || null,
     lastPaymentDate: student.lastPaymentDate || null,
     lastPaymentAmount: typeof student.lastPaymentAmount === "number" ? student.lastPaymentAmount : null,
@@ -76,16 +84,17 @@ export async function getAuthenticatedParentBundle(parentUid) {
  *
  * @param {string} childId
  * @param {string} branchId
- * @returns {Promise<{ classes: any[], attendance: any[] }>}
+ * @returns {Promise<{ classes: any[], attendance: any[], errorClasses: string | null, errorAttendance: string | null }>}
  */
 export async function getChildAttendanceAndClasses(childId, branchId) {
   if (!childId || !branchId) {
     console.warn("getChildAttendanceAndClasses: childId and canonical branchId are both required.");
-    return { classes: [], attendance: [] };
+    return { classes: [], attendance: [], errorClasses: null, errorAttendance: null };
   }
 
   const canonicalBranchId = branchToId(branchId);
   let classes = [];
+  let errorClasses = null;
   try {
     const qClasses = query(
       collection(db, "classes"),
@@ -98,9 +107,11 @@ export async function getChildAttendanceAndClasses(childId, branchId) {
     classes = snapClasses.docs.map((d) => ({ id: d.id, ...d.data() }));
   } catch (err) {
     console.warn("Failed fetching enrolled classes for child:", err);
+    errorClasses = err?.message || "Failed to load classes";
   }
 
   let attendance = [];
+  let errorAttendance = null;
   try {
     const qAtt = query(
       collection(db, "classAttendance"),
@@ -112,7 +123,8 @@ export async function getChildAttendanceAndClasses(childId, branchId) {
     attendance = snapAtt.docs.map((d) => ({ id: d.id, ...d.data() }));
   } catch (err) {
     console.warn("Failed fetching attendance history for child:", err);
+    errorAttendance = err?.message || "Failed to load attendance history";
   }
 
-  return { classes, attendance };
+  return { classes, attendance, errorClasses, errorAttendance };
 }

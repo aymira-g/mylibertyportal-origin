@@ -101,7 +101,7 @@
 
 | Item | Detail | Owner |
 |---|---|---|
-| Rules live deploy pending | P-03 branch-isolation clause (commit `ecc9a49`) and directives server-timestamp integrity (commit `c180b3c`) are emulator-verified but not yet deployed to production. `firebase deploy --only firestore:rules` is operator-controlled. | Kifry |
+| Rules live deploy | P-03 branch-isolation clause and directives server-timestamp integrity deployed to live production by operator (`firebase deploy --only firestore:rules`) on 2026-10-12. | **Completed (2026-10-12)** |
 | P-01 revisit trigger | Revisit the student-document field split if a paid tier or Cloud Functions ever becomes acceptable; until then the residual risk stands. | Kifry |
 
 ## Seeding Note

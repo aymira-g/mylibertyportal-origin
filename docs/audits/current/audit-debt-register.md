@@ -12,13 +12,13 @@
 | # | Section | Last Deep Audit | Major Changes Since | Deep Audit Due? |
 |---|---|---|---|---|
 | 1 | Auth / Roles / Permissions | 2026-10-12 (`L2-DOM01`) | — | No |
-| 2 | Branch Isolation / Firestore Rules | 2026-10-12 (`L2-DOM02`) | P-03 list-rule fix + timestamp-integrity rules emulator-verified, **live deploy pending** | No — light re-verify after next rules deploy |
+| 2 | Branch Isolation / Firestore Rules | 2026-10-12 (`L2-DOM02`) | P-03 list-rule fix + timestamp-integrity rules deployed to live production (2026-10-12) | No |
 | 3 | Attendance + Kiosk | 2026-10-12 (`L2-DOM03`) | — | No |
 | 4 | Payments / Cash / Financial State | 2026-10-12 (`L2-DOM04`) | 4 findings remediated & verified (DOM04-SEC-01, DOM04-IDX-01, DOM04-COR-01, DOM04-GOV-01) | No |
 | 5 | Students / Admissions / Profiles | 2026-10-12 (`L2-DOM05`) | 4 findings remediated & verified (DOM05-SEC-01, DOM05-COR-01, DOM05-GOV-01, DOM05-RES-01) | No |
 | 6 | Classes / Rosters / Scheduling | 2026-10-12 (`L2-DOM06`) | 5 findings remediated & verified (DOM06-SEC-01..03, DOM06-COR-01, DOM06-GOV-01) | No |
 | 7 | Corporate Events / Staff Shifts / Leave | 2026-10-12 (`L2-DOM07`) | 6 findings remediated & verified (DOM07-SEC-01..03, DOM07-COR-01..03) | No |
-| 8 | Parent Portal | 2026-10-12 (`L2-DOM08`) | 6 findings remediated & verified (DOM08-IDX-01, DOM08-COR-01..03, DOM08-SEC-01, DOM08-UX-01) | No — light re-verify after next rules deploy |
+| 8 | Parent Portal | 2026-10-12 (`L2-DOM08`) | 6 findings remediated & verified; rules deployed to live production (2026-10-12) | No |
 | 9 | Approvals / Maker-Checker / Directives / Audit Logs | 2026-10-12 (`L2-DOM09`) | 6 findings remediated & verified (DOM09-SEC-01..05, DOM09-COR-01) | No |
 | 10 | PWA / Network / Service Worker | 2026-10-12 (`L2-DOM10`) | 7 findings remediated & verified (DOM10-SW-01..02, DOM10-COR-01, DOM10-UX-01..03, DOM10-PERF-01) | No |
 | 11 | Reports / Dashboards / Derived Data | 2026-10-12 (`L2-DOM11`) | 6 findings remediated & verified (DOM11-COR-01..03, DOM11-PERF-01, DOM11-GOV-01, DOM11-TECH-01) | No |

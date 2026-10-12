@@ -136,12 +136,18 @@ export async function handleKioskScan(
     }
 
     const studentStatus = userData.status || "active";
-    if (studentStatus === "inactive" || studentStatus === "graduated") {
+    if (
+      studentStatus === "inactive" ||
+      studentStatus === "graduated" ||
+      studentStatus === "archived"
+    ) {
       return showStatus(
         "Pass Inactive",
         "error",
         studentStatus === "graduated"
           ? "This student has graduated. Please contact the administration."
+          : studentStatus === "archived"
+          ? "This student record is archived. Please contact the front office."
           : "This student pass is inactive. Please contact the front office.",
         userData.displayName
       );

@@ -2,6 +2,8 @@
 
 ## Master Bug Ledger
 
+**Canonical ledger location:** [`docs/audits/current/bug-ledger.md`](../current/bug-ledger.md). That file is the single master index of findings; the per-domain audit reports under `docs/audits/current/` hold the full 5-pass evidence behind each row. The Level 1 `regression-log.md` is post-change regression evidence only — it is **not** the bug ledger, even though some ledger rows reference it as supporting evidence.
+
 Keep one ledger throughout the audit.
 
 | Field | Description |

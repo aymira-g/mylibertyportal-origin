@@ -63,7 +63,6 @@ export default function ViceDirectorDashboard() {
     setFormData,
     handleSave,
     handleEdit,
-    handleAddStaff,
     handleDelete,
     handleAddTodo,
     handleDeleteTodo,
@@ -116,7 +115,7 @@ export default function ViceDirectorDashboard() {
     let totalCap = 0;
     let enrolled = 0;
     filteredClasses.forEach((cls) => {
-      totalCap += Number(cls.capacity) || 12;
+      totalCap += Number(cls.maxCapacity || cls.capacity || cls.maxStudents) || 12;
       enrolled += Array.isArray(cls.studentIds) ? cls.studentIds.length : 0;
     });
     return totalCap > 0 ? Math.round((enrolled / totalCap) * 100) : 0;
@@ -141,7 +140,7 @@ export default function ViceDirectorDashboard() {
       let totalCapacity = 0;
       let enrolledSeats = 0;
       bClasses.forEach((cls) => {
-        const cap = Number(cls.capacity) || 12;
+        const cap = Number(cls.maxCapacity || cls.capacity || cls.maxStudents) || 12;
         totalCapacity += cap;
         const enrolled = Array.isArray(cls.studentIds) ? cls.studentIds.length : 0;
         enrolledSeats += enrolled;
@@ -524,7 +523,6 @@ export default function ViceDirectorDashboard() {
             classes={classes}
             invites={invites}
             currentUserId={auth.currentUser?.uid}
-            onAddStaff={handleAddStaff}
             onEditStaff={handleEdit}
             onPrintBadge={setSelectedStudent}
             onDeleteStaff={handleDelete}

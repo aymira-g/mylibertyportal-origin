@@ -9,7 +9,9 @@
  *
  * 1. Fast local check: if `navigator.onLine === false`, returns false immediately.
  * 2. If online, issues a lightweight GET probe with cache-busting and a short timeout.
- * 3. Uses a dedicated 3-byte static asset (/ping.txt) with fallback to /favicon.svg.
+ * 3. Uses a dedicated 3-byte static asset (/ping.txt). Falls back to /favicon.svg only when
+ *    /ping.txt returns HTTP 404 (asset missing); timeouts and network errors return false
+ *    immediately so a stalled link is reported in one timeout, not two (DOM10-PERF-01).
  * 4. Gracefully handles non-browser environments (Vitest, SSR).
  *
  * @param {object} [options]
@@ -53,19 +55,20 @@ export async function checkNetworkReachability({
       });
 
       if (timer) clearTimeout(timer);
-      return res.status >= 200 && res.status < 400;
+      return { ok: res.status >= 200 && res.status < 400, status: res.status };
     } catch {
       if (timer) clearTimeout(timer);
-      return false;
+      return { ok: false, status: 0 };
     }
   };
 
-  const primaryResult = await attemptFetch(probeUrl);
-  if (primaryResult) return true;
+  const primary = await attemptFetch(probeUrl);
+  if (primary.ok) return true;
 
-  // Fallback to favicon.svg if primary probe failed or was misconfigured
-  if (probeUrl !== "/favicon.svg") {
-    return await attemptFetch("/favicon.svg");
+  // Fall back only if the probe file itself is missing (404). A timeout or
+  // network error means the link is down; probing again just doubles the wait.
+  if (primary.status === 404 && probeUrl !== "/favicon.svg") {
+    return (await attemptFetch("/favicon.svg")).ok;
   }
 
   return false;

@@ -7,10 +7,11 @@ import { createInvite, deleteInvite, createTodo, deleteTodo, toggleTodoComplete 
 import {
   saveStudentRecord,
   updateStaffRecord,
-  createStaffAccount,
   deleteUserProfile,
   createParentAccount,
   updateParentRecord,
+  checkStudentHasHistory,
+  checkStaffHasAttendanceHistory,
 } from "./usersRepository";
 import { markInquiryConverted } from "./frontoffice/deskInquiriesRepository";
 import { DEFAULT_BRANCH, normalizeBranch, matchesBranchFilter, branchToId, idToBranch } from "../../constants/branches";
@@ -506,9 +507,13 @@ export function useDashboardData({
             toast("Profile updated!");
           }
         } else {
-          const newStaffUid = await createStaffAccount(formData.email, formData.password, staffData);
-          savedRecord = { id: newStaffUid, ...staffData };
-          toast("Account created!");
+          // OD-IL-ENF4 & Blueprint: Direct staff profile creation without invite token or approved ticket is prohibited by Firestore rules.
+          toast(
+            "Direct staff account creation is disabled by security policy. Please generate an invite token from the Staff Invites panel instead.",
+            "error"
+          );
+          setActiveTab?.("invites");
+          return null;
         }
       }
 
@@ -534,15 +539,8 @@ export function useDashboardData({
   };
 
   const handleAddStaff = () => {
-    setEditId(null);
-    const assignedBranch = effectiveBranch || DEFAULT_BRANCH;
-    setFormData({
-      ...emptyFormData,
-      branch: assignedBranch,
-      branchId: branchToId(assignedBranch),
-      division: division || DEFAULT_DIVISION,
-    });
-    setActiveTab?.("addUser");
+    setActiveTab?.("invites");
+    toast("To add new staff, please generate an invite token from the Staff Invites panel.", "info");
   };
 
   const handleAddStudent = (prefill = {}) => {
@@ -641,6 +639,42 @@ export function useDashboardData({
 
     try {
       const targetBranchId = user.branchId || (user.branch ? branchToId(user.branch) : null);
+
+      if (user.role === "student") {
+        const { hasPayments, hasAttendance, hasReports, error } = await checkStudentHasHistory(
+          uid,
+          targetBranchId
+        );
+        if (error) {
+          toast(`Could not verify student history (${error}). Deletion cancelled for safety.`, "error");
+          return;
+        }
+        if (hasPayments || hasAttendance || hasReports) {
+          const reasons = [];
+          if (hasPayments) reasons.push("tuition payments");
+          if (hasAttendance) reasons.push("session attendance");
+          if (hasReports) reasons.push("academic evaluations");
+          toast(
+            `Cannot delete: ${user.displayName || "Student"} has recorded history (${reasons.join(", ")}). Deleting this profile would corrupt historical records. Please mark their status as "Inactive" or "Graduated" instead.`,
+            "error"
+          );
+          return;
+        }
+      } else if (user.role !== "parent") {
+        const { hasShifts, hasLeave, error } = await checkStaffHasAttendanceHistory(uid);
+        if (error) {
+          toast(`Could not verify staff history (${error}). Deletion cancelled for safety.`, "error");
+          return;
+        }
+        if (hasShifts || hasLeave) {
+          toast(
+            `Cannot delete: ${user.displayName || "Staff"} has recorded shift or leave history. Please mark their status as "Resigned" or "Terminated" instead.`,
+            "error"
+          );
+          return;
+        }
+      }
+
       await deleteUserProfile(uid, targetBranchId);
       if (!skipConfirm) {
         if (user.role === "student") {

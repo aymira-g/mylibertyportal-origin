@@ -9,6 +9,7 @@ import {
 } from "../../../constants/levels";
 import { getProgramLevels } from "../../../constants/programs";
 import { todayWita } from "../../../utils/dateWita";
+import { useOverlayHistory } from "../../shared";
 
 function PlacementTestModalContent({
   onClose,
@@ -68,8 +69,18 @@ function PlacementTestModalContent({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 text-xs max-h-[90vh] overflow-y-auto">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Log Placement Test Result"
+        className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 text-xs max-h-[90vh] overflow-y-auto"
+      >
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black shadow-xs">
@@ -87,6 +98,7 @@ function PlacementTestModalContent({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close"
             className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 cursor-pointer"
           >
             <X className="w-4 h-4" />
@@ -267,6 +279,7 @@ function PlacementTestModalContent({
 }
 
 export function PlacementTestModal(props) {
+  useOverlayHistory(Boolean(props.isOpen && props.inquiry), props.onClose, "placementTestModal");
   if (!props.isOpen || !props.inquiry) return null;
   return <PlacementTestModalContent key={props.inquiry?.id || "test-modal"} {...props} />;
 }

@@ -274,7 +274,7 @@ service cloud.firestore {
     function isApproverForDoc(data) {
       let targetRole = data != null && 'approverRole' in data ? data.approverRole : 'manager';
       let roleMatches = ((targetRole == 'director' || targetRole == 'vice_director') && (isDirector() || isViceDirector()))
-        || (targetRole == 'manager' && (isManager() || isDirector() || isViceDirector()))
+        || (targetRole == 'manager' && ((isManager() && isDivisionAllowedForManager(data)) || isDirector() || isViceDirector()))
         || ((targetRole == 'instructor_leader' || targetRole == 'instructorleader') && (hasRole('instructorleader') || hasRole('instructor_leader')))
         || ((targetRole == 'ops_lead' || targetRole == 'opslead') && isOpsLead())
         || (targetRole == 'frontoffice' && isFrontOffice());
@@ -295,7 +295,7 @@ service cloud.firestore {
     }
 
     function isTrackedLeaveRole(r) {
-      return r in ['instructor', 'instructorleader', 'instructor_leader', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'marketing', 'officeboy', 'admin'];
+      return r in ['instructor', 'instructorleader', 'instructor_leader', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'marketing', 'officeboy', 'admin', 'manager'];
     }
 
     function isInviteValid(inviteId) {
@@ -684,16 +684,18 @@ service cloud.firestore {
           ))
         || (signedIn() && ('studentIds' in resource.data) && resource.data.studentIds.hasAny([request.auth.uid]))
         || (isParent() && isSameBranchStrict(resource.data) && ('childStudentIds' in userProfile()) && ('studentIds' in resource.data) && resource.data.studentIds.hasAny(userProfile().childStudentIds));
-      allow create: if isAdmin();
-      allow update: if isAdmin()
+      allow create: if isAdmin() || isExecutive();
+      allow update: if isAdmin() || isExecutive()
         || (isFrontOffice()
           && isSameBranch(resource.data)
           && isSameBranch(request.resource.data)
           && isDivisionAllowedForBranchStaff(resource.data)
           && isDivisionAllowedForBranchStaff(request.resource.data)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentIds', 'enrollments', 'updatedAt'])
+          && (!('maxCapacity' in resource.data) || request.resource.data.studentIds.size() <= resource.data.maxCapacity)
           && (!('capacity' in resource.data) || request.resource.data.studentIds.size() <= resource.data.capacity)
           && (!('maxStudents' in resource.data) || request.resource.data.studentIds.size() <= resource.data.maxStudents));
+      allow delete: if isDirector() || isViceDirector();
     }
 
     match /todos/{todoId} {
@@ -866,7 +868,9 @@ service cloud.firestore {
         || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isDivisionAllowedForBranchStaff(resource.data))
         || (signedIn() && (resource.data.studentId == request.auth.uid || isParentOf(resource.data.studentId)));
       allow list: if isExecutive()
-        || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data) && isDivisionAllowedForBranchStaff(resource.data));
+        || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data) && isDivisionAllowedForBranchStaff(resource.data))
+        || (signedIn() && resource.data.studentId == request.auth.uid)
+        || (isParent() && isSameBranchStrict(resource.data) && ('childStudentIds' in userProfile()) && userProfile().childStudentIds.hasAny([resource.data.studentId]));
       allow create: if (isExecutive() || (isFrontOffice() && isSameBranch(request.resource.data) && isDivisionAllowedForBranchStaff(request.resource.data)))
         && request.resource.data.amount is number
         && request.resource.data.amount > 0
@@ -933,6 +937,7 @@ service cloud.firestore {
       allow update: if isApproverForDoc(resource.data)
           && request.auth.uid != resource.data.requestedByUid
           && request.resource.data.requestedByUid == resource.data.requestedByUid
+          && request.resource.data.updatedAt == request.time
           && (
             (resource.data.status == 'pending'
               && request.resource.data.status in ['approved', 'rejected']
@@ -943,6 +948,8 @@ service cloud.firestore {
             (resource.data.status == 'approved'
               && request.resource.data.status == resource.data.status
               && request.resource.data.applied == true
+              && (!('applied' in resource.data) || resource.data.applied != true)
+              && request.resource.data.appliedByUid == request.auth.uid
               && request.resource.data.diff(resource.data).affectedKeys()
                 .hasOnly(['applied', 'appliedAt', 'appliedByUid', 'updatedAt']))
           )
@@ -1047,7 +1054,8 @@ service cloud.firestore {
       allow list: if isExecutive()
         || (isManager() && isSameBranchStrict(resource.data))
         || (signedIn() && resource.data.userId == request.auth.uid);
-      allow create: if isExecutive()
+      allow create: if (isExecutive()
+          || (isManager() && isSameBranch(request.resource.data) && isDivisionAllowedForManager(request.resource.data)))
         && request.resource.data.status == 'approved'
         && isTrackedLeaveRole(roleOf(request.resource.data.userId));
       allow update, delete: if isExecutive();

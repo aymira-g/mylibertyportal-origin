@@ -12,6 +12,7 @@ import {
   clearPendingPlacementOverride,
 } from "../dashboard/frontoffice/deskInquiriesRepository";
 import { updateStaffRecord } from "../dashboard/usersRepository";
+import { updatePaymentApprovalStatus } from "../finance/paymentsRepository";
 import { useToast } from "./useToast";
 import { useConfirm } from "./useConfirm";
 import { idToBranch, BRANCH_MAP } from "../../constants/branches";
@@ -34,13 +35,15 @@ export function ApprovalInbox({
   division = null,
   title = "Pending Authorization Requests",
   subtitle = "Maker-Checker dual-control operational review queue.",
+  initialApprovals = null,
 }) {
-  const [approvals, setApprovals] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [approvals, setApprovals] = useState(() => initialApprovals || []);
+  const [loading, setLoading] = useState(() => initialApprovals === null);
   const [selectedDomain, setSelectedDomain] = useState("all");
   const [processingId, setProcessingId] = useState(null);
   const [staffRoleAssignments, setStaffRoleAssignments] = useState({});
   const [staffBranchAssignments, setStaffBranchAssignments] = useState({});
+  const [staffDivisionAssignments, setStaffDivisionAssignments] = useState({});
 
   const toast = useToast();
   const confirm = useConfirm();
@@ -51,6 +54,10 @@ export function ApprovalInbox({
 
   const handleBranchChange = (id, newBranch) => {
     setStaffBranchAssignments((prev) => ({ ...prev, [id]: newBranch }));
+  };
+
+  const handleDivisionChange = (id, newDivision) => {
+    setStaffDivisionAssignments((prev) => ({ ...prev, [id]: newDivision }));
   };
 
   useEffect(() => {
@@ -170,6 +177,7 @@ export function ApprovalInbox({
         const assignedRole = staffRoleAssignments[approval.id] || "instructor";
         const assignedBranchId = staffBranchAssignments[approval.id] || "kota_gorontalo";
         const assignedBranchName = idToBranch(assignedBranchId);
+        const assignedDivision = staffDivisionAssignments[approval.id] || "courses";
         try {
           await updateStaffRecord(approval.payload.uid, {
             email: approval.payload.email || "",
@@ -178,7 +186,7 @@ export function ApprovalInbox({
             role: assignedRole,
             branch: assignedBranchName,
             branchId: assignedBranchId,
-            division: "courses",
+            division: assignedDivision,
             status: "active",
             phone: "",
             photoURL: approval.payload.photoURL || "",
@@ -194,13 +202,31 @@ export function ApprovalInbox({
             console.warn("markApprovalApplied error for onboarding:", markErr);
           }
           toast(
-            `Staff account provisioned! Assigned ${assignedRole} at ${assignedBranchName}.`,
+            `Staff account provisioned! Assigned ${assignedRole} (${assignedDivision}) at ${assignedBranchName}.`,
             "success"
           );
         } catch (provisionErr) {
           toast(
             `Approved ticket, but failed to provision user profile: ${provisionErr.message}`,
             "error"
+          );
+        }
+      } else if (approval.actionId === "DISCOUNT_OR_REFUND" && approval.payload?.paymentId) {
+        try {
+          await updatePaymentApprovalStatus(approval.payload.paymentId, "approved");
+          try {
+            await markApprovalApplied(approval.id, currentUid);
+          } catch (markErr) {
+            console.warn("markApprovalApplied error for discount:", markErr);
+          }
+          toast(
+            `Authorized: Fee discount approved for ${approval.payload.studentName || "student"}.`,
+            "success"
+          );
+        } catch (discErr) {
+          toast(
+            `Approved ticket, but failed to update payment record: ${discErr.message}`,
+            "warning"
           );
         }
       } else {
@@ -251,6 +277,12 @@ export function ApprovalInbox({
           await clearPendingPlacementOverride(approval.payload.inquiryId, currentUid);
         } catch (clearErr) {
           console.warn("Failed to clear the parked placement override:", clearErr);
+        }
+      } else if (approval.actionId === "DISCOUNT_OR_REFUND" && approval.payload?.paymentId) {
+        try {
+          await updatePaymentApprovalStatus(approval.payload.paymentId, "rejected");
+        } catch (rejectErr) {
+          console.warn("Failed to update payment approvalStatus to rejected:", rejectErr);
         }
       }
 
@@ -379,8 +411,13 @@ export function ApprovalInbox({
                 )}
 
                 {req.actionId === "NEW_STAFF_ACCOUNT" && (
-                  <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 flex flex-wrap gap-3 items-center text-xs">
-                    <div className="flex items-center gap-1.5">
+                  <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 space-y-2 text-xs">
+                    <div className="font-bold text-slate-800">
+                      Applicant: <span className="font-semibold text-indigo-700">{req.payload?.displayName || "Staff Member"}</span>
+                      {req.payload?.email && <span className="text-slate-500 font-normal ml-1">({req.payload.email})</span>}
+                    </div>
+                    <div className="flex flex-wrap gap-3 items-center">
+                      <div className="flex items-center gap-1.5">
                       <label className="font-bold text-slate-700">Assign Role:</label>
                       <select
                         value={staffRoleAssignments[req.id] || "instructor"}
@@ -388,11 +425,12 @@ export function ApprovalInbox({
                         className="bg-white border border-slate-200 rounded-lg px-2 py-1 font-semibold text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1a3a8f]"
                       >
                         <option value="instructor">Instructor</option>
+                        <option value="instructorleader">Instructor Leader</option>
+                        <option value="opslead">Operational Leader</option>
                         <option value="frontoffice">Front Office</option>
                         <option value="manager">Division Manager</option>
                         <option value="marketing">Marketing</option>
                         <option value="officeboy">Office Boy</option>
-                        <option value="admin">Admin</option>
                       </select>
                     </div>
 
@@ -410,6 +448,20 @@ export function ApprovalInbox({
                         ))}
                       </select>
                     </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <label className="font-bold text-slate-700">Assign Division:</label>
+                      <select
+                        value={staffDivisionAssignments[req.id] || "courses"}
+                        onChange={(e) => handleDivisionChange(req.id, e.target.value)}
+                        className="bg-white border border-slate-200 rounded-lg px-2 py-1 font-semibold text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1a3a8f]"
+                      >
+                        <option value="courses">Courses</option>
+                        <option value="kindergarten">Kindergarten</option>
+                        <option value="all">All Divisions</option>
+                      </select>
+                    </div>
+                  </div>
                   </div>
                 )}
               </div>

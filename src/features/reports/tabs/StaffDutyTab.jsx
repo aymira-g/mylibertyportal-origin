@@ -241,8 +241,8 @@ const StaffDutyTab = forwardRef(
             </p>
           </div>
 
-          {/* Admin actions: Log leave */}
-          {canPerformAdminActions && (
+          {/* Admin & Manager actions: Log leave */}
+          {(canPerformAdminActions || isActualAdmin || isAdminView || isManager) && (
             <button
               onClick={() => setLeaveModalOpen(true)}
               className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
@@ -401,7 +401,7 @@ const StaffDutyTab = forwardRef(
         {(isActualAdmin || isAdminView || isManager) && (
           <ScheduledLeavesList
             leaves={leaves}
-            canPerformAdminActions={canPerformAdminActions}
+            canPerformAdminActions={canPerformAdminActions || isActualAdmin || isAdminView}
             onDeleteLeave={handleDeleteLeave}
           />
         )}

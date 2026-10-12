@@ -9,28 +9,7 @@ import {
 } from "lucide-react";
 import { useStaffDirectives } from "../staff";
 import { getUrlAction, clearUrlAction } from "../../utils/urlAction";
-
-function formatDueDate(dueDate) {
-  if (!dueDate) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const due = new Date(dueDate);
-  due.setHours(0, 0, 0, 0);
-
-  const diffDays = Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 0) {
-    return { label: "Overdue", badgeColor: "bg-rose-100 text-rose-800 border-rose-200" };
-  }
-  if (diffDays === 0) {
-    return { label: "Due Today", badgeColor: "bg-amber-100 text-amber-900 border-amber-300" };
-  }
-  return {
-    label: `Due ${due.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`,
-    badgeColor: "bg-slate-100 text-slate-700 border-slate-200",
-  };
-}
+import { formatDueDate } from "./officeBoyUtils";
 
 export default function OfficeBoyDashboard() {
   const toast = useToast();

@@ -9,12 +9,22 @@ import {
   CheckCircle,
   Search,
 } from "lucide-react";
-import { LevelBadge, useToast, isCompatible, hasAssessedLevel } from "../shared";
+import {
+  LevelBadge,
+  useToast,
+  isCompatible,
+  hasAssessedLevel,
+  createApprovalEnvelope,
+  submitApprovalRequest,
+  useOverlayHistory,
+} from "../shared";
 import {
   transferStudentBetweenClasses,
   addStudentToClass,
 } from "./classesRepository";
 import { todayWita } from "../../utils/dateWita.js";
+import { auth } from "../../firebase";
+import { branchToId } from "../../constants/branches.js";
 
 export default function TransferModal({
   isOpen = true,
@@ -26,6 +36,7 @@ export default function TransferModal({
   onTransferred = null,
 }) {
   const toast = useToast();
+  useOverlayHistory(Boolean(isOpen), onClose, "transferModal");
 
   const [targetClassId, setTargetClassId] = useState("");
   const [transferDate, setTransferDate] = useState(() => todayWita());
@@ -43,12 +54,23 @@ export default function TransferModal({
     return map;
   }, [users]);
 
-  // Candidate target classes (exclude source class and any where student is already in)
+  // Candidate target classes (exclude source class, cross-branch classes, and any where student is already in - DOM06-GOV-01)
   const candidateClasses = useMemo(() => {
     if (!student) return [];
+    const studentBranchId =
+      student?.branchId || (student?.branch ? branchToId(student.branch) : null);
+    const sourceBranchId =
+      sourceClass?.branchId || (sourceClass?.branch ? branchToId(sourceClass.branch) : null);
+    const branchScope = sourceBranchId || studentBranchId;
+
     return classes
       .filter((c) => !sourceClass || c.id !== sourceClass.id)
       .filter((c) => !(c.studentIds || []).includes(student.id))
+      .filter((c) => {
+        if (!branchScope) return true;
+        const cBranchId = c.branchId || (c.branch ? branchToId(c.branch) : null);
+        return !cBranchId || cBranchId === branchScope;
+      })
       .map((c) => {
         const studentCount = (c.studentIds || []).length;
         const capacity = Number(c.maxCapacity) || 15;
@@ -119,6 +141,37 @@ export default function TransferModal({
           transferReason: finalReason || "Batch transfer",
         });
 
+        // Dual-control logged approval/audit trail for student class transfer (DOM06-GOV-01)
+        const currentUser = auth.currentUser;
+        const canonicalBranchId =
+          sourceClass.branchId ||
+          (sourceClass.branch ? branchToId(sourceClass.branch) : null) ||
+          student.branchId ||
+          (student.branch ? branchToId(student.branch) : null);
+
+        const envelope = createApprovalEnvelope(
+          "STUDENT_CLASS_TRANSFER",
+          {
+            name: currentUser?.displayName || currentUser?.email || "Staff",
+            uid: currentUser?.uid,
+            role: "frontoffice",
+            branchId: canonicalBranchId,
+          },
+          {
+            studentId: student.id,
+            studentName: student.displayName || student.name || "Student",
+            sourceClassId: sourceClass.id,
+            sourceClassName: sourceClass.className,
+            targetClassId: selectedTargetClass?.id,
+            targetClassName: selectedTargetClass?.className,
+            reason: finalReason || "Batch transfer",
+            dateTransferred: transferDate || todayWita(),
+          }
+        );
+        if (envelope) {
+          submitApprovalRequest(envelope).catch(console.warn);
+        }
+
         toast(
           `Transferred ${student.displayName || "Student"} from ${sourceClass.className} to ${selectedTargetClass.className}.`,
           "success"
@@ -150,8 +203,18 @@ export default function TransferModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={sourceClass ? "One-Click Batch Transfer" : "Enroll Student into Batch"}
+        className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150"
+      >
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/70">
           <div className="flex items-center gap-3">
@@ -175,6 +238,7 @@ export default function TransferModal({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             disabled={transferring}
             className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-200/60 transition"
           >

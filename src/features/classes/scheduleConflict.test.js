@@ -99,6 +99,36 @@ describe("findScheduleConflicts", () => {
     expect(roomConflicts).toHaveLength(0);
   });
 
+  it("finds an instructor double-booking between primary and substitute instructor (DOM06-COR-01)", () => {
+    const a = cls({ id: "a", instructorId: "ins1", classRoom: "Room A" });
+    const b = cls({
+      id: "b",
+      instructorId: "ins2",
+      substituteInstructorId: "ins1",
+      classRoom: "Room B",
+      startTime: "11:00",
+      endTime: "12:00",
+    });
+    const { teacherConflicts } = findScheduleConflicts([a, b]);
+    expect(teacherConflicts).toHaveLength(1);
+    expect(teacherConflicts[0].detail).toContain("substitute coverage");
+  });
+
+  it("finds an instructor double-booking between two substitute instructors (DOM06-COR-01)", () => {
+    const a = cls({ id: "a", instructorId: "ins1", substituteInstructorId: "sub9", classRoom: "Room A" });
+    const b = cls({
+      id: "b",
+      instructorId: "ins2",
+      substituteInstructorId: "sub9",
+      classRoom: "Room B",
+      startTime: "11:00",
+      endTime: "12:00",
+    });
+    const { teacherConflicts } = findScheduleConflicts([a, b]);
+    expect(teacherConflicts).toHaveLength(1);
+    expect(teacherConflicts[0].detail).toContain("substitute coverage");
+  });
+
   it("finds a room double-booking, ignoring case and stray spaces in the room name", () => {
     const a = cls({ id: "a", instructorId: "i1", classRoom: "Room A" });
     const b = cls({ id: "b", instructorId: "i2", classRoom: "  room a " });
@@ -192,6 +222,20 @@ describe("checkDraftConflicts", () => {
     const draft = cls({ id: undefined, className: "New", startTime: "10:30", endTime: "12:00" });
     const { teacherConflicts } = checkDraftConflicts(draft, existing);
     expect(teacherConflicts).toHaveLength(1);
+  });
+
+  it("flags a draft whose substituteInstructorId clashes with an existing primary instructor (DOM06-COR-01)", () => {
+    const draft = cls({
+      id: undefined,
+      className: "Draft with Sub",
+      startTime: "10:30",
+      endTime: "12:00",
+      instructorId: "other-inst",
+      substituteInstructorId: "i1", // existing class has instructorId: "i1"
+    });
+    const { teacherConflicts } = checkDraftConflicts(draft, existing);
+    expect(teacherConflicts).toHaveLength(1);
+    expect(teacherConflicts[0].detail).toContain("substitute coverage");
   });
 
   it("does not make an edited batch clash with its own saved version", () => {

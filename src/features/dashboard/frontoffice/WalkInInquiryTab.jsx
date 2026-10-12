@@ -55,7 +55,7 @@ export default function WalkInInquiryTab({
 }) {
   const toast = useToast();
   const [inquiries, setInquiries] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => Boolean(branchLabel));
   const [hasPermission, setHasPermission] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [placementModalOpen, setPlacementModalOpen] = useState(false);
@@ -219,6 +219,10 @@ export default function WalkInInquiryTab({
   const serverDivision = division === "kindergarten" ? "kindergarten" : null;
 
   const loadInquiries = useCallback(async () => {
+    if (!branchLabel) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const list = await fetchRecentDeskInquiries(50, branchLabel, serverDivision);
@@ -243,6 +247,11 @@ export default function WalkInInquiryTab({
 
   useEffect(() => {
     let active = true;
+    if (!branchLabel) {
+      return () => {
+        active = false;
+      };
+    }
     fetchRecentDeskInquiries(50, branchLabel, serverDivision)
       .then((list) => {
         if (!active) return;

@@ -156,3 +156,76 @@ describe("StudentRosterTable Parent Contact & App Account Badges", () => {
     expect(html).toContain("App: N/A");
   });
 });
+
+describe("StudentRosterTable Academic Promotion Guard (DOM05-GOV-01)", () => {
+  it("renders Promote button when active student is recommended for a higher level", () => {
+    const student = {
+      id: "stu-promo-1",
+      displayName: "Budi Promo",
+      currentLevel: "warrior",
+      status: "active",
+      effectiveStatus: "active",
+    };
+    const pendingPromotionsMap = {
+      "stu-promo-1": { recommendedLevel: "elite" },
+    };
+
+    const html = renderToStaticMarkup(
+      React.createElement(StudentRosterTable, {
+        pageItems: [student],
+        pendingPromotionsMap,
+        onPromote: () => {},
+      })
+    );
+
+    expect(html).toContain("Promote");
+    expect(html).toContain("Promote to ELITE");
+  });
+
+  it("suppresses Promote button when student is already at or above recommended level", () => {
+    const student = {
+      id: "stu-promo-2",
+      displayName: "Siti Advanced",
+      currentLevel: "elite",
+      status: "active",
+      effectiveStatus: "active",
+    };
+    const pendingPromotionsMap = {
+      "stu-promo-2": { recommendedLevel: "elite" },
+    };
+
+    const html = renderToStaticMarkup(
+      React.createElement(StudentRosterTable, {
+        pageItems: [student],
+        pendingPromotionsMap,
+        onPromote: () => {},
+      })
+    );
+
+    expect(html).not.toContain("Promote");
+  });
+
+  it("suppresses Promote button when student is inactive or graduated", () => {
+    const inactiveStudent = {
+      id: "stu-promo-3",
+      displayName: "Inactive Student",
+      currentLevel: "warrior",
+      status: "inactive",
+      effectiveStatus: "inactive",
+    };
+    const pendingPromotionsMap = {
+      "stu-promo-3": { recommendedLevel: "elite" },
+    };
+
+    const html = renderToStaticMarkup(
+      React.createElement(StudentRosterTable, {
+        pageItems: [inactiveStudent],
+        pendingPromotionsMap,
+        onPromote: () => {},
+      })
+    );
+
+    expect(html).not.toContain("Promote");
+  });
+});
+

@@ -480,6 +480,17 @@ function normalizeRole(role) {
   return LEGACY_ROLE_ALIASES[trimmed] || trimmed;
 }
 
+function normalizeBranchId(raw) {
+  if (!raw || typeof raw !== "string") return "";
+  const clean = raw.trim().toLowerCase();
+  for (const [id, name] of Object.entries(BRANCH_MAP)) {
+    if (name.toLowerCase() === clean || id === clean) {
+      return id;
+    }
+  }
+  return clean.replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
 // ── AUDIT LOGGER ──
 
 async function logKioskAudit(action, details, token) {
@@ -729,7 +740,9 @@ async function handleShiftClockIn(request, env) {
   if (user.status && user.status !== "active") {
     return json({ error: "This staff badge is no longer active. Please contact administration." }, 403, request, env);
   }
-  if (user.branchId !== device.branchId) {
+  const staffBranch = normalizeBranchId(user.branchId || user.branch);
+  const deviceBranch = normalizeBranchId(device.branchId);
+  if (staffBranch !== deviceBranch) {
     return json({ error: "This staff badge is assigned to a different branch." }, 403, request, env);
   }
 
@@ -750,12 +763,14 @@ async function handleShiftClockIn(request, env) {
 
   // 5. Authoritative Class / Corporate Event Validation (K-06, K-11)
   let resolvedClassName = className || "";
+  let classDoc = null;
   if (classId && classId !== "general" && !classId.startsWith("corporate_event:")) {
-    const classDoc = await fsGetDoc("classes", classId, token);
+    classDoc = await fsGetDoc("classes", classId, token);
     if (!classDoc) {
       return json({ error: "Selected class no longer exists." }, 404, request, env);
     }
-    if (classDoc.branchId && classDoc.branchId !== device.branchId) {
+    const classBranch = normalizeBranchId(classDoc.branchId || classDoc.branch);
+    if (classBranch && classBranch !== deviceBranch) {
       return json({ error: "Selected class belongs to a different branch." }, 403, request, env);
     }
     if (classDoc.instructorId !== badgeToken && classDoc.substituteInstructorId !== badgeToken) {
@@ -770,6 +785,24 @@ async function handleShiftClockIn(request, env) {
     }
     if (eventDoc.status !== "active") {
       return json({ error: "Selected corporate event is not active or has been cancelled." }, 400, request, env);
+    }
+    // Verify audience constraints (DOM07-SEC-03)
+    if (eventDoc.audienceType === "branch") {
+      const targetBranch = eventDoc.branchId || eventDoc.audienceValue;
+      if (targetBranch && targetBranch !== device.branchId && eventDoc.branch !== device.branchId) {
+        return json({ error: "Selected corporate event belongs to a different branch." }, 403, request, env);
+      }
+    } else if (eventDoc.audienceType === "role" && eventDoc.audienceValue) {
+      const allowedRole = normalizeRole(eventDoc.audienceValue);
+      if (allowedRole !== normalizedRole) {
+        return json({ error: "Staff member's role is not eligible for this corporate event." }, 403, request, env);
+      }
+    } else if (eventDoc.audienceType === "division" && eventDoc.audienceValue) {
+      const targetDiv = String(eventDoc.audienceValue).trim().toLowerCase();
+      const userDiv = user.division ? String(user.division).trim().toLowerCase() : null;
+      if (userDiv && userDiv !== "all" && targetDiv !== "all" && userDiv !== targetDiv) {
+        return json({ error: "Staff member's division is not eligible for this corporate event." }, 403, request, env);
+      }
     }
     resolvedClassName = eventDoc.name || resolvedClassName;
   }
@@ -812,8 +845,8 @@ async function handleShiftClockIn(request, env) {
 
     if (existingLock && existingLock.shiftId) {
       const shiftCheck = await fsGetDoc("shifts", existingLock.shiftId, token);
-      if (shiftCheck && shiftCheck.clockOut) {
-        // Stale lock detected, clean up with version precondition (no unconditional delete)
+      if (!shiftCheck || shiftCheck.clockOut) {
+        // Stale lock detected (shift was closed or deleted), clean up with version precondition (no unconditional delete)
         const deleteRes = await fsDeleteDocWithPrecondition("activeShifts", badgeToken, lockUpdateTime, token);
         if (deleteRes.ok) {
           return json({ error: "A stale kiosk lock was cleared. Please scan again." }, 409, request, env);
@@ -895,7 +928,9 @@ async function handleShiftClockIn(request, env) {
 
   // 7. Create the shift with server-authoritative timestamp & branch
   const branchName = BRANCH_MAP[device.branchId] || "Kota Gorontalo";
-  const userDivision = user.division === "kindergarten" ? "kindergarten" : "courses";
+  const userDivision =
+    classDoc?.division ||
+    (user.division === "all" ? "all" : user.division === "kindergarten" ? "kindergarten" : "courses");
   const shiftPayload = {
     userId: badgeToken,
     displayName: user.displayName || user.name || "Staff Member",
@@ -1048,6 +1083,12 @@ async function handleShiftClockOut(request, env) {
   if (shift.userId !== badgeToken) {
     return json({ error: "Shift does not belong to the scanned employee credential." }, 403, request, env);
   }
+  // Enforce physical branch isolation on shift clock-out (DOM03-SEC-01)
+  const shiftBranch = normalizeBranchId(shift.branchId || shift.branch);
+  const deviceBranch = normalizeBranchId(device.branchId);
+  if (shiftBranch && shiftBranch !== deviceBranch) {
+    return json({ error: "This shift belongs to a different branch." }, 403, request, env);
+  }
 
   const serverTime = new Date().toISOString();
   await fsSetDoc(
@@ -1155,7 +1196,10 @@ async function handleShiftClassSwitch(request, env) {
   if (prevShift.userId !== badgeToken) {
     return json({ error: "Previous shift does not belong to the scanned employee credential." }, 403, request, env);
   }
-  if (user.branchId !== device.branchId || prevShift.branchId !== device.branchId) {
+  const staffBranch = normalizeBranchId(user.branchId || user.branch);
+  const prevShiftBranch = normalizeBranchId(prevShift.branchId || prevShift.branch);
+  const deviceBranch = normalizeBranchId(device.branchId);
+  if (staffBranch !== deviceBranch || prevShiftBranch !== deviceBranch) {
     return json({ error: "This shift or staff badge belongs to a different branch." }, 403, request, env);
   }
 
@@ -1165,7 +1209,8 @@ async function handleShiftClassSwitch(request, env) {
   if (!classDoc) {
     return json({ error: "Selected class no longer exists." }, 404, request, env);
   }
-  if (classDoc.branchId && classDoc.branchId !== device.branchId) {
+  const classBranch = normalizeBranchId(classDoc.branchId || classDoc.branch);
+  if (classBranch && classBranch !== deviceBranch) {
     return json({ error: "Selected class belongs to a different branch." }, 403, request, env);
   }
   if (classDoc.instructorId !== badgeToken && classDoc.substituteInstructorId !== badgeToken) {
@@ -1197,7 +1242,9 @@ async function handleShiftClassSwitch(request, env) {
     role: normalizeRole(user.role),
     branch: branchName,
     branchId: device.branchId,
-    division: user.division === "kindergarten" ? "kindergarten" : "courses",
+    division:
+      classDoc?.division ||
+      (user.division === "all" ? "all" : user.division === "kindergarten" ? "kindergarten" : "courses"),
     classId,
     className: resolvedClassName,
     clockIn: serverTime,
@@ -1293,7 +1340,10 @@ async function handleParentLink(request, env) {
     return json({ error: "The selected active parent or student was not found." }, 404, request, env);
   }
   const isExecutiveRole = ["admin", "director", "vice_director"].includes(actorRole);
-  if (!isExecutiveRole && (actor.branchId !== parent.branchId || parent.branchId !== student.branchId)) {
+  const actorBranch = normalizeBranchId(actor?.branchId || actor?.branch);
+  const parentBranch = normalizeBranchId(parent?.branchId || parent?.branch);
+  const studentBranch = normalizeBranchId(student?.branchId || student?.branch);
+  if (!isExecutiveRole && (actorBranch !== parentBranch || parentBranch !== studentBranch)) {
     return json({ error: "Parent and student must belong to your branch." }, 403, request, env);
   }
   await fsSetDoc("users", parentUid, {
@@ -1324,6 +1374,8 @@ async function handleAIAssistant(request, env) {
   const userRole = normalizeRole(userDoc?.role);
   const staffRoles = [
     "admin",
+    "director",
+    "vice_director",
     "manager",
     "instructor",
     "instructorleader",

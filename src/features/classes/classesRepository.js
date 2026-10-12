@@ -57,16 +57,34 @@ export function updateClass(classId, updateData) {
   return updateDoc(doc(db, "classes", classId), normalized);
 }
 
-export function deleteClass(classId) {
+export async function deleteClass(classId, classData = null) {
+  if (classData && Array.isArray(classData.studentIds) && classData.studentIds.length > 0) {
+    throw new Error(
+      `Cannot delete batch: ${classData.studentIds.length} student(s) are actively enrolled. Please unenroll or transfer students, or mark the batch as "cancelled" instead.`
+    );
+  }
   return deleteDoc(doc(db, "classes", classId));
 }
 
 export function addStudentToClass(classId, { studentId, dateJoined, level }) {
   return runTransaction(db, async (tx) => {
     const classRef = doc(db, "classes", classId);
-    const classSnap = await tx.get(classRef);
+    const studentRef = doc(db, "users", studentId);
+    const [classSnap, studentSnap] = await Promise.all([
+      tx.get(classRef),
+      tx.get(studentRef),
+    ]);
     if (!classSnap.exists()) {
       throw new Error("Class not found.");
+    }
+    if (studentSnap.exists()) {
+      const studentData = studentSnap.data();
+      const status = studentData.status || "active";
+      if (status !== "active") {
+        throw new Error(
+          `Cannot enroll student: status is "${status}". Only active students can be enrolled in cohorts.`
+        );
+      }
     }
 
     const classData = classSnap.data();

@@ -3133,5 +3133,76 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         await assertSucceeds(deleteDoc(doc(authed("foGto"), "todos", "todoFoCreatedToDelete")));
       });
     });
+
+    describe("Staff Leave (/staffLeave/{leaveId}) — DOM07-SEC-01 & DOM07-SEC-02", () => {
+      it("allows executives and division managers to log leave, and allows leave for manager role", async () => {
+        // Executive can log leave for instructor
+        await assertSucceeds(
+          setDoc(doc(authed("director"), "staffLeave", "leave1"), {
+            userId: "insGto",
+            branchId: "kota_gorontalo",
+            type: "sakit",
+            startDate: "2026-10-20",
+            endDate: "2026-10-21",
+            status: "approved",
+            createdBy: "director",
+          })
+        );
+
+        // Executive can log leave for division manager (DOM07-SEC-02: manager is in isTrackedLeaveRole)
+        await assertSucceeds(
+          setDoc(doc(authed("director"), "staffLeave", "leave2"), {
+            userId: "mgrGto",
+            branchId: "kota_gorontalo",
+            division: "courses",
+            type: "cuti",
+            startDate: "2026-10-25",
+            endDate: "2026-10-27",
+            status: "approved",
+            createdBy: "director",
+          })
+        );
+
+        // Division Manager can log leave for same-branch division staff (DOM07-SEC-01)
+        await assertSucceeds(
+          setDoc(doc(authed("mgrGto"), "staffLeave", "leave3"), {
+            userId: "insGto",
+            branchId: "kota_gorontalo",
+            division: "courses",
+            type: "izin",
+            startDate: "2026-10-22",
+            endDate: "2026-10-22",
+            status: "approved",
+            createdBy: "mgrGto",
+          })
+        );
+
+        // Division Manager CANNOT log leave for other branch staff -> fails
+        await assertFails(
+          setDoc(doc(authed("mgrGto"), "staffLeave", "leaveCrossBranch"), {
+            userId: "insBoba",
+            branchId: "bone_bolango",
+            type: "sakit",
+            startDate: "2026-10-22",
+            endDate: "2026-10-22",
+            status: "approved",
+            createdBy: "mgrGto",
+          })
+        );
+
+        // Instructor cannot create leave records directly -> fails
+        await assertFails(
+          setDoc(doc(authed("insGto"), "staffLeave", "leaveSelf"), {
+            userId: "insGto",
+            branchId: "kota_gorontalo",
+            type: "sakit",
+            startDate: "2026-10-22",
+            endDate: "2026-10-22",
+            status: "approved",
+            createdBy: "insGto",
+          })
+        );
+      });
+    });
   });
 });

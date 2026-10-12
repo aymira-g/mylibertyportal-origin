@@ -84,13 +84,21 @@ export default function ClassManager({
 
   // ── Handlers ─────────────────────────────────────────────────────────
   const handleDeleteClass = async (classId) => {
+    const cls = classes.find((c) => c.id === classId);
+    if (cls && Array.isArray(cls.studentIds) && cls.studentIds.length > 0) {
+      toast(
+        `Cannot delete ${cls.className}: ${cls.studentIds.length} student(s) are actively enrolled. Please unenroll or transfer them, or mark the batch as "cancelled" instead.`,
+        "error"
+      );
+      return;
+    }
     if (
       await confirm(
         "Are you sure you want to delete this scheduled class batch? This action cannot be undone."
       )
     ) {
       try {
-        await deleteClass(classId);
+        await deleteClass(classId, cls);
         toast("Class batch deleted.", "info");
       } catch (err) {
         toast(err.message, "error");
@@ -104,6 +112,14 @@ export default function ClassManager({
     const cls = classes.find((c) => c.id === classId);
     const targetLevel = cls?.classLevel || "warrior";
     const student = users.find((u) => u.id === studentId);
+
+    if (student && (student.status || "active") !== "active") {
+      toast(
+        `Cannot enroll ${student.displayName || "student"}: profile is marked as "${student.status}". Only active students can be enrolled in cohorts.`,
+        "error"
+      );
+      return false;
+    }
 
     // Only warn when the student HAS an assessed level that conflicts with the class.
     // An unassessed student has nothing to mismatch against, and saying "recorded at

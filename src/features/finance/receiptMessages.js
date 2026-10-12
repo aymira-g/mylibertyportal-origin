@@ -77,14 +77,27 @@ export function buildWhatsAppReceiptMessage(rcp) {
 
 /**
  * Builds the text for the tuition renewal reminder message.
+ * Accepts either:
+ * - An options object: { student, paidUntil, planLabel, remainingDays }
+ * - Directly a student entity: { displayName, paidUntil, paymentPlan, program }
  */
-export function buildWhatsAppRenewalReminderMessage({
-  student = null,
-  paidUntil = null,
-  planLabel = null,
-  remainingDays = null,
-} = {}) {
-  const studentName = student?.displayName || "Student";
+export function buildWhatsAppRenewalReminderMessage(optionsOrStudent = {}) {
+  const isDirectStudent = Boolean(
+    optionsOrStudent &&
+    (optionsOrStudent.displayName || optionsOrStudent.studentName || optionsOrStudent.name) &&
+    !optionsOrStudent.student
+  );
+
+  const student = isDirectStudent ? optionsOrStudent : (optionsOrStudent?.student || null);
+  const paidUntil = (optionsOrStudent && "paidUntil" in optionsOrStudent)
+    ? optionsOrStudent.paidUntil
+    : (student?.paidUntil || null);
+  const planLabel = (optionsOrStudent && "planLabel" in optionsOrStudent)
+    ? optionsOrStudent.planLabel
+    : (student?.paymentPlan || student?.program || null);
+  const remainingDays = optionsOrStudent?.remainingDays ?? null;
+
+  const studentName = student?.displayName || student?.studentName || student?.name || "Student";
   const validUntilStr = formatReceiptDate(paidUntil, "recently");
 
   const planText = planLabel ? `*${planLabel}* plan` : "tuition plan";

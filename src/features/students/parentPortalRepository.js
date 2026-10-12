@@ -1,6 +1,7 @@
 import { db } from "../../firebase";
 import { collection, query, where, getDocs, limit, doc, getDoc, orderBy } from "firebase/firestore";
 import { branchToId } from "../../constants/branches.js";
+import { getPaymentHealthStatus } from "../../constants/paymentPlans.js";
 
 /**
  * Normalizes phone string to clean digit format for matching.
@@ -25,11 +26,36 @@ export function buildPaymentSummary(student) {
   const hasRecords = Boolean(student.lastPaymentPeriod || student.lastPaymentDate || student.paidUntil);
 
   let status;
-  if (student.paymentStatus === "paid" || student.paymentStatus === "pending" || student.paymentStatus === "unpaid") {
+  let healthStatus = null;
+
+  if (student.paidUntil) {
+    const health = getPaymentHealthStatus(student.paidUntil);
+    healthStatus = health.status;
+  }
+
+  if (student.paymentStatus === "paid") {
+    if (healthStatus === "expired") {
+      status = "expired";
+    } else if (healthStatus === "due_soon") {
+      status = "due_soon";
+    } else {
+      status = "paid";
+    }
+  } else if (student.paymentStatus === "pending" || student.paymentStatus === "unpaid") {
     status = student.paymentStatus;
   } else {
     // Fall back to historical inference only when paymentStatus is absent on legacy records
-    status = hasRecords ? "paid" : "none";
+    if (hasRecords) {
+      if (healthStatus === "expired") {
+        status = "expired";
+      } else if (healthStatus === "due_soon") {
+        status = "due_soon";
+      } else {
+        status = "paid";
+      }
+    } else {
+      status = "none";
+    }
   }
 
   return {
@@ -47,7 +73,7 @@ export function buildPaymentSummary(student) {
  * Query 1 & 2 from Parent+Student Roster Model v2 Section 27.
  *
  * @param {string} parentUid
- * @returns {Promise<{ parent: any, children: any[] }>}
+ * @returns {Promise<{ parent: any, children: any[], linkedStudentCount?: number, inactiveChildCount?: number }>}
  */
 export async function getAuthenticatedParentBundle(parentUid) {
   if (!parentUid) return { parent: null, children: [] };
@@ -61,6 +87,7 @@ export async function getAuthenticatedParentBundle(parentUid) {
   const childStudentIds = Array.isArray(parent.childStudentIds) ? parent.childStudentIds : [];
 
   const children = [];
+  let inactiveChildCount = 0;
   for (const childId of childStudentIds) {
     try {
       const childDoc = await getDoc(doc(db, "users", childId));
@@ -68,6 +95,8 @@ export async function getAuthenticatedParentBundle(parentUid) {
         const child = childDoc.data();
         if (child.role === "student" && (!child.status || child.status === "active")) {
           children.push({ id: childDoc.id, ...child });
+        } else if (child.role === "student") {
+          inactiveChildCount++;
         }
       }
     } catch (err) {
@@ -75,7 +104,12 @@ export async function getAuthenticatedParentBundle(parentUid) {
     }
   }
 
-  return { parent, children };
+  return {
+    parent,
+    children,
+    linkedStudentCount: childStudentIds.length,
+    inactiveChildCount,
+  };
 }
 
 /**
@@ -100,15 +134,20 @@ export async function getChildAttendanceAndClasses(childId, branchId) {
       collection(db, "classes"),
       where("branchId", "==", canonicalBranchId),
       where("studentIds", "array-contains", childId),
-      where("status", "==", "open"),
       limit(20)
     );
     const snapClasses = await getDocs(qClasses);
-    classes = snapClasses.docs.map((d) => ({ id: d.id, ...d.data() }));
+    classes = snapClasses.docs
+      .map((d) => /** @type {Record<string, any>} */ ({ id: d.id, ...d.data() }))
+      .filter((cls) => {
+        const s = (cls.status || "open").toLowerCase();
+        return s !== "cancelled" && s !== "archived";
+      });
   } catch (err) {
     console.warn("Failed fetching enrolled classes for child:", err);
     errorClasses = err?.message || "Failed to load classes";
   }
+
 
   let attendance = [];
   let errorAttendance = null;

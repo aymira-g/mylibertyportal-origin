@@ -2,6 +2,7 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import OfficeBoyDashboard from "./OfficeBoyDashboard";
+import { formatDueDate } from "./officeBoyUtils";
 import { ToastProvider } from "../shared";
 import { useStaffDirectives } from "../staff";
 
@@ -136,5 +137,30 @@ describe("OfficeBoyDashboard Component", () => {
     expect(html).toContain("Completed Tasks (1)");
     expect(html).not.toContain("Reopen task");
     expect(html).not.toContain("title=\"Reopen task\"");
+  });
+
+  describe("formatDueDate helper (DOM07-COR-02)", () => {
+    it("returns null for empty or null dueDate", () => {
+      expect(formatDueDate(null)).toBeNull();
+      expect(formatDueDate("")).toBeNull();
+    });
+
+    it("marks dates strictly before todayWita as Overdue", () => {
+      const res = formatDueDate("2026-10-10", "2026-10-12");
+      expect(res.label).toBe("Overdue");
+      expect(res.badgeColor).toContain("text-rose-800");
+    });
+
+    it("marks dates matching todayWita as Due Today", () => {
+      const res = formatDueDate("2026-10-12", "2026-10-12");
+      expect(res.label).toBe("Due Today");
+      expect(res.badgeColor).toContain("text-amber-900");
+    });
+
+    it("formats future dates without timezone day shifts", () => {
+      const res = formatDueDate("2026-10-25", "2026-10-12");
+      expect(res.label).toBe("Due Oct 25");
+      expect(res.badgeColor).toContain("text-slate-700");
+    });
   });
 });

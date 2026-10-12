@@ -31,7 +31,7 @@ import {
 const ROLE_BADGES = {
   instructor: { label: "Instructor", tone: "bg-blue-50 text-blue-700 border-blue-200" },
   instructorleader: { label: "Instructor Leader", tone: "bg-indigo-50 text-indigo-700 border-indigo-200" },
-  manager: { label: "Manager", tone: "bg-purple-50 text-purple-700 border-purple-200" },
+  manager: { label: "Division Manager", tone: "bg-purple-50 text-purple-700 border-purple-200" },
   marketing: { label: "Marketing", tone: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   frontoffice: { label: "Front Office", tone: "bg-amber-50 text-amber-700 border-amber-200" },
   opslead: { label: "Operational Leader", tone: "bg-orange-50 text-orange-700 border-orange-200" },
@@ -239,7 +239,7 @@ export default function InvitesPanel({ invites = [], users = [], onCreateInvite,
             >
               <option value="instructor">Instructor / Teacher</option>
               <option value="instructorleader">Instructor Leader</option>
-              <option value="manager">Campus Manager</option>
+              <option value="manager">Division Manager</option>
               <option value="frontoffice">Front Office Staff</option>
               <option value="opslead">Operational Leader</option>
               <option value="marketing">Marketing Specialist</option>

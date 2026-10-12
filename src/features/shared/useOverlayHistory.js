@@ -40,10 +40,18 @@ export function useOverlayHistory(isOpen, onClose, overlayKey = "overlay") {
       }
     };
 
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        onCloseRef.current?.();
+      }
+    };
+
     window.addEventListener("popstate", handlePopState);
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("keydown", handleKeyDown);
       // If overlay was closed programmatically (not by Back button), unwind the pushed state
       if (isPushedRef.current) {
         isPushedRef.current = false;

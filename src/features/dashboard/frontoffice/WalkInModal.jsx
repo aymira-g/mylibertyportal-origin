@@ -1,5 +1,6 @@
 import { X, UserCheck, Calendar, Sparkles, UserPlus } from "lucide-react";
 import { getEnabledPrograms, getProgram } from "../../../constants/programs";
+import { useOverlayHistory } from "../../shared";
 
 export function WalkInModal({
   isOpen,
@@ -12,11 +13,23 @@ export function WalkInModal({
   onSubmit,
   canEnrollImmediately,
 }) {
+  useOverlayHistory(Boolean(isOpen), onClose, "walkInModal");
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 text-xs max-h-[90vh] overflow-y-auto">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Log Walk-In Visitor / Prospect"
+        className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 text-xs max-h-[90vh] overflow-y-auto"
+      >
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h4 className="font-extrabold text-sm text-slate-800 flex items-center gap-2">
             <UserCheck className="w-4 h-4 text-[#1a3a8f]" />
@@ -25,6 +38,7 @@ export function WalkInModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close"
             className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 cursor-pointer"
           >
             <X className="w-4 h-4" />

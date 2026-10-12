@@ -87,6 +87,10 @@ export default function ManagerDashboard() {
     return managerProfile.branchId || branchToId(managerProfile.branch || DEFAULT_BRANCH);
   }, [managerProfile]);
 
+  const managerDivision = useMemo(() => {
+    return managerProfile?.division || "courses";
+  }, [managerProfile]);
+
   const isDashboardLoading = loading || !managerBranchId;
 
   const outreachLoading = schoolsLoading || visitsLoading || weekVisitsLoading;
@@ -104,13 +108,15 @@ export default function ManagerDashboard() {
       return;
     }
 
+    const isKindergarten = managerDivision === "kindergarten";
+
     const unsubUsers = onSnapshot(
       query(collection(db, "users"), where("branchId", "==", managerBranchId)),
       (snap) => {
         setUsers(
           snap.docs
             .map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }))
-            .filter((u) => !u.division || u.division !== "kindergarten")
+            .filter((u) => (isKindergarten ? u.division === "kindergarten" : !u.division || u.division !== "kindergarten"))
         );
         setLoading(false);
       },
@@ -126,7 +132,7 @@ export default function ManagerDashboard() {
         setClasses(
           snap.docs
             .map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }))
-            .filter((c) => !c.division || c.division !== "kindergarten")
+            .filter((c) => (isKindergarten ? c.division === "kindergarten" : !c.division || c.division !== "kindergarten"))
         ),
       (err) => console.warn("classes listener:", err)
     );
@@ -137,7 +143,7 @@ export default function ManagerDashboard() {
         setApplications(
           snap.docs
             .map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }))
-            .filter((a) => !a.division || a.division !== "kindergarten")
+            .filter((a) => (isKindergarten ? a.division === "kindergarten" : !a.division || a.division !== "kindergarten"))
         ),
       (err) => console.warn("applications listener:", err)
     );
@@ -153,7 +159,7 @@ export default function ManagerDashboard() {
         setShifts(
           snap.docs
             .map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }))
-            .filter((s) => !s.division || s.division !== "kindergarten")
+            .filter((s) => (isKindergarten ? s.division === "kindergarten" : !s.division || s.division !== "kindergarten"))
         ),
       (err) => console.warn("shifts listener:", err)
     );
@@ -164,7 +170,11 @@ export default function ManagerDashboard() {
         setTodos(
           snap.docs
             .map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }))
-            .filter((t) => !t.division || t.division === "all" || t.division !== "kindergarten")
+            .filter((t) =>
+              isKindergarten
+                ? !t.division || t.division === "all" || t.division === "kindergarten"
+                : !t.division || t.division === "all" || t.division !== "kindergarten"
+            )
         );
         setTodosPermission(true);
       },
@@ -192,7 +202,7 @@ export default function ManagerDashboard() {
       unsubShifts();
       unsubTodos();
     };
-  }, [managerBranchId]);
+  }, [managerBranchId, managerDivision]);
 
   // Isolated subscription lifecycle for outreach collections with retryability,
   // error logging to telemetry, and toast notifications.
@@ -276,14 +286,19 @@ export default function ManagerDashboard() {
     setDailyPaymentsLoading(true);
     try {
       const list = await getPaymentsForRecordedDay(new Date(), managerBranchId);
-      setDailyPayments(list.filter((p) => !p.division || p.division !== "kindergarten"));
+      const isKindergarten = managerDivision === "kindergarten";
+      setDailyPayments(
+        list.filter((p) =>
+          isKindergarten ? p.division === "kindergarten" : !p.division || p.division !== "kindergarten"
+        )
+      );
     } catch (err) {
       console.warn("fetchTodayPayments error:", err);
       toast("Could not load today's payment totals.", "error");
     } finally {
       setDailyPaymentsLoading(false);
     }
-  }, [managerBranchId, toast]);
+  }, [managerBranchId, managerDivision, toast]);
 
   useEffect(() => {
     let active = true;
@@ -291,7 +306,12 @@ export default function ManagerDashboard() {
       try {
         const list = await getPaymentsForRecordedDay(new Date(), managerBranchId);
         if (active) {
-          setDailyPayments(list.filter((p) => !p.division || p.division !== "kindergarten"));
+          const isKindergarten = managerDivision === "kindergarten";
+          setDailyPayments(
+            list.filter((p) =>
+              isKindergarten ? p.division === "kindergarten" : !p.division || p.division !== "kindergarten"
+            )
+          );
           setDailyPaymentsLoading(false);
         }
       } catch (err) {
@@ -305,7 +325,7 @@ export default function ManagerDashboard() {
     return () => {
       active = false;
     };
-  }, [managerBranchId, toast]);
+  }, [managerBranchId, managerDivision, toast]);
 
   const handleAddTodo = useCallback(async (todoData) => {
     try {
@@ -578,15 +598,19 @@ export default function ManagerDashboard() {
     },
     {
       id: "approvals",
-      label: "Course Approvals",
+      label: managerDivision === "kindergarten" ? "Kindergarten Approvals" : "Course Approvals",
       badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
       component: (
         <ApprovalInbox
           userRole="manager"
           branchId={myBranch}
-          division="courses"
-          title={`Course Division Approvals (${myBranch})`}
-          subtitle="Review and authorize course tuition plan modifications, student withdrawals, and division exceptions."
+          division={managerDivision}
+          title={
+            managerDivision === "kindergarten"
+              ? `Kindergarten Division Approvals (${myBranch})`
+              : `Course Division Approvals (${myBranch})`
+          }
+          subtitle="Review and authorize division tuition plan modifications, student withdrawals, and division exceptions."
         />
       ),
     },
@@ -612,6 +636,7 @@ export default function ManagerDashboard() {
           isManager={true}
           canEdit={false}
           userBranch={myBranch}
+          division={managerDivision}
         />
       ),
     },

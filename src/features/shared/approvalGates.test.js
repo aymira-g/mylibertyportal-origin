@@ -140,6 +140,44 @@ describe("Maker-Checker Approval Gates", () => {
       { name: "Siti Teacher", uid: "u-inst-1", role: "instructor", branchId: "branch_gorontalo_main" }
     );
     expect(instructorSelfCorrection.approverRole).toBe(APPROVAL_ROLES.OPS_LEAD);
+
+    // Student lateral class transfer -> routes to Ops Lead (DOM06-GOV-01)
+    const transferEnvelope = createApprovalEnvelope(
+      "STUDENT_CLASS_TRANSFER",
+      { name: "Staff FO", uid: "u-fo-2", role: "frontoffice", branchId: "kota_gorontalo" },
+      {
+        studentId: "student-1",
+        studentName: "John Doe",
+        sourceClassId: "class-1",
+        sourceClassName: "Class 1",
+        targetClassId: "class-2",
+        targetClassName: "Class 2",
+        reason: "Schedule conflict",
+      }
+    );
+    expect(transferEnvelope.approverRole).toBe(APPROVAL_ROLES.OPS_LEAD);
+    expect(transferEnvelope.approverBranchId).toBe("kota_gorontalo");
+    expect(transferEnvelope.payload.targetClassId).toBe("class-2");
+
+    // Division extraction from requester or context (DOM09-COR-01)
+    const envWithReqDiv = createApprovalEnvelope("TUITION_PLAN_CHANGE", {
+      role: "frontoffice",
+      division: "kindergarten",
+    });
+    expect(envWithReqDiv.division).toBe("kindergarten");
+
+    const envWithCtxDiv = createApprovalEnvelope("TUITION_PLAN_CHANGE", { role: "frontoffice" }, { division: "courses" });
+    expect(envWithCtxDiv.division).toBe("courses");
+
+    const envWithPayloadDiv = createApprovalEnvelope(
+      "TUITION_PLAN_CHANGE",
+      { role: "frontoffice" },
+      { payload: { division: "kindergarten" } }
+    );
+    expect(envWithPayloadDiv.division).toBe("kindergarten");
+
+    const envDefaultDiv = createApprovalEnvelope("TUITION_PLAN_CHANGE", { role: "frontoffice" });
+    expect(envDefaultDiv.division).toBeNull();
   });
 
   it("throws error when creating envelope for unknown action", () => {

@@ -67,10 +67,37 @@ describe("buildPaymentSummary", () => {
     expect(summaryWithoutHistory.status).toBe("unpaid");
   });
 
-  it("falls back to paid on legacy records with historical fields but no explicit paymentStatus", () => {
-    const legacyPaid = buildPaymentSummary({
+  it("reports expired when paidUntil is in the past, even if paymentStatus is paid", () => {
+    const expiredSummary = buildPaymentSummary({
+      paymentStatus: "paid",
       lastPaymentPeriod: "July 2026",
-      lastPaymentDate: "2026-07-15",
+      lastPaymentDate: "2026-07-01",
+      paidUntil: "2026-08-01",
+    });
+    expect(expiredSummary.status).toBe("expired");
+  });
+
+  it("reports due_soon when paidUntil expires within threshold days", () => {
+    // Current test date is October 2026; mock or calculate 3 days ahead
+    const nearDate = new Date();
+    nearDate.setDate(nearDate.getDate() + 3);
+    const dueSoonIso = nearDate.toISOString().split("T")[0];
+
+    const dueSoonSummary = buildPaymentSummary({
+      paymentStatus: "paid",
+      paidUntil: dueSoonIso,
+    });
+    expect(dueSoonSummary.status).toBe("due_soon");
+  });
+
+  it("falls back to paid on legacy records with historical fields but no explicit paymentStatus", () => {
+    const futureDate = new Date();
+    futureDate.setMonth(futureDate.getMonth() + 2);
+    const futureIso = futureDate.toISOString().split("T")[0];
+
+    const legacyPaid = buildPaymentSummary({
+      lastPaymentPeriod: "Future Period",
+      paidUntil: futureIso,
     });
     expect(legacyPaid.status).toBe("paid");
   });
@@ -99,6 +126,22 @@ describe("getAuthenticatedParentBundle", () => {
     expect(bundle.parent.displayName).toBe("Pak Hendra");
     expect(bundle.children.length).toBe(2);
     expect(bundle.children.map((c) => c.displayName)).toEqual(["Ayu", "Bima"]);
+    expect(bundle.linkedStudentCount).toBe(2);
+    expect(bundle.inactiveChildCount).toBe(0);
+  });
+
+  it("separates active vs inactive or frozen linked students", async () => {
+    fake.seed("users", [
+      { id: "parent_x", role: "parent", displayName: "Ibu Maya", childStudentIds: ["active_1", "frozen_1"] },
+      { id: "active_1", role: "student", displayName: "Rian", status: "active" },
+      { id: "frozen_1", role: "student", displayName: "Doni", status: "inactive" },
+    ]);
+
+    const bundle = await getAuthenticatedParentBundle("parent_x");
+    expect(bundle.children.length).toBe(1);
+    expect(bundle.children[0].displayName).toBe("Rian");
+    expect(bundle.linkedStudentCount).toBe(2);
+    expect(bundle.inactiveChildCount).toBe(1);
   });
 
   it("handles missing parent or empty children list safely", async () => {
@@ -123,11 +166,13 @@ describe("getChildAttendanceAndClasses", () => {
     expect(emptyBoth).toEqual({ classes: [], attendance: [], errorClasses: null, errorAttendance: null });
   });
 
-  it("fetches enrolled open classes and attendance records scoped to the canonical branch", async () => {
+  it("fetches enrolled classes (including in_progress and full) and attendance records scoped to branch", async () => {
     fake.seed("classes", [
       { id: "c1", className: "English 1", branchId: "kota_gorontalo", studentIds: ["child_1", "other"], status: "open" },
       { id: "c2", className: "English 2 (Other Branch)", branchId: "bone_bolango", studentIds: ["child_1"], status: "open" },
-      { id: "c3", className: "English Archived", branchId: "kota_gorontalo", studentIds: ["child_1"], status: "closed" },
+      { id: "c3", className: "English Cancelled", branchId: "kota_gorontalo", studentIds: ["child_1"], status: "cancelled" },
+      { id: "c4", className: "English In Progress", branchId: "kota_gorontalo", studentIds: ["child_1"], status: "in_progress" },
+      { id: "c5", className: "English Full", branchId: "kota_gorontalo", studentIds: ["child_1"], status: "full" },
     ]);
 
     fake.seed("classAttendance", [
@@ -139,19 +184,19 @@ describe("getChildAttendanceAndClasses", () => {
     // Pass display name "Kota Gorontalo" to verify branchToId normalization to "kota_gorontalo"
     const result = await getChildAttendanceAndClasses("child_1", "Kota Gorontalo");
 
-    // Returns only open classes enrolled by child_1 in kota_gorontalo (filters out c2 other branch and c3 closed)
-    expect(result.classes.length).toBe(1);
-    expect(result.classes[0].id).toBe("c1");
-    expect(result.classes[0].className).toBe("English 1");
+    // Returns active classes enrolled by child_1 in kota_gorontalo (c1, c4, c5; filters out c2 other branch and c3 cancelled)
+    expect(result.classes.length).toBe(3);
+    expect(result.classes.map((c) => c.id)).toEqual(["c1", "c4", "c5"]);
     expect(result.attendance.length).toBe(2);
     expect(result.errorClasses).toBeNull();
     expect(result.errorAttendance).toBeNull();
 
-    // Verify exact Firestore query constraints constructed
+    // Verify exact Firestore query constraints constructed (without status constraint to avoid composite index requirement)
     expect(firestoreModule.where).toHaveBeenCalledWith("branchId", "==", "kota_gorontalo");
     expect(firestoreModule.where).toHaveBeenCalledWith("studentIds", "array-contains", "child_1");
-    expect(firestoreModule.where).toHaveBeenCalledWith("status", "==", "open");
+    expect(firestoreModule.where).not.toHaveBeenCalledWith("status", "==", "open");
   });
+
 
   it("propagates query errors rather than silently masking them as empty arrays", async () => {
     const getDocsSpy = vi.spyOn(firestoreModule, "getDocs");

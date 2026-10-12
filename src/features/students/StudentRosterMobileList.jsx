@@ -9,6 +9,7 @@ import {
   Shield,
 } from "lucide-react";
 import { getNextLevel } from "../shared";
+import { isHigherLevel } from "../../constants/levels";
 import {
   isActiveStudent,
   STUDENT_STATUS_OPTIONS,
@@ -61,6 +62,12 @@ export default function StudentRosterMobileList({
         const nextLevel = pendingPromotion
           ? pendingPromotion.recommendedLevel || getNextLevel(s.currentLevel || "warrior")
           : null;
+        const canPromote =
+          Boolean(pendingPromotion) &&
+          !readOnly &&
+          isActiveStudent(s) &&
+          Boolean(nextLevel) &&
+          isHigherLevel(s.currentLevel, nextLevel, s.programId || s.program);
 
         return (
           <article
@@ -324,7 +331,18 @@ export default function StudentRosterMobileList({
             </div>
 
             {(!readOnly || onBadgeClick) && (
-              <div className="flex gap-2 pt-1">
+              <div className="flex gap-2 pt-1 flex-wrap">
+                {canPromote && onPromote && (
+                  <button
+                    type="button"
+                    onClick={() => onPromote(s, pendingPromotion)}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 py-2 px-3 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer"
+                    title={`Promote to ${nextLevel.toUpperCase()}`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                    <span>Promote</span>
+                  </button>
+                )}
                 {onBadgeClick && (
                   <button
                     onClick={() => onBadgeClick(s)}
@@ -334,6 +352,7 @@ export default function StudentRosterMobileList({
                     <span>Badge</span>
                   </button>
                 )}
+
                 {!readOnly && (
                   <>
                     {onEdit && (

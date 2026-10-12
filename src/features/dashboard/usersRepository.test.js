@@ -255,7 +255,36 @@ describe("createParentAccount", () => {
     expect(err.message).toContain("rolled back");
     expect(authMock.deleteUser).toHaveBeenCalledWith(userObj);
   });
+
+  it("deletes created Firestore document and rolls back Auth account when child linking fails", async () => {
+    const userObj = { uid: "parent_fail_link" };
+    authMock.createUserWithEmailAndPassword.mockResolvedValueOnce({ user: userObj });
+
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Worker down")));
+    let setDocCalls = 0;
+    fake.failWhen = (op) => {
+      if (op.path === "users/parent_fail_link" && op.kind === "set") {
+        setDocCalls++;
+        if (setDocCalls > 1) {
+          return new Error("link-child-failed");
+        }
+      }
+      return null;
+    };
+
+    const err = await createParentAccount("parentfail2@example.com", "pass123456", {
+      displayName: "Parent Fail Link",
+      initialChildStudentId: "student_x",
+    }).catch((e) => e);
+
+    expect(err.message).toContain("Parent account creation failed");
+    expect(authMock.deleteUser).toHaveBeenCalledWith(userObj);
+    expect(fake.opsOf("delete")).toEqual(
+      expect.arrayContaining([expect.objectContaining({ path: "users/parent_fail_link" })])
+    );
+  });
 });
+
 
 describe("linkChildToParent and unlinkChildFromParent", () => {
   it("links a child through the server-authoritative Worker", async () => {

@@ -82,7 +82,8 @@ export function listenToPendingApprovals(userRole, branchId, onData, onError, op
 
       if (targetDivision) {
         items = items.filter((item) => {
-          if (item.division && item.division !== "all" && item.division !== targetDivision) {
+          const itemDiv = item.division || "courses";
+          if (itemDiv !== "all" && itemDiv !== targetDivision) {
             return false;
           }
           return true;
@@ -112,7 +113,7 @@ export async function approveApprovalRequest(approvalId, decisionData = {}) {
   const updatePayload = {
     status: APPROVAL_STATUS.APPROVED,
     decidedBy: decisionData.approverName || currentUser?.displayName || currentUser?.email || "Approver",
-    decidedByUid: decisionData.approverUid || currentUser?.uid || "approver",
+    decidedByUid: currentUser?.uid || decisionData.approverUid || "approver",
     decidedAt: new Date().toISOString(),
     decisionNotes: decisionData.notes || "",
     updatedAt: serverTimestamp(),
@@ -135,7 +136,7 @@ export async function rejectApprovalRequest(approvalId, decisionData = {}) {
   const updatePayload = {
     status: APPROVAL_STATUS.REJECTED,
     decidedBy: decisionData.approverName || currentUser?.displayName || currentUser?.email || "Approver",
-    decidedByUid: decisionData.approverUid || currentUser?.uid || "approver",
+    decidedByUid: currentUser?.uid || decisionData.approverUid || "approver",
     decidedAt: new Date().toISOString(),
     rejectionReason: decisionData.reason || "",
     updatedAt: serverTimestamp(),
@@ -154,7 +155,7 @@ export async function rejectApprovalRequest(approvalId, decisionData = {}) {
 export async function markApprovalApplied(approvalId, actorUid = null) {
   if (!approvalId) throw new Error("Approval ID is required");
   const currentUser = auth.currentUser;
-  const uid = actorUid || currentUser?.uid || "approver";
+  const uid = currentUser?.uid || actorUid || "approver";
 
   const updatePayload = {
     applied: true,

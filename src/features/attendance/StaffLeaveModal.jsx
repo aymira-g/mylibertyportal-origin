@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { X, Calendar, Check, AlertCircle } from "lucide-react";
 import { logStaffLeave } from "./shiftsRepository";
-import { useToast } from "../shared";
+import { useToast, useOverlayHistory } from "../shared";
 import { todayWita } from "../../utils/dateWita.js";
 import { checkNetworkReachability } from "../../utils/networkReachability";
 
@@ -18,6 +18,7 @@ const LEAVE_TYPES = [
 
 export default function StaffLeaveModal({ staff = [], actor, onClose, onSuccess }) {
   const toast = useToast();
+  useOverlayHistory(true, onClose, "staffLeaveModal");
   const todayStr = todayWita();
 
   const [userId, setUserId] = useState("");
@@ -56,6 +57,7 @@ export default function StaffLeaveModal({ staff = [], actor, onClose, onSuccess 
         userId,
         displayNameSnapshot: selectedStaff?.displayName || selectedStaff?.name || "Staff Member",
         branchId: selectedStaff?.branchId || actor?.branchId || null,
+        division: selectedStaff?.division || actor?.division || null,
         type,
         startDate,
         endDate,
@@ -75,9 +77,29 @@ export default function StaffLeaveModal({ staff = [], actor, onClose, onSuccess 
     }
   };
 
+  const isCallerExecutive =
+    actor?.role === "admin" || actor?.role === "director" || actor?.role === "vice_director";
+
+  const availableStaff = staff.filter((s) => {
+    if (s.role === "student" || s.role === "parent") return false;
+    // Non-executives (Managers) cannot log leave for themselves or peer managers
+    if (!isCallerExecutive && (s.role === "manager" || s.id === actor?.uid)) return false;
+    return true;
+  });
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
-      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-6">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-fadeIn"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Log Staff Absence / Leave"
+        className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-6"
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-indigo-50/70">
           <div className="flex items-center gap-2.5">
@@ -93,6 +115,7 @@ export default function StaffLeaveModal({ staff = [], actor, onClose, onSuccess 
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="p-2 rounded-full hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -112,13 +135,11 @@ export default function StaffLeaveModal({ staff = [], actor, onClose, onSuccess 
               className="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 font-semibold focus:bg-white focus:border-[#1a3a8f] outline-none"
             >
               <option value="">-- Choose Staff Member --</option>
-              {staff
-                .filter((s) => s.role !== "manager" && s.role !== "student")
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.displayName || s.name || s.email} ({s.role})
-                  </option>
-                ))}
+              {availableStaff.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.displayName || s.name || s.email} ({s.role})
+                </option>
+              ))}
             </select>
           </div>
 

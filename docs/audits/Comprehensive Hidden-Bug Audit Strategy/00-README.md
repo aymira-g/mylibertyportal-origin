@@ -33,6 +33,11 @@ Level 2 audits explicitly inspect and verify:
 - **Separation of Duties:** Does the workflow enforce independent human review (Maker-Checker) without self-approval?
 - **Dashboard Behavior:** Does the dashboard present only already-authorized capabilities without assuming permission?
 - **Business-Rule Implementation:** Are calculation rules (tuition, discounts, punctuality, attendance) accurate?
+- **Dev-Tool Build Gating:** Are development-only tools (`DevQuickSwitcher`, debug panels) strictly stripped from production builds?
+- **Accessibility Basics:** Are form labels, keyboard navigation, and color-independent status indicators properly implemented?
+- **Index Parity & Quota Safety:** Does every compound query shape have a matching index in `firestore.indexes.json` to prevent silent degradation or false zero figures?
+- **Rules Expression Headroom:** Do Firestore security rules evaluate safely within the 1000-expression ceiling?
+- **Privileged Ops & Integration Safety:** Do service-account operations (`FormSync.gs`, `scripts/`) enforce pre-write validation, dedupe, and mandatory rollback plans?
 
 ## Core Insight
 

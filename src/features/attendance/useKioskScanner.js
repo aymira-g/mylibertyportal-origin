@@ -15,6 +15,7 @@ import { checkNetworkReachability } from "../../utils/networkReachability";
 import { todayWita } from "../../utils/dateWita.js";
 import { DEFAULT_BRANCH, branchToId } from "../../constants/branches.js";
 import { useUserProfile } from "../shared/useUserProfile";
+import { markKioskActivity } from "../../utils/kioskActivity";
 
 export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}) {
   const { branchId: kioskBranchId } = useUserProfile();
@@ -42,6 +43,12 @@ export function useKioskScanner({ studentsOnly = false, staffOnly = false } = {}
       }
     };
   }, []);
+
+  // Report kiosk activity so a waiting app update is only applied when the
+  // kiosk is idle and nobody is mid-flow (DOM10-SW-02). Local only, no reads.
+  useEffect(() => {
+    markKioskActivity({ busy: Boolean(pendingClockIn || pendingTransition) });
+  }, [kioskScanning, pendingClockIn, pendingTransition, lastScanned, status.message]);
 
   const showStatus = (message, type = "success", detail = "", personName = "") => {
     if (statusTimerRef.current) {

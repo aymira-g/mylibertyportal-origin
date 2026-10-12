@@ -445,7 +445,7 @@ export function isApproverForDoc(data, user) {
     roleMatches = isDirector(user) || isViceDirector(user);
   } else if (
     targetRole === "manager" &&
-    (isManager(user) || isDirector(user) || isViceDirector(user))
+    ((isManager(user) && isDivisionAllowedForManager(data, user)) || isDirector(user) || isViceDirector(user))
   ) {
     roleMatches = true;
   } else if (
@@ -526,6 +526,15 @@ export function canListPayments(queryData, user) {
     (isManager(user) || isFrontOffice(user)) &&
     isSameBranchStrict(queryData, user) &&
     isDivisionAllowedForBranchStaff(queryData, user)
+  )
+    return true;
+  if (queryData?.studentId && queryData.studentId === (user.uid || user.id)) return true;
+  if (
+    user.role === "parent" &&
+    isSameBranchStrict(queryData, user) &&
+    Array.isArray(user.childStudentIds) &&
+    queryData?.studentId &&
+    user.childStudentIds.includes(queryData.studentId)
   )
     return true;
   return false;
@@ -638,6 +647,8 @@ export function canUpdateApproval(existing, incoming, user) {
   if (!canDecideApproval(existing, user)) return false;
   if (incoming.requestedByUid !== existing.requestedByUid) return false;
   if (existing.status === "approved" && incoming.status === "approved" && incoming.applied === true) {
+    if (existing.applied === true) return false;
+    if (incoming.appliedByUid !== user.uid) return false;
     const keys = Object.keys(incoming).filter((k) => existing[k] !== incoming[k]);
     return keys.every((k) => ["applied", "appliedAt", "appliedByUid", "updatedAt"].includes(k));
   }

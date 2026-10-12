@@ -150,6 +150,16 @@ describe("fetchStaffShifts", () => {
     expect(result.staffMembers).toHaveLength(3);
     expect(result.leaves).toHaveLength(1);
   });
+
+  it("fails safe and returns empty shifts when manager queries without branchId (DOM02-SEC-01)", async () => {
+    fake.seed("shifts", [
+      { id: "s1", userId: "u1", clockIn: "2026-09-21T08:00:00.000Z", clockOut: null, branchId: "kota_gorontalo" },
+    ]);
+    const result = await fetchStaffShifts(false, null, null, true);
+    expect(result.shifts).toEqual([]);
+    expect(result.staffMembers).toEqual([]);
+    expect(result.leaves).toEqual([]);
+  });
 });
 
 describe("fetchTodayScansData", () => {
@@ -323,6 +333,38 @@ describe("fetchAdmissionsReportData", () => {
     expect(result.classes).toHaveLength(1);
     expect(result.classes[0].id).toBe("c1");
   });
+
+  it("fails closed and returns empty results when non-executive caller has no branchId and no userBranch", async () => {
+    fake.seed("applications", [
+      { id: "app1", displayName: "Applicant 1", branchId: "kota_gorontalo" },
+    ]);
+    fake.seed("classes", [
+      { id: "c1", branchId: "kota_gorontalo" },
+    ]);
+
+    const result = await fetchAdmissionsReportData(null, null, null, { isFrontOffice: true });
+    expect(result).toEqual({ applications: [], classes: [] });
+  });
+
+  it("resolves branch from userBranch for non-executive caller when branchId is omitted", async () => {
+    fake.seed("applications", [
+      { id: "app1", displayName: "Applicant 1", branchId: "kota_gorontalo" },
+      { id: "app2", displayName: "Applicant 2", branchId: "bone_bolango" },
+    ]);
+    fake.seed("classes", [
+      { id: "c1", branchId: "kota_gorontalo" },
+      { id: "c2", branchId: "bone_bolango" },
+    ]);
+
+    const result = await fetchAdmissionsReportData(null, null, null, {
+      isFrontOffice: true,
+      userBranch: "Bone Bolango",
+    });
+    expect(result.applications).toHaveLength(1);
+    expect(result.applications[0].id).toBe("app2");
+    expect(result.classes).toHaveLength(1);
+    expect(result.classes[0].id).toBe("c2");
+  });
 });
 
 describe("fetchInstructorAnalyticsData", () => {
@@ -425,5 +467,57 @@ describe("fetchInstructorAnalyticsData", () => {
     expect(result.classes[0].id).toBe("c1");
     expect(result.instructors).toHaveLength(1);
     expect(result.instructors[0].id).toBe("ins1");
+  });
+
+  it("fails safe and returns empty analytics when manager queries without branchId (DOM02-SEC-01)", async () => {
+    fake.seed("classes", [
+      { id: "c1", branchId: "kota_gorontalo", instructorId: "ins1" },
+    ]);
+    const result = await fetchInstructorAnalyticsData(false, "mgr1", null, true);
+    expect(result.classes).toEqual([]);
+    expect(result.shifts).toEqual([]);
+    expect(result.instructors).toEqual([]);
+  });
+});
+
+describe("fetchTodayScansData & fetchStudentProgressData branch scoping (DOM03-SEC-02)", () => {
+  it("fails safe and returns empty results when manager queries fetchTodayScansData without branchId", async () => {
+    fake.seed("attendance", [
+      { id: "att1", branchId: "kota_gorontalo", timestamp: "2026-10-12T00:00:00.000Z" },
+    ]);
+    const result = await fetchTodayScansData("2026-10-12T00:00:00.000Z", false, false, null, true);
+    expect(result.scans).toEqual([]);
+    expect(result.classes).toEqual([]);
+    expect(result.students).toEqual([]);
+  });
+
+  it("fails safe and returns empty results when frontoffice queries fetchStudentProgressData without branchId", async () => {
+    fake.seed("attendance", [
+      { id: "att1", branchId: "kota_gorontalo", timestamp: "2026-10-12T00:00:00.000Z" },
+    ]);
+    const result = await fetchStudentProgressData(false, true, null, null, false);
+    expect(result.users).toEqual([]);
+    expect(result.classes).toEqual([]);
+    expect(result.attendance).toEqual([]);
+    expect(result.progress).toEqual([]);
+  });
+
+  it("succeeds when branchId is provided for manager in fetchTodayScansData", async () => {
+    fake.seed("attendance", [
+      { id: "att1", branchId: "kota_gorontalo", timestamp: "2026-10-12T01:00:00.000Z" },
+      { id: "att2", branchId: "bone_bolango", timestamp: "2026-10-12T01:00:00.000Z" },
+    ]);
+    fake.seed("classes", [
+      { id: "c1", branchId: "kota_gorontalo" },
+    ]);
+    fake.seed("users", [
+      { id: "u1", role: "student", branchId: "kota_gorontalo" },
+    ]);
+
+    const result = await fetchTodayScansData("2026-10-12T00:00:00.000Z", false, false, "kota_gorontalo", true);
+    expect(result.scans).toHaveLength(1);
+    expect(result.scans[0].id).toBe("att1");
+    expect(result.classes).toHaveLength(1);
+    expect(result.students).toHaveLength(1);
   });
 });

@@ -200,13 +200,20 @@ export default function AvailableBatches({
   };
 
   const handleDeleteBatch = async (batch) => {
+    if (batch && Array.isArray(batch.studentIds) && batch.studentIds.length > 0) {
+      toast(
+        `Cannot delete batch "${batch.className}": ${batch.studentIds.length} student(s) are actively enrolled. Please unenroll or transfer them, or mark the batch as "cancelled" instead.`,
+        "error"
+      );
+      return;
+    }
     const confirmed = await confirm(
       `Are you sure you want to delete batch "${batch.className}"? This will remove the cohort from the school calendar.`
     );
     if (!confirmed) return;
 
     try {
-      await deleteClass(batch.id);
+      await deleteClass(batch.id, batch);
       toast(`Batch "${batch.className}" deleted.`, "info");
     } catch (err) {
       toast("Error deleting batch: " + err.message, "error");

@@ -16,8 +16,9 @@ import {
   DevQuickSwitcher,
   PreviewModeProvider,
 } from "./features/shared";
-import { normalizeRole, isExecutiveRole } from "./features/shared/roles";
+import { normalizeRole } from "./features/shared/roles";
 import { InstallButton, PwaUpdateBanner } from "./features/pwa";
+import { KIOSK_AUTO_UPDATE_IDLE_MS } from "./features/pwa/autoUpdatePolicy";
 import { AlertTriangle } from "lucide-react";
 import schoolLogo from "./assets/school-logo.webp";
 import { lazyWithRetry } from "./utils/lazyWithRetry";
@@ -98,7 +99,7 @@ function App() {
   const [requestingAccess, setRequestingAccess] = useState(false);
 
   const isPreviewAllowed = Boolean(isDevSwitcherEnabled);
-  const canUseDevSwitcher = Boolean(isDevSwitcherEnabled || isExecutiveRole(role));
+  const canUseDevSwitcher = Boolean(isDevSwitcherEnabled);
 
   const effectiveRole = (isPreviewAllowed && previewRole) || role;
   const effectiveDivision = (isPreviewAllowed && previewDivision) || division;
@@ -255,6 +256,8 @@ function App() {
   if (window.location.pathname === "/register") {
     return (
       <ErrorBoundary label="Registration page">
+        <ConnectivityBanner />
+        <PwaUpdateBanner />
         <Suspense fallback={<LoadingFallback />}>
           <RegistrationPage />
         </Suspense>
@@ -266,6 +269,8 @@ function App() {
   if (window.location.pathname.startsWith("/join/")) {
     return (
       <ErrorBoundary label="Staff invitation page">
+        <ConnectivityBanner />
+        <PwaUpdateBanner />
         <Suspense fallback={<LoadingFallback />}>
           <StaffSignup />
         </Suspense>
@@ -274,9 +279,12 @@ function App() {
   }
 
   // Standalone Kiosk Routes (/kiosk, /kiosk/staff, /kiosk/students)
+  // Unattended kiosks auto-apply waiting updates once idle (DOM10-SW-02).
   if (window.location.pathname.startsWith("/kiosk")) {
     return (
       <ErrorBoundary label="Standalone Attendance Kiosk">
+        <ConnectivityBanner />
+        <PwaUpdateBanner autoApplyWhenIdleMs={KIOSK_AUTO_UPDATE_IDLE_MS} />
         <Suspense fallback={<LoadingFallback />}>
           <StandaloneKioskPage />
         </Suspense>
@@ -291,6 +299,8 @@ function App() {
   ) {
     return (
       <ErrorBoundary label="Parent & Student Information Portal">
+        <ConnectivityBanner />
+        <PwaUpdateBanner />
         <Suspense fallback={<LoadingFallback />}>
           <ParentPortalPage />
         </Suspense>
@@ -617,80 +627,118 @@ function App() {
                   <ParentDashboard user={user} />
                 </ErrorBoundary>
               )}
-              {![
-                "director",
-                "vice_director",
-                "admin",
-                "manager",
-                "instructor",
-                "instructorleader",
-                "instructor_leader",
-                "marketing",
-                "frontoffice",
-                "opslead",
-                "ops_lead",
-                "frontofficelead",
-                "officeboy",
-                "parent",
-              ].includes(effectiveRole) && (
+              {effectiveRole === "student" ? (
                 <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center text-slate-600 text-sm max-w-md mx-auto space-y-4 shadow-sm">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto text-xl font-bold">
-                    {pendingStaffRequest ? "⏳" : "🔒"}
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-200 text-[#1a3a8f] flex items-center justify-center mx-auto text-xl font-bold">
+                    🎓
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-800 text-base">
-                      {pendingStaffRequest ? "Access Request Submitted" : "Account Pending Role Assignment"}
+                      Student Account
                     </h3>
                     <p className="text-xs text-slate-500 mt-1">
                       Signed in as <strong className="text-slate-700">{user?.email}</strong>.
                     </p>
                   </div>
 
-                  {pendingStaffRequest ? (
-                    <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3.5 text-xs text-amber-900 text-left space-y-1">
-                      <div className="flex items-center justify-between font-bold">
-                        <span>Status: Pending Admin Review</span>
-                        <span className="text-[10px] bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded-full font-mono">
-                          NEW_STAFF_ACCOUNT
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-amber-800 leading-relaxed">
-                        Your request has been forwarded to the Admin Approval Inbox. When an admin authorizes your role and branch, your dashboard will activate.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <p className="text-xs text-slate-500">
-                        This Google account is signed in, but no role has been provisioned. Click below to submit an onboarding authorization ticket to the Admin Approval queue.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={handleRequestAccess}
-                        disabled={requestingAccess}
-                        className="w-full py-2.5 px-4 bg-[#1a3a8f] hover:bg-[#152e73] text-white font-bold text-xs rounded-xl transition shadow-xs cursor-pointer disabled:opacity-50"
-                      >
-                        {requestingAccess ? "Submitting Request..." : "Request Staff Role Approval"}
-                      </button>
-                    </div>
-                  )}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-600 text-left space-y-2">
+                    <p className="leading-relaxed">
+                      Student attendance is recorded directly at campus kiosks. Parents and guardians can monitor your academic progress and payment status through the <strong>Parent Portal</strong>.
+                    </p>
+                  </div>
 
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => user?.uid && refreshProfile(user.uid)}
-                      className="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition cursor-pointer"
+                  <div className="pt-2 flex flex-col gap-2">
+                    <a
+                      href="/portal"
+                      className="w-full py-2.5 px-4 bg-[#1a3a8f] hover:bg-[#152e73] text-white font-bold text-xs rounded-xl transition shadow-xs text-center"
                     >
-                      Check Status
-                    </button>
+                      Go to Parent &amp; Student Portal
+                    </a>
                     <button
                       type="button"
                       onClick={handleLogout}
-                      className="py-2 px-3 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-700 font-semibold text-xs rounded-xl transition cursor-pointer"
+                      className="w-full py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs rounded-xl transition text-center cursor-pointer"
                     >
                       Sign Out
                     </button>
                   </div>
                 </div>
+              ) : (
+                ![
+                  "director",
+                  "vice_director",
+                  "admin",
+                  "manager",
+                  "instructor",
+                  "instructorleader",
+                  "instructor_leader",
+                  "marketing",
+                  "frontoffice",
+                  "opslead",
+                  "ops_lead",
+                  "frontofficelead",
+                  "officeboy",
+                  "parent",
+                ].includes(effectiveRole) && (
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center text-slate-600 text-sm max-w-md mx-auto space-y-4 shadow-sm">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto text-xl font-bold">
+                      {pendingStaffRequest ? "⏳" : "🔒"}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-base">
+                        {pendingStaffRequest ? "Access Request Submitted" : "Account Pending Role Assignment"}
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Signed in as <strong className="text-slate-700">{user?.email}</strong>.
+                      </p>
+                    </div>
+
+                    {pendingStaffRequest ? (
+                      <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3.5 text-xs text-amber-900 text-left space-y-1">
+                        <div className="flex items-center justify-between font-bold">
+                          <span>Status: Pending Admin Review</span>
+                          <span className="text-[10px] bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded-full font-mono">
+                            NEW_STAFF_ACCOUNT
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-amber-800 leading-relaxed">
+                          Your request has been forwarded to the Admin Approval Inbox. When an admin authorizes your role and branch, your dashboard will activate.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <p className="text-xs text-slate-500">
+                          This Google account is signed in, but no role has been provisioned. Click below to submit an onboarding authorization ticket to the Admin Approval queue.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleRequestAccess}
+                          disabled={requestingAccess}
+                          className="w-full py-2.5 px-4 bg-[#1a3a8f] hover:bg-[#152e73] text-white font-bold text-xs rounded-xl transition shadow-xs cursor-pointer disabled:opacity-50"
+                        >
+                          {requestingAccess ? "Submitting Request..." : "Request Staff Role Approval"}
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => user?.uid && refreshProfile(user.uid)}
+                        className="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition cursor-pointer"
+                      >
+                        Check Status
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="py-2 px-3 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-700 font-semibold text-xs rounded-xl transition cursor-pointer"
+                      >
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                )
               )}
             </Suspense>
           </PreviewModeProvider>

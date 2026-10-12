@@ -7,6 +7,7 @@ import {
   isSameBranch,
   userBranch,
   canGetPayment,
+  canListPayments,
   canGetClass,
   canGetShift,
   canGetAttendance,
@@ -43,6 +44,18 @@ describe("Operational Resources Security Rules Matrix", () => {
       expect(canGetPayment(payment, managerGorontalo)).toBe(true);
       expect(canGetPayment(payment, foGorontalo)).toBe(true);
       expect(canGetPayment(payment, managerBoneBolango)).toBe(false);
+    });
+
+    it("allows the owning student to list their own payments (DOM02-SEC-03)", () => {
+      expect(canListPayments({ studentId: "stu_1" }, { uid: "stu_1", role: "student" })).toBe(true);
+      expect(canListPayments({ studentId: "stu_2" }, { uid: "stu_1", role: "student" })).toBe(false);
+    });
+
+    it("allows parent to list payments for linked child with branch constraint (DOM02-SEC-03)", () => {
+      const parentUser = { uid: "par_1", role: "parent", branchId: "kota_gorontalo", childStudentIds: ["stu_1"] };
+      expect(canListPayments({ branchId: "kota_gorontalo", studentId: "stu_1" }, parentUser)).toBe(true);
+      expect(canListPayments({ branchId: "kota_gorontalo", studentId: "stu_2" }, parentUser)).toBe(false);
+      expect(canListPayments({ branchId: "bone_bolango", studentId: "stu_1" }, parentUser)).toBe(false);
     });
   });
 

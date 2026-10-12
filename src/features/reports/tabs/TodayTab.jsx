@@ -62,7 +62,7 @@ const TodayTab = forwardRef(
       }
       if (branchFilter !== "all") {
         scheduledClasses = scheduledClasses.filter((cls) =>
-          matchesBranchFilter(cls.branch, branchFilter)
+          matchesBranchFilter(cls.branchId || cls.branch, branchFilter)
         );
       }
       const scheduledStudentIds = new Set(scheduledClasses.flatMap((cls) => cls.studentIds || []));
@@ -75,7 +75,7 @@ const TodayTab = forwardRef(
       }
       if (branchFilter !== "all") {
         expectedStudents = expectedStudents.filter((s) =>
-          matchesBranchFilter(s.branch, branchFilter)
+          matchesBranchFilter(s.branchId || s.branch, branchFilter)
         );
       }
       const scannedUserIds = new Set(todayScans.map((s) => s.userId));
@@ -106,7 +106,7 @@ const TodayTab = forwardRef(
       }
 
       if (branchFilter !== "all") {
-        list = list.filter((s) => matchesBranchFilter(s.branch, branchFilter));
+        list = list.filter((s) => matchesBranchFilter(s.branchId || s.branch, branchFilter));
       }
 
       if (todaySearch.trim()) {
@@ -134,7 +134,7 @@ const TodayTab = forwardRef(
           return [
             s.displayName,
             scan ? "Checked In" : "Missing / Not In",
-            normalizeBranch(s.branch),
+            normalizeBranch(s.branchId || s.branch),
             scan?.timestamp ? new Date(scan.timestamp).toLocaleTimeString() : "—",
             scan?.method || "—",
           ];
@@ -308,7 +308,7 @@ const TodayTab = forwardRef(
                         {student.displayName}
                       </p>
                       <p className="text-[11px] text-slate-400 font-medium">
-                        {normalizeBranch(student.branch)}
+                        {normalizeBranch(student.branchId || student.branch)}
                         {scan &&
                           ` · Scanned at ${new Date(scan.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
                       </p>

@@ -95,6 +95,11 @@ export function CohortRosterMobileList({
           </div>
         );
       })}
+      {filteredGroups.length === 0 && (
+        <div className="p-8 text-center bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 text-xs font-medium">
+          No matching class cohorts found.
+        </div>
+      )}
     </div>
   );
 }

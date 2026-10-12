@@ -3,6 +3,7 @@ import { fake } from "../../test/firestoreFake.js";
 import {
   addStudentToClass,
   createClass,
+  deleteClass,
   removeStudentFromClass,
   setClassGroupLevel,
   transferStudentBetweenClasses,
@@ -256,6 +257,28 @@ describe("addStudentToClass / removeStudentFromClass", () => {
     ).rejects.toThrow("Class is full or unavailable for enrollment.");
   });
 
+  it("rejects enrollment when student status is not active (DOM-LIFE-01)", async () => {
+    fake.seed("classes", [
+      {
+        id: "C1",
+        maxCapacity: 10,
+        studentIds: [],
+        enrollments: [],
+      },
+    ]);
+    fake.seed("users", [
+      {
+        id: "s_archived",
+        displayName: "Archived Student",
+        role: "student",
+        status: "archived",
+      },
+    ]);
+    await expect(
+      addStudentToClass("C1", { studentId: "s_archived", dateJoined: "2026-09-21", level: "elite" })
+    ).rejects.toThrow(/Cannot enroll student: status is "archived"/);
+  });
+
   it("removes only the chosen student from both lists", async () => {
     await removeStudentFromClass(source, "s1");
     const op = fake.find("classes/A");
@@ -419,3 +442,23 @@ describe("updateClass", () => {
     expect(op.data.status).toBe("open");
   });
 });
+
+describe("deleteClass", () => {
+  it("deletes an empty class with no enrolled students", async () => {
+    await deleteClass("empty-class-1", { id: "empty-class-1", studentIds: [] });
+    expect(fake.opsOf("delete")).toEqual(
+      expect.arrayContaining([expect.objectContaining({ path: "classes/empty-class-1" })])
+    );
+  });
+
+  it("throws an error and prevents deletion if class has enrolled students", async () => {
+    await expect(
+      deleteClass("active-class-1", {
+        id: "active-class-1",
+        studentIds: ["student-1", "student-2"],
+      })
+    ).rejects.toThrow("Cannot delete batch: 2 student(s) are actively enrolled");
+    expect(fake.opsOf("delete").filter((o) => o.path === "classes/active-class-1")).toEqual([]);
+  });
+});
+

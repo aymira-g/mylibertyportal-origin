@@ -98,14 +98,29 @@ export function findScheduleConflicts(classes) {
       if (!doDaysOverlap(a.classDay, b.classDay)) continue;
       if (!doTimesOverlap(aStart, aEnd, bStart, bEnd)) continue;
 
-      // Teacher conflict
-      if (a.instructorId && b.instructorId && a.instructorId === b.instructorId) {
-        teacherConflicts.push({
-          classA: a,
-          classB: b,
-          type: "teacher",
-          detail: `Instructor is double-booked: "${a.className}" (${a.classDay} ${a.startTime}–${a.endTime}) and "${b.className}" (${b.classDay} ${b.startTime}–${b.endTime})`,
-        });
+      // Teacher conflict (primary or substitute instructor double-booking - DOM06-COR-01)
+      const teachersA = [
+        a.instructorId ? { id: a.instructorId, isSub: false } : null,
+        a.substituteInstructorId ? { id: a.substituteInstructorId, isSub: true } : null,
+      ].filter(Boolean);
+
+      const teachersB = [
+        b.instructorId ? { id: b.instructorId, isSub: false } : null,
+        b.substituteInstructorId ? { id: b.substituteInstructorId, isSub: true } : null,
+      ].filter(Boolean);
+
+      for (const tA of teachersA) {
+        const matchB = teachersB.find((tB) => tB.id === tA.id);
+        if (matchB) {
+          const roleDesc = tA.isSub || matchB.isSub ? " (including substitute coverage)" : "";
+          teacherConflicts.push({
+            classA: a,
+            classB: b,
+            type: "teacher",
+            detail: `Instructor is double-booked${roleDesc}: "${a.className}" (${a.classDay} ${a.startTime}–${a.endTime}) and "${b.className}" (${b.classDay} ${b.startTime}–${b.endTime})`,
+          });
+          break;
+        }
       }
 
       // Room conflict: physical rooms only conflict if on the SAME campus branch

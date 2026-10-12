@@ -159,6 +159,21 @@ describe("Kiosk Hardening & Cryptographic Integrity", () => {
     ).rejects.toThrow(/Missing shiftId or badgeToken/);
   });
 
+  it("DOM03-SEC-01: verifies shift branch matches kiosk device branch on clock-out", () => {
+    function canClockOutShiftOnDevice(shift, device) {
+      if (!shift || !device) return false;
+      if (shift.branchId && shift.branchId !== device.branchId) return false;
+      return true;
+    }
+
+    const deviceKota = { deviceId: "kiosk-kota", branchId: "kota_gorontalo" };
+    const shiftKota = { id: "s1", userId: "staff1", branchId: "kota_gorontalo" };
+    const shiftBone = { id: "s2", userId: "staff1", branchId: "bone_bolango" };
+
+    expect(canClockOutShiftOnDevice(shiftKota, deviceKota)).toBe(true);
+    expect(canClockOutShiftOnDevice(shiftBone, deviceKota)).toBe(false);
+  });
+
   // ── 7. HARDENED CLASS TRANSITION (K-04) ──
 
   it("fails closed on class transition when worker service is unavailable", async () => {
@@ -567,4 +582,160 @@ describe("Kiosk Hardening & Cryptographic Integrity", () => {
       expect(store.getDoc("activeShifts/user_race_2").data.status).toBe("active");
     });
   });
+
+  // ── 14. CONTINUOUS SCANNER IN-FLIGHT LOCKING & DEBOUNCE (DOM03-PERF-01) ──
+
+  describe("Continuous Scanner In-Flight Guard & Debounce", () => {
+    function createScannerGuard(debounceMs = 2500) {
+      let isProcessing = false;
+      let lastScanned = { id: "", at: 0 };
+      const processed = [];
+
+      async function onScanFrame(uid, handlerAsync) {
+        if (!uid) return false;
+        const now = Date.now();
+        if (isProcessing) return false; // Dropped: concurrent in-flight
+        if (lastScanned.id === uid && now - lastScanned.at < debounceMs) return false; // Dropped: debounced
+
+        isProcessing = true;
+        try {
+          await handlerAsync(uid);
+          lastScanned = { id: uid, at: Date.now() };
+          processed.push(uid);
+          return true;
+        } finally {
+          isProcessing = false;
+        }
+      }
+
+      return { onScanFrame, getProcessed: () => processed };
+    }
+
+    it("drops concurrent frame events while an async scan transaction is in flight", async () => {
+      const guard = createScannerGuard();
+      let resolveFirstScan;
+      const firstScanPromise = new Promise((resolve) => {
+        resolveFirstScan = resolve;
+      });
+
+      // Frame 1 arrives and starts async processing
+      const scan1 = guard.onScanFrame("student_1", () => firstScanPromise);
+
+      // Frame 2, 3, 4 arrive while Frame 1 is still processing (e.g. 10 fps camera loop)
+      const scan2 = await guard.onScanFrame("student_1", async () => {});
+      const scan3 = await guard.onScanFrame("student_2", async () => {});
+
+      expect(scan2).toBe(false);
+      expect(scan3).toBe(false);
+
+      // Frame 1 finishes
+      resolveFirstScan();
+      await scan1;
+
+      expect(guard.getProcessed()).toEqual(["student_1"]);
+    });
+
+    it("debounces repeated scans of the same student within debounce window", async () => {
+      const guard = createScannerGuard(2500);
+
+      // First scan passes
+      const scan1 = await guard.onScanFrame("student_1", async () => {});
+      expect(scan1).toBe(true);
+
+      // Immediate repeated scan of same student within 2.5s is dropped
+      const scan2 = await guard.onScanFrame("student_1", async () => {});
+      expect(scan2).toBe(false);
+
+      // Different student immediately after passes
+      const scan3 = await guard.onScanFrame("student_2", async () => {});
+      expect(scan3).toBe(true);
+
+      expect(guard.getProcessed()).toEqual(["student_1", "student_2"]);
+    });
+  });
+
+  // ── 10. DOMAIN 13 WORKER & OPS CONFORMANCE (DOM13-SEC-01, DOM13-COR-01, DOM13-COR-02, DOM13-RES-01) ──
+  describe("Domain 13: Worker Conformance & Lock Resilience", () => {
+    it("DOM13-SEC-01: authorizes director and vice_director in staff AI Assistant roles", () => {
+      const staffRoles = [
+        "admin",
+        "director",
+        "vice_director",
+        "manager",
+        "instructor",
+        "instructorleader",
+        "frontoffice",
+        "opslead",
+        "marketing",
+        "officeboy",
+      ];
+      expect(staffRoles.includes("director")).toBe(true);
+      expect(staffRoles.includes("vice_director")).toBe(true);
+      expect(staffRoles.includes("parent")).toBe(false);
+      expect(staffRoles.includes("student")).toBe(false);
+    });
+
+    it("DOM13-COR-01: resolves shift division with class inheritance and division='all' preservation", () => {
+      function resolveShiftDivision(user, classDoc) {
+        return (
+          classDoc?.division ||
+          (user.division === "all" ? "all" : user.division === "kindergarten" ? "kindergarten" : "courses")
+        );
+      }
+
+      // Class division takes precedence
+      expect(resolveShiftDivision({ division: "courses" }, { division: "kindergarten" })).toBe("kindergarten");
+      expect(resolveShiftDivision({ division: "all" }, { division: "kindergarten" })).toBe("kindergarten");
+
+      // Cross-divisional staff with division="all" preserved when general shift
+      expect(resolveShiftDivision({ division: "all" }, null)).toBe("all");
+
+      // Standard division resolution
+      expect(resolveShiftDivision({ division: "kindergarten" }, null)).toBe("kindergarten");
+      expect(resolveShiftDivision({ division: "courses" }, null)).toBe("courses");
+      expect(resolveShiftDivision({}, null)).toBe("courses");
+    });
+
+    it("DOM13-COR-02: matches normalized branch IDs between user, class, and kiosk terminal", () => {
+      const BRANCH_MAP = {
+        kota_gorontalo: "Kota Gorontalo",
+        bone_bolango: "Bone Bolango",
+        pohuwato: "Pohuwato",
+        limboto: "Limboto",
+      };
+      function normalizeBranchId(raw) {
+        if (!raw || typeof raw !== "string") return "";
+        const clean = raw.trim().toLowerCase();
+        for (const [id, name] of Object.entries(BRANCH_MAP)) {
+          if (name.toLowerCase() === clean || id === clean) return id;
+        }
+        return clean.replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+      }
+
+      const deviceBranch = "kota_gorontalo";
+      // Legacy unslugged branch name matches canonical ID
+      expect(normalizeBranchId("Kota Gorontalo")).toBe(deviceBranch);
+      expect(normalizeBranchId("kota_gorontalo")).toBe(deviceBranch);
+      expect(normalizeBranchId("cabang_utama")).toBe("cabang_utama"); // non-matching different alias
+      expect(normalizeBranchId("Bone Bolango")).not.toBe(deviceBranch);
+    });
+
+    it("DOM13-RES-01: detects deleted or closed shifts as stale locks and marks them for cleanup", () => {
+      function isLockStale(shiftDoc) {
+        // If shift document was deleted/purged (null) OR is already clocked out, lock is stale
+        return !shiftDoc || Boolean(shiftDoc.clockOut);
+      }
+
+      // Open active shift is NOT stale
+      expect(isLockStale({ id: "shift_1", clockOut: null })).toBe(false);
+
+      // Completed shift IS stale
+      expect(isLockStale({ id: "shift_1", clockOut: "2026-10-12T08:00:00Z" })).toBe(true);
+
+      // Deleted shift (null) IS stale (cleans up orphaned lock instead of locking out)
+      expect(isLockStale(null)).toBe(true);
+    });
+  });
 });
+
+

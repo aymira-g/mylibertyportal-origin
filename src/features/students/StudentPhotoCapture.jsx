@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { uploadToCloudinary } from "../shared";
+import { uploadToCloudinary, useToast } from "../shared";
 import { Camera, Upload, Trash2, Loader2, Check } from "lucide-react";
 
 export default function StudentPhotoCapture({ photoURL, onPhotoChange }) {
+  const toast = useToast();
   const [uploading, setUploading] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState("");
@@ -67,7 +68,7 @@ export default function StudentPhotoCapture({ photoURL, onPhotoChange }) {
           onPhotoChange(url);
         } catch (err) {
           console.error("Photo upload failed:", err);
-          alert("Failed to upload photo: " + (err.message || "Unknown error"));
+          toast("Failed to upload photo: " + (err.message || "Unknown error"), "error");
         } finally {
           setUploading(false);
         }
@@ -90,7 +91,7 @@ export default function StudentPhotoCapture({ photoURL, onPhotoChange }) {
       onPhotoChange(url);
     } catch (err) {
       console.error("Photo upload failed:", err);
-      alert("Failed to upload photo: " + (err.message || "Unknown error"));
+      toast("Failed to upload photo: " + (err.message || "Unknown error"), "error");
     } finally {
       setUploading(false);
     }

@@ -3,7 +3,7 @@
 > **Authority Level:** Level 1 verification evidence (`docs/audits/current/`)
 > **Playbook:** [`../Light Regression Check Playbook/00-README.md`](../Light%20Regression%20Check%20Playbook/00-README.md) (§§ 22–24)
 > **Scope:** Chronological evidence for targeted post-change regression checks. This is **not** a bug ledger
-> (see [`../Comprehensive Hidden-Bug Audit Strategy/05-bug-tracking.md`](../Comprehensive%20Hidden-Bug%20Audit%20Strategy/05-bug-tracking.md))
+> (the canonical master ledger is [`bug-ledger.md`](bug-ledger.md); format defined in [`../Comprehensive Hidden-Bug Audit Strategy/05-bug-tracking.md`](../Comprehensive%20Hidden-Bug%20Audit%20Strategy/05-bug-tracking.md))
 > and does not override source code, `firestore.rules`, or the Authoritative Blueprint.
 
 ---
@@ -19,6 +19,14 @@
 | 2026-10-10 | Office Boy dashboard polish: surface directive-list failure state & de-duplicate stat cards to Urgent/Overdue | Office Boy · Facilities · Dashboard · Staff Directives | **PASS** | No | All quality gates pass (1,289 unit tests, 0 lint, 0 typecheck, build clean). No rules changed. Browser smoke attempted (driver CDN 404 logged). |
 | 2026-10-12 | Parent Portal refinement (Items 1–3): P-04 payment status fix, P-05 attendance metrics formula & P-06 inline retry errors | Parent Portal · Students · Dashboard · Repository | **PASS** | No | 1,292 passed (3 new tests); lint, typecheck, build 0 errors; no rules changed |
 | 2026-10-12 | Parent Portal Change Set 2: P-03 progressReports list branch isolation, P-08 emulator security tests & P-01/P-02 residual risks | Parent Portal · Security Rules · Firestore Emulator | **PASS** | No | 122/122 emulator tests pass; 1,292 unit tests pass; P-01 & P-02 accepted residual risks; rules pending live deploy |
+| 2026-10-12 | Domain 6 Remediation: DOM06-SEC-01 (class deletion), DOM06-SEC-02 (maxCapacity parity), DOM06-SEC-03 (admissions report scoping), DOM06-COR-01 (substitute collision), DOM06-GOV-01 (transfer dual-control) | Classes · Scheduling · Reports · Security Rules | **PASS** | No | 1,332 passed, 0 failed; lint, typecheck, build clean; see Evidence Record below |
+| 2026-10-12 | Domain 7 Remediation: DOM07-SEC-01 (staff leave manager write), DOM07-SEC-02 (manager leave role tracking), DOM07-COR-01 (overnight event schema), DOM07-SEC-03 (worker event audience boundary), DOM07-COR-02 (office boy WITA due date), DOM07-COR-03 (shift self-correction userId) | Corporate Events · Staff Shifts · Staff Leave · Facilities | **PASS** | No | 1,338 passed, 0 failed; lint, typecheck, build clean; see Evidence Record below |
+| 2026-10-12 | Domain 8 Remediation: DOM08-IDX-01 (classes index), DOM08-COR-01 (dynamic tuition health), DOM08-COR-02 (canonical branch resolution), DOM08-SEC-01 (worker branch normalization), DOM08-COR-03 (attendance note singular), DOM08-UX-01 (inactive child notice) | Parent Portal · Students · Dashboard · Repository | **PASS** | No | 1,341 passed (3 new tests), 0 failed; lint, typecheck, build clean; see Evidence Record below |
+| 2026-10-12 | Domain 9 Remediation: DOM09-SEC-01 (division isolation in approvals), DOM09-SEC-02 (single-use applied seal), DOM09-SEC-03 (updatedAt serverTimestamp integrity), DOM09-COR-01 (top-level division scoping), DOM09-SEC-04 (staff onboarding division selector), DOM09-SEC-05 (decidedByUid caller auth binding) | Approvals · Maker-Checker · Security Rules · Firestore | **PASS** | No | 1,344 passed, 0 failed; lint, typecheck, build clean; see Evidence Record below |
+| 2026-10-12 | Domain 10 Remediation: DOM10-SW-02 (kiosk/public routes banner mount & idle auto-apply), DOM10-SW-01 (swUpdateStore persistent update state), DOM10-COR-01 (favicon SVG link in index.html), DOM10-UX-01 (vite:preloadError reload cooldown order), DOM10-UX-02 (fullscreen/minimal-ui display mode detection), DOM10-PERF-01 (networkReachability 404-only fallback probe), DOM10-UX-03 (update banner fallback reload safety net) | PWA · Service Worker · Network Reachability · Kiosks | **PASS** | No | 1,356 passed (12 new tests), 0 failed; lint, typecheck, build clean; see Evidence Record below |
+| 2026-10-12 | Domain 11 Remediation: DOM11-COR-01 (financial date horizons), DOM11-COR-02 (branchId fallback), DOM11-COR-03 (maxCapacity parity), DOM11-PERF-01 (progressReports scan bound), DOM11-GOV-01 (manager division scope), DOM11-TECH-01 (audit diagnostic documentation) | Reports · Dashboards · Derived Data · Financial | **PASS** | No | 1,359 passed (3 new tests), 0 failed; lint, typecheck, build clean; see Evidence Record below |
+| 2026-10-12 | Domain 12 Remediation: DOM12-A11Y-01 (ConfirmProvider Escape/backdrop/ARIA), DOM12-A11Y-02 (useOverlayHistory Escape dismissal), DOM12-A11Y-03 (operational modals back-button & backdrop), DOM12-UX-01 (StudentPhotoCapture useToast alerts), DOM12-UX-02 (empty states in rosters and cohort mobile lists) | UX · Navigation · Mobile · Modals · Accessibility | **PASS** | No | 1,360 passed (1 new test), 0 failed; lint, typecheck, build clean; see Evidence Record below |
+| 2026-10-12 | Domain 13 Remediation: DOM13-SEC-01 (executive AI assistant access), DOM13-COR-01 (shift division inheritance & all preservation), DOM13-COR-02 (branch normalization across clock-in/out/switch), DOM13-RES-01 (stale/deleted activeShifts lock cleanup), DOM13-INT-01 (FormSync.gs division, validation, attribution), DOM13-TECH-01 (_fix-irnawati.mjs safety gates) | Cloudflare Worker · External Integrations · Ops Tooling | **PASS** | No | 1,364 passed (4 new tests), 0 failed; lint, typecheck, build clean; see Evidence Record below |
 
 ---
 
@@ -876,4 +884,401 @@ Deployment Parity Evidence:
   - In accordance with AGENTS.md, live production deployment is NOT performed by the agent.
   - Production deployment remains operator-controlled: firebase deploy --only firestore:rules.
 ```
+
+---
+
+## Evidence Record — 2026-10-12 (Domain 5 Remediations: Students / Admissions / Profiles)
+
+```text
+Change: 1) DOM05-SEC-01: In StudentRoster.jsx, guarded loadPendingPromotions and useEffect to skip
+           fetchPendingPromotions when readOnly is true or userRole === "instructor". In InstructorClasses.jsx,
+           passed branchId={classes[0]?.branchId || null} to <StudentRoster>.
+        2) DOM05-COR-01: In parentPortalRepository.js, removed hardcoded where("status", "==", "open") from
+           qClasses and applied client-side filtering for non-cancelled and non-archived cohorts.
+           Eliminates missing composite index requirement and unmasks in-progress/full classes.
+        3) DOM05-GOV-01: In levels.js, implemented isHigherLevel supporting standard and program ladders.
+           In StudentRoster.jsx, sorted pending promotions descending by submittedAt/examDate.
+           In StudentRosterTable.jsx & StudentRosterMobileList.jsx, guarded Promote button with active status
+           and isHigherLevel check. In progressReportsRepository.js, added clearStudentPendingPromotions.
+        4) DOM05-RES-01: In usersRepository.js, switched createParentAccount to linkChildInternal with direct
+           Firestore fallback and added deleteDoc cleanup on failure alongside deleteUser.
+
+Date: 2026-10-12
+Section: Domain 5: Students / Admissions / Applications / Roster / Profiles / Parent Linkage / Progress Reports / Promotions
+Workflow: Student roster loading, instructor class view, parent portal class visibility, level promotions, parent account creation
+Tester / Agent: Pair programming agent under Kifry's authorization
+
+Risk classification (Playbook §9): MEDIUM-RISK — Roster components, levels comparison, repository queries, secondary Auth rollback.
+
+Normal Test:
+  - Workspace test suite: npm test -> 1,325 passed, 122 skipped, 0 failed across 103 test files.
+  - levels.test.js: 19 passed, 0 failed.
+  - StudentRosterTable.test.js: 9 passed, 0 failed.
+  - parentPortalRepository.test.js: 12 passed, 0 failed.
+  - usersRepository.test.js: 26 passed, 0 failed.
+  - ESLint: npm run lint -> 0 errors, 0 warnings.
+  - TypeScript: npm run typecheck (tsc --noEmit) -> 0 errors.
+  - Build: npm run build -> built cleanly in 684ms (PWA precache 66 entries).
+
+Failure Test:
+  - Instructor opening StudentRoster: fetchPendingPromotions is skipped, pendingPromotions is empty, 0 permission-denied queries.
+  - Parent classes query: in-progress and full classes returned; cancelled cohorts filtered out without composite index error.
+  - Level promotion: Promote button hidden for inactive students and students already at or above recommended level; promoting clears pending promotion flags.
+  - Secondary Auth failure: Parent doc in Firestore is deleted and secondary Auth user deleted when child linking fails.
+
+Not Run / Limitations:
+  - Production deployment: NOT PERFORMED — strictly operator-controlled.
+```
+
+---
+
+## Evidence Record — 2026-10-12 (Domain 6 Remediations: Classes / Rosters / Scheduling)
+
+```text
+Change: 1) DOM06-SEC-01: In firestore.rules:698, added allow delete: if isDirector() || isViceDirector();
+           System Admin remains denied per emulator test 2380 and Blueprint separation of duties.
+           In classesRepository.js:60-67, deleteClass verified active enrollments (classData.studentIds > 0)
+           and throws an explanatory error. In ClassManager.jsx:86-99 and AvailableBatches.jsx:202-214,
+           delete handlers check studentIds.length > 0 and toast an error, preventing accidental deletion.
+        2) DOM06-SEC-02: In firestore.rules:695-697, updated Front Office class capacity update rule
+           to enforce maxCapacity parity alongside legacy aliases:
+           (!('maxCapacity' in resource.data) || request.resource.data.studentIds.size() <= resource.data.maxCapacity).
+        3) DOM06-SEC-03: In reportsRepository.js:240-277, fetchAdmissionsReportData accepts callerContext.
+           For non-executives with branchFilter === "all" or omitted, automatically scopes queries to
+           callerContext.userBranch, or fails closed returning empty results if unresolvable.
+           In AdmissionsTab.jsx and ReportsDashboard.jsx, passed caller props and added error retry banner.
+        4) DOM06-COR-01: In scheduleConflict.js:98-125, expanded findScheduleConflicts to detect double-booking
+           collisions across both primary (instructorId) and substitute (substituteInstructorId) instructors.
+           In BatchModal.jsx:157-181, included substituteInstructorId in draft conflict checks.
+        5) DOM06-GOV-01: In TransferModal.jsx:56-78, filtered candidateClasses by branchScope, preventing
+           cross-branch classes from appearing. In TransferModal.jsx:131-175, submitted STUDENT_CLASS_TRANSFER
+           dual-control approval envelope via createApprovalEnvelope and submitApprovalRequest.
+           In approvalGates.js:734, preserved context payload for non-reason context fields.
+
+Date: 2026-10-12
+Section: Domain 6: Classes / Batches / Rosters / Timetables / Scheduling Conflicts / Lateral Transfers / Capacity / Attendance Linkage
+Workflow: Class deletion safety, capacity limit enforcement, admissions report scoping, schedule collision engine, lateral student transfer dual-control
+Tester / Agent: Pair programming agent under Kifry's authorization
+
+Risk classification (Playbook §9): HIGH-RISK — Firestore security rules (/classes), capacity enforcement, admissions report scoping, schedule collision engine.
+
+Normal Test:
+  - Workspace test suite: npm test -> 1,332 passed, 122 skipped, 0 failed across 103 test files.
+  - classesRepository.test.js: 30 passed, 0 failed.
+  - scheduleConflict.test.js: 42 passed, 0 failed.
+  - batchAvailability.test.js: 23 passed, 0 failed.
+  - reportsRepository.test.js: 22 passed, 0 failed.
+  - approvalGates.test.js: 24 passed, 0 failed.
+  - ESLint: npm run lint -> 0 errors, 0 warnings.
+  - TypeScript: npm run typecheck (tsc --noEmit) -> 0 errors.
+  - Build: npm run build -> built cleanly in 2.56s (PWA precache 66 entries).
+
+Failure Test:
+  - deleteClass: Deletion rejected with error if class has enrolled students (active enrollments protected).
+  - deleteClass: Deletion succeeds for empty classes without active enrollments.
+  - firestore.rules: Direct client writes exceeding maxCapacity rejected at database layer.
+  - fetchAdmissionsReportData: Non-executive with no branch fails closed and returns empty results without permission crash.
+  - findScheduleConflicts: Double-booked substitute instructor flagged when overlapping primary or substitute teacher.
+  - TransferModal: Cross-branch classes filtered out from candidate targets.
+  - createApprovalEnvelope: STUDENT_CLASS_TRANSFER envelope routes to Ops Lead with branchId and transfer payload.
+
+Not Run / Limitations:
+  - Live Firestore rules deploy: NOT PERFORMED — strictly operator-controlled (firebase deploy --only firestore:rules).
+  - Production deployment: NOT PERFORMED — strictly operator-controlled.
+```
+
+---
+
+## Evidence Record — 2026-10-12 (Domain 7: Corporate Events / Staff Shifts / Leave)
+
+```text
+Change: 1) DOM07-SEC-01: In firestore.rules:1054-1056, updated match /staffLeave/{leaveId} allow create rule
+           to allow Division Managers for their branch and division staff:
+           (isExecutive() || (isManager() && isSameBranch(request.resource.data) && isDivisionAllowedForManager(request.resource.data))).
+           In StaffDutyTab.jsx:400-430 and StaffLeaveModal.jsx:20-65, permitted Division Managers and Executives
+           to open leave modal, passed division to logStaffLeave, and scoped staff selection.
+           In shiftsRepository.js:705-725, updated logStaffLeave to accept and persist canonical division.
+        2) DOM07-SEC-02: In firestore.rules:298, added 'manager' to isTrackedLeaveRole(r) array literal.
+           Executive tier can now log approved leave records for Division Managers without database permission crash.
+        3) DOM07-COR-01: In src/schemas/corporateEventSchema.js:46-60, added isOvernight boolean flag.
+           In superRefine, permitted endMinutes < startMinutes when isOvernight is true, only rejecting
+           identical start/end minutes. In CorporateEventModal.jsx and CorporateEventsPanel.jsx, added
+           an overnight event toggle and helper indicator.
+        4) DOM07-SEC-03: In cloudflare-worker/worker.js:765-778, added branch, role, and division audience
+           validation against device.branchId and userDoc in the corporate event kiosk clock-in handler.
+        5) DOM07-COR-02: Created src/features/dashboard/officeBoyUtils.js housing formatDueDate using
+           todayWita() and calendar date comparisons. Imported in OfficeBoyDashboard.jsx and tests,
+           eliminating timezone skew and satisfying react-refresh/only-export-components.
+        6) DOM07-COR-03: In ShiftAdjustmentModal.jsx:60-70, updated self-correction detection to inspect
+           both shift.userId and shift.uid (targetUserId = shift.userId || shift.uid). Staff self-corrections
+           now route reliably to STAFF_SHIFT_SELF_CORRECTION approval envelopes.
+
+Date: 2026-10-12
+Section: Domain 7: Corporate Events / Staff Shifts / Leave / Cash Drawer Reconciliation / Auto-Close / Office Boy & Facilities Directives
+Workflow: Corporate event scheduling, overnight time matching, kiosk challenge & audience check, shift mutual exclusion, cash reconciliation, shift self-correction, staff leave creation, office boy directives
+Tester / Agent: Pair programming agent under Kifry's authorization
+
+Risk classification (Playbook §9): HIGH-RISK — Firestore security rules (/staffLeave, isTrackedLeaveRole), Cloudflare Worker kiosk proof & audience validation, shift self-correction approval envelope.
+
+Normal Test:
+  - Workspace test suite: npm test -> 1,338 passed, 123 skipped, 0 failed across 104 test files.
+  - shiftsRepository.test.js: 28 passed, 0 failed.
+  - corporateEventsRepository.test.js: 11 passed, 0 failed.
+  - corporateEvents.test.js: 26 passed, 0 failed.
+  - schemas.test.js: 39 passed, 0 failed.
+  - OfficeBoyDashboard.test.js: 8 passed, 0 failed.
+  - kioskHardening.test.js: 24 passed, 0 failed.
+  - securityRulesMatrix: 170 passed, 0 failed across 5 suites.
+  - ESLint: npm run lint -> 0 errors, 0 warnings across entire codebase.
+  - TypeScript: npm run typecheck (tsc --noEmit) -> 0 errors.
+  - Build: npm run build -> built cleanly in 709ms (PWA precache 66 entries).
+
+Failure Test:
+  - corporateEventSchema: Overnight event with identical start/end time (e.g. 22:00 to 22:00) rejected with validation error.
+  - shiftsRepository: logStaffLeave verifies canonical branchId and division stored on approved record.
+  - ShiftAdjustmentModal: Self-correction envelope contains canonical targetUserId and shiftId.
+  - OfficeBoyDashboard:formatDueDate: Correctly returns Overdue for past dates, Due Today for todayWita(), and Due <Month Day> for future dates without skew.
+  - cloudflare-worker: Corporate event clock-in rejects external branch kiosk or incompatible role/division audience.
+
+Not Run / Limitations:
+  - Live Firestore rules deploy: NOT PERFORMED — strictly operator-controlled (firebase deploy --only firestore:rules).
+  - Production deployment: NOT PERFORMED — strictly operator-controlled.
+```
+
+---
+
+## Evidence Record — 2026-10-12 (Domain 8 Remediation)
+
+```text
+Change: Level 2 Deep Conformance Audit Remediation for Domain 8 (Parent Portal):
+        1. firestore.indexes.json: Added composite index (branchId ASC, studentIds CONTAINS) for classes collection (DOM08-IDX-01).
+        2. parentPortalRepository.js & ParentDashboard.jsx: Integrated getPaymentHealthStatus dynamic expiry evaluation into buildPaymentSummary; added status badge tones for expired and due_soon (DOM08-COR-01).
+        3. ParentDashboard.jsx: Resolved canonical branchId from selectedChild or parentProfile to prevent portal hangs on legacy string accounts (DOM08-COR-02).
+        4. cloudflare-worker/worker.js: Added normalizeBranchId helper and normalized actor, parent, and student branches in handleParentLink (DOM08-SEC-01).
+        5. ParentDashboard.jsx: Attendance table remarks column changed to att.note || att.notes || "-" to align with schema (DOM08-COR-03).
+        6. parentPortalRepository.js & ParentDashboard.jsx: Tracked linkedStudentCount and inactiveChildCount in getAuthenticatedParentBundle; displayed dedicated inactive student notice when enrolled children are frozen/inactive (DOM08-UX-01).
+
+Date: 2026-10-12
+Section: Domain 8: Parent Portal
+Authority: Authoritative Blueprint v3.3, Technical Architecture (docs/ARCHITECTURE.md), Zero-Budget Spark Tier
+Tester / Agent: Antigravity Agent, under operator authorization
+
+Commits / Verification:
+  - Automated test suite: 103 passed, 1 skipped (emulator tests), 0 failed across 1,341 tests.
+  - parentPortalRepository.test.js: 15 passed, 0 failed (3 new unit tests for expired/due_soon payment health & inactive child counting).
+  - ParentDashboard.test.js: 1 passed, 0 failed.
+  - ESLint: npm run lint -> 0 errors, 0 warnings.
+  - TypeScript: npm run typecheck (tsc --noEmit) -> 0 errors.
+  - Build: npm run build -> built cleanly in 694ms (PWA precache 66 entries).
+
+Not Run / Limitations:
+  - Firestore indexes deploy: NOT PERFORMED — strictly operator-controlled (firebase deploy --only firestore:indexes).
+  - Production deployment: NOT PERFORMED — strictly operator-controlled.
+
+---
+
+## Evidence Record — 2026-10-12 (Domain 9 Remediation)
+
+```text
+Change: Level 2 Deep Conformance Audit Remediation for Domain 9 (Approvals / Maker-Checker / Audit Logs):
+        1. firestore.rules: Updated isApproverForDoc (targetRole == 'manager') to require isDivisionAllowedForManager(data) (DOM09-SEC-01).
+        2. firestore.rules: Enforced request.resource.data.updatedAt == request.time on /approvals update rule (DOM09-SEC-03).
+        3. firestore.rules: Enforced single-use applied sealing (!('applied' in resource.data) || resource.data.applied != true) and caller attribution request.resource.data.appliedByUid == request.auth.uid (DOM09-SEC-02).
+        4. securityRulesMatrix.helpers.js & approvals.test.js: Mirrored division isolation on manager gate and single-use/caller-attribution checks in JS test helper; added 3 new unit tests (DOM09-SEC-01, DOM09-SEC-02).
+        5. approvalGates.js: In createApprovalEnvelope, extracted division from requester, context, or payload and attached to envelope; added 4 new unit tests (DOM09-COR-01).
+        6. approvalsRepository.js: In listenToPendingApprovals, defaulted item.division to 'courses' so legacy tickets do not leak into Kindergarten manager queues; bound decidedByUid and appliedByUid strictly to auth.currentUser?.uid; added 2 new unit tests (DOM09-COR-01, DOM09-SEC-05).
+        7. ApprovalInbox.jsx & ApprovalInbox.test.js: Removed Admin from NEW_STAFF_ACCOUNT role dropdown (Blueprint Principle 3), added instructorleader and opslead, added division selector (courses, kindergarten, all), rendered applicant name/email, and passed division to updateStaffRecord; added unit test (DOM09-SEC-04).
+
+Date: 2026-10-12
+Section: Domain 9: Approvals / Maker-Checker / Audit Logs
+Authority: Authoritative Blueprint v3.3, Technical Architecture (docs/ARCHITECTURE.md), Zero-Budget Spark Tier
+Tester / Agent: Antigravity Agent, under operator authorization
+
+Commits / Verification:
+  - Automated test suite: 103 passed, 1 skipped (emulator tests), 0 failed across 1,344 tests.
+  - approvalGates.test.js: 24 passed, 0 failed.
+  - approvalsRepository.test.js: 7 passed, 0 failed.
+  - ApprovalInbox.test.js: 3 passed, 0 failed.
+  - securityRulesMatrix/approvals.test.js: 34 passed, 0 failed.
+  - ESLint: npm run lint -> 0 errors, 0 warnings.
+  - TypeScript: npm run typecheck (tsc --noEmit) -> 0 errors.
+  - Build: npm run build -> built cleanly in 706ms (PWA precache 66 entries).
+
+Not Run / Limitations:
+  - Firestore rules deploy: NOT PERFORMED — strictly operator-controlled (firebase deploy --only firestore:rules).
+  - Production deployment: NOT PERFORMED — strictly operator-controlled.
+```
+
+---
+
+## Evidence Record — 2026-10-12 (Domain 10: PWA / Network / Service Worker / Updates)
+
+```text
+Change: Domain 10 Level 2 conformance remediation across 7 verified findings:
+        1. src/features/pwa/swUpdateStore.js: Module-level pending update store to prevent dropped updates (DOM10-SW-01).
+        2. src/features/pwa/autoUpdatePolicy.js & src/utils/kioskActivity.js: Kiosk idle auto-apply policy (5 min inactivity, no active scan/dialog/busy flow, reachable network) per operator approval (DOM10-SW-02).
+        3. src/App.jsx: Mounted PwaUpdateBanner and ConnectivityBanner across /register, /join/*, /kiosk*, and /parent* early-return routes (DOM10-SW-02).
+        4. src/features/attendance/useKioskScanner.js: Wired markKioskActivity to report scanning and modal busy states (DOM10-SW-02).
+        5. src/main.jsx: Connected swUpdateStore to onNeedRefresh; moved sessionStorage.setItem("pwa_preload_reload") to immediately precede window.location.reload() (DOM10-UX-01).
+        6. src/utils/networkReachability.js: Restricted fallback probe to HTTP 404 only, eliminating redundant 2.5s timeouts on stalled connections (DOM10-PERF-01).
+        7. src/features/pwa/usePwaInstall.js: Expanded isRunningAsInstalledApp to recognize fullscreen and minimal-ui display modes (DOM10-UX-02).
+        8. src/features/pwa/PwaUpdateBanner.jsx: Integrated swUpdateStore via useSyncExternalStore; added UPDATE_FALLBACK_RELOAD_MS (4s) timeout safety net (DOM10-UX-03).
+        9. index.html: Added <link rel="icon" type="image/svg+xml" href="/favicon.svg" /> (DOM10-COR-01).
+        10. src/features/pwa/PwaUpdateBanner.test.js & src/utils/networkReachability.test.js: Added 12 new regression tests covering store notification, auto-update policy, display-mode matrix, and 404-only fallback.
+
+Date: 2026-10-12
+Section: Domain 10: PWA / Network / Service Worker / Updates
+Authority: Authoritative Blueprint v3.3, Technical Architecture (docs/ARCHITECTURE.md), Zero-Budget Spark Tier
+Tester / Agent: Antigravity Agent, under operator authorization
+
+Commits / Verification:
+  - Automated test suite: 103 passed, 1 skipped (emulator tests), 0 failed across 1,356 tests (+12 tests).
+  - PwaUpdateBanner.test.js: 12 passed, 0 failed.
+  - networkReachability.test.js: 7 passed, 0 failed.
+  - ESLint: npm run lint -> 0 errors, 0 warnings.
+  - TypeScript: npm run typecheck (tsc --noEmit) -> 0 errors.
+  - Build: npm run build -> built cleanly in 771ms (PWA precache 66 entries).
+
+Not Run / Limitations:
+
+---
+
+## Evidence Record — 2026-10-12 (Domain 11: Reports / Dashboards / Derived Data)
+
+```text
+Change: Domain 11 Level 2 conformance remediation across 6 verified findings:
+        1. src/features/reports/reportsUtils.js & src/features/reports/tabs/FinancialReportsTab.jsx:
+           Implemented filterPayments enforcing strict date horizon filtering (since = rangeToSince(rangeDays)),
+           eliminating multi-month revenue contamination when selecting 7d/30d/90d horizons (DOM11-COR-01).
+        2. src/features/reports/tabs/TodayTab.jsx, src/features/reports/tabs/AdmissionsTab.jsx, &
+           src/features/dashboard/frontoffice/FrontOfficeReportsTab.jsx:
+           Standardized branch isolation filter checks and normalizers to inspect item.branchId || item.branch,
+           preventing silent record loss for modern documents lacking legacy string fields (DOM11-COR-02).
+        3. src/features/dashboard/DirectorDashboard.jsx & src/features/dashboard/ViceDirectorDashboard.jsx:
+           Aligned classroom seat capacity calculation with canonical schema Number(cls.maxCapacity || cls.capacity || cls.maxStudents) || 12,
+           fixing occupancy gauge distortions for custom VIP/workshop classes (DOM11-COR-03).
+        4. src/features/reports/reportsRepository.js:
+           Added limit(200) constraint to progressReports query in fetchStudentProgressData,
+           preventing unbounded historical scans and memory bloat on zero-budget Spark tier (DOM11-PERF-01).
+        5. src/features/dashboard/ManagerDashboard.jsx:
+           Made division filtering dynamic based on managerDivision = managerProfile?.division || "courses".
+           When a Kindergarten Division Manager logs in, scopes all listeners, daily cash intake,
+           ApprovalInbox, and ReportsDashboard to kindergarten instead of blinding them (DOM11-GOV-01).
+        6. src/features/dashboard/branchAuditRepository.js:
+           Documented diagnostic scope and backfill limitations for BranchHealthAuditCard (DOM11-TECH-01).
+        7. src/features/reports/tabs/FinancialReportsTab.test.js:
+           Added 3 automated regression tests verifying date horizon isolation, branchId fallback, and markup render.
+
+Date: 2026-10-12
+Section: Domain 11: Reports / Dashboards / Derived Data
+Authority: Authoritative Blueprint v3.3 (Principle 10, 15, 16), Technical Architecture (docs/ARCHITECTURE.md), Zero-Budget Spark Tier
+Tester / Agent: Antigravity Agent, under operator authorization
+
+Commits / Verification:
+  - Automated test suite: 104 passed, 1 skipped (emulator tests), 0 failed across 1,359 tests (+3 tests).
+  - FinancialReportsTab.test.js: 3 passed, 0 failed.
+  - reportsRepository.test.js: 22 passed, 0 failed.
+  - ExecutiveDashboard.test.js: 5 passed, 0 failed.
+  - ManagerDashboard.test.js: 5 passed, 0 failed.
+  - ESLint: npm run lint -> 0 errors, 0 warnings.
+  - TypeScript: npm run typecheck (tsc --noEmit) -> 0 errors.
+  - Build: npm run build -> built cleanly in 4.35s (PWA precache 66 entries).
+
+Not Run / Limitations:
+  - Firestore rules deploy: NOT PERFORMED — strictly operator-controlled (firebase deploy --only firestore:rules).
+  - Production deployment: NOT PERFORMED — strictly operator-controlled.
+```
+
+## Evidence Record — 2026-10-12 (Domain 12 Remediation)
+
+```text
+Change: Domain 12 (UX / Navigation / Mobile) Remediations
+        1. src/features/shared/ConfirmProvider.jsx:
+           Added window keydown Escape listener, backdrop click dismissal, and proper ARIA dialog
+           semantics (role="dialog", aria-modal="true", aria-labelledby, aria-describedby) (DOM12-A11Y-01).
+        2. src/features/shared/useOverlayHistory.js:
+           Added keydown Escape listener invoking onCloseRef.current?.(), delivering documented Escape dismissal
+           with symmetric window.history.back() unwind on unmount (DOM12-A11Y-02).
+        3. Operational Modals:
+           Integrated useOverlayHistory back-button trapping, backdrop click dismiss, and close button aria-label="Close"
+           across BatchModal, EnrollModal, TransferModal, CorporateEventModal, ShiftAdjustmentModal, StaffLeaveModal,
+           WalkInModal, PlacementTestModal, ApplicationPlacementModal, ApplicationRejectModal, and AddSchoolModal (DOM12-A11Y-03).
+        4. src/features/students/StudentPhotoCapture.jsx:
+           Replaced native blocking alert() dialogs on camera/upload failure with non-blocking useToast() errors (DOM12-UX-01).
+        5. Empty States:
+           Added accessible empty state row in StudentRosterTable (colSpan={10}) and empty state card in
+           CohortRosterMobileList, completing feedback parity with StudentRosterMobileList (DOM12-UX-02).
+        6. src/features/shared/useOverlayHistory.test.js:
+           Added unit test verifying Escape key invokes onClose and handles history cleanup.
+
+Date: 2026-10-12
+Section: Domain 12: UX / Navigation / Mobile
+Authority: Technical Architecture (docs/ARCHITECTURE.md), Working Style (AGENTS.md UI & Accessibility basics), Zero-Budget Spark Tier
+Tester / Agent: Antigravity Agent, under operator authorization
+
+Commits / Verification:
+  - Automated test suite: 104 passed, 1 skipped (emulator tests), 0 failed across 1,360 tests (+1 test).
+  - useOverlayHistory.test.js: 3 passed, 0 failed.
+  - StudentRosterTable.test.js: 2 passed, 0 failed.
+  - ESLint: npm run lint -> 0 errors, 0 warnings.
+  - TypeScript: npm run typecheck (tsc --noEmit) -> 0 errors.
+  - Build: npm run build -> built cleanly in 3.77s (PWA precache 66 entries).
+
+Not Run / Limitations:
+  - Hardware physical back-button on real mobile devices: requires field device testing.
+  - Production deployment: NOT PERFORMED — strictly operator-controlled.
+```
+
+## Evidence Record — 2026-10-12 (Domain 13 Remediation)
+
+```text
+Change: Domain 13 (Cloudflare Worker / External Integrations & Ops Tooling) Remediations
+        1. cloudflare-worker/worker.js:
+           Added "director" and "vice_director" to staffRoles in handleAIAssistant, restoring executive
+           access to AI assistance tools from ViceDirectorDashboard and DirectorDashboard (DOM13-SEC-01).
+        2. cloudflare-worker/worker.js:
+           Updated handleShiftClockIn and handleShiftClassSwitch to derive shift division with classDoc.division
+           precedence while preserving division="all" for cross-divisional staff (Ops Lead, Instructor Leader,
+           Office Boy), preventing division clobbering to "courses" (DOM13-COR-01).
+        3. cloudflare-worker/worker.js:
+           Applied normalizeBranchId across handleShiftClockIn, handleShiftClockOut, and handleShiftClassSwitch,
+           preventing false 403 Forbidden rejections for staff with legacy unslugged branch names (DOM13-COR-02).
+        4. cloudflare-worker/worker.js:
+           Updated activeShifts concurrency lock recovery in handleShiftClockIn: when the referenced shift
+           has been deleted or closed (!shiftCheck || shiftCheck.clockOut), safely deletes the orphaned lock
+           via version-precondition rather than permanently locking the employee out with 409 (DOM13-RES-01).
+        5. FormSync.gs:
+           Added defensive event null-safety (if (!e || !e.namedValues)), required non-empty displayName,
+           derived division dynamically from program string (deriveDivisionFromProgram_), and attached
+           intakeSource: "google_forms_sync" audit metadata (DOM13-INT-01).
+        6. scripts/_fix-irnawati.mjs:
+           Added explicit --projectId requirement and --dry-run / --commit safety gates per AGENTS.md (DOM13-TECH-01).
+        7. src/features/attendance/kioskHardening.test.js:
+           Added 4 automated regression tests verifying AI assistant executive roles, division resolution precedence,
+           branch normalization matching, and deleted/closed lock staleness detection.
+
+Date: 2026-10-12
+Section: Domain 13: Cloudflare Worker / External Integrations & Ops Tooling
+Authority: Technical Architecture (docs/ARCHITECTURE.md), Authoritative Blueprint v3.3 (Dual-Control Model), Zero-Budget Spark Tier
+Tester / Agent: Antigravity Agent, under operator authorization
+
+Commits / Verification:
+  - Automated test suite: 104 passed, 1 skipped (emulator tests), 0 failed across 1,364 tests (+4 tests).
+  - kioskHardening.test.js: 18 passed, 0 failed.
+  - ESLint: npm run lint -> 0 errors, 0 warnings.
+  - TypeScript: npm run typecheck (tsc --noEmit) -> 0 errors.
+  - Build: npm run build -> built cleanly in 964ms (PWA precache 66 entries).
+
+Not Run / Limitations:
+  - Cloudflare Worker deployment: NOT PERFORMED — operator-controlled (npm run deploy:worker).
+  - Google Apps Script copy-paste: manual operator step to update onFormSubmit in Google Form project script editor.
+  - Production deployment: NOT PERFORMED — strictly operator-controlled.
+```
+
+
+
+
+
+
+
 

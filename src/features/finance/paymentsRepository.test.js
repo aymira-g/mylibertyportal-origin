@@ -1,14 +1,39 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fake } from "../../test/firestoreFake.js";
-import { fetchPaymentHistory, markPaymentPending, recordPayment } from "./paymentsRepository.js";
+import { auth } from "../../firebase";
+import {
+  fetchPaymentHistory,
+  markPaymentPending,
+  recordPayment,
+  updatePaymentApprovalStatus,
+  getRecentPayments,
+  getPaymentsForRecordedDay,
+  resolveCallerBranchId,
+} from "./paymentsRepository.js";
 
 vi.mock(
   "firebase/firestore",
   async () => (await import("../../test/firestoreFake.js")).firestoreModule
 );
-vi.mock("../../firebase", () => ({ db: {}, auth: {} }));
+vi.mock("../../firebase", () => ({ db: {}, auth: { currentUser: null } }));
 
-beforeEach(() => fake.reset());
+const mockAuth = /** @type {any} */ (auth);
+
+beforeEach(() => {
+  fake.reset();
+  fake.seed("users", [
+    {
+      id: "s1",
+      displayName: "Student One",
+      role: "student",
+      branch: "Kota Gorontalo",
+      branchId: "kota_gorontalo",
+      division: "courses",
+      status: "active",
+    },
+  ]);
+  mockAuth.currentUser = null;
+});
 
 const record = {
   studentId: "s1",
@@ -75,6 +100,12 @@ describe("recordPayment", () => {
     await expect(recordPayment("", record)).rejects.toThrow();
     await expect(recordPayment("s1", { ...record, amount: -100 })).rejects.toThrow();
     await expect(recordPayment("s1", { ...record, period: "" })).rejects.toThrow();
+  });
+
+  it("throws error when recording payment for a non-existent student profile", async () => {
+    await expect(recordPayment("non_existent_student", record)).rejects.toThrow(
+      /Cannot record payment: student profile/
+    );
   });
 
   // Open to debate: lastPaymentDate uses the UTC date from the timestamp. A payment
@@ -153,3 +184,96 @@ describe("fetchPaymentHistory", () => {
     expect(await fetchPaymentHistory("nobody")).toEqual([]);
   });
 });
+
+describe("updatePaymentApprovalStatus", () => {
+  it("updates approvalStatus and stamps updatedAt on payment document (DOM04-GOV-01)", async () => {
+    await updatePaymentApprovalStatus("pay-999", "approved");
+    const op = fake.find("payments/pay-999");
+    expect(op).toBeDefined();
+    expect(op.kind).toBe("update");
+    expect(op.data.approvalStatus).toBe("approved");
+    expect(op.data.updatedAt).toBeDefined();
+  });
+
+  it("handles empty or missing paymentId gracefully without throwing", async () => {
+    await expect(updatePaymentApprovalStatus("", "rejected")).resolves.toBeUndefined();
+    await expect(updatePaymentApprovalStatus(null, "rejected")).resolves.toBeUndefined();
+  });
+});
+
+describe("resolveCallerBranchId (DOM04-SEC-01)", () => {
+  it("resolves explicit branch argument directly", async () => {
+    expect(await resolveCallerBranchId("Kota Gorontalo")).toBe("kota_gorontalo");
+    expect(await resolveCallerBranchId("limboto")).toBe("limboto");
+  });
+
+  it("allows 'all' for executive / admin caller", async () => {
+    mockAuth.currentUser = { uid: "exec1" };
+    fake.seed("users", [{ id: "exec1", role: "director", branchId: "kota_gorontalo" }]);
+    expect(await resolveCallerBranchId("all")).toBe("all");
+    expect(await resolveCallerBranchId(null)).toBe("all");
+  });
+
+  it("restricts non-executive caller to their assigned branch even when requesting 'all'", async () => {
+    mockAuth.currentUser = { uid: "fo1" };
+    fake.seed("users", [{ id: "fo1", role: "frontoffice", branchId: "kota_gorontalo" }]);
+    expect(await resolveCallerBranchId("all")).toBe("kota_gorontalo");
+    expect(await resolveCallerBranchId(null)).toBe("kota_gorontalo");
+  });
+
+  it("fails closed (returns null) when user is not signed in and requesting non-all", async () => {
+    mockAuth.currentUser = null;
+    expect(await resolveCallerBranchId(null)).toBeNull();
+  });
+});
+
+describe("getRecentPayments & getPaymentsForRecordedDay (DOM04-SEC-01 & DOM04-IDX-01)", () => {
+  beforeEach(() => {
+    mockAuth.currentUser = { uid: "mgr1" };
+    fake.seed("users", [{ id: "mgr1", role: "manager", branchId: "kota_gorontalo" }]);
+    fake.seed("payments", [
+      {
+        id: "pay-1",
+        branchId: "kota_gorontalo",
+        division: "kindergarten",
+        amount: 500000,
+        recordedAt: "2026-10-12T02:00:00.000Z",
+      },
+      {
+        id: "pay-2",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        amount: 350000,
+        recordedAt: "2026-10-12T03:00:00.000Z",
+      },
+      {
+        id: "pay-3",
+        branchId: "limboto",
+        division: "kindergarten",
+        amount: 500000,
+        recordedAt: "2026-10-12T02:30:00.000Z",
+      },
+    ]);
+  });
+
+  it("scopes getRecentPayments by caller branch and division", async () => {
+    const list = await getRecentPayments(50, null, "kindergarten");
+    expect(list.length).toBe(1);
+    expect(list[0].id).toBe("pay-1");
+  });
+
+  it("fetches recorded payments for WITA day filtered by branch and division", async () => {
+    const date = new Date("2026-10-12T05:00:00.000Z");
+    const list = await getPaymentsForRecordedDay(date, "kota_gorontalo", "kindergarten");
+    expect(list.length).toBe(1);
+    expect(list[0].id).toBe("pay-1");
+  });
+
+  it("fails closed when unauthenticated caller tries to query recent payments", async () => {
+    mockAuth.currentUser = null;
+    const list = await getRecentPayments(50, null);
+    expect(list).toEqual([]);
+  });
+});
+
+

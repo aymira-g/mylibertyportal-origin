@@ -33,7 +33,7 @@ export default function FrontOfficeReportsTab({
 }) {
   const [activeSubTab, setActiveSubTab] = useState("cash"); // 'cash' | 'inquiries' | 'shifts'
   const [todayInquiries, setTodayInquiries] = useState([]);
-  const [inquiriesLoading, setInquiriesLoading] = useState(true);
+  const [inquiriesLoading, setInquiriesLoading] = useState(() => Boolean(myBranch));
   const [personalShifts, setPersonalShifts] = useState([]);
   const [shiftsLoading, setShiftsLoading] = useState(() => Boolean(auth.currentUser?.uid));
   const [internalActiveShift, setInternalActiveShift] = useState(null);
@@ -45,7 +45,7 @@ export default function FrontOfficeReportsTab({
   useEffect(() => {
     let isMounted = true;
 
-    if (!propActiveShift && currentUser?.uid) {
+    if (!propActiveShift && currentUser?.uid && myBranch) {
       fetchOpenShiftFor(currentUser.uid, branchToId(myBranch))
         .then((shift) => {
           if (isMounted) setInternalActiveShift(shift);
@@ -55,24 +55,26 @@ export default function FrontOfficeReportsTab({
         });
     }
 
-    fetchRecentDeskInquiries(100, myBranch)
-      .then((allInquiries) => {
-        if (!isMounted) return;
-        const filtered = allInquiries.filter((inq) => {
-          const dateStr = (inq.createdAt || inq.timestamp || "").substring(0, 10);
-          const isToday = dateStr === todayStr;
-          const matchesBranch = matchesBranchFilter(inq.branch, myBranch);
-          return isToday && matchesBranch;
-        });
-        setTodayInquiries(filtered);
-        setInquiriesLoading(false);
-      })
-      .catch((err) => {
-        if (isMounted) {
-          console.warn("Failed to load today inquiries for Front Office reports:", err);
+    if (myBranch) {
+      fetchRecentDeskInquiries(100, myBranch)
+        .then((allInquiries) => {
+          if (!isMounted) return;
+          const filtered = allInquiries.filter((inq) => {
+            const dateStr = (inq.createdAt || inq.timestamp || "").substring(0, 10);
+            const isToday = dateStr === todayStr;
+            const matchesBranch = matchesBranchFilter(inq.branchId || inq.branch, myBranch);
+            return isToday && matchesBranch;
+          });
+          setTodayInquiries(filtered);
           setInquiriesLoading(false);
-        }
-      });
+        })
+        .catch((err) => {
+          if (isMounted) {
+            console.warn("Failed to load today inquiries for Front Office reports:", err);
+            setInquiriesLoading(false);
+          }
+        });
+    }
 
     if (currentUser?.uid) {
       fetchUserShifts(currentUser.uid, 30)

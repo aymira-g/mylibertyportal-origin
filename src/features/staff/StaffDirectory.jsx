@@ -22,7 +22,6 @@ import {
 import { StaffMemberCard } from "./StaffMemberCard";
 import {
   Search,
-  UserPlus,
   Mail,
   Users,
   GraduationCap,
@@ -35,7 +34,6 @@ export default function StaffDirectory({
   classes = [],
   invites = [],
   currentUserId = null,
-  onAddStaff = null,
   onEditStaff = null,
   onPrintBadge = null,
   onDeleteStaff = null,
@@ -235,21 +233,10 @@ export default function StaffDirectory({
             <button
               type="button"
               onClick={onNavigateToInvites}
-              className="py-2 px-3.5 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <Mail className="w-3.5 h-3.5 text-slate-500" />
-              <span>Invite Staff</span>
-            </button>
-          )}
-
-          {onAddStaff && (
-            <button
-              type="button"
-              onClick={onAddStaff}
               className="py-2 px-4 rounded-xl font-extrabold text-xs bg-[#1a3a8f] hover:bg-[#152e72] text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer"
             >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>Add Staff Account</span>
+              <Mail className="w-3.5 h-3.5" />
+              <span>Invite Staff</span>
             </button>
           )}
         </div>

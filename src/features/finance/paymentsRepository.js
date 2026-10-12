@@ -1,4 +1,4 @@
-import { db } from "../../firebase";
+import { auth, db } from "../../firebase";
 import {
   collection,
   getDocs,
@@ -9,6 +9,7 @@ import {
   limit,
   doc,
   setDoc,
+  updateDoc,
   writeBatch,
   deleteField,
 } from "firebase/firestore";
@@ -16,6 +17,37 @@ import { todayWita, getWitaDayRangeIso } from "../../utils/dateWita.js";
 import { studentIdSchema, paymentRecordSchema } from "../../schemas";
 import { branchToId, idToBranch, DEFAULT_BRANCH_ID } from "../../constants/branches";
 import { normalizeDivision, divisionOfProgram } from "../../constants/divisions";
+import { normalizeRole, isExecutiveRole } from "../shared/roles.js";
+
+/**
+ * Resolves the caller's authorized branch ID for payments queries (DOM04-SEC-01).
+ * - Explicit branchId argument if provided (or "all" for executives)
+ * - Otherwise fetches users/{uid} for the signed-in user
+ *
+ * @param {string|null} [explicitBranchId]
+ * @returns {Promise<string|null>} "all", canonical branchId, or null
+ */
+export async function resolveCallerBranchId(explicitBranchId = null) {
+  if (explicitBranchId && explicitBranchId !== "all") {
+    return branchToId(explicitBranchId);
+  }
+  const user = auth?.currentUser;
+  if (!user) return explicitBranchId === "all" ? "all" : null;
+  try {
+    const snap = await getDoc(doc(db, "users", user.uid));
+    if (snap.exists()) {
+      const data = snap.data();
+      const normRole = normalizeRole(data.role);
+      if (normRole === "admin" || isExecutiveRole(normRole)) {
+        return explicitBranchId === "all" ? "all" : (explicitBranchId ? branchToId(explicitBranchId) : "all");
+      }
+      return data.branchId || (data.branch ? branchToId(data.branch) : null);
+    }
+  } catch {
+    // Fail closed
+  }
+  return null;
+}
 
 /**
  * All direct Firestore reads/writes for payments live here.
@@ -23,9 +55,10 @@ import { normalizeDivision, divisionOfProgram } from "../../constants/divisions"
 
 export async function fetchPaymentHistory(studentId, branchId = null, division = null) {
   const validStudentId = studentIdSchema.parse(studentId);
+  const resolvedBranch = await resolveCallerBranchId(branchId);
   const constraints = [where("studentId", "==", validStudentId)];
-  if (branchId) {
-    constraints.push(where("branchId", "==", branchId));
+  if (resolvedBranch && resolvedBranch !== "all") {
+    constraints.push(where("branchId", "==", resolvedBranch));
   }
   if (division && division !== "all") {
     constraints.push(where("division", "==", division));
@@ -47,10 +80,14 @@ export async function fetchPaymentHistory(studentId, branchId = null, division =
  * @returns {Promise<Array<any>>}
  */
 export async function getRecentPayments(limitCount = 50, branchId = null, division = null) {
+  const resolvedBranch = await resolveCallerBranchId(branchId);
+  if (!resolvedBranch) {
+    return [];
+  }
   try {
     const constraints = [];
-    if (branchId) {
-      constraints.push(where("branchId", "==", branchId));
+    if (resolvedBranch !== "all") {
+      constraints.push(where("branchId", "==", resolvedBranch));
     }
     if (division && division !== "all") {
       constraints.push(where("division", "==", division));
@@ -66,8 +103,8 @@ export async function getRecentPayments(limitCount = 50, branchId = null, divisi
     // If composite index is pending, fallback to client-side sort
     console.warn("getRecentPayments fallback without orderBy:", err?.message);
     const fallbackConstraints = [];
-    if (branchId) {
-      fallbackConstraints.push(where("branchId", "==", branchId));
+    if (resolvedBranch !== "all") {
+      fallbackConstraints.push(where("branchId", "==", resolvedBranch));
     }
     if (division && division !== "all") {
       fallbackConstraints.push(where("division", "==", division));
@@ -92,11 +129,15 @@ export async function getRecentPayments(limitCount = 50, branchId = null, divisi
  * @returns {Promise<Array<any>>}
  */
 export async function getPaymentsForRecordedDay(witaDate = new Date(), branchId = null, division = null) {
+  const resolvedBranch = await resolveCallerBranchId(branchId);
+  if (!resolvedBranch) {
+    return [];
+  }
   const { startIso, endIso } = getWitaDayRangeIso(witaDate);
   try {
     const constraints = [];
-    if (branchId) {
-      constraints.push(where("branchId", "==", branchId));
+    if (resolvedBranch !== "all") {
+      constraints.push(where("branchId", "==", resolvedBranch));
     }
     if (division && division !== "all") {
       constraints.push(where("division", "==", division));
@@ -115,26 +156,34 @@ export async function getPaymentsForRecordedDay(witaDate = new Date(), branchId 
     return list;
   } catch (err) {
     console.warn("getPaymentsForRecordedDay range query error, falling back to recent scan:", err?.message);
-    // Safe fallback if range index isn't created yet: fetch recent 200 and filter by WITA day
     const fallbackConstraints = [];
-    if (branchId) {
-      fallbackConstraints.push(where("branchId", "==", branchId));
+    if (resolvedBranch !== "all") {
+      fallbackConstraints.push(where("branchId", "==", resolvedBranch));
     }
     if (division && division !== "all") {
       fallbackConstraints.push(where("division", "==", division));
     }
-    fallbackConstraints.push(limit(200));
-    const q = query(collection(db, "payments"), ...fallbackConstraints);
-    const snap = await getDocs(q);
-    return snap.docs
-      .map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }))
-      .filter((p) => {
-        if (!p.recordedAt) return false;
-        return p.recordedAt >= startIso && p.recordedAt < endIso;
-      })
-      .sort((a, b) => new Date(b.recordedAt || 0).getTime() - new Date(a.recordedAt || 0).getTime());
+    try {
+      const qDesc = query(collection(db, "payments"), ...fallbackConstraints, orderBy("recordedAt", "desc"), limit(200));
+      const snapDesc = await getDocs(qDesc);
+      return snapDesc.docs
+        .map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }))
+        .filter((p) => p.recordedAt && p.recordedAt >= startIso && p.recordedAt < endIso);
+    } catch {
+      fallbackConstraints.push(limit(200));
+      const q = query(collection(db, "payments"), ...fallbackConstraints);
+      const snap = await getDocs(q);
+      return snap.docs
+        .map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }))
+        .filter((p) => {
+          if (!p.recordedAt) return false;
+          return p.recordedAt >= startIso && p.recordedAt < endIso;
+        })
+        .sort((a, b) => new Date(b.recordedAt || 0).getTime() - new Date(a.recordedAt || 0).getTime());
+    }
   }
 }
+
 
 /**
  * Writes the payment record and updates the student's payment status
@@ -150,19 +199,17 @@ export async function recordPayment(studentId, paymentRecord, idempotencyKey = n
   const branchId = branchToId(rawBranch);
   const branch = idToBranch(branchId);
 
+  const studentSnap = await getDoc(doc(db, "users", validStudentId));
+  if (!studentSnap.exists()) {
+    throw new Error(`Cannot record payment: student profile "${validStudentId}" does not exist.`);
+  }
+  const studentData = studentSnap.data();
+
   let division = paymentRecord.division || null;
   if (!division) {
-    try {
-      const studentSnap = await getDoc(doc(db, "users", validStudentId));
-      if (studentSnap.exists()) {
-        const studentData = studentSnap.data();
-        division =
-          studentData.division ||
-          divisionOfProgram(studentData.programId || studentData.program);
-      }
-    } catch (err) {
-      console.warn("Could not fetch student to derive division for payment:", err);
-    }
+    division =
+      studentData.division ||
+      divisionOfProgram(studentData.programId || studentData.program);
   }
   const finalDivision = division ? normalizeDivision(division) : "courses";
 
@@ -240,4 +287,19 @@ export function updateStudentPaymentStatus(studentId, paymentStatus, paidUntil =
     payload.paidUntil = deleteField();
   }
   return setDoc(doc(db, "users", validStudentId), payload, { merge: true });
+}
+
+/**
+ * Updates the approval status on a payment record (e.g. Dual-Control discount review).
+ *
+ * @param {string} paymentId
+ * @param {"approved"|"rejected"|"pending"} approvalStatus
+ * @returns {Promise<void>}
+ */
+export async function updatePaymentApprovalStatus(paymentId, approvalStatus) {
+  if (!paymentId) return;
+  await updateDoc(doc(db, "payments", paymentId), {
+    approvalStatus,
+    updatedAt: new Date().toISOString(),
+  });
 }

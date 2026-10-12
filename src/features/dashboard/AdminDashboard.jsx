@@ -7,7 +7,6 @@ import {
   isStaffRole,
 } from "../shared";
 import {
-  UserPlus,
   ArrowRight,
   ShieldCheck,
   Users,
@@ -44,7 +43,6 @@ export default function AdminDashboard() {
     setFormData,
     handleSave,
     handleEdit,
-    handleAddStaff,
     handleDelete,
     handleAddTodo,
     handleDeleteTodo,
@@ -110,12 +108,12 @@ export default function AdminDashboard() {
           <h4 className="font-bold text-slate-800 text-sm">System Quick Actions</h4>
           <div className="grid grid-cols-2 gap-2 mt-3">
             <button
-              onClick={() => handleAddStaff()}
+              onClick={() => handleTabChange("directory")}
               className="p-3 min-h-12 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-bold text-slate-700 hover:bg-slate-100 transition text-left flex items-center justify-between cursor-pointer"
             >
               <div className="flex items-center gap-2">
-                <UserPlus className="w-4 h-4 text-emerald-600" />
-                <span>Add Staff</span>
+                <Users className="w-4 h-4 text-emerald-600" />
+                <span>Staff Directory</span>
               </div>
               <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
             </button>
@@ -222,7 +220,6 @@ export default function AdminDashboard() {
           classes={classes}
           invites={invites}
           currentUserId={auth.currentUser?.uid}
-          onAddStaff={handleAddStaff}
           onEditStaff={handleEdit}
           onPrintBadge={setSelectedStudent}
           onDeleteStaff={handleDelete}

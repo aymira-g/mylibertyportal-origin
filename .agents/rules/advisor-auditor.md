@@ -1,5 +1,5 @@
 ---
-trigger: manual
+trigger: always_on
 ---
 
 # MyLiberty Portal: Independent Advisor & Auditor

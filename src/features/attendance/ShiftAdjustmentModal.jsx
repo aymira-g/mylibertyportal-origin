@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { X, ShieldAlert, Check } from "lucide-react";
 import { adjustShiftWithAudit } from "./shiftsRepository";
-import { useToast, createApprovalEnvelope, submitApprovalRequest } from "../shared";
+import { useToast, createApprovalEnvelope, submitApprovalRequest, useOverlayHistory } from "../shared";
 import { formatWitaForInput, parseWitaInputToUtcIso } from "../../utils/dateWita";
 import { checkNetworkReachability } from "../../utils/networkReachability";
 
@@ -15,6 +15,7 @@ const REASON_CODES = [
 
 export default function ShiftAdjustmentModal({ shift, actor, onClose, onSuccess }) {
   const toast = useToast();
+  useOverlayHistory(Boolean(shift), onClose, "shiftAdjustmentModal");
   const [clockIn, setClockIn] = useState(shift?.clockIn ? formatWitaForInput(shift.clockIn) : "");
   const [clockOut, setClockOut] = useState(
     shift?.clockOut ? formatWitaForInput(shift.clockOut) : ""
@@ -57,7 +58,8 @@ export default function ShiftAdjustmentModal({ shift, actor, onClose, onSuccess 
         clockOut: parsedClockOut,
       };
 
-      const isSelfCorrection = actor?.uid && shift.uid && actor.uid === shift.uid;
+      const targetUserId = shift.userId || shift.uid;
+      const isSelfCorrection = actor?.uid && targetUserId && actor.uid === targetUserId;
       const isAdmin = actor?.role === "admin";
 
       if (isSelfCorrection && !isAdmin) {
@@ -72,7 +74,7 @@ export default function ShiftAdjustmentModal({ shift, actor, onClose, onSuccess 
           {
             shiftId: shift.id,
             reason: `${reasonCode}: ${note.trim()}`,
-            payload: { beforeShift: shift, afterData, reasonCode },
+            payload: { beforeShift: shift, afterData, reasonCode, shiftId: shift.id },
           }
         );
 
@@ -113,8 +115,18 @@ export default function ShiftAdjustmentModal({ shift, actor, onClose, onSuccess 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
-      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-6">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-fadeIn"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Audited Shift Adjustment"
+        className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-6"
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-amber-50/70">
           <div className="flex items-center gap-2.5">
@@ -130,6 +142,7 @@ export default function ShiftAdjustmentModal({ shift, actor, onClose, onSuccess 
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="p-2 rounded-full hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />

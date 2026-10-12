@@ -41,6 +41,7 @@ export const corporateEventSchema = z
     }),
     audienceValue: z.string().trim().nullable().optional(),
     status: z.enum(["active", "cancelled"]).default("active"),
+    isOvernight: z.boolean().optional().default(false),
     createdBy: z.string().trim().optional(),
   })
   .superRefine((data, ctx) => {
@@ -49,11 +50,17 @@ export const corporateEventSchema = z
       const [endH, endM] = data.endTime.split(":").map(Number);
       const startMinutes = (startH || 0) * 60 + (startM || 0);
       const endMinutes = (endH || 0) * 60 + (endM || 0);
-      if (endMinutes <= startMinutes) {
+      if (!data.isOvernight && endMinutes <= startMinutes) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["endTime"],
-          message: "End time must be after start time.",
+          message: "End time must be after start time (or enable overnight event).",
+        });
+      } else if (data.isOvernight && endMinutes === startMinutes) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["endTime"],
+          message: "End time cannot be identical to start time for overnight events.",
         });
       }
     }

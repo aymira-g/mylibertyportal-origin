@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { UserPlus, ArrowRightLeft, X } from "lucide-react";
-import { LevelBadge, isCompatible, useToast } from "../shared";
+import { LevelBadge, isCompatible, useToast, useOverlayHistory } from "../shared";
 import {
   addStudentToClass,
   transferStudentBetweenClasses,
@@ -15,6 +15,7 @@ export default function EnrollModal({
   onEnrolled = null,
 }) {
   const toast = useToast();
+  useOverlayHistory(Boolean(batch), onClose, "enrollModal");
   const [enrollMode, setEnrollMode] = useState("direct"); // "direct" | "transfer"
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [selectedTransferKey, setSelectedTransferKey] = useState("");
@@ -124,8 +125,18 @@ export default function EnrollModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
-      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-6">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-fadeIn"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={enrollMode === "transfer" ? "Transfer Student to Batch" : "Enroll Student into Batch"}
+        className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-6"
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/80">
           <div className="flex items-center gap-2.5">
@@ -151,6 +162,7 @@ export default function EnrollModal({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="p-2 rounded-full hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition"
           >
             <X className="w-5 h-5" />

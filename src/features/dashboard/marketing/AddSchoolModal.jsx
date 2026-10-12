@@ -2,11 +2,12 @@ import { useState } from "react";
 import { X, Building2, MapPin, Compass, AlertCircle } from "lucide-react";
 import { SCHOOL_TIERS } from "../../../schemas/schoolOutreachSchema";
 import { addSchool } from "./schoolOutreachRepository";
-import { useToast } from "../../shared";
+import { useToast, useOverlayHistory } from "../../shared";
 import { branchToId, idToBranch } from "../../../constants/branches";
 
 export default function AddSchoolModal({ currentUser, branchId = null, onClose, onSchoolAdded }) {
   const toast = useToast();
+  useOverlayHistory(true, onClose, "addSchoolModal");
 
   const defaultMunicipality = branchId ? idToBranch(branchId) : "Kota Gorontalo";
   const defaultDistrict = defaultMunicipality === "Kota Gorontalo" ? "Kota Tengah" : "";
@@ -93,8 +94,18 @@ export default function AddSchoolModal({ currentUser, branchId = null, onClose, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
-      <div className="bg-white w-full max-w-md rounded-3xl shadow-xl border border-slate-100 overflow-hidden flex flex-col">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add New Target School"
+        className="bg-white w-full max-w-md rounded-3xl shadow-xl border border-slate-100 overflow-hidden flex flex-col"
+      >
         {/* Header */}
         <div className="p-5 bg-gradient-to-r from-[#1a3a8f] to-[#2a4db3] text-white flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -103,6 +114,7 @@ export default function AddSchoolModal({ currentUser, branchId = null, onClose, 
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition"
           >
             <X className="w-5 h-5" />

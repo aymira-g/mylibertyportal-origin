@@ -710,6 +710,11 @@ export function createApprovalEnvelope(actionId, requester = {}, context = {}) {
   const requestedBy = requester.name || requester.displayName || requester.email || "Staff";
   const rawBranch = requester.branchId || requester.branch || null;
   const approverBranchId = rawBranch ? branchToId(rawBranch) : null;
+  const division =
+    requester.division ||
+    context.division ||
+    context.payload?.division ||
+    null;
 
   return {
     actionId: gate.id,
@@ -724,6 +729,7 @@ export function createApprovalEnvelope(actionId, requester = {}, context = {}) {
     separationRequired: gate.separationRequired,
     approverRole: resolvedApproverRole,
     approverBranchId,
+    division,
     requestedBy,
     requestedByUid: requester.uid || null,
     requestedAt,
@@ -731,7 +737,7 @@ export function createApprovalEnvelope(actionId, requester = {}, context = {}) {
     decidedByUid: null,
     decidedAt: null,
     reason: context.reason || null,
-    payload: context.payload || null,
+    payload: context.payload || (Object.keys(context).some((k) => k !== "reason") ? { ...context } : null),
   };
 }
 

@@ -58,6 +58,27 @@ async function clearPromotionEligibility(reportId) {
   });
 }
 
+export async function clearStudentPendingPromotions(studentId) {
+  if (!studentId) return;
+  try {
+    const q = query(
+      collection(db, "progressReports"),
+      where("studentId", "==", studentId),
+      where("eligibleForPromotion", "==", true)
+    );
+    const snap = await getDocs(q);
+    const updates = snap.docs.map((d) =>
+      updateDoc(d.ref, {
+        eligibleForPromotion: false,
+        promotedAt: serverTimestamp(),
+      })
+    );
+    await Promise.all(updates);
+  } catch (err) {
+    console.warn("clearStudentPendingPromotions warning:", err?.message);
+  }
+}
+
 export async function promoteStudentLevel(studentId, nextLevel, reportId = null) {
   if (!studentId || !nextLevel) return;
   const studentRef = doc(db, "users", studentId);
@@ -71,4 +92,6 @@ export async function promoteStudentLevel(studentId, nextLevel, reportId = null)
   if (reportId) {
     await clearPromotionEligibility(reportId);
   }
+  await clearStudentPendingPromotions(studentId);
 }
+

@@ -543,3 +543,35 @@ describe("applyApprovedShiftCorrection", () => {
   });
 });
 
+describe("logStaffLeave (DOM07-SEC-01 & DOM07-SEC-02)", () => {
+  it("creates a staff leave record with division and normalized branchId", async () => {
+    await logStaffLeave({
+      userId: "mgr-1",
+      displayNameSnapshot: "Siti Manager",
+      branchId: "Kota Gorontalo",
+      division: "courses",
+      type: "cuti",
+      startDate: "2026-10-20",
+      endDate: "2026-10-22",
+      dayPortion: "full",
+      note: "Annual vacation",
+      createdBy: "dir-1",
+    });
+
+    const addOp = fake.opsOf("add").find((op) => op.path.startsWith("staffLeave"));
+    expect(addOp).toBeDefined();
+    expect(addOp.data).toMatchObject({
+      userId: "mgr-1",
+      displayNameSnapshot: "Siti Manager",
+      branchId: "kota_gorontalo",
+      division: "courses",
+      type: "cuti",
+      startDate: "2026-10-20",
+      endDate: "2026-10-22",
+      dayPortion: "full",
+      status: "approved",
+      createdBy: "dir-1",
+    });
+  });
+});
+

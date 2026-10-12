@@ -46,6 +46,7 @@ export default function CorporateEventsPanel({
     eventDate: todayWita(),
     startTime: "",
     endTime: "",
+    isOvernight: false,
     audienceType: "all",
     audienceValue: "",
   });
@@ -115,6 +116,7 @@ export default function CorporateEventsPanel({
       eventDate: todayWita(),
       startTime: "",
       endTime: "",
+      isOvernight: false,
       audienceType: "all",
       audienceValue: "",
     });

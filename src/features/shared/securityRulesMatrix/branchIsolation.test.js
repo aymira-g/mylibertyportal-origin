@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   isStaff,
   isSameBranch,
+  isSameBranchStrict,
   isAdmin,
   isManager,
   isFrontOffice,
@@ -166,7 +167,10 @@ describe("Branch Isolation & Boundary Protection Security Matrix", () => {
   describe("Corporate Events Authorization & Branch Isolation", () => {
     function canReadCorporateEvent(doc, user) {
       if (!user) return false;
-      return isStaff(user);
+      if (isAdmin(user)) return true;
+      if (!isStaff(user)) return false;
+      if (doc?.audienceType === "all") return true;
+      return isSameBranchStrict(doc, user);
     }
 
     function canCreateCorporateEvent(incoming, user) {
@@ -189,23 +193,27 @@ describe("Branch Isolation & Boundary Protection Security Matrix", () => {
       );
     }
 
-    it("allows all staff to read corporate events while blocking students and unauthenticated visitors", () => {
+    it("allows staff to read company-wide and own-branch events while blocking foreign branch and non-staff (DOM02-VER-01)", () => {
       const allEvt = { name: "Academy Townhall", audienceType: "all" };
-      const gtoEvt = { name: "Gorontalo Meeting", audienceType: "branch", audienceValue: "kota_gorontalo" };
-      const bobaEvt = { name: "Bone Bolango Meeting", audienceType: "branch", audienceValue: "bone_bolango" };
-      const roleEvt = { name: "Instructors Sync", audienceType: "role", audienceValue: "instructor" };
+      const gtoEvt = { name: "Gorontalo Meeting", audienceType: "branch", branchId: "kota_gorontalo", audienceValue: "kota_gorontalo" };
+      const bobaEvt = { name: "Bone Bolango Meeting", audienceType: "branch", branchId: "bone_bolango", audienceValue: "bone_bolango" };
+      const roleEvt = { name: "Instructors Sync", audienceType: "all", audienceValue: "instructor" };
 
       // Admin has cross-branch access
       expect(canReadCorporateEvent(allEvt, adminUser)).toBe(true);
       expect(canReadCorporateEvent(gtoEvt, adminUser)).toBe(true);
       expect(canReadCorporateEvent(bobaEvt, adminUser)).toBe(true);
 
-      // Staff across all branches can read corporate events (ensuring collection queries run cleanly)
+      // Company-wide events readable by staff across all branches
       expect(canReadCorporateEvent(allEvt, foGorontalo)).toBe(true);
       expect(canReadCorporateEvent(roleEvt, foGorontalo)).toBe(true);
+      expect(canReadCorporateEvent(allEvt, foBoneBolango)).toBe(true);
+
+      // Branch-scoped events strictly isolated to same branch
       expect(canReadCorporateEvent(gtoEvt, foGorontalo)).toBe(true);
+      expect(canReadCorporateEvent(gtoEvt, foBoneBolango)).toBe(false);
       expect(canReadCorporateEvent(bobaEvt, foBoneBolango)).toBe(true);
-      expect(canReadCorporateEvent(bobaEvt, foGorontalo)).toBe(true);
+      expect(canReadCorporateEvent(bobaEvt, foGorontalo)).toBe(false);
 
       // Students and unauthenticated visitors cannot read corporate events
       expect(canReadCorporateEvent(allEvt, { role: "student" })).toBe(false);

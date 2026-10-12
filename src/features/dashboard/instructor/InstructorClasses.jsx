@@ -279,8 +279,10 @@ export default function InstructorClasses({
         getStudentClasses={getStudentClasses}
         setSelectedStudent={setSelectedStudent}
         userRole="instructor"
+        branchId={classes[0]?.branchId || null}
         canViewParents={false}
       />
+
       <BadgeModal person={selectedStudent} onClose={() => setSelectedStudent(null)} />
     </div>
   );

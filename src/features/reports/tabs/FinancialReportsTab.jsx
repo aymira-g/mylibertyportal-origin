@@ -3,8 +3,8 @@ import { getRecentPayments } from "../../finance/paymentsRepository";
 import { formatIDR } from "../../finance/receiptMessages";
 import { summarizePaymentsByMethod } from "../../finance/financeUtils";
 import { exportTableCSV } from "../../shared";
-import { matchesBranchFilter, branchToId } from "../../../constants/branches";
-import { matchesDivisionFilter } from "../../../constants/divisions";
+import { branchToId } from "../../../constants/branches";
+import { filterPayments } from "../reportsUtils";
 import {
   DollarSign,
   Wallet,
@@ -32,7 +32,7 @@ const FinancialReportsTab = forwardRef(
     const fetchFinancialData = useCallback(async () => {
       setLoading(true);
       try {
-        const canonicalBranchId = branchFilter !== "all" ? branchToId(branchFilter) : null;
+        const canonicalBranchId = branchFilter !== "all" ? branchToId(branchFilter) : "all";
         const limitCount = rangeDays === 0 ? 300 : rangeDays <= 7 ? 100 : 200;
         const list = await getRecentPayments(limitCount, canonicalBranchId, division !== "all" ? division : null);
         setPayments(list);
@@ -49,32 +49,14 @@ const FinancialReportsTab = forwardRef(
 
     // Client-side filtering
     const filteredPayments = useMemo(() => {
-      return payments.filter((p) => {
-        // Branch match
-        if (branchFilter !== "all" && !matchesBranchFilter(p.branchId || p.branch, branchFilter)) {
-          return false;
-        }
-        // Division match
-        if (division !== "all" && !matchesDivisionFilter(p.division, division)) {
-          return false;
-        }
-        // Payment method match
-        if (methodFilter !== "all" && (p.method || "").toLowerCase() !== methodFilter.toLowerCase()) {
-          return false;
-        }
-        // Text search
-        if (search.trim()) {
-          const q = search.toLowerCase();
-          const student = (p.studentName || p.studentId || "").toLowerCase();
-          const plan = (p.planName || "").toLowerCase();
-          const notes = (p.notes || "").toLowerCase();
-          if (!student.includes(q) && !plan.includes(q) && !notes.includes(q)) {
-            return false;
-          }
-        }
-        return true;
+      return filterPayments(payments, {
+        rangeDays,
+        branchFilter,
+        division,
+        methodFilter,
+        search,
       });
-    }, [payments, branchFilter, division, methodFilter, search]);
+    }, [payments, rangeDays, branchFilter, division, methodFilter, search]);
 
     // Financial KPI Summary
     const summary = useMemo(() => {

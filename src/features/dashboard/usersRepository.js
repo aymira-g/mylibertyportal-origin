@@ -10,9 +10,11 @@ import {
   limit,
   getDocs,
   getDoc,
+  deleteDoc,
   arrayRemove,
   arrayUnion,
 } from "firebase/firestore";
+
 import { createUserWithEmailAndPassword, deleteUser } from "firebase/auth";
 import { branchToId, idToBranch, DEFAULT_BRANCH_ID } from "../../constants/branches";
 import {
@@ -341,12 +343,22 @@ export async function createParentAccount(email, password, parentData) {
 
   const payload = parentUserSchema.parse(rawPayload);
 
+  let docCreated = false;
+
   try {
     await setDoc(doc(db, "users", cred.user.uid), payload, { merge: true });
+    docCreated = true;
     for (const studentId of initialChildren) {
-      await linkChildThroughWorker(cred.user.uid, studentId);
+      await linkChildInternal(cred.user.uid, studentId);
     }
   } catch (err) {
+    if (docCreated) {
+      try {
+        await deleteDoc(doc(db, "users", cred.user.uid));
+      } catch (cleanupDocErr) {
+        console.warn("Failed to clean up Firestore parent doc:", cleanupDocErr);
+      }
+    }
     try {
       await deleteUser(cred.user);
     } catch (cleanupErr) {
@@ -360,6 +372,7 @@ export async function createParentAccount(email, password, parentData) {
 
   return cred.user.uid;
 }
+
 
 /**
  * Updates an existing parent profile with a restricted field set.

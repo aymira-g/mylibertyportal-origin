@@ -67,3 +67,10 @@ export const instructorGorontalo = {
   role: "instructor",
   branchId: "kota_gorontalo",
 };
+
+export const managerKindergartenGorontalo = {
+  uid: "mgr_kg_gtlo",
+  role: "manager",
+  branchId: "kota_gorontalo",
+  division: "kindergarten",
+};

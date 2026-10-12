@@ -260,6 +260,9 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
       const savedPayment = await recordPayment(student.id, paymentRecord);
 
       if (discountEnvelope) {
+        if (savedPayment?.id) {
+          discountEnvelope.payload.paymentId = savedPayment.id;
+        }
         try {
           await submitApprovalRequest(discountEnvelope);
         } catch (approvalErr) {

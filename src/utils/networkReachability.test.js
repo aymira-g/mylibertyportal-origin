@@ -113,5 +113,21 @@ describe("checkNetworkReachability", () => {
 
     const reachable = await checkNetworkReachability();
     expect(reachable).toBe(false);
+    // 5xx is not "file missing" — no second probe (DOM10-PERF-01)
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not run the fallback probe after a network error or timeout (DOM10-PERF-01)", async () => {
+    Object.defineProperty(globalThis, "navigator", {
+      value: { onLine: true },
+      writable: true,
+      configurable: true,
+    });
+
+    globalThis.fetch = vi.fn().mockRejectedValue(new DOMException("aborted", "AbortError"));
+
+    const reachable = await checkNetworkReachability({ timeoutMs: 50 });
+    expect(reachable).toBe(false);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 });

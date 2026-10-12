@@ -119,5 +119,38 @@ describe("approvalsRepository", () => {
 
     expect(receivedItems.length).toBe(2);
     expect(receivedItems.map((i) => i.id)).toEqual(["1", "3"]);
+
+    // Test with kindergarten division filter: legacy ticket without division defaults to courses and is excluded
+    let kgItems = [];
+    listenToPendingApprovals(
+      "manager",
+      "kota_gorontalo",
+      (items) => {
+        kgItems = items;
+      },
+      vi.fn(),
+      { division: "kindergarten" }
+    );
+
+    snapshotCallback({
+      docs: [
+        { id: "1", data: () => ({ id: "1", label: "Course Item", division: "courses" }) },
+        { id: "2", data: () => ({ id: "2", label: "Kindergarten Item", division: "kindergarten" }) },
+        { id: "3", data: () => ({ id: "3", label: "Shared Item", division: "all" }) },
+        { id: "4", data: () => ({ id: "4", label: "Legacy Item" }) }, // no division -> defaults to courses
+      ],
+    });
+
+    expect(kgItems.length).toBe(2);
+    expect(kgItems.map((i) => i.id)).toEqual(["2", "3"]);
+  });
+
+  it("marks approval as applied and strictly binds appliedByUid to authenticated user", async () => {
+    const { markApprovalApplied } = await import("./approvalsRepository");
+    const result = await markApprovalApplied("appr_999");
+
+    expect(result.id).toBe("appr_999");
+    expect(result.applied).toBe(true);
+    expect(result.appliedByUid).toBe("user_123");
   });
 });

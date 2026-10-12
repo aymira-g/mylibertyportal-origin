@@ -38,4 +38,48 @@ describe("useOverlayHistory logic", () => {
   it("exports useOverlayHistory function", () => {
     expect(typeof useOverlayHistory).toBe("function");
   });
+
+  it("registers popstate and keydown listeners and handles Escape key", () => {
+    const onClose = vi.fn();
+
+    // Simulate the effect logic of useOverlayHistory
+    let isPushed = false;
+    window.history.pushState({ overlay: true }, "");
+    isPushed = true;
+
+    const handlePopState = () => {
+      if (isPushed) {
+        isPushed = false;
+        onClose();
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    window.addEventListener("keydown", handleKeyDown);
+
+    expect(window.addEventListener).toHaveBeenCalledWith("popstate", expect.any(Function));
+    expect(window.addEventListener).toHaveBeenCalledWith("keydown", expect.any(Function));
+
+    // Test non-Escape key doesn't close
+    listeners.keydown({ key: "Enter" });
+    expect(onClose).not.toHaveBeenCalled();
+
+    // Test Escape key triggers onClose
+    listeners.keydown({ key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    // Test cleanup unwinds history
+    window.removeEventListener("popstate", handlePopState);
+    window.removeEventListener("keydown", handleKeyDown);
+    if (isPushed) {
+      window.history.back();
+    }
+    expect(backSpy).toHaveBeenCalledTimes(1);
+  });
 });

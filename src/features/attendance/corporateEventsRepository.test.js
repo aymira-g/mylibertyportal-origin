@@ -138,6 +138,28 @@ describe("corporateEventsRepository", () => {
       expect(ids).not.toContain("evt-boba");
     });
 
+    it("fetchActiveCorporateEventsForDate queries yesterday's events when called post-midnight (DOM03-COR-01)", async () => {
+      // evt-all and evt-gto are seeded on 2026-10-15.
+      // Querying on 2026-10-16 at 02:00 WITA (< 06:00 WITA) should include events from 2026-10-15.
+      const events = await fetchActiveCorporateEventsForDate("2026-10-16", "kota_gorontalo", {
+        currentTime: "2026-10-16T02:00:00+08:00",
+      });
+      const ids = events.map((e) => e.id);
+      expect(ids).toContain("evt-all");
+      expect(ids).toContain("evt-gto");
+    });
+
+    it("fetchActiveCorporateEventsForDate does not query yesterday during daytime hours", async () => {
+      // Querying on 2026-10-16 at 14:00 WITA should NOT query 2026-10-15.
+      const events = await fetchActiveCorporateEventsForDate("2026-10-16", "kota_gorontalo", {
+        currentTime: "2026-10-16T14:00:00+08:00",
+      });
+      const ids = events.map((e) => e.id);
+      expect(ids).not.toContain("evt-all");
+      expect(ids).not.toContain("evt-gto");
+    });
+
+
     it("fetchCorporateEvents merges and sorts events for branch staff", async () => {
       const events = await fetchCorporateEvents("kota_gorontalo");
       const ids = events.map((e) => e.id);

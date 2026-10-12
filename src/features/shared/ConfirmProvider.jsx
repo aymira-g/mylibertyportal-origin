@@ -13,7 +13,7 @@
 // This mirrors the native confirm(message) -> boolean pattern almost exactly,
 // the only difference is adding "await" — so swapping call sites later is a
 // small, mechanical change rather than a rewrite.
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ConfirmContext } from "./useConfirm";
 
 export default function ConfirmProvider({ children }) {
@@ -56,26 +56,48 @@ export default function ConfirmProvider({ children }) {
     });
   }, []);
 
-  const handleChoice = (result) => {
+  const handleChoice = useCallback((result) => {
     if (resolveRef.current) resolveRef.current(result);
     resolveRef.current = null;
     setRequest(null);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!request) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        handleChoice(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [request, handleChoice]);
 
   return (
     <ConfirmContext.Provider value={confirm}>
       {children}
 
       {request && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-in fade-in zoom-in-95 duration-150">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) handleChoice(false);
+          }}
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={request.title ? "confirm-dialog-title" : undefined}
+            aria-describedby="confirm-dialog-message"
+            className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-in fade-in zoom-in-95 duration-150"
+          >
             {request.title && (
-              <h3 className="text-base font-bold text-slate-900 mb-1.5">
+              <h3 id="confirm-dialog-title" className="text-base font-bold text-slate-900 mb-1.5">
                 {request.title}
               </h3>
             )}
             {request.message && (
-              <p className="text-sm font-medium text-slate-700 whitespace-pre-line leading-relaxed">
+              <p id="confirm-dialog-message" className="text-sm font-medium text-slate-700 whitespace-pre-line leading-relaxed">
                 {request.message}
               </p>
             )}

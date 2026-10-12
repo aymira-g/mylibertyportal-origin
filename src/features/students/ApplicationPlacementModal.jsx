@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { LEVEL_LIST, TIERS, TIER_KEYS } from "../../constants/levels";
 import { normalizeBranch, matchesBranchFilter } from "../../constants/branches";
-import { LevelBadge, PAYMENT_PLAN_LIST, isCompatible } from "../shared";
+import { LevelBadge, PAYMENT_PLAN_LIST, isCompatible, useOverlayHistory } from "../shared";
 import { getBatchAvailability } from "../classes/batchAvailability";
 import { sortPlacementBatches } from "./admissionsUtils";
 import { getStudentProgram, getProgram, getProgramLevels } from "../../constants/programs";
@@ -48,6 +48,8 @@ export default function ApplicationPlacementModal({
   onClose,
   onConfirm,
 }) {
+  useOverlayHistory(Boolean(app), onClose, "applicationPlacementModal");
+
   const appProgId = useMemo(() => getStudentProgram(app), [app]);
   const appProgram = useMemo(() => getProgram(appProgId), [appProgId]);
   const appLevels = useMemo(() => getProgramLevels(appProgId), [appProgId]);
@@ -123,8 +125,18 @@ export default function ApplicationPlacementModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Student Admission & Placement"
+        className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+      >
         {/* Modal Header */}
         <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -143,6 +155,7 @@ export default function ApplicationPlacementModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close"
             disabled={submitting}
             className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition cursor-pointer"
           >

@@ -12,6 +12,7 @@ import {
   uploadFileToCloudinary,
   createApprovalEnvelope,
   submitApprovalRequest,
+  useOverlayHistory,
 } from "../shared";
 import { auth } from "../../firebase";
 import { createClass, updateClass } from "./classesRepository";
@@ -161,6 +162,7 @@ function BatchForm({ batch, instructors, existingClasses = [], onClose, onSucces
       startTime,
       endTime,
       instructorId,
+      substituteInstructorId: substituteInstructorId || null,
       classRoom,
       branch,
       status: status || "open",
@@ -173,6 +175,7 @@ function BatchForm({ batch, instructors, existingClasses = [], onClose, onSucces
     startTime,
     endTime,
     instructorId,
+    substituteInstructorId,
     classRoom,
     branch,
     status,
@@ -335,6 +338,7 @@ function BatchForm({ batch, instructors, existingClasses = [], onClose, onSucces
         </div>
         <button
           onClick={onClose}
+          aria-label="Close"
           className="p-2 rounded-full hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition cursor-pointer"
         >
           <X className="w-5 h-5" />
@@ -487,18 +491,32 @@ export default function BatchModal({
   existingClasses = [],
   onSuccess = null,
 }) {
+  useOverlayHistory(Boolean(isOpen), onClose, "batchModal");
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
-      <BatchForm
-        key={batch?.id || "new"}
-        batch={batch}
-        instructors={instructors}
-        existingClasses={existingClasses}
-        onClose={onClose}
-        onSuccess={onSuccess}
-      />
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-fadeIn"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={batch?.id ? "Edit Available Batch" : "Add Available Class Batch"}
+        className="w-full max-w-2xl flex justify-center"
+      >
+        <BatchForm
+          key={batch?.id || "new"}
+          batch={batch}
+          instructors={instructors}
+          existingClasses={existingClasses}
+          onClose={onClose}
+          onSuccess={onSuccess}
+        />
+      </div>
     </div>
   );
 }

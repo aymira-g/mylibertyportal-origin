@@ -28,6 +28,8 @@ import { exportStudentRosterCSV } from "./studentRosterExport";
 import { Users, FileSpreadsheet, UserPlus, Shield } from "lucide-react";
 import ParentsList from "./ParentsList";
 
+import { isHigherLevel } from "../../constants/levels";
+
 export default function StudentRoster({
   students = [],
   classes = [],
@@ -80,7 +82,7 @@ export default function StudentRoster({
     const currentStatus = student.status || "active";
     if (currentStatus === newStatus) return;
 
-    if (newStatus === "graduated" || newStatus === "inactive") {
+    if (newStatus === "graduated" || newStatus === "inactive" || newStatus === "archived") {
       const targetLabel = STUDENT_STATUS_MAP[newStatus]?.label || newStatus;
       const ok = await confirm(
         `Are you sure you want to mark ${student.displayName || "this student"} as ${targetLabel}?`
@@ -175,6 +177,10 @@ export default function StudentRoster({
   };
 
   const loadPendingPromotions = useCallback(() => {
+    if (readOnly || userRole === "instructor") {
+      setPendingPromotions([]);
+      return;
+    }
     fetchPendingPromotions(branchId)
       .then((reports) => {
         setPendingPromotions(reports);
@@ -182,10 +188,13 @@ export default function StudentRoster({
       .catch((err) => {
         console.error("Error loading pending promotions:", err);
       });
-  }, [branchId]);
+  }, [branchId, readOnly, userRole]);
 
   useEffect(() => {
     let active = true;
+    if (readOnly || userRole === "instructor") {
+      return;
+    }
     fetchPendingPromotions(branchId)
       .then((reports) => {
         if (active) {
@@ -198,20 +207,33 @@ export default function StudentRoster({
     return () => {
       active = false;
     };
-  }, [branchId]);
+  }, [branchId, readOnly, userRole]);
 
   const pendingPromotionsMap = useMemo(() => {
     const map = {};
-    pendingPromotions.forEach((rep) => {
-      if (rep.studentId) map[rep.studentId] = rep;
+    const sorted = [...pendingPromotions].sort((a, b) => {
+      const timeA = new Date(a.submittedAt || a.examDate || 0).getTime();
+      const timeB = new Date(b.submittedAt || b.examDate || 0).getTime();
+      return timeB - timeA;
+    });
+    sorted.forEach((rep) => {
+      if (rep.studentId && !map[rep.studentId]) {
+        map[rep.studentId] = rep;
+      }
     });
     return map;
   }, [pendingPromotions]);
 
   const handlePromote = async (student, report) => {
     const nextLevel = report?.recommendedLevel || getNextLevel(student.currentLevel || "warrior");
-    if (!nextLevel) {
-      toast(`${student.displayName || "Student"} has no higher level recommended!`, "info");
+    if (
+      !nextLevel ||
+      !isHigherLevel(student.currentLevel, nextLevel, student.programId || student.program)
+    ) {
+      toast(
+        `${student.displayName || "Student"} is already at or higher than ${nextLevel ? nextLevel.toUpperCase() : "current level"}!`,
+        "info"
+      );
       return;
     }
 
@@ -233,6 +255,7 @@ export default function StudentRoster({
   };
 
   const statusCounts = useMemo(() => {
+
     let active = 0;
     let onLeave = 0;
     let inactiveGrad = 0;

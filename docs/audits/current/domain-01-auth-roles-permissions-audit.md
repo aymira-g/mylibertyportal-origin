@@ -1,0 +1,146 @@
+# MyLiberty Portal — Level 2 Deep Conformance Audit Report
+## Domain 1: Authentication, Roles & Permissions
+
+> **Audit ID:** `L2-DOM01-2026-10-12`  
+> **Section:** Authentication / Identity / Role Authorization  
+> **Target:** [Domain 1 (`03-audit-domains.md`)](file:///e:/myliberty-portal/docs/audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/03-audit-domains.md#1-authentication--roles--permissions)  
+> **Methodology:** [5-Pass Workflow Trace (`02-audit-method.md`)](file:///e:/myliberty-portal/docs/audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/02-audit-method.md)  
+> **Canonical Governance Authority:** [`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](file:///e:/myliberty-portal/docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md)  
+> **Technical Architecture:** [`docs/ARCHITECTURE.md`](file:///e:/myliberty-portal/docs/ARCHITECTURE.md)  
+> **Date Executed:** 2026-10-12  
+> **Audit Status:** **AUDIT COMPLETE & ALL 4 FINDINGS REMEDIATED (CLOSED)**  
+
+---
+
+## 1. Audit Scope & Executive Summary
+
+This Level 2 deep audit inspected the complete authentication, session, role normalization, and permission enforcement chain across client UI, repositories, schemas, and Firestore security rules.
+
+### Core Question
+> *"Does every layer agree on what a user's role actually is, and can any client supply or mutate unauthorized authority?"*
+
+### Summary of Results
+- **Hardened Invariants Verified:** Role elevation, self-privilege escalation prevention, terminated staff lockout, invite token binding, and session listener lifecycles are **strictly enforced** and verified by automated emulator suites.
+- **Key Discovery (High):** Direct staff creation modal in `AdminDashboard` and `ViceDirectorDashboard` (`handleAddStaff` → `createStaffAccount`) permanently fails with `permission-denied` because the recent OD-IL-ENF4 security rule hardening strictly requires an approved `NEW_STAFF_ACCOUNT` dual-control envelope or an invite token to create staff records. The legacy UI form does not attach an envelope.
+- **Key Discovery (Medium):** The floating `DevQuickSwitcher` is exposed in production builds to executive users due to an `isExecutiveRole` fallback in `App.jsx`, leaking test account emails and dead controls in live environments.
+- **Key Discovery (Low):** Terminology drift in `InvitesPanel.jsx` labels the `manager` role as "Campus Manager" rather than "Division Manager" (violating Authoritative Blueprint §5.4 / Principle 10).
+- **Key Discovery (Low):** When an enrolled student (`role: "student"`) logs into the main web portal (`/`), `App.jsx` presents them with an "Account Pending Role Assignment" card prompting them to "Request Staff Role Approval".
+
+---
+
+## 2. Five-Pass Workflow Trace
+
+```text
+Login / Invite / Onboarding
+  ↓
+Firebase Auth Credential (UID / Email)
+  ↓
+users/{uid} Profile Fetch / Subscription (`useUserProfile.js` / `App.jsx`)
+  ↓
+Role Normalization & Branch Scoping (`roles.js`, `branches.js`, `divisions.js`)
+  ↓
+Dashboard Routing (`App.jsx` Role Switcher)
+  ↓
+Direct Mutation & Action Gates (`firestore.rules` & `approvalsRepository.js`)
+```
+
+### Pass 1: Internal Logic & Resource Safety
+1. **Session & Idle Timeout:** `App.jsx` enforces a 30-minute idle timer (`IDLE_TIMEOUT`) with a 30-second warning dialog. Activity resets across `mousedown`, `mousemove`, `keypress`, `scroll`, and `touchstart`. Event listeners and timers are cleanly deregistered on unmount.
+2. **Listener Cleanup:** `useUserProfile.js` manages profile subscriptions with clean cancellation of prior listeners on auth changes and unmount. `App.jsx` terminates the live active session monitor on sign-out.
+3. **Quota & Bounded Queries:** Profile resolution is a single document `get`/`onSnapshot` on `users/{uid}`. No collection-wide queries or retry storms exist in the authentication path.
+
+### Pass 2: Trust Boundary Analysis
+1. **Role Attribution:** Client-supplied `role` strings are never trusted by Firestore rules. Every sensitive rule inspects `get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role`.
+2. **Self-Profile Mutation:** In `firestore.rules:641-644`, users updating their own profile can ONLY modify `['displayName', 'phone', 'dob', 'photoURL', 'nickname']`. Mutations touching `role`, `status`, `branch`, `branchId`, or `division` are denied.
+3. **Role Elevation:** Gated behind `isApprovedRoleElevation()` in `firestore.rules:326-340`, requiring an approved `STAFF_ROLE_ELEVATION` ticket decided by Director or Vice Director with anti-self-approval checks (`requestedByUid != decidedByUid` and `decidedByUid != targetUserId`).
+4. **Deactivated Staff:** Every rule helper (`hasRole`, `isManager`, `isStaff`, `isFrontOffice`, `isOpsLead`, `isFrontDeskStaff`, `isInstructorLeader`) enforces `(!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'))`. Deactivated staff immediately lose all read and write privileges.
+
+### Pass 3: Failure, Edge & Attack Matrix
+
+| Vector | Scenario / Test | System Behavior | Verdict |
+|---|---|---|---|
+| **Auth Bypass** | Unauthenticated user calls Firestore reads/writes | Denied by `signedIn()` | **PASS** |
+| **Self-Promotion** | Staff writes `role: "admin"` to own document | Denied by `diff().affectedKeys().hasOnly(...)` | **PASS** |
+| **Terminated Staff** | Resigned staff queries students or classes | Denied by `status != 'resigned'` in all rule helpers | **PASS** |
+| **Active Termination** | Admin marks staff resigned while logged in | Real-time `onSnapshot` in `App.jsx` detects status and forces instant signout | **PASS** |
+| **Invite Tampering** | User alters `role` or `branchId` during `/join/:token` | `isInviteValid()` validates fields against stored invite; write rejected | **PASS** |
+| **Invite Replay** | User re-submits expired or already-used invite | Rejected by `completeStaffSignup` batch delete and `isInviteValid` | **PASS** |
+| **Dual Account Collision**| User with existing email attempts new signup | `auth/email-already-in-use` caught, error surfaced cleanly | **PASS** |
+| **Role Elevation Bypass**| Executive elevates role without approval envelope | Denied by `isApprovedRoleElevation` check in rules | **PASS** |
+| **Self-Approval Elevation**| Approver elevates own account | Denied by `approval.decidedByUid != targetUserId` in rules | **PASS** |
+| **Direct Staff Creation** | Admin creates staff account via UI modal | **DENIED by rules (OD-IL-ENF4)**; modal fails with error toast | **FAIL (DOM01-SEC-01)** |
+| **Dev Switcher Leak** | Executive logs into production build | **DevQuickSwitcher floating button renders in production** | **FAIL (DOM01-SEC-02)** |
+| **Student Login Routing**| Student logs in at `/` | **Prompts student to request staff role onboarding** | **FAIL (DOM01-UX-01)** |
+| **Terminology Drift** | Generating invite for manager | **Role labelled "Campus Manager" instead of "Division Manager"** | **FAIL (DOM01-GOV-01)** |
+
+### Pass 4: Cross-Feature Handoffs
+1. **Invite → Signup → Dashboard:** Token created in `InvitesPanel.jsx` (`invitesRepository.createInvite`) writes canonical `branchId` and `division`. `StaffSignup.jsx` reads `/invites/{token}`, creates Firebase Auth credential, and atomically writes `/users/{uid}` while deleting the invite. On login, `App.jsx` normalizes role and mounts the correct dashboard cleanly.
+2. **Onboarding → Approval Queue:** An unprovisioned user submitting a request triggers `submitStaffOnboardingRequest` (`approvalsRepository.js`), correctly routed to `approverRole: "director"` at province scope.
+
+### Pass 5: Runtime Proof & Evidence
+- **Automated Unit Tests:** 45 tests passing in `src/features/auth/` and `src/features/shared/roles.test.js` / `useUserProfile.test.js`.
+- **Authorization Matrix Tests:** 13 security rules matrix assertions passing in `userAuthorization.test.js`.
+- **Invites Repository Tests:** 6 tests passing in `invitesRepository.test.js`.
+- **Live Emulator Suite:** 122 rules tests passing in `firestoreRules.emulator.test.js` (including `OD-IL-ENF4` new staff account tests and role elevation tests).
+
+---
+
+## 3. Master Bug Ledger (Domain 1 Findings & Remediations)
+
+### Finding 1: DOM01-SEC-01
+- **Section / Workflow:** Authentication / Staff Account Provisioning (`AdminDashboard.jsx`, `ViceDirectorDashboard.jsx`, `useDashboardData.js`, `StaffDirectory.jsx`).
+- **Trigger:** An Administrator or Vice Director opened the staff directory, clicked "Add Staff", and attempted direct account creation without an invite token or approval envelope.
+- **Actual:** Direct `setDoc` on `users/{uid}` failed with `permission-denied` under OD-IL-ENF4 rules enforcement (`firestore.rules:555-564`), causing secondary auth rollback and error toasts.
+- **Remediation:**
+  1. In `StaffDirectory.jsx`, removed `onAddStaff` prop and the `Add Staff Account` button; promoted `Invite Staff` as the primary action button (`bg-[#1a3a8f] text-white`).
+  2. In `AdminDashboard.jsx`, removed `onAddStaff={handleAddStaff}` from `<StaffDirectory>`, changed the "System Quick Actions" launcher button from "Add Staff" to "Staff Directory" (`onClick={() => handleTabChange("directory")}`).
+  3. In `ViceDirectorDashboard.jsx`, removed `onAddStaff={handleAddStaff}` from `<StaffDirectory>`.
+  4. In `useDashboardData.js`, guarded `handleSave` so un-enveloped staff creation without an invite displays a clear security policy notice and redirects to `invites`. Updated `handleAddStaff` to redirect to `invites`.
+- **Severity:** **High** (Operational workflow failure — direct staff creation is broken).
+- **Status:** **CLOSED (REMEDIATED)**
+
+### Finding 2: DOM01-SEC-02
+- **Section / Workflow:** Authentication / Dev Presets & Switcher (`src/App.jsx:101`, `src/features/shared/DevQuickSwitcher.jsx`).
+- **Trigger:** A Director, Vice Director, or Admin logged into the application in a production build (`import.meta.env.DEV === false`).
+- **Actual:** In `App.jsx:101`, `canUseDevSwitcher` used an `|| isExecutiveRole(role)` fallback, causing the floating Dev Switcher to render in production builds and exposing test account credentials.
+- **Remediation:** In `src/App.jsx`, changed `canUseDevSwitcher = Boolean(isDevSwitcherEnabled);` so the switcher strictly mounts only when `isDevSwitcherEnabled` (which requires `import.meta.env.DEV`) is true.
+- **Severity:** **Medium** (Information disclosure & dead UI in production).
+- **Status:** **CLOSED (REMEDIATED)**
+
+### Finding 3: DOM01-GOV-01
+- **Section / Workflow:** Staff Invites / Role Normalization (`src/features/staff/InvitesPanel.jsx:34, 242`).
+- **Trigger:** Administrator or Executive selects a role when creating a new staff invitation.
+- **Actual:** Dropdown option and role badge read "Campus Manager" / "Manager" rather than "Division Manager".
+- **Remediation:** In `src/features/staff/InvitesPanel.jsx`, updated dropdown label to "Division Manager" and role badge display map `manager: "Division Manager"`, aligning with Authoritative Blueprint v3.3 §5.4 / Principle 10.
+- **Severity:** **Low** (Governance terminology drift).
+- **Status:** **CLOSED (REMEDIATED)**
+
+### Finding 4: DOM01-UX-01
+- **Section / Workflow:** Authentication / Student Login Routing (`src/App.jsx:619-660`).
+- **Trigger:** An enrolled student with `role: "student"` signs in at the root web portal (`/`).
+- **Actual:** Student fell through the staff/parent role check and was shown an amber card prompting them to "Request Staff Role Approval".
+- **Remediation:** In `src/App.jsx`, added an explicit card for `effectiveRole === "student"` explaining that attendance is logged at physical campus kiosks and learning progress is accessible to parents at `/portal`, preventing spurious staff onboarding approval tickets.
+- **Severity:** **Low** (UX ambiguity & risk of spurious approval tickets).
+- **Status:** **CLOSED (REMEDIATED)**
+
+---
+
+## 4. Verification & Audit History Record
+
+```text
+Audit ID: L2-DOM01-2026-10-12
+Section: Domain 1 — Authentication / Roles / Permissions
+Workflow: Login, Session Management, Role Assignment, Staff Provisioning, Invites
+Audit Level: Level 2 — Section Deep Audit
+Started / Completed: 2026-10-12 / 2026-10-12
+Findings Logged: 4
+Findings Remediated / Closed: 4 (100% closed)
+Open High/Critical Items: 0
+Regression Verification:
+  - npm test: 102 test files passed (1,292 passed, 121 skipped, 0 failed)
+  - npm run lint: 0 errors, 0 warnings
+  - npm run typecheck: 0 errors
+  - npm run build: Built cleanly in 3.10s
+Cost & Quota Impact: 0 additional reads/writes; 100% Spark tier compliant.
+Next Scheduled Deep Audit: Domain 2 — Branch Isolation & Firestore Security Rules
+```

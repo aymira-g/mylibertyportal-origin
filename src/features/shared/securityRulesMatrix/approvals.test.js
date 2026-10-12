@@ -16,6 +16,7 @@ import {
   adminUser,
   managerGorontalo,
   managerBoneBolango,
+  managerKindergartenGorontalo,
   foGorontalo,
   foBoneBolango,
   opsLeadGorontalo,
@@ -43,6 +44,37 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
       expect(canDecideApproval(approvalDoc, instructorLeaderGorontalo)).toBe(false);
       // System Admin cannot decide business approvals (Blueprint §7.3, §7.4)
       expect(canDecideApproval(approvalDoc, adminUser)).toBe(false);
+    });
+
+    it("enforces division isolation for Division Managers on manager-gated approvals (DOM09-SEC-01)", () => {
+      const kgApprovalDoc = {
+        actionId: "TUITION_PLAN_CHANGE",
+        approverRole: "manager",
+        branchId: "kota_gorontalo",
+        division: "kindergarten",
+        requestedByUid: "fo_gtlo",
+      };
+
+      // Kindergarten Division Manager can decide kindergarten ticket
+      expect(canDecideApproval(kgApprovalDoc, managerKindergartenGorontalo)).toBe(true);
+      // Courses Division Manager is BLOCKED from kindergarten ticket
+      expect(canDecideApproval(kgApprovalDoc, managerGorontalo)).toBe(false);
+      // Executives have cross-division authority province-wide
+      expect(canDecideApproval(kgApprovalDoc, directorUser)).toBe(true);
+      expect(canDecideApproval(kgApprovalDoc, viceDirectorUser)).toBe(true);
+
+      const courseApprovalDoc = {
+        actionId: "TUITION_PLAN_CHANGE",
+        approverRole: "manager",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        requestedByUid: "fo_gtlo",
+      };
+
+      // Courses Division Manager can decide courses ticket
+      expect(canDecideApproval(courseApprovalDoc, managerGorontalo)).toBe(true);
+      // Kindergarten Division Manager is BLOCKED from courses ticket
+      expect(canDecideApproval(courseApprovalDoc, managerKindergartenGorontalo)).toBe(false);
     });
 
     it("routes Discount & Refund approvals exclusively to Executive Director / Vice Director (G-009)", () => {
@@ -256,6 +288,25 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
         updatedAt: "ts",
       };
       expect(canUpdateApproval(approvedState, appliedUpdate, managerGorontalo)).toBe(true);
+
+      // Replay prevention: cannot re-apply an already-applied approval envelope (DOM09-SEC-02)
+      const alreadyAppliedState = {
+        ...approvedState,
+        applied: true,
+        appliedAt: "2026-09-25T10:05:00.000Z",
+        appliedByUid: "mgr_gtlo",
+      };
+      expect(canUpdateApproval(alreadyAppliedState, appliedUpdate, managerGorontalo)).toBe(false);
+
+      // Attribution binding: cannot seal with mismatched appliedByUid (DOM09-SEC-02)
+      const forgedAppliedUpdate = {
+        ...approvedState,
+        applied: true,
+        appliedAt: "2026-09-25T10:05:00.000Z",
+        appliedByUid: "someone_else",
+        updatedAt: "ts",
+      };
+      expect(canUpdateApproval(approvedState, forgedAppliedUpdate, managerGorontalo)).toBe(false);
     });
   });
 

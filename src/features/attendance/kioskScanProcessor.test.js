@@ -208,6 +208,29 @@ describe("kioskScanProcessor in CLASS mode", () => {
       "Alice Smith"
     );
   });
+
+  it("rejects archived student scans in CLASS mode with 'Pass Inactive' (DOM-LIFE-04)", async () => {
+    vi.mocked(shiftsRepo.fetchUserById).mockResolvedValueOnce({
+      ...studentUser,
+      status: "archived",
+    });
+
+    await handleKioskScan("std_1", {
+      attendanceMode: "CLASS",
+      classId: "class_a",
+      todayClasses,
+      showStatus,
+      setLastScanned,
+    });
+
+    expect(showStatus).toHaveBeenCalledWith(
+      "Pass Inactive",
+      "error",
+      expect.stringContaining("archived"),
+      "Alice Smith"
+    );
+    expect(classAttRepo.recordClassAttendanceScan).not.toHaveBeenCalled();
+  });
 });
 
 describe("kioskScanProcessor in STATION mode for instructors & corporate events", () => {

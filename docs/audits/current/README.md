@@ -11,6 +11,18 @@ These documents capture the current state of findings, verified gaps, and archit
 
 *Prior cycle audit reports (September – early October 2026) have been moved to [`../archive/`](../archive/README.md). New verification baselines and findings from the upcoming refinement will be recorded here.*
 
+## Active Documents
+
+| Document | Role |
+|---|---|
+| [`domain-01-auth-roles-permissions-audit.md`](domain-01-auth-roles-permissions-audit.md) | Level 2 deep audit — Domain 1 (2026-10-12, closed) |
+| [`domain-02-branch-isolation-audit.md`](domain-02-branch-isolation-audit.md) | Level 2 deep audit — Domain 2 (2026-10-12, closed) |
+| [`domain-03-attendance-kiosk-audit.md`](domain-03-attendance-kiosk-audit.md) | Level 2 deep audit — Domain 3 (2026-10-12, closed) |
+| [`domain-04-payments-cash-audit.md`](domain-04-payments-cash-audit.md) | Level 2 deep audit — Domain 4 (2026-10-12, complete — 4 findings open, awaiting owner approval) |
+| [`regression-log.md`](regression-log.md) | Level 1 targeted regression evidence (chronological) |
+| [`bug-ledger.md`](bug-ledger.md) | **Master bug ledger** — canonical finding index |
+| [`audit-debt-register.md`](audit-debt-register.md) | Audit debt register — per-domain last-audit state |
+
 ## Permanent Audit Suites & Baseline
 
 For permanent verification procedures and baselines, use:

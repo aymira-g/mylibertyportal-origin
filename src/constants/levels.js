@@ -217,3 +217,31 @@ export function isCompatible(studentLevel, batch, studentProgram = null) {
 
   return true;
 }
+
+/**
+ * Evaluates whether a target academic level is strictly higher than the student's current level.
+ * Handles course levels, kindergarten/program-specific levels, and unassessed intake.
+ *
+ * @param {string} currentLevel
+ * @param {string} targetLevel
+ * @param {string} [programId]
+ * @returns {boolean}
+ */
+export function isHigherLevel(currentLevel, targetLevel, programId = null) {
+  if (!targetLevel) return false;
+  if (!currentLevel || currentLevel === UNASSESSED) return true;
+  if (String(currentLevel).trim().toLowerCase() === String(targetLevel).trim().toLowerCase()) return false;
+
+  const prog = programId ? normalizeProgram(programId) : null;
+  const currentClean = String(currentLevel).trim().toLowerCase();
+  const targetClean = String(targetLevel).trim().toLowerCase();
+
+  const currentObj = (prog && getProgramLevel(prog, currentClean)) || LEVELS[currentClean];
+  const targetObj = (prog && getProgramLevel(prog, targetClean)) || LEVELS[targetClean];
+
+  if (currentObj?.order !== undefined && targetObj?.order !== undefined) {
+    return targetObj.order > currentObj.order;
+  }
+  return false;
+}
+

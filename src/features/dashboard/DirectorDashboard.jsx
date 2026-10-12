@@ -123,7 +123,7 @@ export default function DirectorDashboard() {
       let totalCapacity = 0;
       let enrolledSeats = 0;
       bClasses.forEach((cls) => {
-        const cap = Number(cls.capacity) || 12;
+        const cap = Number(cls.maxCapacity || cls.capacity || cls.maxStudents) || 12;
         totalCapacity += cap;
         const enrolled = Array.isArray(cls.studentIds) ? cls.studentIds.length : 0;
         enrolledSeats += enrolled;

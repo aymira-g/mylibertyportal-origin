@@ -3,37 +3,65 @@ import { fetchAdmissionsReportData } from "../reportsRepository";
 import { getTodayWitaString, rangeToSince } from "../reportsUtils";
 import { getBatchAvailability } from "../../classes";
 import { exportTableCSV } from "../../shared";
-import { TrendingUp, School, RefreshCw, Search, Users } from "lucide-react";
+import { TrendingUp, School, RefreshCw, Search, Users, AlertTriangle } from "lucide-react";
 import { normalizeBranch, matchesBranchFilter, branchToId } from "../../../constants/branches";
 import { matchesDivisionFilter, divisionOfProgram } from "../../../constants/divisions";
 import { getProgram, getStudentProgram } from "../../../constants/programs";
 
 const AdmissionsTab = forwardRef(
   /**
-   * @param {{ branchFilter?: string; rangeDays?: number; division?: string }} props
+   * @param {{
+   *   branchFilter?: string;
+   *   rangeDays?: number;
+   *   division?: string;
+   *   isAdminView?: boolean;
+   *   isExecutiveView?: boolean;
+   *   isFrontOffice?: boolean;
+   *   isManager?: boolean;
+   *   userBranch?: string;
+   * }} props
    * @param {any} ref
    */
-  function AdmissionsTab({ branchFilter = "all", rangeDays = 30, division = "all" }, ref) {
+  function AdmissionsTab(
+    {
+      branchFilter = "all",
+      rangeDays = 30,
+      division = "all",
+      isAdminView = false,
+      isExecutiveView = false,
+      isFrontOffice = false,
+      isManager = false,
+      userBranch = null,
+    },
+    ref
+  ) {
     const [admissionsData, setAdmissionsData] = useState({ applications: [], classes: [] });
     const [admissionsLoading, setAdmissionsLoading] = useState(true);
+    const [admissionsError, setAdmissionsError] = useState(null);
     const [admissionsSearch, setAdmissionsSearch] = useState("");
 
     const fetchAdmissions = useCallback(async () => {
       setAdmissionsLoading(true);
+      setAdmissionsError(null);
       try {
-        const branchId = branchFilter && branchFilter !== "all" ? branchToId(branchFilter) : null;
+        let branchId = branchFilter && branchFilter !== "all" ? branchToId(branchFilter) : null;
+        if (!branchId && !isAdminView && !isExecutiveView && userBranch) {
+          branchId = branchToId(userBranch);
+        }
         const data = await fetchAdmissionsReportData(
           rangeToSince(rangeDays),
           branchId,
-          division !== "all" ? division : null
+          division !== "all" ? division : null,
+          { isAdminView, isExecutiveView, isFrontOffice, isManager, userBranch }
         );
         setAdmissionsData(data);
       } catch (err) {
-        console.error(err);
+        console.error("Failed to load admissions report data:", err);
+        setAdmissionsError(err.message || "Failed to load admissions report data");
       } finally {
         setAdmissionsLoading(false);
       }
-    }, [rangeDays, branchFilter, division]);
+    }, [rangeDays, branchFilter, division, isAdminView, isExecutiveView, isFrontOffice, isManager, userBranch]);
 
     useEffect(() => {
       fetchAdmissions();
@@ -45,8 +73,8 @@ const AdmissionsTab = forwardRef(
       let cls = admissionsData.classes || [];
 
       if (branchFilter !== "all") {
-        apps = apps.filter((a) => matchesBranchFilter(a.branch, branchFilter));
-        cls = cls.filter((c) => matchesBranchFilter(c.branch, branchFilter));
+        apps = apps.filter((a) => matchesBranchFilter(a.branchId || a.branch, branchFilter));
+        cls = cls.filter((c) => matchesBranchFilter(c.branchId || c.branch, branchFilter));
       }
 
       if (division !== "all") {
@@ -109,7 +137,7 @@ const AdmissionsTab = forwardRef(
         const rows = (admissionsCalculated.filteredApps || []).map((a) => [
           a.fullName || a.studentName || "Prospective Student",
           a.program || getProgram(getStudentProgram(a)).label,
-          normalizeBranch(a.branch),
+          normalizeBranch(a.branchId || a.branch),
           a.status || "pending",
           a.submittedAt ? new Date(a.submittedAt).toLocaleDateString() : "",
         ]);
@@ -153,6 +181,21 @@ const AdmissionsTab = forwardRef(
             <span>Refresh Funnel</span>
           </button>
         </div>
+
+        {admissionsError && (
+          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>{admissionsError}</span>
+            </div>
+            <button
+              onClick={fetchAdmissions}
+              className="px-3 py-1 bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold rounded-lg text-xs cursor-pointer"
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         {admissionsLoading ? (
           <div className="p-12 text-center text-slate-400 text-xs italic flex items-center justify-center gap-2">

@@ -20,7 +20,7 @@ Plus **Release Verification** (security, data integrity, critical workflows) bef
 
 ## Triggers Override the Calendar
 
-Run an immediate focused audit when changing: Firestore rules, authentication, role normalization, branch logic, payment/attendance/kiosk logic, deletion/cascade behavior, Worker/API auth, identity verification, challenge/signature logic, shared data models, class/enrollment relationships, approval rules, or high-volume queries/listeners risking quota spikes.
+Run an immediate focused audit when changing: Firestore rules (including expression evaluation budget), authentication, role normalization, branch logic, payment/attendance/kiosk logic, deletion/cascade behavior, Worker/API auth, identity verification, challenge/signature logic, shared data models, compound index definitions (`firestore.indexes.json`), external integrations (`FormSync.gs`), operational backfill scripts (`scripts/`), class/enrollment relationships, approval rules, or high-volume queries/listeners risking quota spikes.
 
 Example: change rules → immediate security regression → audit affected workflows → deep audit if it crosses trust boundaries.
 
@@ -29,8 +29,8 @@ Example: change rules → immediate security regression → audit affected workf
 | Risk | Examples | Audit |
 |---|---|---|
 | Low | Wording, spacing, cosmetic layout | Targeted regression |
-| Medium | Feature-state logic, repository behavior, dashboard queries, form validation, role-aware navigation | Targeted regression + affected-workflow review |
-| High | Firestore rules, Worker auth, branch isolation, role enforcement, payments, attendance, deletion, identity, approvals, queries over unbounded collections, listener lifecycle changes | Targeted regression + connected-workflow audit + deep audit when warranted |
+| Medium | Feature-state logic, repository behavior, dashboard queries, form validation, role-aware navigation, accessibility attributes | Targeted regression + affected-workflow review |
+| High | Firestore rules (and expression budget headroom), Worker auth, service-account integrations (`FormSync.gs`) & backfill scripts (`scripts/`), branch isolation, index parity (`firestore.indexes.json`), dev-tool build gating, role enforcement, payments, attendance, deletion, identity, approvals, queries over unbounded collections, listener lifecycle changes | Targeted regression + connected-workflow audit + deep audit when warranted |
 
 Goal: proportional rigor, not maximum process for every commit.
 
@@ -46,7 +46,9 @@ Goal: proportional rigor, not maximum process for every commit.
 
 ## Audit Debt
 
-If a section keeps changing but its deep audit keeps slipping, record it as **audit debt** so it stays visible:
+If a section keeps changing but its deep audit keeps slipping, record it as **audit debt** so it stays visible. The live register is maintained at [`docs/audits/current/audit-debt-register.md`](../current/audit-debt-register.md) — update it immediately after every Level 2 audit completes.
+
+Per-section format:
 
 ```text
 Section: Payments

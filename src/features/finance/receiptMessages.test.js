@@ -152,4 +152,18 @@ describe("buildWhatsAppRenewalReminderMessage", () => {
     expect(msg).toContain("tuition plan");
     expect(msg).toContain("expired on *recently*");
   });
+
+  it("supports passing direct student entity without nested options object (DOM04-COR-01)", () => {
+    const directStudent = {
+      displayName: "Dewi Sartika",
+      paidUntil: "2026-10-15",
+      paymentPlan: "Monthly",
+    };
+    const msg = buildWhatsAppRenewalReminderMessage(directStudent);
+    expect(msg).toContain("Dewi Sartika");
+    expect(msg).toContain("*Monthly* plan");
+    expect(msg).toContain("due for renewal");
+    expect(msg).not.toContain("Student* is due");
+  });
 });
+

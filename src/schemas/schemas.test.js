@@ -406,6 +406,32 @@ describe("corporateEventSchema", () => {
       })
     ).toThrow(/End time must be after start time/);
   });
+
+  it("allows overnight corporate events crossing midnight into next day (DOM07-COR-01)", () => {
+    const overnight = corporateEventSchema.parse({
+      name: "Late Night Academy Lock-In",
+      eventDate: "2026-10-15",
+      startTime: "22:00",
+      endTime: "02:00",
+      isOvernight: true,
+      audienceType: "all",
+    });
+    expect(overnight.startTime).toBe("22:00");
+    expect(overnight.endTime).toBe("02:00");
+    expect(overnight.isOvernight).toBe(true);
+
+    // Overnight event with identical start and end time is rejected
+    expect(() =>
+      corporateEventSchema.parse({
+        name: "Identical Start and End",
+        eventDate: "2026-10-15",
+        startTime: "22:00",
+        endTime: "22:00",
+        isOvernight: true,
+        audienceType: "all",
+      })
+    ).toThrow(/cannot be identical to start time/);
+  });
 });
 
 describe("schoolMasterSchema", () => {

@@ -1,5 +1,5 @@
 import { auth, db } from "../../firebase";
-import { collection, getDocs, getDoc, doc, query, where } from "firebase/firestore";
+import { collection, getDocs, getDoc, doc, query, where, limit } from "firebase/firestore";
 import { normalizeBranch, branchToId } from "../../constants/branches.js";
 import { isStaffRole } from "../shared/roles.js";
 
@@ -10,6 +10,13 @@ import { isStaffRole } from "../shared/roles.js";
 export async function fetchStaffShifts(isSupervisorOrAdmin, since = null, branchId = null, isManager = false, division = null) {
   const normalizedBranchId = branchId ? branchToId(branchId) : null;
   const isSupervisor = Boolean(isSupervisorOrAdmin || isManager);
+
+  // Branch isolation (DOM02-SEC-01): Manager and non-executive supervisors have strictly branch-scoped
+  // authority. Never emit an unscoped collection query that would violate isSameBranchStrict.
+  if (isManager && !normalizedBranchId) {
+    console.warn("fetchStaffShifts: branchId is required for manager view; returning empty shifts to prevent unauthorized unscoped query.");
+    return { shifts: [], staffMembers: [], leaves: [] };
+  }
   const shiftsRef = collection(db, "shifts");
   const filters = [];
   if (!isSupervisor) filters.push(where("userId", "==", auth.currentUser?.uid));
@@ -88,6 +95,14 @@ export async function fetchTodayScansData(sinceWitaIso, isAdminView, isFrontOffi
   const normalizedBranchId = branchId ? branchToId(branchId) : null;
   const isSupervisor = isAdminView || isFrontOffice || isManager;
 
+  // Branch isolation (DOM03-SEC-02): Non-executive callers (Manager, Front Office)
+  // must have their query strictly scoped to their branch.
+  // Never emit an unscoped /attendance list query that would violate isSameBranchStrict.
+  if (!isAdminView && (isManager || isFrontOffice) && !normalizedBranchId) {
+    console.warn("fetchTodayScansData: branchId is required for non-executive view; returning empty results to prevent unauthorized unscoped query.");
+    return { scans: [], classes: [], students: [] };
+  }
+
   const attendanceFilters = [where("timestamp", ">=", sinceWitaIso)];
   if (normalizedBranchId) attendanceFilters.push(where("branchId", "==", normalizedBranchId));
   if (division && division !== "all") attendanceFilters.push(where("division", "==", division));
@@ -143,6 +158,14 @@ export async function fetchStudentProgressData(isAdminView, isFrontOffice, since
   const normalizedBranchId = branchId ? branchToId(branchId) : null;
   const isSupervisor = isAdminView || isFrontOffice || isManager;
 
+  // Branch isolation (DOM03-SEC-02): Non-executive callers (Manager, Front Office)
+  // must have their query strictly scoped to their branch.
+  // Never emit an unscoped list query that would violate isSameBranchStrict.
+  if (!isAdminView && (isManager || isFrontOffice) && !normalizedBranchId) {
+    console.warn("fetchStudentProgressData: branchId is required for non-executive view; returning empty results to prevent unauthorized unscoped query.");
+    return { users: [], classes: [], attendance: [], progress: [] };
+  }
+
   const classesFilters = [];
   if (!isSupervisor) {
     classesFilters.push(where("instructorId", "==", auth.currentUser?.uid));
@@ -167,9 +190,8 @@ export async function fetchStudentProgressData(isAdminView, isFrontOffice, since
   if (division && division !== "all") {
     progressFilters.push(where("division", "==", division));
   }
-  const progressQuery = progressFilters.length
-    ? query(collection(db, "progressReports"), ...progressFilters)
-    : collection(db, "progressReports");
+  progressFilters.push(limit(200));
+  const progressQuery = query(collection(db, "progressReports"), ...progressFilters);
 
   const usersFilters = [];
   if (!isAdminView && !isManager) {
@@ -214,8 +236,41 @@ export async function fetchStudentProgressData(isAdminView, isFrontOffice, since
   };
 }
 
-export async function fetchAdmissionsReportData(since = null, branchId = null, division = null) {
-  const normalizedBranchId = branchId ? branchToId(branchId) : null;
+export async function fetchAdmissionsReportData(
+  since = null,
+  branchId = null,
+  division = null,
+  callerContext = {}
+) {
+  let normalizedBranchId = branchId ? branchToId(branchId) : null;
+
+  // Branch isolation (DOM06-SEC-03): Non-executive callers (Front Office, Manager)
+  // cannot query unscoped collections (/applications, /classes) under isSameBranchStrict.
+  // If branchId is not provided or "all", attempt to resolve caller's branch or fail closed.
+  const isExecutive = Boolean(
+    callerContext.isAdminView ||
+    callerContext.isExecutiveView ||
+    callerContext.callerRole === "director" ||
+    callerContext.callerRole === "vice_director" ||
+    callerContext.callerRole === "admin"
+  );
+
+  const isNonExecutiveScoped = Boolean(
+    callerContext.isFrontOffice ||
+    callerContext.isManager ||
+    (callerContext.callerRole && !isExecutive)
+  );
+
+  if (!normalizedBranchId && isNonExecutiveScoped) {
+    if (callerContext.userBranch) {
+      normalizedBranchId = branchToId(callerContext.userBranch);
+    } else {
+      console.warn(
+        "fetchAdmissionsReportData: branchId is required for non-executive view; returning empty results to prevent unauthorized unscoped query."
+      );
+      return { applications: [], classes: [] };
+    }
+  }
 
   const appFilters = [];
   if (since) {
@@ -256,6 +311,13 @@ export async function fetchAdmissionsReportData(since = null, branchId = null, d
 export async function fetchInstructorAnalyticsData(isAdminView, uid, branchId = null, isManager = false, division = null) {
   const normalizedBranchId = branchId ? branchToId(branchId) : null;
   const isSupervisor = isAdminView || isManager;
+
+  // Branch isolation (DOM02-SEC-01): Manager view is strictly branch-isolated.
+  // Never emit an unscoped collection query that would violate isSameBranchStrict.
+  if (!isAdminView && isManager && !normalizedBranchId) {
+    console.warn("fetchInstructorAnalyticsData: branchId is required for manager view; returning empty analytics to prevent unauthorized unscoped query.");
+    return { classes: [], shifts: [], instructors: [] };
+  }
 
   const classesFilters = [];
   if (!isSupervisor) {

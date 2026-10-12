@@ -18,15 +18,6 @@ export default function KioskModal({
   const extraRef = useRef(null);
   useOverlayHistory(isOpen, onClose, "kioskModal");
 
-  // Close on Escape key
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
 
   // Auto-scroll to extra content if requested (e.g. ?action=class-photo)
   useEffect(() => {

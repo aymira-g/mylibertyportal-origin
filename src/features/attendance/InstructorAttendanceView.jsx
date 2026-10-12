@@ -211,8 +211,10 @@ export default function InstructorAttendanceView({
     }
   };
 
-  // Scanner scanner instance ref
+  // Scanner instance and in-flight/debounce guards (DOM03-PERF-01)
   const scannerRef = useRef(null);
+  const isProcessingRef = useRef(false);
+  const lastScannedRef = useRef({ id: "", at: 0 });
 
   useEffect(() => {
     if (!scannerOpen) return;
@@ -232,6 +234,19 @@ export default function InstructorAttendanceView({
 
         scanner.render(
           async (scannedUid) => {
+            if (!scannedUid) return;
+            const now = Date.now();
+            // Prevent concurrent in-flight transaction storm (DOM03-PERF-01)
+            if (isProcessingRef.current) return;
+            // Debounce repeated scans of the same student within 2.5 seconds
+            if (
+              lastScannedRef.current.id === scannedUid &&
+              now - lastScannedRef.current.at < 2500
+            ) {
+              return;
+            }
+
+            isProcessingRef.current = true;
             try {
               await handleKioskScan(scannedUid, {
                 attendanceMode: "CLASS",
@@ -246,12 +261,15 @@ export default function InstructorAttendanceView({
                   setScannerLastScanned(item);
                 },
               });
+              lastScannedRef.current = { id: scannedUid, at: Date.now() };
             } catch (err) {
               setScannerStatus({
                 title: "Scan Error",
                 type: "error",
                 message: err.message,
               });
+            } finally {
+              isProcessingRef.current = false;
             }
           },
           (errorMessage) => {
@@ -275,6 +293,8 @@ export default function InstructorAttendanceView({
 
     return () => {
       clearTimeout(timer);
+      isProcessingRef.current = false;
+      lastScannedRef.current = { id: "", at: 0 };
       if (scannerRef.current) {
         try {
           scannerRef.current.clear();

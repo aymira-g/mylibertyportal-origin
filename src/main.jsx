@@ -5,6 +5,7 @@ import App from "./App.jsx";
 import { ConfirmProvider, ToastProvider, ErrorBoundary } from "./features/shared";
 import { registerSW } from "virtual:pwa-register";
 import { initGlobalErrorListeners } from "./utils/reportError";
+import { setPendingSwUpdate } from "./features/pwa/swUpdateStore";
 
 // Catch and log uncaught runtime errors and unhandled promise rejections
 initGlobalErrorListeners();
@@ -19,8 +20,6 @@ if (typeof window !== "undefined") {
     const lastReload = parseInt(sessionStorage.getItem("pwa_preload_reload") || "0", 10);
     // Guard against infinite reload loops if network is broken (max 1 reload per 15s)
     if (Date.now() - lastReload > 15000) {
-      sessionStorage.setItem("pwa_preload_reload", String(Date.now()));
-
       // Check whether user is currently in a modal, editing an input, or scanning attendance
       const hasActiveModal = document.querySelector('[role="dialog"]') !== null;
       const isScannerActive = document.querySelector("#reader, video") !== null;
@@ -31,10 +30,13 @@ if (typeof window !== "undefined") {
         Boolean(activeEl.value?.trim());
 
       if (hasActiveModal || isScannerActive || isUserTyping) {
+        // Do not consume the cooldown when deferring (DOM10-UX-01), so a later
+        // chunk error after the user finishes can still trigger a reload.
         console.info("[PWA] Deferring automatic page reload due to active user workflow.");
         return;
       }
 
+      sessionStorage.setItem("pwa_preload_reload", String(Date.now()));
       window.location.reload();
     }
   });
@@ -45,19 +47,14 @@ let updateServiceWorker = null;
 updateServiceWorker = registerSW({
   immediate: true,
   onNeedRefresh() {
-    window.dispatchEvent(
-      new CustomEvent("myliberty:sw-update-available", {
-        detail: {
-          update: () => {
-            if (typeof updateServiceWorker === "function") {
-              updateServiceWorker(true);
-            } else {
-              window.location.reload();
-            }
-          },
-        },
-      })
-    );
+    // Stored (not just broadcast) so a banner that mounts later still sees it — DOM10-SW-01.
+    setPendingSwUpdate(() => {
+      if (typeof updateServiceWorker === "function") {
+        updateServiceWorker(true);
+      } else {
+        window.location.reload();
+      }
+    });
   },
   onOfflineReady() {
     console.info("[PWA] Application ready for offline operations.");

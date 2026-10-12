@@ -11,6 +11,7 @@ import {
   Shield,
 } from "lucide-react";
 import { getNextLevel } from "../shared";
+import { isHigherLevel } from "../../constants/levels";
 import {
   isActiveStudent,
   STUDENT_STATUS_OPTIONS,
@@ -144,8 +145,15 @@ export default function StudentRosterTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 bg-white">
-          {pageItems.map((s) => {
-            const studentClasses = s.studentClasses || [];
+          {pageItems.length === 0 ? (
+            <tr>
+              <td colSpan={10} className="p-12 text-center text-slate-400 text-xs font-medium">
+                No students found matching your filters.
+              </td>
+            </tr>
+          ) : (
+            pageItems.map((s) => {
+              const studentClasses = s.studentClasses || [];
             const statusBadge = getStatusBadge(s.effectiveStatus);
             const health = s.paymentHealth || { status: "unknown", tone: "slate", label: "Unknown" };
             const planLabel = getStudentPlanLabel(s);
@@ -160,6 +168,12 @@ export default function StudentRosterTable({
             const nextLevel = pendingPromotion
               ? pendingPromotion.recommendedLevel || getNextLevel(s.currentLevel || "warrior")
               : null;
+            const canPromote =
+              Boolean(pendingPromotion) &&
+              !readOnly &&
+              isActiveStudent(s) &&
+              Boolean(nextLevel) &&
+              isHigherLevel(s.currentLevel, nextLevel, s.programId || s.program);
 
             return (
               <tr key={s.id} className="hover:bg-slate-50/60 transition group">
@@ -420,7 +434,7 @@ export default function StudentRosterTable({
                 {(!readOnly || onBadgeClick) && (
                   <td className="p-3.5 text-right font-bold whitespace-nowrap">
                     <div className="flex items-center gap-1.5 justify-end">
-                      {pendingPromotion && !readOnly && nextLevel && (
+                      {canPromote && (
                         <button
                           type="button"
                           onClick={() => onPromote && onPromote(s, pendingPromotion)}
@@ -431,6 +445,7 @@ export default function StudentRosterTable({
                           <span>Promote</span>
                         </button>
                       )}
+
                       {onBadgeClick && (
                         <button
                           onClick={() => onBadgeClick(s)}
@@ -469,7 +484,8 @@ export default function StudentRosterTable({
                 )}
               </tr>
             );
-          })}
+          })
+        )}
         </tbody>
       </table>
     </div>

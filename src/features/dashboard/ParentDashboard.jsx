@@ -5,6 +5,7 @@ import {
   getChildAttendanceAndClasses,
   buildPaymentSummary,
 } from "../students/parentPortalRepository";
+import { branchToId } from "../../constants/branches.js";
 import LevelBadge from "../shared/LevelBadge";
 import Badge from "../shared/Badge";
 import { useToast } from "../shared";
@@ -37,6 +38,8 @@ export default function ParentDashboard({ user = null }) {
 
   const [parentProfile, setParentProfile] = useState(null);
   const [children, setChildren] = useState([]);
+  const [inactiveChildCount, setInactiveChildCount] = useState(0);
+  const [linkedStudentCount, setLinkedStudentCount] = useState(0);
   const [selectedChildId, setSelectedChildId] = useState(null);
   const [prevChildId, setPrevChildId] = useState(null);
   const [childDetails, setChildDetails] = useState({
@@ -82,6 +85,9 @@ export default function ParentDashboard({ user = null }) {
         }
         setParentProfile(bundle.parent);
         setChildren(bundle.children || []);
+        const linkedCount = bundle.linkedStudentCount ?? (Array.isArray(bundle.parent?.childStudentIds) ? bundle.parent.childStudentIds.length : 0);
+        setLinkedStudentCount(linkedCount);
+        setInactiveChildCount(bundle.inactiveChildCount || 0);
         if (bundle.children && bundle.children.length > 0) {
           setSelectedChildId(bundle.children[0].id);
         }
@@ -99,12 +105,25 @@ export default function ParentDashboard({ user = null }) {
     };
   }, [currentUid]);
 
+  const selectedChild = useMemo(() => {
+    return children.find((c) => c.id === selectedChildId) || null;
+  }, [children, selectedChildId]);
+
+  const resolvedBranchId = useMemo(() => {
+    const raw =
+      selectedChild?.branchId ||
+      selectedChild?.branch ||
+      parentProfile?.branchId ||
+      parentProfile?.branch;
+    return raw ? branchToId(raw) : null;
+  }, [selectedChild, parentProfile]);
+
   // 2. Load Selected Child's Classes and Attendance
   useEffect(() => {
     let active = true;
-    if (!selectedChildId || !parentProfile?.branchId) return;
+    if (!selectedChildId || !resolvedBranchId) return;
 
-    getChildAttendanceAndClasses(selectedChildId, parentProfile.branchId)
+    getChildAttendanceAndClasses(selectedChildId, resolvedBranchId)
       .then((data) => {
         if (!active) return;
         setChildDetails(data);
@@ -127,11 +146,7 @@ export default function ParentDashboard({ user = null }) {
     return () => {
       active = false;
     };
-  }, [selectedChildId, parentProfile?.branchId, reloadKey]);
-
-  const selectedChild = useMemo(() => {
-    return children.find((c) => c.id === selectedChildId) || null;
-  }, [children, selectedChildId]);
+  }, [selectedChildId, resolvedBranchId, reloadKey]);
 
   // Attendance Statistics (LATE counts as attended; EXCUSED excluded from denominator)
   const stats = useMemo(() => {
@@ -191,6 +206,31 @@ export default function ParentDashboard({ user = null }) {
   }
 
   if (!children || children.length === 0) {
+    if (inactiveChildCount > 0 || linkedStudentCount > 0) {
+      return (
+        <div className="max-w-lg mx-auto p-8 bg-white rounded-3xl border border-slate-200 shadow-xs text-center space-y-4">
+          <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto">
+            <Users className="w-7 h-7" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-lg font-bold text-slate-800">Status Profil Siswa Nonaktif</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Akun orang tua Anda memiliki profil siswa tertaut, namun saat ini status ananda sedang nonaktif, cuti, atau ditangguhkan.
+              Silakan hubungi Front Desk My Liberty untuk pengaktifan kembali jadwal kelas dan status siswa.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleGeneralWhatsAppContact}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>Hubungi Front Desk WhatsApp</span>
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="max-w-lg mx-auto p-8 bg-white rounded-3xl border border-slate-200 shadow-xs text-center space-y-4">
         <div className="w-14 h-14 bg-indigo-50 text-[#1a3a8f] rounded-2xl flex items-center justify-center mx-auto">
@@ -316,15 +356,21 @@ export default function ParentDashboard({ user = null }) {
                   tone={
                     paymentSummary.status === "paid"
                       ? "emerald"
+                      : paymentSummary.status === "due_soon"
+                      ? "amber"
                       : paymentSummary.status === "pending"
                       ? "amber"
-                      : paymentSummary.status === "unpaid"
+                      : paymentSummary.status === "expired" || paymentSummary.status === "unpaid"
                       ? "rose"
                       : "slate"
                   }
                 >
                   {paymentSummary.status === "paid"
                     ? "Lunas"
+                    : paymentSummary.status === "due_soon"
+                    ? "Jatuh Tempo Segera"
+                    : paymentSummary.status === "expired"
+                    ? "Kedaluwarsa"
                     : paymentSummary.status === "pending"
                     ? "Menunggu"
                     : paymentSummary.status === "unpaid"
@@ -532,7 +578,7 @@ export default function ParentDashboard({ user = null }) {
                           {att.method === "SCAN" ? "QR Scanner" : att.method || "Manual"}
                         </td>
                         <td className="py-3 px-4 text-slate-500 text-[11px]">
-                          {att.notes || "-"}
+                          {att.note || att.notes || "-"}
                         </td>
                       </tr>
                     ))}

@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import { X, AlertCircle, Loader2, Archive } from "lucide-react";
+import { useOverlayHistory } from "../shared";
 
 const REJECT_REASONS = [
   "Schedule conflict",
@@ -16,6 +17,8 @@ const REJECT_REASONS = [
 ];
 
 export default function ApplicationRejectModal({ app, submitting = false, onClose, onConfirm }) {
+  useOverlayHistory(Boolean(app), onClose, "applicationRejectModal");
+
   const [reason, setReason] = useState(REJECT_REASONS[0]);
   const [note, setNote] = useState("");
 
@@ -26,8 +29,18 @@ export default function ApplicationRejectModal({ app, submitting = false, onClos
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-xs">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Reject & Archive Application"
+        className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-xs"
+      >
         {/* Header */}
         <div className="px-5 py-4 bg-rose-50/70 border-b border-rose-100 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -44,6 +57,7 @@ export default function ApplicationRejectModal({ app, submitting = false, onClos
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close"
             disabled={submitting}
             className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 transition cursor-pointer"
           >

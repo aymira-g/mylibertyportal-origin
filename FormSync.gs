@@ -146,11 +146,39 @@ function toFirestoreFields_(obj) {
   return fields;
 }
 
+function deriveDivisionFromProgram_(program) {
+  if (!program) return "courses";
+  const p = String(program).toLowerCase();
+  if (
+    p.includes("kindergarten") ||
+    p.includes("kids school") ||
+    p.includes("paud") ||
+    p.includes("tk") ||
+    p.includes("nursery")
+  ) {
+    return "kindergarten";
+  }
+  return "courses";
+}
+
 function onFormSubmit(e) {
-  const application = { status: "pending", submittedAt: new Date().toISOString() };
+  if (!e || !e.namedValues) {
+    throw new Error("Invalid submission event: namedValues is missing.");
+  }
+
+  const application = {
+    status: "pending",
+    submittedAt: new Date().toISOString(),
+    intakeSource: "google_forms_sync",
+  };
+
   for (const [firestoreField, formQuestion] of Object.entries(FIELD_MAP)) {
     const answer = e.namedValues[formQuestion];
-    application[firestoreField] = answer ? answer[0] : "";
+    application[firestoreField] = answer ? String(answer[0] || "").trim() : "";
+  }
+
+  if (!application.displayName) {
+    throw new Error("Invalid submission: student full name (displayName) is required.");
   }
 
   // Normalize branch to standard branchId so branch-isolated admissions views display it
@@ -164,6 +192,7 @@ function onFormSubmit(e) {
     branchId = "limboto";
   }
   application.branchId = branchId;
+  application.division = deriveDivisionFromProgram_(application.program);
 
   const token = getAccessToken_();
   const projectId = getFirebaseProjectId_();

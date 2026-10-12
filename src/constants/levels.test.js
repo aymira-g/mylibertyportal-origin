@@ -5,11 +5,13 @@ import {
   getStarText,
   getTier,
   isCompatible,
+  isHigherLevel,
   LEVEL_KEYS,
   LEVELS,
   TIERS,
   UNASSESSED,
 } from "./levels.js";
+
 
 describe("level data", () => {
   it("keeps levels in learning order 1..5", () => {
@@ -119,3 +121,40 @@ describe("isCompatible", () => {
     });
   });
 });
+
+describe("isHigherLevel", () => {
+  it("returns true when targetLevel is higher in learning order", () => {
+    expect(isHigherLevel("warrior", "elite")).toBe(true);
+    expect(isHigherLevel("warrior", "master")).toBe(true);
+    expect(isHigherLevel("master", "grandmaster")).toBe(true);
+    expect(isHigherLevel("grandmaster", "epic")).toBe(true);
+  });
+
+  it("returns false when targetLevel is equal to or lower than currentLevel", () => {
+    expect(isHigherLevel("warrior", "warrior")).toBe(false);
+    expect(isHigherLevel("master", "master")).toBe(false);
+    expect(isHigherLevel("epic", "epic")).toBe(false);
+    expect(isHigherLevel("master", "warrior")).toBe(false);
+    expect(isHigherLevel("epic", "grandmaster")).toBe(false);
+  });
+
+  it("returns true when currentLevel is empty or unassessed", () => {
+    expect(isHigherLevel("", "warrior")).toBe(true);
+    expect(isHigherLevel(null, "master")).toBe(true);
+    expect(isHigherLevel(UNASSESSED, "warrior")).toBe(true);
+  });
+
+  it("returns false when targetLevel is missing or unknown", () => {
+    expect(isHigherLevel("warrior", "")).toBe(false);
+    expect(isHigherLevel("warrior", null)).toBe(false);
+    expect(isHigherLevel("warrior", "unknown_lvl")).toBe(false);
+  });
+
+  it("supports program-specific level hierarchies like kids_school", () => {
+    expect(isHigherLevel("nursery", "tk_a", "kids_school")).toBe(true);
+    expect(isHigherLevel("tk_a", "tk_b", "kids_school")).toBe(true);
+    expect(isHigherLevel("tk_b", "tk_a", "kids_school")).toBe(false);
+    expect(isHigherLevel("tk_b", "tk_b", "kids_school")).toBe(false);
+  });
+});
+

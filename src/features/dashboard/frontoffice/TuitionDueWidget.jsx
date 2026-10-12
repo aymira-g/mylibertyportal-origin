@@ -30,7 +30,7 @@ export default function TuitionDueWidget({
       });
   }, [students, dueSoonThresholdDays]);
 
-  const handleSendReminder = (student) => {
+  const handleSendReminder = (student, health = null) => {
     const rawPhone = student.phone || student.parentPhone;
     const cleanPhone = normalizeWhatsAppNumber(rawPhone);
     if (!cleanPhone) {
@@ -38,7 +38,12 @@ export default function TuitionDueWidget({
       return;
     }
 
-    const message = buildWhatsAppRenewalReminderMessage(student);
+    const message = buildWhatsAppRenewalReminderMessage({
+      student,
+      paidUntil: student.paidUntil,
+      remainingDays: health?.remainingDays,
+      planLabel: student.paymentPlan || student.program,
+    });
     const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
     const link = document.createElement("a");
     link.href = waUrl;
@@ -120,7 +125,7 @@ export default function TuitionDueWidget({
 
               <div className="flex items-center gap-1 shrink-0">
                 <button
-                  onClick={() => handleSendReminder(student)}
+                  onClick={() => handleSendReminder(student, health)}
                   title="Send WhatsApp Reminder"
                   className="p-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition"
                 >

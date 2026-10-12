@@ -290,6 +290,11 @@ export default function ReportsDashboard({
           branchFilter={branchFilter}
           rangeDays={rangeDays}
           division={division}
+          isAdminView={isActualAdmin}
+          isExecutiveView={isExecutiveView}
+          isFrontOffice={isFrontOffice}
+          isManager={isManager}
+          userBranch={userBranch}
         />
       )}
 

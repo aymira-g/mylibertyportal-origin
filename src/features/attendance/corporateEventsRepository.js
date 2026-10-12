@@ -15,6 +15,7 @@ import {
 import { corporateEventSchema } from "../../schemas/corporateEventSchema.js";
 import { branchToId, idToBranch } from "../../constants/branches.js";
 import { normalizeRole, isExecutiveRole } from "../shared/roles.js";
+import { WITA_OFFSET_MS } from "../../utils/dateWita.js";
 
 /**
  * Resolves the staff user's target branchId for corporate events queries.
@@ -49,48 +50,80 @@ export async function resolveCurrentStaffBranchId(explicitBranchId = null) {
  * Splits into company-wide (audienceType == "all") and branch-scoped queries
  * to satisfy strict Firestore security rules and prevent cross-branch leakage.
  *
+ * Overnight Support (DOM03-COR-01):
+ * When current WITA time is early morning past midnight (00:00–06:00 WITA), also queries
+ * yesterday's active events so overnight events spanning past midnight are evaluated.
+ *
  * @param {string} dateStr - YYYY-MM-DD
  * @param {string|null} [branchId] - Optional explicit branchId (or "all" for admin)
+ * @param {object} [options]
+ * @param {Date|string} [options.currentTime=new Date()]
  * @returns {Promise<Array<Record<string, any>>>}
  */
-export async function fetchActiveCorporateEventsForDate(dateStr, branchId = null) {
+export async function fetchActiveCorporateEventsForDate(dateStr, branchId = null, { currentTime = new Date() } = {}) {
   if (!dateStr) return [];
   const targetBranchId = await resolveCurrentStaffBranchId(branchId);
 
-  if (targetBranchId === "all") {
-    const q = query(
-      collection(db, "corporateEvents"),
-      where("eventDate", "==", dateStr),
-      where("status", "==", "active")
-    );
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  // Detect if current WITA time is past midnight (00:00 - 06:00 WITA) so an overnight event from yesterday might still be running (DOM03-COR-01)
+  const d = typeof currentTime === "string" ? new Date(currentTime) : currentTime;
+  const w = new Date((d && !isNaN(d.getTime()) ? d.getTime() : Date.now()) + WITA_OFFSET_MS);
+  const currentMinutes = w.getUTCHours() * 60 + w.getUTCMinutes();
+  const isPostMidnight = currentMinutes < 360;
+
+  const datesToQuery = [dateStr];
+  if (isPostMidnight) {
+    const yesterdayDate = new Date(new Date(dateStr + "T12:00:00Z").getTime() - 86400000).toISOString().slice(0, 10);
+    datesToQuery.push(yesterdayDate);
   }
 
-  // Query A: Company-wide active events for date
-  const qAll = query(
-    collection(db, "corporateEvents"),
-    where("eventDate", "==", dateStr),
-    where("status", "==", "active"),
-    where("audienceType", "==", "all")
-  );
-  const promises = [getDocs(qAll)];
+  const promises = [];
 
-  // Query B: Branch-specific active events for date
-  if (targetBranchId) {
-    const qBranch = query(
-      collection(db, "corporateEvents"),
-      where("eventDate", "==", dateStr),
-      where("status", "==", "active"),
-      where("branchId", "==", targetBranchId)
-    );
-    promises.push(getDocs(qBranch));
+  if (targetBranchId === "all") {
+    datesToQuery.forEach((date) => {
+      promises.push(
+        getDocs(
+          query(
+            collection(db, "corporateEvents"),
+            where("eventDate", "==", date),
+            where("status", "==", "active")
+          )
+        )
+      );
+    });
+  } else {
+    datesToQuery.forEach((date) => {
+      // Query A: Company-wide active events for date
+      promises.push(
+        getDocs(
+          query(
+            collection(db, "corporateEvents"),
+            where("eventDate", "==", date),
+            where("status", "==", "active"),
+            where("audienceType", "==", "all")
+          )
+        )
+      );
+
+      // Query B: Branch-specific active events for date
+      if (targetBranchId) {
+        promises.push(
+          getDocs(
+            query(
+              collection(db, "corporateEvents"),
+              where("eventDate", "==", date),
+              where("status", "==", "active"),
+              where("branchId", "==", targetBranchId)
+            )
+          )
+        );
+      }
+    });
   }
 
   const results = await Promise.all(promises);
   const map = new Map();
   results.forEach((snap) => {
-    snap.docs.forEach((d) => map.set(d.id, { id: d.id, ...d.data() }));
+    snap.docs.forEach((docItem) => map.set(docItem.id, { id: docItem.id, ...docItem.data() }));
   });
   return Array.from(map.values());
 }

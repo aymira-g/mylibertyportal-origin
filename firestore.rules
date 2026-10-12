@@ -969,7 +969,7 @@ service cloud.firestore {
       allow list: if isExecutive()
         || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data))
         || (signedIn() && resource.data.instructorId == request.auth.uid)
-        || (isParent() && ('childStudentIds' in userProfile()) && userProfile().childStudentIds.hasAny([resource.data.studentId]))
+        || (isParent() && isSameBranchStrict(resource.data) && ('childStudentIds' in userProfile()) && userProfile().childStudentIds.hasAny([resource.data.studentId]))
         || (isInstructorLeader() && isSameBranchStrict(resource.data));
       allow create: if signedIn()
         && request.resource.data.instructorId == request.auth.uid

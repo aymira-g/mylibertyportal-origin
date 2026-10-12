@@ -18,6 +18,7 @@
 | 2026-10-10 | Directives timestamp integrity (`serverTimestamp` enforcement), reopening contract formalization & expanded security suite | Office Boy · Facilities · Firestore Rules · Todos | **PASS** | No | Strict `req.completedAt == request.time`; forged times blocked; Layer 4 spec formalized; 121/121 emulator tests pass; pending live deploy |
 | 2026-10-10 | Office Boy dashboard polish: surface directive-list failure state & de-duplicate stat cards to Urgent/Overdue | Office Boy · Facilities · Dashboard · Staff Directives | **PASS** | No | All quality gates pass (1,289 unit tests, 0 lint, 0 typecheck, build clean). No rules changed. Browser smoke attempted (driver CDN 404 logged). |
 | 2026-10-12 | Parent Portal refinement (Items 1–3): P-04 payment status fix, P-05 attendance metrics formula & P-06 inline retry errors | Parent Portal · Students · Dashboard · Repository | **PASS** | No | 1,292 passed (3 new tests); lint, typecheck, build 0 errors; no rules changed |
+| 2026-10-12 | Parent Portal Change Set 2: P-03 progressReports list branch isolation, P-08 emulator security tests & P-01/P-02 residual risks | Parent Portal · Security Rules · Firestore Emulator | **PASS** | No | 122/122 emulator tests pass; 1,292 unit tests pass; P-01 & P-02 accepted residual risks; rules pending live deploy |
 
 ---
 
@@ -818,3 +819,61 @@ Not Run / Limitations:
   - firestore.rules emulator suite (npm run test:rules): NOT RUN — no firestore.rules modified in Items 1–3 (P-03 rules fix slated for Change Set 2).
   - Production deployment: NOT PERFORMED — strictly operator-controlled.
 ```
+
+---
+
+## Evidence Record — 2026-10-12 (Parent Portal Change Set 2: Security Rules & Residual Risks)
+
+```text
+Change: 1) firestore.rules (P-03):
+           - In match /progressReports/{reportId} allow list: added isSameBranchStrict(resource.data)
+             to the parent clause:
+             || (isParent() && isSameBranchStrict(resource.data) && ('childStudentIds' in userProfile()) && userProfile().childStudentIds.hasAny([resource.data.studentId]))
+           - Closes list query asymmetry: parents can now only list progress reports for their linked children
+             within their own branch. Unconstrained and cross-branch list queries are denied.
+        2) firestoreRules.emulator.test.js (P-08):
+           - Added 4 test cases for parent progressReports list queries:
+             * parent1 listing progress reports with branchId constraint for student1 -> ALLOWED
+             * parent1 listing progress reports without branchId constraint -> DENIED
+             * parent1 listing progress reports with mismatched branchId -> DENIED
+             * parent1 listing progress reports for unlinked child -> DENIED
+           - Added INT-013-ATT verifying parent classAttendance permissions:
+             * parent1 reads attendance record for own child (student1) -> ALLOWED
+             * parent1 reads attendance record for another student -> DENIED
+             * parent1 lists attendance for own child (student1) -> ALLOWED
+             * parent1 lists attendance for another student -> DENIED
+        3) Accepted Residual Risks Documented (P-01 & P-02):
+           - P-01: Document-level exposure of child's profile (including staff notes if present).
+             Mitigated by isParentOf; financial/shift data isolated in separate collections;
+             field-splitting into subcollections rejected under zero-budget constraints.
+           - P-02: Exposure of classmate UIDs in classes.studentIds array.
+             Mitigated because security rules strictly prevent parents from reading peer profiles,
+             attendance, or progress reports using those UIDs. No sensitive data leaked.
+
+Date: 2026-10-12
+Section: Parent Portal / Firestore Security Rules / Emulator Test Suite / Governance Residual Risks
+Workflow: Parent progress report listing, attendance query security, cross-branch data isolation
+Tester / Agent: Pair programming agent under Kifry's authorization
+
+Risk classification (Playbook §9): HIGH-RISK — Firestore security rules + branch isolation.
+
+Normal Test:
+  - Real Firestore Emulator suite (npm run test:rules) -> 122 passed, 0 failed (1 test file, 122 tests).
+  - Full Vitest suite (npm test) -> 1,292 passed, 121 skipped, 0 failed (102 test files).
+  - ESLint: npm run lint -> 0 errors, 0 warnings.
+  - TypeScript: npm run typecheck (tsc --noEmit) -> 0 errors.
+  - Build: npm run build -> built cleanly in 3.23s (PWA precache 66 entries).
+  - Rules dry-run deploy: npx firebase deploy --only firestore:rules --dry-run -> rules file compiled successfully.
+
+Failure Test (Boundary Test per Playbook §17):
+  1. ALLOW: Authorized parent reading & listing linked child's same-branch progress reports and attendance -> ALLOWED.
+  2. DENY (Missing constraint): Parent listing progress reports without branch constraint -> DENIED.
+  3. DENY (Wrong branch): Parent listing progress reports for a different branch -> DENIED.
+  4. DENY (Wrong child): Parent reading or listing progress reports/attendance for an unlinked student -> DENIED.
+
+Deployment Parity Evidence:
+  - Rules compiled and validated on local emulator and dry-run against live project mylibertyies-f2f38.
+  - In accordance with AGENTS.md, live production deployment is NOT performed by the agent.
+  - Production deployment remains operator-controlled: firebase deploy --only firestore:rules.
+```
+

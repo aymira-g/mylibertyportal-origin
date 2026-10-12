@@ -1702,6 +1702,102 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
 
       // 4. Parent ready: parent1 CANNOT read report for another child (student2)
       await assertFails(getDoc(doc(authed("parent1"), "progressReports", "bobaReport")));
+
+      // 5. Parent list: parent1 listing progress reports with branchId constraint for student1 -> ALLOWED
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(authed("parent1"), "progressReports"),
+            where("branchId", "==", "kota_gorontalo"),
+            where("studentId", "==", "student1")
+          )
+        )
+      );
+
+      // 6. Parent list: parent1 listing without branchId constraint (unrestricted list) -> DENIED
+      await assertFails(
+        getDocs(
+          query(
+            collection(authed("parent1"), "progressReports"),
+            where("studentId", "==", "student1")
+          )
+        )
+      );
+
+      // 7. Parent list: parent1 listing with mismatched/other branchId -> DENIED
+      await assertFails(
+        getDocs(
+          query(
+            collection(authed("parent1"), "progressReports"),
+            where("branchId", "==", "bone_bolango"),
+            where("studentId", "==", "student1")
+          )
+        )
+      );
+
+      // 8. Parent list: parent1 listing for non-linked child (student2) -> DENIED
+      await assertFails(
+        getDocs(
+          query(
+            collection(authed("parent1"), "progressReports"),
+            where("branchId", "==", "kota_gorontalo"),
+            where("studentId", "==", "student2")
+          )
+        )
+      );
+    });
+
+    it("INT-013-ATT: parent attendance read and list authority for linked student", async () => {
+      await seedDoc(["classes", "class1"], {
+        instructorId: "insGto",
+        studentIds: ["student1"],
+        branchId: "kota_gorontalo",
+        status: "open",
+      });
+      await seedDoc(["classes", "classBoba"], {
+        instructorId: "insBoba",
+        studentIds: ["student2"],
+        branchId: "bone_bolango",
+        status: "open",
+      });
+      await seedDoc(["classAttendance", "attKota1"], {
+        classId: "class1",
+        studentId: "student1",
+        attendanceDate: "2026-10-12",
+        status: "PRESENT",
+      });
+      await seedDoc(["classAttendance", "attBoba2"], {
+        classId: "classBoba",
+        studentId: "student2",
+        attendanceDate: "2026-10-12",
+        status: "PRESENT",
+      });
+
+      // 1. Parent1 reads attendance record for own child (student1) -> ALLOWED
+      await assertSucceeds(getDoc(doc(authed("parent1"), "classAttendance", "attKota1")));
+
+      // 2. Parent1 reads attendance record for another student (student2) -> DENIED
+      await assertFails(getDoc(doc(authed("parent1"), "classAttendance", "attBoba2")));
+
+      // 3. Parent1 lists attendance for own child (student1) -> ALLOWED
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(authed("parent1"), "classAttendance"),
+            where("studentId", "==", "student1")
+          )
+        )
+      );
+
+      // 4. Parent1 lists attendance for another student (student2) -> DENIED
+      await assertFails(
+        getDocs(
+          query(
+            collection(authed("parent1"), "classAttendance"),
+            where("studentId", "==", "student2")
+          )
+        )
+      );
     });
 
     it("INT-017: verifies parent class query shape under parent rules", async () => {

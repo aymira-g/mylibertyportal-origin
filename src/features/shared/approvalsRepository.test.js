@@ -19,8 +19,8 @@ vi.mock("firebase/firestore", () => {
     addDoc: vi.fn().mockResolvedValue({ id: "appr_999" }),
     updateDoc: vi.fn().mockResolvedValue(undefined),
     serverTimestamp: vi.fn().mockReturnValue("SERVER_TIMESTAMP"),
-    query: vi.fn(),
-    where: vi.fn(),
+    query: vi.fn((col, ...clauses) => ({ col, clauses })),
+    where: vi.fn((field, op, val) => ({ field, op, val })),
     onSnapshot: vi.fn(),
   };
 });
@@ -152,5 +152,23 @@ describe("approvalsRepository", () => {
     expect(result.id).toBe("appr_999");
     expect(result.applied).toBe(true);
     expect(result.appliedByUid).toBe("user_123");
+  });
+
+  it("grants Central Academic Lead (Kota Gorontalo) multi-branch query scope while constraining non-central leads", async () => {
+    const { listenToPendingApprovals } = await import("./approvalsRepository");
+    const { query } = await import("firebase/firestore");
+
+    // Central Academic Lead at Kota Gorontalo: No approverBranchId constraint
+    listenToPendingApprovals("instructorleader", "kota_gorontalo", vi.fn(), vi.fn());
+    const centralCall = /** @type {any} */ (query).mock.results.at(-1)?.value;
+    const centralBranchClauses = centralCall.clauses.filter((c) => c.field === "approverBranchId");
+    expect(centralBranchClauses.length).toBe(0);
+
+    // Non-central instructor leader (hypothetical): Constrained to branch
+    listenToPendingApprovals("instructorleader", "bone_bolango", vi.fn(), vi.fn());
+    const satelliteCall = /** @type {any} */ (query).mock.results.at(-1)?.value;
+    const satelliteBranchClauses = satelliteCall.clauses.filter((c) => c.field === "approverBranchId");
+    expect(satelliteBranchClauses.length).toBe(1);
+    expect(satelliteBranchClauses[0].val).toBe("bone_bolango");
   });
 });

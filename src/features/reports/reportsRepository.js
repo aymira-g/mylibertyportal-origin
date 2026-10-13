@@ -93,12 +93,13 @@ export async function fetchStaffShifts(isSupervisorOrAdmin, since = null, branch
  */
 export async function fetchTodayScansData(sinceWitaIso, isAdminView, isFrontOffice, branchId = null, isManager = false, division = null) {
   const normalizedBranchId = branchId ? branchToId(branchId) : null;
-  const isSupervisor = isAdminView || isFrontOffice || isManager;
+  const isExecutive = Boolean(isAdminView) && !isManager && !isFrontOffice;
+  const isSupervisor = isExecutive || isFrontOffice || isManager;
 
-  // Branch isolation (DOM03-SEC-02): Non-executive callers (Manager, Front Office)
+  // Branch isolation (DOM03-SEC-02, DOM03-SEC-03): Non-executive callers (Manager, Front Office)
   // must have their query strictly scoped to their branch.
   // Never emit an unscoped /attendance list query that would violate isSameBranchStrict.
-  if (!isAdminView && (isManager || isFrontOffice) && !normalizedBranchId) {
+  if (!isExecutive && (isManager || isFrontOffice) && !normalizedBranchId) {
     console.warn("fetchTodayScansData: branchId is required for non-executive view; returning empty results to prevent unauthorized unscoped query.");
     return { scans: [], classes: [], students: [] };
   }
@@ -123,7 +124,7 @@ export async function fetchTodayScansData(sinceWitaIso, isAdminView, isFrontOffi
     : collection(db, "classes");
 
   const usersFilters = [];
-  if (!isAdminView && !isManager) {
+  if (!isExecutive && !isManager) {
     usersFilters.push(where("role", "in", isFrontOffice ? ["student", "instructor"] : ["student"]));
   }
   if (normalizedBranchId) {
@@ -156,12 +157,13 @@ export async function fetchTodayScansData(sinceWitaIso, isAdminView, isFrontOffi
  */
 export async function fetchStudentProgressData(isAdminView, isFrontOffice, since = null, branchId = null, isManager = false, division = null) {
   const normalizedBranchId = branchId ? branchToId(branchId) : null;
-  const isSupervisor = isAdminView || isFrontOffice || isManager;
+  const isExecutive = Boolean(isAdminView) && !isManager && !isFrontOffice;
+  const isSupervisor = isExecutive || isFrontOffice || isManager;
 
-  // Branch isolation (DOM03-SEC-02): Non-executive callers (Manager, Front Office)
+  // Branch isolation (DOM03-SEC-02, DOM03-SEC-03): Non-executive callers (Manager, Front Office)
   // must have their query strictly scoped to their branch.
   // Never emit an unscoped list query that would violate isSameBranchStrict.
-  if (!isAdminView && (isManager || isFrontOffice) && !normalizedBranchId) {
+  if (!isExecutive && (isManager || isFrontOffice) && !normalizedBranchId) {
     console.warn("fetchStudentProgressData: branchId is required for non-executive view; returning empty results to prevent unauthorized unscoped query.");
     return { users: [], classes: [], attendance: [], progress: [] };
   }
@@ -194,7 +196,7 @@ export async function fetchStudentProgressData(isAdminView, isFrontOffice, since
   const progressQuery = query(collection(db, "progressReports"), ...progressFilters);
 
   const usersFilters = [];
-  if (!isAdminView && !isManager) {
+  if (!isExecutive && !isManager) {
     usersFilters.push(where("role", "in", isFrontOffice ? ["student", "instructor"] : ["student"]));
   }
   if (normalizedBranchId) {

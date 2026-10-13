@@ -465,6 +465,15 @@ const BRANCH_MAP = {
   limboto: "Limboto",
 };
 
+const LEGACY_BRANCH_ALIASES = {
+  "cabang utama": "kota_gorontalo",
+  "cabang_utama": "kota_gorontalo",
+  utama: "kota_gorontalo",
+  "main branch": "kota_gorontalo",
+  gorontalo: "kota_gorontalo",
+  kota: "kota_gorontalo",
+};
+
 const LEGACY_ROLE_ALIASES = {
   ops_lead: "opslead",
   frontofficelead: "opslead",
@@ -483,6 +492,9 @@ function normalizeRole(role) {
 function normalizeBranchId(raw) {
   if (!raw || typeof raw !== "string") return "";
   const clean = raw.trim().toLowerCase();
+  if (LEGACY_BRANCH_ALIASES[clean]) {
+    return LEGACY_BRANCH_ALIASES[clean];
+  }
   for (const [id, name] of Object.entries(BRANCH_MAP)) {
     if (name.toLowerCase() === clean || id === clean) {
       return id;
@@ -810,20 +822,51 @@ async function handleShiftClockIn(request, env) {
   // 6. Enforce Single Open Shift Invariant Atomically (K-03)
   const existingOpenShift = await fsQueryOpenShift(badgeToken, token);
   if (existingOpenShift) {
-    return json(
-      {
-        error: "Staff member already has an active open shift.",
-        existingShiftId: existingOpenShift.id,
-      },
-      409,
-      request,
-      env
-    );
+    const shiftAgeHours = (Date.now() - new Date(existingOpenShift.clockIn || 0).getTime()) / (1000 * 60 * 60);
+    const graceHours = existingOpenShift.role === "instructor" ? 3 : 14;
+    if (shiftAgeHours > graceHours) {
+      // Auto-close stale open shift server-side with estimated clockOut
+      const expectedMinutes = existingOpenShift.role === "instructor" ? 90 : 8 * 60;
+      const estimatedClockOut = new Date(
+        new Date(existingOpenShift.clockIn).getTime() + expectedMinutes * 60000
+      ).toISOString();
+      await fsCommitWrites(
+        [
+          {
+            update: {
+              name: `${FIRESTORE_BASE}/shifts/${existingOpenShift.id}`,
+              fields: toFirestoreFields({
+                clockOut: estimatedClockOut,
+                autoClosed: true,
+                updatedAt: new Date().toISOString(),
+              }),
+            },
+            updateMask: { fieldPaths: ["clockOut", "autoClosed", "updatedAt"] },
+          },
+        ],
+        token
+      );
+      await logKioskAudit(
+        "KIOSK_STALE_SHIFT_AUTO_CLOSED",
+        { userId: badgeToken, shiftId: existingOpenShift.id, shiftAgeHours },
+        token
+      ).catch(() => {});
+    } else {
+      return json(
+        {
+          error: "Staff member already has an active open shift.",
+          existingShiftId: existingOpenShift.id,
+        },
+        409,
+        request,
+        env
+      );
+    }
   }
 
   const serverTime = new Date().toISOString();
   // Attempt atomic lock acquisition in activeShifts
-  const lockResult = await fsCreateDocWithIdPrecondition(
+  let lockResult = await fsCreateDocWithIdPrecondition(
     "activeShifts",
     badgeToken,
     {
@@ -849,9 +892,26 @@ async function handleShiftClockIn(request, env) {
         // Stale lock detected (shift was closed or deleted), clean up with version precondition (no unconditional delete)
         const deleteRes = await fsDeleteDocWithPrecondition("activeShifts", badgeToken, lockUpdateTime, token);
         if (deleteRes.ok) {
-          return json({ error: "A stale kiosk lock was cleared. Please scan again." }, 409, request, env);
+          // Immediately re-acquire lock for the new shift in this single request (DOM03-COR-02)
+          const retryLock = await fsCreateDocWithIdPrecondition(
+            "activeShifts",
+            badgeToken,
+            {
+              userId: badgeToken,
+              clockIn: serverTime,
+              branchId: device.branchId,
+              status: "opening",
+            },
+            token
+          );
+          if (retryLock.ok) {
+            lockResult = retryLock;
+          } else {
+            return json({ error: "A stale kiosk lock was cleared. Please scan again." }, 409, request, env);
+          }
+        } else {
+          return json({ error: "Kiosk lock state updated concurrently. Please scan again." }, 409, request, env);
         }
-        return json({ error: "Kiosk lock state updated concurrently. Please scan again." }, 409, request, env);
       } else {
         return json(
           {

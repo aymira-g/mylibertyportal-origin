@@ -8,6 +8,7 @@ import {
 } from "../dashboard/usersRepository";
 import { useToast, useConfirm } from "../shared";
 import { branchToId } from "../../constants/branches";
+import { normalizePhoneDigits } from "./parentPortalRepository";
 import {
   Users,
   UserPlus,
@@ -357,10 +358,20 @@ export default function StudentParentLinkage({
                         if (isAlreadyLinked) return false;
                         const q = searchParentQuery.toLowerCase().trim();
                         if (!q) return true;
+                        const qDigits = q.replace(/\D/g, "");
+                        const qNorm = normalizePhoneDigits(q);
+                        const pPhone = p.phone || "";
+                        const pDigits = pPhone.replace(/\D/g, "");
+                        const pNorm = normalizePhoneDigits(pPhone);
+                        const phoneMatches = Boolean(
+                          (pPhone && pPhone.toLowerCase().includes(q)) ||
+                          (qDigits && pDigits && pDigits.includes(qDigits)) ||
+                          (qNorm && pNorm && pNorm.includes(qNorm))
+                        );
                         return (
                           (p.displayName || "").toLowerCase().includes(q) ||
                           (p.email || "").toLowerCase().includes(q) ||
-                          (p.phone || "").includes(q)
+                          phoneMatches
                         );
                       })
                       .map((parent) => (

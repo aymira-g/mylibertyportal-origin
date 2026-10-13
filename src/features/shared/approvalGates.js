@@ -1,4 +1,4 @@
-import { branchToId } from "../../constants/branches";
+import { branchToId, isLeanSatelliteBranch } from "../../constants/branches";
 import { normalizeRole } from "./roles";
 
 /**
@@ -21,7 +21,6 @@ import { normalizeRole } from "./roles";
 export const APPROVAL_ROLES = {
   DIRECTOR: "director",
   VICE_DIRECTOR: "vice_director",
-  ADMIN: "admin",
   DIVISION_MANAGER: "manager", // Canonical (Authoritative Blueprint v3.1 §5.4)
   INSTRUCTOR_LEADER: "instructorleader",
   OPS_LEAD: "opslead",
@@ -96,7 +95,6 @@ export const GATED_ACTIONS = Object.freeze({
     primaryController: APPROVAL_ROLES.DIRECTOR,
     eligibleApproverRoles: Object.freeze([
       APPROVAL_ROLES.DIRECTOR,
-      APPROVAL_ROLES.VICE_DIRECTOR,
     ]),
     mode: APPROVAL_MODES.BLOCKING,
     domain: "staff",
@@ -143,7 +141,6 @@ export const GATED_ACTIONS = Object.freeze({
     primaryController: APPROVAL_ROLES.DIRECTOR,
     eligibleApproverRoles: Object.freeze([
       APPROVAL_ROLES.DIRECTOR,
-      APPROVAL_ROLES.VICE_DIRECTOR,
     ]),
     mode: APPROVAL_MODES.BLOCKING,
     domain: "staff",
@@ -341,10 +338,13 @@ export const GATED_ACTIONS = Object.freeze({
   STUDENT_CLASS_TRANSFER: Object.freeze({
     id: "STUDENT_CLASS_TRANSFER",
     label: "Student Class / Batch Transfer",
-    approverRole: APPROVAL_ROLES.OPS_LEAD,
-    primaryController: APPROVAL_ROLES.OPS_LEAD,
+    approverRole: "dynamic_branch",
+    primaryController: "dynamic_branch",
     eligibleApproverRoles: Object.freeze([
       APPROVAL_ROLES.OPS_LEAD,
+      APPROVAL_ROLES.DIVISION_MANAGER,
+      APPROVAL_ROLES.VICE_DIRECTOR,
+      APPROVAL_ROLES.DIRECTOR,
     ]),
     mode: APPROVAL_MODES.BLOCKING,
     domain: "classes",
@@ -447,10 +447,16 @@ export function getSelfCorrectionApprover(requesterRole) {
  *   Exception: If Ops Lead handled the cash drawer, escalates to Vice Director.
  * - From Rp 20.000 (inclusive) up to 49.999: Vice Director.
  * - From Rp 50.000 (inclusive): Director.
+ * Blueprint v3.3 §26 (G-009) & Owner Decision 2026-10-13 (OD-4):
+ * - >= Rp 50.000 -> Director (or Vice Director if Director on approved leave)
+ * - Rp 20.000 up to Rp 49.999 -> Vice Director
+ * - < Rp 20.000:
+ *   - Main Campus (Kota Gorontalo): Ops Lead (escalates to Vice Director if Ops Lead handled drawer or vacant)
+ *   - Lean Satellites (Bone Bolango, Limboto, Pohuwato per G-012): Course Division Manager (escalates to Vice Director if Manager handled drawer)
  *   Exception: If Director is on approved leave, Vice Director acts as Acting Director.
  * Shortage and surplus both count by absolute size.
  *
- * @param {{ amount?: number|string, drawerHandlerUid?: string|null, opsLeadUid?: string|null, isDirectorOnLeave?: boolean }} [params]
+ * @param {{ amount?: number|string, drawerHandlerUid?: string|null, opsLeadUid?: string|null, isDirectorOnLeave?: boolean, branchId?: string|null, managerUid?: string|null }} [params]
  * @returns {string} Approver role from APPROVAL_ROLES
  */
 export function getCashDiscrepancyApprover({
@@ -458,6 +464,8 @@ export function getCashDiscrepancyApprover({
   drawerHandlerUid = null,
   opsLeadUid = null,
   isDirectorOnLeave = false,
+  branchId = null,
+  managerUid = null,
 } = {}) {
   const absAmount = Math.abs(Number(amount) || 0);
 
@@ -473,11 +481,57 @@ export function getCashDiscrepancyApprover({
   }
 
   // < Rp 20.000 tier:
+  // Lean satellite branches (Bone Bolango, Limboto, Pohuwato per Blueprint v3.4 G-012 & OD-4):
+  // Course Division Manager approves on-site daily operations.
+  // If the Course Division Manager is the drawer handler, escalate to Vice Director.
+  if (branchId && isLeanSatelliteBranch(branchId)) {
+    if (drawerHandlerUid && managerUid && drawerHandlerUid === managerUid) {
+      return APPROVAL_ROLES.VICE_DIRECTOR;
+    }
+    return APPROVAL_ROLES.DIVISION_MANAGER;
+  }
+
+  // Main Campus (Kota Gorontalo):
   // If Ops Lead handled the drawer themselves, they cannot approve it -> escalate to Vice Director
   if (drawerHandlerUid && opsLeadUid && drawerHandlerUid === opsLeadUid) {
     return APPROVAL_ROLES.VICE_DIRECTOR;
   }
 
+  return APPROVAL_ROLES.OPS_LEAD;
+}
+
+/**
+ * Resolves the designated approver for student class transfers.
+ * Owner Decision 2026-10-13 (Two-step Dual-Control Transfer Workflow & G-012):
+ * - Main Campus (Kota Gorontalo): Operational Leader (opslead) checks.
+ * - Satellite Campuses (Bone Bolango, Limboto, Pohuwato): Course Division Manager (manager) checks.
+ * - Maker Conflict / Absence: If requester is the checker (or checker absent), escalates to Vice Director (vice_director).
+ *
+ * @param {{ branchId?: string|null, requesterRole?: string, requesterUid?: string|null, checkerUid?: string|null }} [params]
+ * @returns {string} Approver role
+ */
+export function getStudentTransferApprover({
+  branchId = null,
+  requesterRole = "",
+  requesterUid = null,
+  checkerUid = null,
+} = {}) {
+  const normRole = normalizeRole(requesterRole);
+
+  // Satellite branch: Course Division Manager (manager)
+  if (branchId && isLeanSatelliteBranch(branchId)) {
+    // If the requester is the manager, escalate to Vice Director
+    if (normRole === "manager" || (requesterUid && checkerUid && requesterUid === checkerUid)) {
+      return APPROVAL_ROLES.VICE_DIRECTOR;
+    }
+    return APPROVAL_ROLES.DIVISION_MANAGER;
+  }
+
+  // Main branch (Kota Gorontalo): Ops Lead (opslead)
+  // If the requester is the opslead, escalate to Vice Director
+  if (normRole === "opslead" || (requesterUid && checkerUid && requesterUid === checkerUid)) {
+    return APPROVAL_ROLES.VICE_DIRECTOR;
+  }
   return APPROVAL_ROLES.OPS_LEAD;
 }
 
@@ -493,7 +547,7 @@ export function getCashDiscrepancyApprover({
  * - Director and Vice Director approve each other's.
  * - Both executives unavailable fallback order: Course Division Mgr -> Kinder Division Mgr -> Ops Lead -> Instructor Leader.
  *
- * @param {{ subjectRole?: string, subjectUid?: string|null, makerUid?: string|null, isDirectorOnLeave?: boolean, isViceDirectorOnLeave?: boolean }} [params]
+ * @param {{ subjectRole?: string, subjectUid?: string|null, makerUid?: string|null, isDirectorOnLeave?: boolean, isViceDirectorOnLeave?: boolean, branchId?: string|null }} [params]
  * @returns {string} Approver role
  */
 export function getStaffStatusApprover({
@@ -502,6 +556,7 @@ export function getStaffStatusApprover({
   makerUid = null,
   isDirectorOnLeave = false,
   isViceDirectorOnLeave = false,
+  branchId = null,
 } = {}) {
   // Separation of duties check: Maker can NEVER be the subject of leave/status request
   if (makerUid && subjectUid && makerUid === subjectUid) {
@@ -512,6 +567,11 @@ export function getStaffStatusApprover({
 
   // Subordinate to domain superior:
   if (normalized === "frontoffice" || normalized === "officeboy") {
+    // Under G-012, lean satellite branches have no Ops Lead;
+    // Front Office and facility operations route to Course Division Manager
+    if (branchId && isLeanSatelliteBranch(branchId)) {
+      return APPROVAL_ROLES.DIVISION_MANAGER;
+    }
     return APPROVAL_ROLES.OPS_LEAD;
   }
   if (normalized === "instructor") {
@@ -677,6 +737,11 @@ export function createApprovalEnvelope(actionId, requester = {}, context = {}) {
     throw new Error(`Unknown gated action: "${actionId}"`);
   }
 
+  const requestedAt = new Date().toISOString();
+  const requestedBy = requester.name || requester.displayName || requester.email || "Staff";
+  const rawBranch = requester.branchId || requester.branch || context.branchId || context.payload?.branchId || null;
+  const approverBranchId = rawBranch ? branchToId(rawBranch) : null;
+
   let resolvedApproverRole = gate.approverRole;
   if (gate.id === "STAFF_SHIFT_SELF_CORRECTION") {
     resolvedApproverRole = getSelfCorrectionApprover(requester.role);
@@ -697,19 +762,24 @@ export function createApprovalEnvelope(actionId, requester = {}, context = {}) {
       amount: discrepancyAmount,
       drawerHandlerUid: requester.uid,
       opsLeadUid: context.payload?.opsLeadUid,
+      branchId: approverBranchId,
+      managerUid: context.payload?.managerUid,
     });
   } else if (gate.id === "STAFF_STATUS_CHANGE" && context.payload?.subjectRole) {
     resolvedApproverRole = getStaffStatusApprover({
       subjectRole: context.payload.subjectRole,
       subjectUid: context.payload.subjectUid,
       makerUid: requester.uid,
+      branchId: approverBranchId,
+    });
+  } else if (gate.id === "STUDENT_CLASS_TRANSFER") {
+    resolvedApproverRole = getStudentTransferApprover({
+      branchId: approverBranchId,
+      requesterRole: requester.role,
+      requesterUid: requester.uid,
+      checkerUid: context.payload?.checkerUid,
     });
   }
-
-  const requestedAt = new Date().toISOString();
-  const requestedBy = requester.name || requester.displayName || requester.email || "Staff";
-  const rawBranch = requester.branchId || requester.branch || null;
-  const approverBranchId = rawBranch ? branchToId(rawBranch) : null;
   const division =
     requester.division ||
     context.division ||
@@ -787,7 +857,6 @@ export function canApproveGate(userRole, approverRoleOrAction, actionId = null) 
   if (!approverRole) return false;
 
   switch (approverRole) {
-    case APPROVAL_ROLES.ADMIN:
     case "admin":
       return normalized === "admin";
     case APPROVAL_ROLES.DIRECTOR:

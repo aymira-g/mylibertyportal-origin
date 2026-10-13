@@ -152,10 +152,19 @@ export default function ParentDashboard({ user = null }) {
   const stats = useMemo(() => {
     const list = childDetails.attendance || [];
     const total = list.length;
-    const present = list.filter((a) => a.status === "PRESENT").length;
-    const late = list.filter((a) => a.status === "LATE").length;
-    const excused = list.filter((a) => a.status === "EXCUSED").length;
-    const absent = list.filter((a) => a.status === "ABSENT").length;
+    let present = 0;
+    let late = 0;
+    let excused = 0;
+    let absent = 0;
+
+    for (const a of list) {
+      const s = (a?.status || "").toUpperCase();
+      if (s === "PRESENT") present++;
+      else if (s === "LATE") late++;
+      else if (s === "EXCUSED") excused++;
+      else if (s === "ABSENT") absent++;
+    }
+
     const attended = present + late;
     const effectiveTotal = present + late + absent;
     const rate = effectiveTotal > 0 ? Math.round((attended / effectiveTotal) * 100) : null;

@@ -192,7 +192,7 @@ export default function StudentRosterMobileList({
             </div>
 
             {/* Promotion Banner if Eligible */}
-            {pendingPromotion && !readOnly && nextLevel && (
+            {canPromote && (
               <div className="flex items-center justify-between bg-gradient-to-r from-amber-50 to-indigo-50 p-2.5 rounded-xl border border-amber-200 text-xs">
                 <div className="flex items-center gap-1.5 text-amber-900 font-bold">
                   <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />

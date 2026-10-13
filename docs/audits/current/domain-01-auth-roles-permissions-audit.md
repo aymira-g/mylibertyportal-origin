@@ -144,3 +144,86 @@ Regression Verification:
 Cost & Quota Impact: 0 additional reads/writes; 100% Spark tier compliant.
 Next Scheduled Deep Audit: Domain 2 — Branch Isolation & Firestore Security Rules
 ```
+
+---
+
+## 5. Re-Verification Pass R2 (Independent Audit Batch 1 v2)
+
+> **Audit ID:** `L2-DOM01-R2-2026-10-12`  
+> **Re-Verification Date:** 2026-10-12  
+> **Commit Inspected:** `e23b1711c4cd7858ea4545b245cd47e13c4e9e68` (main)  
+> **Working Tree:** Clean  
+> **Audit Stance:** Evidence-first adversarial re-verification; test results weighed over claims.  
+> **Detailed Evidence Artifact:** [`docs/audits/current/evidence/batch1-authorization-matrix.md`](evidence/batch1-authorization-matrix.md)
+
+### 5.1 Re-Verification of Previously Closed Findings
+
+1. **DOM01-SEC-01 (Staff Creation Envelope Hardening): REGRESSED / BLOCKED**
+   - *Status in Ledger:* Marked CLOSED (Automated Test Passed).
+   - *R2 Finding:* While `firestore.rules:560-563` requires `isApprovedNewStaffAccount(userId, appliedFromApproval)`, the approval update rule on `/approvals/{approvalId}` at `firestore.rules:937` currently fails with `PERMISSION_DENIED: Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached` (see DOM02-SEC-04). Consequently, **no executive can actually approve the onboarding ticket in production**, completely blocking staff provisioning.
+   - *Additional Boundary Gap (DOM01-SEC-04):* `isApprovedNewStaffAccount` checks only `approval.payload.uid == targetUserId`. It does **not** bind the target `role`, `branchId`, or `division`. An approving executive or a forged direct write could assign `role: "admin"` or `role: "director"` using an envelope generated for an instructor.
+   - *Updated Status:* **RE-OPENED (BLOCKED BY ENGINE BUDGET DEFECT)**.
+
+2. **DOM01-SEC-02 (`DevQuickSwitcher` Build Exposure): RE-VERIFIED CLOSED**
+   - *Status in Ledger:* CLOSED (Automated Test Passed).
+   - *R2 Finding:* Confirmed. `DevQuickSwitcher` text is absent from production bundles.
+   - *Lead L1 Discovery (DOM01-SEC-03):* However, inspection of built asset `dist/assets/divisions-eTZKqAQZ.js` revealed that `VITE_APPCHECK_DEBUG_TOKEN` (`BE6C6D71-A7B1-4C19-A9EB-DE5DE93C7977`) is inlined into production code due to `window.location?.hostname === "localhost"` preventing tree-shaking in `src/firebase.js:66-72`.
+   - *Updated Status:* `DOM01-SEC-02` holds; new finding `DOM01-SEC-03` logged below.
+
+3. **DOM01-GOV-01 (`InvitesPanel.jsx` Role Label): RE-VERIFIED CLOSED**
+   - *Status in Ledger:* CLOSED (Code-proven).
+   - *R2 Finding:* Confirmed. `InvitesPanel.jsx` labels `manager` as "Division Manager" (Courses / Kindergarten). No reference to removed "Campus Manager" remains. Holds.
+
+4. **DOM01-UX-01 (Student Login Route Card): RE-VERIFIED CLOSED**
+   - *Status in Ledger:* CLOSED (Code-proven).
+   - *R2 Finding:* Confirmed. `App.jsx:327-347` renders dedicated student guidance card without exposing staff role request form. Holds.
+
+---
+
+### 5.2 New Findings in Domain 1
+
+#### Finding DOM01-SEC-03: Firebase App Check Debug Token Inlined in Production Bundle
+- **Classification:** Security Vulnerability
+- **Severity:** **HIGH**
+- **Affected Files:** [`src/firebase.js:66-73`](file:///e:/myliberty-portal/src/firebase.js#L66-L73), [`dist/assets/divisions-eTZKqAQZ.js`](file:///e:/myliberty-portal/dist/assets/divisions-eTZKqAQZ.js)
+- **Governing Policy:** Blueprint v3.3 §7 (Technical Boundary Security) & AGENTS.md (No credentials or secrets in production artifacts).
+- **Evidence:** Literal token value `BE6C6D71-A7B1-4C19-A9EB-DE5DE93C7977` is present in `dist/assets/divisions-eTZKqAQZ.js`:
+  ```javascript
+  window.location?.hostname === "localhost" && (self.FIREBASE_APPCHECK_DEBUG_TOKEN = "BE6C6D71-A7B1-4C19-A9EB-DE5DE93C7977")
+  ```
+- **Why It Matters:** Any caller inspecting the client JavaScript bundle can extract the debug token and supply it to backend Firestore/Storage requests to bypass App Check verification.
+- **Corrective Direction:** Gate the debug token strictly behind `import.meta.env.DEV` without the `hostname === "localhost"` runtime clause, so Vite statically eliminates the token from production builds.
+- **Blocking Status:** Blocks release until resolved.
+
+#### Finding DOM01-GOV-02: System Admin Retains Unsanctioned Business Operational Authority
+- **Classification:** Governance Conflict / Privilege Escalation
+- **Severity:** **HIGH**
+- **Affected Rules:** [`firestore.rules:484, 687-688, 1000, 1009, 1038`](file:///e:/myliberty-portal/firestore.rules#L484)
+- **Governing Requirement:** Blueprint v3.3 §7 & §26 (G-002), Principle 3: *System Admin is a technical system-access role, not an organizational position. It does not inherit Director, Vice Director, Division Manager, or business operational authority.*
+- **Evidence:**
+  1. `firestore.rules:484`: `canManageClassAttendance(classId)` explicitly includes `isAdmin()`. Admin can falsify student attendance.
+  2. `firestore.rules:687-688`: `allow create, update: if isAdmin() || isExecutive()`. Admin can create and update academic classes, while Division Managers are completely locked out!
+  3. `firestore.rules:1000, 1009`: Admin can create and update staff shifts, with unrestricted update rights on line 1009.
+  4. `firestore.rules:1000, 1009, 1038`: Admin can create and update desk inquiries and applications.
+- **Why It Matters:** Breaches separation of duties and allows technical administrators to forge academic, operational, and financial records.
+- **Corrective Direction:** Remove `isAdmin()` from `canManageClassAttendance`, `/classes` mutations (delegating to Executive & Division Managers), and `/shifts` mutations.
+- **Blocking Status:** Must fix before production release.
+
+#### Finding DOM01-SEC-04: Unconstrained Role and Scope Binding on `NEW_STAFF_ACCOUNT` Envelopes
+- **Classification:** Security Vulnerability / Data Integrity
+- **Severity:** **MEDIUM**
+- **Affected Files:** [`firestore.rules:444-455`](file:///e:/myliberty-portal/firestore.rules#L444-L455), [`src/features/shared/ApprovalInbox.jsx:176-198`](file:///e:/myliberty-portal/src/features/shared/ApprovalInbox.jsx#L176-L198)
+- **Governing Requirement:** Blueprint v3.3 §5.4 & G-007 (Named approvers per action; single-use, tightly bound envelopes).
+- **Evidence:** `isApprovedNewStaffAccount(targetUserId, approvalId)` verifies only `approval.payload.uid == targetUserId`. It does not compare `request.resource.data.role`, `branchId`, or `division` against the ticket.
+- **Why It Matters:** An executive approving an onboarding ticket can arbitrarily elevate the account to `admin` or `director`, or change their assigned branch, without an audit trail of that specific entitlement being requested.
+- **Corrective Direction:** Bind `payload.role`, `payload.branchId`, and `payload.division` inside the approval document and verify exact equality in `isApprovedNewStaffAccount`.
+- **Blocking Status:** Fix before completion.
+
+---
+
+### 5.3 Execution Summary & R2 Metric Log
+- **Total Test Files Evaluated:** 105
+- **Unit & Integration Tests Passed:** 1,367
+- **Firestore Emulator Tests:** 118 passed / 5 failed (123 total)
+- **Domain 1 Posture:** 2 closed findings re-verified; 1 finding re-opened due to rules engine ceiling crash; 3 new findings logged (1 High Vuln, 1 High Gov, 1 Med Sec).
+

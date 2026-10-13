@@ -21,6 +21,7 @@ import { buildStudentRecord } from "./studentRecord";
 import { getBatchAvailability } from "../classes/batchAvailability";
 import { todayWita } from "../../utils/dateWita.js";
 import { applicationSchema } from "../../schemas";
+import { UNASSESSED } from "../../constants/levels.js";
 
 /**
  * Atomically approves an application, creates the canonical student record,
@@ -29,7 +30,7 @@ import { applicationSchema } from "../../schemas";
  */
 export async function approveApplication({
   app,
-  level = "warrior",
+  level = UNASSESSED,
   paymentPlan = "monthly",
   classId = null,
   actorEmail = "",
@@ -58,8 +59,8 @@ export async function approveApplication({
       }
     }
 
-    // 3. Determine final academic level (batch level wins if class chosen)
-    const finalLevel = classId && classData?.classLevel ? classData.classLevel : level || "warrior";
+    // 3. Determine final academic level (batch scheduling does NOT mutate academic level; unassessed intake stays UNASSESSED)
+    const finalLevel = level || app.currentLevel || UNASSESSED;
     const today = todayWita();
     const now = new Date().toISOString();
 

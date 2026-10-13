@@ -693,10 +693,14 @@ export function useDashboardData({
 
   const handleAddTodo = async (todoData) => {
     const isDirective = todoData?.type === "directive";
+    const effectiveBranch = todoData?.branch || branch || profileBranch || DEFAULT_BRANCH;
+    const effectiveBranchId = todoData?.branchId || (branch && branch !== "all" ? branchToId(branch) : null) || profileBranchId || (effectiveBranch ? branchToId(effectiveBranch) : null);
     try {
       await createTodo({
+        branch: effectiveBranch,
+        branchId: effectiveBranchId,
         ...todoData,
-        division: division && division !== "all" ? division : "all",
+        division: todoData?.division || (division && division !== "all" ? division : "all"),
       });
       toast(
         isDirective ? "Directive issued successfully." : "Task created successfully.",

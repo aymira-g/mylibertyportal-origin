@@ -57,9 +57,9 @@ describe("approveApplication", () => {
     expect(fake.find("classes/c1")).toBeUndefined();
   });
 
-  it("defaults to level 'warrior', plan 'monthly' and approver 'system'", async () => {
+  it("defaults to unassessed intake level, plan 'monthly' and approver 'system'", async () => {
     const student = await approveApplication({ app });
-    expect(student).toMatchObject({ currentLevel: "warrior", paymentPlan: "monthly" });
+    expect(student).toMatchObject({ currentLevel: "unassessed", paymentPlan: "monthly" });
     expect(fake.find("applications/app1").data.approvedBy).toBe("system");
   });
 
@@ -71,7 +71,7 @@ describe("approveApplication", () => {
     expect(fake.find(`users/${student.id}`).data.branch).toBe("Kota Gorontalo");
   });
 
-  it("enrols the student in the chosen batch, and the batch level wins", async () => {
+  it("enrols the student in the chosen batch, preserving student level (batch assignment is scheduling, not placement)", async () => {
     fake.seed("classes", [
       {
         id: "c1",
@@ -84,14 +84,14 @@ describe("approveApplication", () => {
     ]);
     const student = await approveApplication({ app, level: "warrior", classId: "c1" });
 
-    expect(student.currentLevel).toBe("master");
+    expect(student.currentLevel).toBe("warrior");
     const cls = fake.find("classes/c1");
     expect(cls.via).toBe("transaction");
     expect(cls.data.studentIds).toEqual({ __op: "arrayUnion", items: ["auto-1"] });
     expect(cls.data.enrollments.items[0]).toEqual({
       studentId: "auto-1",
       dateJoined: "2026-09-01",
-      level: "master",
+      level: "warrior",
     });
   });
 

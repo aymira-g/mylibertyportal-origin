@@ -11,9 +11,9 @@
 
 | # | Section | Last Deep Audit | Major Changes Since | Deep Audit Due? |
 |---|---|---|---|---|
-| 1 | Auth / Roles / Permissions | 2026-10-12 (`L2-DOM01`) | — | No |
-| 2 | Branch Isolation / Firestore Rules | 2026-10-12 (`L2-DOM02`) | P-03 list-rule fix + timestamp-integrity rules deployed to live production (2026-10-12) | No |
-| 3 | Attendance + Kiosk | 2026-10-12 (`L2-DOM03`) | — | No |
+| 1 | Auth / Roles / Permissions | 2026-10-12 (`L2-DOM01-R2`) | Re-verification R2 remediated & verified: DOM01-SEC-01 (closed), DOM01-SEC-03 (token stripped), DOM01-GOV-02 (Admin scope removed), DOM01-SEC-04 (envelope bound) | No (R2 Remediation Verified) |
+| 2 | Branch Isolation / Firestore Rules | 2026-10-12 (`L2-DOM02-R2`) | Re-verification R2 remediated & verified: DOM02-SEC-04 (1,000 expressions ceiling resolved), DOM02-SEC-05 (null-safe roleOf), DOM02-COR-01 (Worker alias mapped), DOM02-GOV-01 (company events scoped) | No (R2 Remediation Verified) |
+| 3 | Attendance + Kiosk | 2026-10-13 (`L2-DOM03-R2`) | Re-verification R2 remediated & verified: DOM03-SEC-03 (reports UI branch leak closed), DOM03-RES-01 (shifts rules AST expression limit closed), DOM03-COR-02 (kiosk stale lock single-scan recovery closed) | No (R2 Remediation Verified) |
 | 4 | Payments / Cash / Financial State | 2026-10-12 (`L2-DOM04`) | 4 findings remediated & verified (DOM04-SEC-01, DOM04-IDX-01, DOM04-COR-01, DOM04-GOV-01) | No |
 | 5 | Students / Admissions / Profiles | 2026-10-12 (`L2-DOM05`) | 4 findings remediated & verified (DOM05-SEC-01, DOM05-COR-01, DOM05-GOV-01, DOM05-RES-01) | No |
 | 6 | Classes / Rosters / Scheduling | 2026-10-12 (`L2-DOM06`) | 5 findings remediated & verified (DOM06-SEC-01..03, DOM06-COR-01, DOM06-GOV-01) | No |

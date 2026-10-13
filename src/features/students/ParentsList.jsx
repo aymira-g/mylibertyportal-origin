@@ -25,6 +25,7 @@ import {
 export default function ParentsList({
   branchId = null,
   isAdmin = false,
+  canViewAllBranches = false,
   canView = true,
 }) {
   const toast = useToast();
@@ -35,13 +36,17 @@ export default function ParentsList({
   const [refreshKey, setRefreshKey] = useState(0);
 
   const normalizedBranchId = branchId ? branchToId(branchId) : null;
+  const allowsAllBranches = canViewAllBranches || isAdmin;
+  const branchSelectionRequired = !allowsAllBranches && !normalizedBranchId;
+
+  const effectiveError = branchSelectionRequired
+    ? "Please select a specific branch to view parent records."
+    : error;
+  const effectiveLoading = branchSelectionRequired ? false : loading;
 
   useEffect(() => {
     let active = true;
-    if (!canView) return;
-    if (!isAdmin && !normalizedBranchId) {
-      return;
-    }
+    if (!canView || branchSelectionRequired) return;
 
     fetchAllParents(normalizedBranchId)
       .then((data) => {
@@ -64,18 +69,20 @@ export default function ParentsList({
     return () => {
       active = false;
     };
-  }, [canView, isAdmin, normalizedBranchId, refreshKey, toast]);
+  }, [canView, branchSelectionRequired, normalizedBranchId, refreshKey, toast]);
 
   const handleRefresh = useCallback(() => {
+    if (branchSelectionRequired) return;
     setLoading(true);
     setRefreshKey((k) => k + 1);
-  }, []);
+  }, [branchSelectionRequired]);
 
   // Client-side search matching name, phone, email, and branch
   const filteredParents = useMemo(() => {
+    const sourceList = branchSelectionRequired ? [] : parents;
     const q = (search || "").trim().toLowerCase();
-    if (!q) return parents;
-    return parents.filter((p) => {
+    if (!q) return sourceList;
+    return sourceList.filter((p) => {
       const name = (p.displayName || p.name || "").toLowerCase();
       const email = (p.email || "").toLowerCase();
       const phone = (p.phone || "").toLowerCase();
@@ -87,7 +94,7 @@ export default function ParentsList({
         branchName.includes(q)
       );
     });
-  }, [parents, search]);
+  }, [branchSelectionRequired, parents, search]);
 
   // Client-side pagination (20 records per page)
   const { page, setPage, totalPages, pageItems, from, to, total } = usePagination(
@@ -134,11 +141,11 @@ export default function ParentsList({
           <button
             type="button"
             onClick={handleRefresh}
-            disabled={loading}
+            disabled={effectiveLoading || branchSelectionRequired}
             className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer disabled:opacity-50"
             title="Refresh parents list"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-indigo-600" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${effectiveLoading ? "animate-spin text-indigo-600" : ""}`} />
             <span>Refresh</span>
           </button>
           <span className="px-3 py-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200/80 rounded-xl text-xs font-extrabold tracking-wide shrink-0">
@@ -148,24 +155,26 @@ export default function ParentsList({
       </div>
 
       {/* Error state */}
-      {error && (
+      {effectiveError && (
         <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center justify-between text-xs text-rose-800 gap-3">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-            <span>{error}</span>
+            <span>{effectiveError}</span>
           </div>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            className="px-3 py-1 bg-white hover:bg-rose-100 border border-rose-300 rounded-lg font-bold text-rose-900 cursor-pointer transition shrink-0"
-          >
-            Retry
-          </button>
+          {!branchSelectionRequired && (
+            <button
+              type="button"
+              onClick={handleRefresh}
+              className="px-3 py-1 bg-white hover:bg-rose-100 border border-rose-300 rounded-lg font-bold text-rose-900 cursor-pointer transition shrink-0"
+            >
+              Retry
+            </button>
+          )}
         </div>
       )}
 
       {/* Loading Skeleton */}
-      {loading && (
+      {effectiveLoading && (
         <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 space-y-2">
           <Loader2 className="w-6 h-6 animate-spin text-indigo-600 mx-auto" />
           <p className="text-xs font-bold text-slate-500">Loading parent accounts...</p>
@@ -173,7 +182,7 @@ export default function ParentsList({
       )}
 
       {/* Empty State */}
-      {!loading && !error && pageItems.length === 0 && (
+      {!effectiveLoading && !effectiveError && pageItems.length === 0 && (
         <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 space-y-2">
           <Users className="w-8 h-8 text-slate-300 mx-auto" />
           <p className="text-xs font-bold text-slate-700">No parent accounts found</p>
@@ -186,7 +195,7 @@ export default function ParentsList({
       )}
 
       {/* Desktop Table View */}
-      {!loading && !error && pageItems.length > 0 && (
+      {!effectiveLoading && !effectiveError && pageItems.length > 0 && (
         <>
           <div className="hidden md:block overflow-hidden bg-white rounded-2xl border border-slate-200/90 shadow-2xs">
             <table className="w-full text-left border-collapse text-xs">

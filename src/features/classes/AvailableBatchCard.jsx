@@ -22,6 +22,7 @@ export default function AvailableBatchCard({
   isAssignedToCurrentUser = false,
   canAdminister = false,
   canEnroll = false,
+  canDelete = false,
   role = "admin",
   copiedBatchId = null,
   onOpenEditModal,
@@ -72,7 +73,7 @@ export default function AvailableBatchCard({
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
                 )}
-                {onDeleteBatch && (
+                {canDelete && onDeleteBatch && (
                   <button
                     onClick={() => onDeleteBatch(batch)}
                     title="Delete Batch"

@@ -22,6 +22,7 @@ import {
   opsLeadGorontalo,
   opsLeadBoneBolango,
   instructorLeaderGorontalo,
+  instructorLeaderBoneBolango,
 } from "./securityRulesMatrix.fixtures.js";
 import {
   GATED_ACTIONS,
@@ -406,7 +407,7 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
       actionId: "STAFF_ROLE_ELEVATION",
       approverRole: "director",
       approverBranchId: null, // Province-wide
-      requestedByUid: "director_1",
+      requestedByUid: "vicedirector_1",
       status: "pending",
       payload: {
         targetUserId: "ins_gtlo",
@@ -415,13 +416,18 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
       },
     };
 
-    it("allows Vice Director to cross-check and sign Director's elevation request", () => {
-      expect(canDecideApproval(promotionTicket, viceDirectorUser)).toBe(true);
+    it("allows Director to authorize staff role elevation requested by Vice Director", () => {
+      expect(canDecideApproval(promotionTicket, directorUser)).toBe(true);
+    });
+
+    it("strictly blocks Vice Director from approving staff role elevation (Director-only under G-007)", () => {
+      expect(canDecideApproval(promotionTicket, viceDirectorUser)).toBe(false);
     });
 
     it("strictly blocks the requester (Director) from self-approving their own request (D3.1)", () => {
+      const dirRequestedTicket = { ...promotionTicket, requestedByUid: "director_1" };
       // Maker cannot be signer!
-      expect(canDecideApproval(promotionTicket, directorUser)).toBe(false);
+      expect(canDecideApproval(dirRequestedTicket, directorUser)).toBe(false);
     });
 
     it("strictly blocks target user from self-promoting even if they hold executive role (D3.2)", () => {
@@ -436,15 +442,15 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
 
       // Director is the target of the elevation -> cannot sign their own promotion
       expect(canDecideApproval(selfElevationTicket, directorUser)).toBe(false);
-      // Vice Director can sign it
-      expect(canDecideApproval(selfElevationTicket, viceDirectorUser)).toBe(true);
+      // Vice Director cannot sign Director role elevation (Director only)
+      expect(canDecideApproval(selfElevationTicket, viceDirectorUser)).toBe(false);
     });
 
     it("blocks Branch Managers from approving staff role elevation", () => {
       expect(canDecideApproval(promotionTicket, managerGorontalo)).toBe(false);
     });
 
-    it("strictly blocks Admins from approving staff role elevation (Director/Vice Director only)", () => {
+    it("strictly blocks Admins from approving staff role elevation (Director only)", () => {
       expect(canDecideApproval(promotionTicket, adminUser)).toBe(false);
     });
 
@@ -507,6 +513,7 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
         if (
           gate.approverRole === "dynamic_hierarchy" ||
           gate.approverRole === "dynamic_superior" ||
+          gate.approverRole === "dynamic_branch" ||
           gate.id === "CASH_DISCREPANCY"
         )
           return;
@@ -528,6 +535,34 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
           ).toBe(backendResult);
         });
       });
+    });
+
+    it("verifies dynamic student class transfer authority across branches (ADR 2026-10-13)", () => {
+      // Main branch transfer addressed to opslead
+      const mainTransferDoc = {
+        actionId: "STUDENT_CLASS_TRANSFER",
+        approverRole: "opslead",
+        approverBranchId: "kota_gorontalo",
+        branchId: "kota_gorontalo",
+        requestedByUid: "fo_1",
+      };
+      expect(isApproverForDoc(mainTransferDoc, opsLeadGorontalo)).toBe(true);
+      expect(isApproverForDoc(mainTransferDoc, managerGorontalo)).toBe(false);
+      expect(isApproverForDoc(mainTransferDoc, adminUser)).toBe(false);
+
+      // Satellite branch transfer addressed to manager
+      const satTransferDoc = {
+        actionId: "STUDENT_CLASS_TRANSFER",
+        approverRole: "manager",
+        approverBranchId: "bone_bolango",
+        branchId: "bone_bolango",
+        requestedByUid: "fo_2",
+      };
+      expect(isApproverForDoc(satTransferDoc, managerBoneBolango)).toBe(true);
+      expect(isApproverForDoc(satTransferDoc, managerGorontalo)).toBe(false); // Branch isolation
+      expect(isApproverForDoc(satTransferDoc, opsLeadGorontalo)).toBe(false); // OpsLead cannot approve satellite
+      expect(isApproverForDoc(satTransferDoc, viceDirectorUser)).toBe(true); // Executive dual-control supervisory
+      expect(isApproverForDoc(satTransferDoc, adminUser)).toBe(false); // Admin has no business authority
     });
 
     it("proves negative authority: Course Division Manager cannot approve unrelated domain gates", () => {
@@ -579,6 +614,44 @@ describe("Maker-Checker Approvals & Inboxes Security Matrix", () => {
 
       expect(canDecideApproval(opsDoc, instructorLeaderGorontalo)).toBe(false);
       expect(canDecideApproval(discountDoc, instructorLeaderGorontalo)).toBe(false);
+    });
+
+    it("verifies Central Academic Lead province-wide pedagogical scope under ADR G-012", () => {
+      // Academic gate at satellite branch (bone_bolango)
+      const satellitePlacementDoc = {
+        actionId: "PLACEMENT_LEVEL_OVERRIDE",
+        approverRole: "instructor_leader",
+        approverBranchId: "bone_bolango",
+        requestedByUid: "ins_boba",
+      };
+      const satelliteSubstituteDoc = {
+        actionId: "SUBSTITUTE_INSTRUCTOR",
+        approverRole: "instructor_leader",
+        approverBranchId: "bone_bolango",
+        requestedByUid: "ins_boba",
+      };
+
+      // Central Academic Lead (Instructor Leader at Kota Gorontalo) has province-wide pedagogical scope
+      expect(canDecideApproval(satellitePlacementDoc, instructorLeaderGorontalo)).toBe(true);
+      expect(canDecideApproval(satelliteSubstituteDoc, instructorLeaderGorontalo)).toBe(true);
+
+      // Satellite Instructor Leader (Bone Bolango) has branch-local scope ONLY, cannot approve other branches
+      const mainPlacementDoc = {
+        actionId: "PLACEMENT_LEVEL_OVERRIDE",
+        approverRole: "instructor_leader",
+        approverBranchId: "kota_gorontalo",
+        requestedByUid: "ins_gtlo",
+      };
+      expect(canDecideApproval(mainPlacementDoc, instructorLeaderBoneBolango)).toBe(false);
+
+      // Central Academic Lead CANNOT approve non-academic gates across branches
+      const satelliteOpsDoc = {
+        actionId: "RETROACTIVE_STUDENT_ATTENDANCE",
+        approverRole: "ops_lead",
+        approverBranchId: "bone_bolango",
+        requestedByUid: "ins_boba",
+      };
+      expect(canDecideApproval(satelliteOpsDoc, instructorLeaderGorontalo)).toBe(false);
     });
 
     it("proves negative authority: Vice Director cannot approve domain-local Ops Lead or Instructor Leader gates (F1)", () => {

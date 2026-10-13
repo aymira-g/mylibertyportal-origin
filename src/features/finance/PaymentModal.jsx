@@ -33,7 +33,7 @@ function getDefaultPeriod() {
   return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
-export default function PaymentModal({ student, onClose, onPaymentUpdated = null, isAdmin = false }) {
+export default function PaymentModal({ student, onClose, onPaymentUpdated = null }) {
   const toast = useToast();
   const confirm = useConfirm();
   useOverlayHistory(Boolean(student), onClose, "paymentModal");
@@ -226,34 +226,43 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
         recordedBy: auth.currentUser?.email || "Staff",
       };
 
+      // DOM04-FIN-01: Calculate effective discount by comparing entered amount with expected standard plan price
+      const enteredAmountNum = Number(amount);
+      const expectedPlanPrice = selectedPlan !== "custom" ? pricing.finalPrice : null;
+      let effectiveDiscount = discountAmount || 0;
+      if (expectedPlanPrice && enteredAmountNum < expectedPlanPrice) {
+        effectiveDiscount = Math.max(effectiveDiscount, expectedPlanPrice - enteredAmountNum);
+      }
+
       let discountEnvelope = null;
-      if (discountAmount && discountAmount > 0) {
+      if (effectiveDiscount > 0) {
         const currentUser = auth.currentUser;
         discountEnvelope = createApprovalEnvelope(
           "DISCOUNT_OR_REFUND",
           {
             name: currentUser?.displayName || currentUser?.email || "Staff",
             uid: currentUser?.uid,
-            role: isAdmin ? "admin" : "frontoffice",
-            branchId: student.branchId || student.branch,
+            role: "frontoffice",
+            branchId: studentBranchId,
+            division: studentDivision,
           },
           {
             studentId: student.id,
             studentName: student.displayName,
-            amount: Number(amount),
-            discountAmount,
+            division: studentDivision,
+            amount: enteredAmountNum,
+            discountAmount: effectiveDiscount,
             planName,
             receiptNumber: receiptNo,
-            reason: notes.trim() || `Fee discount of IDR ${discountAmount.toLocaleString("id-ID")}`,
+            reason: notes.trim() || `Fee discount of IDR ${effectiveDiscount.toLocaleString("id-ID")}`,
           }
         );
         if (discountEnvelope) {
           // Flag the payment itself as carrying an unreviewed discount so
           // payment history, reports, and the receipt can show that the
-          // discount still needs manager sign-off. We still record the
-          // payment now (the cash/transfer already happened) — see the
-          // reasoning note in docs/plans/myliberty-audit-log.md.
+          // discount still needs executive dual-control sign-off.
           paymentRecord.approvalStatus = "pending";
+          paymentRecord.discountAmount = effectiveDiscount;
         }
       }
 

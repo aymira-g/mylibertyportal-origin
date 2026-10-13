@@ -30,7 +30,8 @@ const LearnerProgressTab = forwardRef(
     const [expandedId, setExpandedId] = useState(null);
     const [studentSearch, setStudentSearch] = useState("");
 
-    const effectiveSupervisor = isSupervisor || isAdminView || isManager;
+    const isExecutive = Boolean(isAdminView) && !isManager && !isFrontOffice;
+    const isSupervisorRole = isSupervisor || isAdminView || isManager;
 
     const fetchStudentProgress = useCallback(async () => {
       setStudentsLoading(true);
@@ -42,7 +43,7 @@ const LearnerProgressTab = forwardRef(
           attendance,
           progress,
         } = await fetchStudentProgressData(
-          effectiveSupervisor,
+          isExecutive,
           isFrontOffice,
           rangeToSince(rangeDays),
           branchId,
@@ -69,7 +70,7 @@ const LearnerProgressTab = forwardRef(
           ...progress.map((p) => p.studentId),
         ]);
 
-        const isSuper = effectiveSupervisor || isFrontOffice;
+        const isSuper = isSupervisorRole || isFrontOffice;
         const relevantStudentIds =
           isSuper
             ? null
@@ -86,10 +87,10 @@ const LearnerProgressTab = forwardRef(
               }
               return (
                 usersById[id].role === "student" &&
-                (effectiveSupervisor || relevantStudentIds.has(id))
+                (isSupervisorRole || relevantStudentIds.has(id))
               );
             }
-            return effectiveSupervisor;
+            return isSupervisorRole;
           })
           .map((id) => {
             const u = usersById[id];
@@ -156,7 +157,7 @@ const LearnerProgressTab = forwardRef(
       } finally {
         setStudentsLoading(false);
       }
-    }, [effectiveSupervisor, isFrontOffice, isManager, selectedClassId, rangeDays, branchFilter, division]);
+    }, [isExecutive, isSupervisorRole, isFrontOffice, isManager, selectedClassId, rangeDays, branchFilter, division]);
 
     useEffect(() => {
       fetchStudentProgress();

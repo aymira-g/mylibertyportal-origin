@@ -4,10 +4,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ApprovalInbox } from "./ApprovalInbox";
 
 let mockApprovals = [];
+let mockUnappliedApprovals = [];
 
 vi.mock("./approvalsRepository", () => ({
   listenToPendingApprovals: vi.fn((role, branch, onNext) => {
     onNext(mockApprovals);
+    return vi.fn();
+  }),
+  listenToUnappliedApprovals: vi.fn((role, branch, onNext) => {
+    onNext(mockUnappliedApprovals);
     return vi.fn();
   }),
   approveApprovalRequest: vi.fn().mockResolvedValue({ status: "approved" }),
@@ -112,5 +117,62 @@ describe("ApprovalInbox (DOM04-GOV-01)", () => {
     expect(html).toContain('<option value="courses"');
     expect(html).toContain('<option value="kindergarten"');
     expect(html).toContain('<option value="all"');
+  });
+
+  it("renders STAFF_DEACTIVATION preview card (DOM09-GOV-02 / F-4)", () => {
+    mockApprovals = [
+      {
+        id: "appr-deact-1",
+        actionId: "STAFF_DEACTIVATION",
+        label: "Staff Deactivation / Termination",
+        domain: "staff",
+        requestedBy: "Ops Lead",
+        requestedByUid: "ops_1",
+        payload: {
+          targetUserId: "staff_123",
+          targetName: "Budi Siregar",
+          targetRole: "instructor",
+          targetStatus: "resigned",
+          reason: "Voluntary resignation",
+        },
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      React.createElement(ApprovalInbox, { userRole: "director", branchId: "all", initialApprovals: mockApprovals })
+    );
+
+    expect(html).toContain("Staff Deactivation / Termination");
+    expect(html).toContain("Budi Siregar");
+    expect(html).toContain("resigned");
+  });
+
+  it("renders Action Required / Unapplied tab badge when unapplied tickets exist (DOM09-COR-01 / F-1)", () => {
+    mockUnappliedApprovals = [
+      {
+        id: "appr-unapplied-1",
+        actionId: "STUDENT_CLASS_TRANSFER",
+        label: "Student Class Transfer",
+        domain: "students",
+        status: "approved",
+        applied: false,
+        decidedBy: "Director",
+        decidedAt: "2026-10-14T00:00:00.000Z",
+        requestedBy: "Front Desk",
+        payload: { studentId: "s-1", toClassId: "c-2", fromClassId: "c-1" },
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      React.createElement(ApprovalInbox, {
+        userRole: "director",
+        branchId: "all",
+        initialApprovals: [],
+        initialUnappliedApprovals: mockUnappliedApprovals,
+      })
+    );
+
+    expect(html).toContain("Action Required / Unapplied");
+    expect(html).toContain("1 unapplied");
   });
 });

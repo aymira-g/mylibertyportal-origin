@@ -46,9 +46,16 @@ export default function AvailableBatches({
 
   const enabledPrograms = useMemo(() => getEnabledPrograms(), []);
 
-  // Strict role boundaries
-  const canAdminister = role === "admin" && canEdit;
-  const canEnroll = role === "admin" || isFrontOfficeRole(role);
+  // Strict role boundaries (ADR 2026-10-13: Ops Lead primary, Division Manager fallback, Executives supervisory)
+  const canAdminister =
+    Boolean(canEdit) &&
+    (role === "opslead" ||
+      role === "ops_lead" ||
+      role === "manager" ||
+      role === "director" ||
+      role === "vice_director");
+  const canEnroll = canAdminister || isFrontOfficeRole(role);
+  const canDelete = role === "director" || role === "vice_director";
 
   // Filter students list for direct enrollment
   const studentsList = useMemo(() => {
@@ -413,10 +420,11 @@ export default function AvailableBatches({
                 isAssignedToCurrentUser={isAssignedToCurrentUser}
                 canAdminister={canAdminister}
                 canEnroll={canEnroll}
+                canDelete={canDelete}
                 role={role}
                 copiedBatchId={copiedBatchId}
                 onOpenEditModal={handleOpenEditModal}
-                onDeleteBatch={handleDeleteBatch}
+                onDeleteBatch={canDelete ? handleDeleteBatch : undefined}
                 onCopyMarketingBlurb={handleCopyMarketingBlurb}
                 onSetEnrollingBatch={setEnrollingBatch}
               />

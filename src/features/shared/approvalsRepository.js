@@ -62,7 +62,11 @@ export function listenToPendingApprovals(userRole, branchId, onData, onError, op
       constraints.push(where("approverBranchId", "==", normalizedBranch));
     } else if (normalizedRole === "instructorleader") {
       constraints.push(where("approverRole", "in", [APPROVAL_ROLES.INSTRUCTOR_LEADER, "instructor_leader", "instructorleader"]));
-      constraints.push(where("approverBranchId", "==", normalizedBranch));
+      // Central Academic Lead stationed at Kota Gorontalo holds province-wide pedagogical scope
+      // over academic actions under ADR G-012. Branch filter only applies for non-central leads.
+      if (normalizedBranch && normalizedBranch !== "kota_gorontalo") {
+        constraints.push(where("approverBranchId", "==", normalizedBranch));
+      }
     } else if (normalizedRole === "opslead") {
       constraints.push(where("approverRole", "in", [APPROVAL_ROLES.OPS_LEAD, "ops_lead", "opslead"]));
       constraints.push(where("approverBranchId", "==", normalizedBranch));
@@ -101,10 +105,77 @@ export function listenToPendingApprovals(userRole, branchId, onData, onError, op
 }
 
 /**
+ * Subscribes to approved but unapplied approval requests matching the approver's role and branch.
+ * Provides the "Action Required / Unapplied" recovery queue for downstream mutation retries.
+ *
+ * @param {string} userRole
+ * @param {string} branchId
+ * @param {((approvals: any[]) => void)} onData
+ * @param {((err: any) => void)} [onError]
+ * @param {{ division?: string }} [options] Optional division scope filter
+ * @returns {(() => void)} Unsubscribe callback
+ */
+export function listenToUnappliedApprovals(userRole, branchId, onData, onError, options = {}) {
+  const normalizedRole = normalizeRole(userRole);
+  const normalizedBranch = branchId ? branchToId(branchId) : DEFAULT_BRANCH_ID;
+  const targetDivision = options?.division || null;
+
+  const constraints = [where("status", "==", APPROVAL_STATUS.APPROVED)];
+
+  if (!isExecutiveRole(normalizedRole)) {
+    if (normalizedRole === "manager") {
+      constraints.push(where("approverRole", "==", APPROVAL_ROLES.DIVISION_MANAGER));
+      constraints.push(where("approverBranchId", "==", normalizedBranch));
+    } else if (normalizedRole === "instructorleader") {
+      constraints.push(where("approverRole", "in", [APPROVAL_ROLES.INSTRUCTOR_LEADER, "instructor_leader", "instructorleader"]));
+      if (normalizedBranch && normalizedBranch !== "kota_gorontalo") {
+        constraints.push(where("approverBranchId", "==", normalizedBranch));
+      }
+    } else if (normalizedRole === "opslead") {
+      constraints.push(where("approverRole", "in", [APPROVAL_ROLES.OPS_LEAD, "ops_lead", "opslead"]));
+      constraints.push(where("approverBranchId", "==", normalizedBranch));
+    } else if (normalizedRole === "frontoffice") {
+      constraints.push(where("approverRole", "==", "frontoffice"));
+      constraints.push(where("approverBranchId", "==", normalizedBranch));
+    }
+  }
+
+  const q = query(collection(db, COLLECTION_NAME), ...constraints);
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      /** @type {any[]} */
+      let items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      // Strictly unapplied tickets (applied !== true)
+      items = items.filter((item) => item.applied !== true);
+
+      if (targetDivision) {
+        items = items.filter((item) => {
+          const itemDiv = item.division || "courses";
+          if (itemDiv !== "all" && itemDiv !== targetDivision) {
+            return false;
+          }
+          return true;
+        });
+      }
+
+      items.sort((a, b) => new Date(b.decidedAt || b.requestedAt || 0).getTime() - new Date(a.decidedAt || a.requestedAt || 0).getTime());
+      onData(items);
+    },
+    (err) => {
+      console.warn("listenToUnappliedApprovals error:", err);
+      if (onError) onError(err);
+    }
+  );
+}
+
+/**
  * Approves a pending approval request.
  *
  * @param {string} approvalId
- * @param {{ approverUid?: string, approverName?: string, notes?: string }} [decisionData]
+ * @param {{ approverUid?: string, approverName?: string, notes?: string, approvedRole?: string, approvedBranchId?: string, approvedDivision?: string }} [decisionData]
  */
 export async function approveApprovalRequest(approvalId, decisionData = {}) {
   if (!approvalId) throw new Error("Approval ID is required");
@@ -114,10 +185,20 @@ export async function approveApprovalRequest(approvalId, decisionData = {}) {
     status: APPROVAL_STATUS.APPROVED,
     decidedBy: decisionData.approverName || currentUser?.displayName || currentUser?.email || "Approver",
     decidedByUid: currentUser?.uid || decisionData.approverUid || "approver",
-    decidedAt: new Date().toISOString(),
+    decidedAt: serverTimestamp(),
     decisionNotes: decisionData.notes || "",
     updatedAt: serverTimestamp(),
   };
+
+  if (decisionData.approvedRole) {
+    updatePayload.approvedRole = decisionData.approvedRole;
+  }
+  if (decisionData.approvedBranchId) {
+    updatePayload.approvedBranchId = decisionData.approvedBranchId;
+  }
+  if (decisionData.approvedDivision) {
+    updatePayload.approvedDivision = decisionData.approvedDivision;
+  }
 
   await updateDoc(doc(db, COLLECTION_NAME, approvalId), updatePayload);
   return { id: approvalId, ...updatePayload };
@@ -137,7 +218,7 @@ export async function rejectApprovalRequest(approvalId, decisionData = {}) {
     status: APPROVAL_STATUS.REJECTED,
     decidedBy: decisionData.approverName || currentUser?.displayName || currentUser?.email || "Approver",
     decidedByUid: currentUser?.uid || decisionData.approverUid || "approver",
-    decidedAt: new Date().toISOString(),
+    decidedAt: serverTimestamp(),
     rejectionReason: decisionData.reason || "",
     updatedAt: serverTimestamp(),
   };
@@ -159,7 +240,7 @@ export async function markApprovalApplied(approvalId, actorUid = null) {
 
   const updatePayload = {
     applied: true,
-    appliedAt: new Date().toISOString(),
+    appliedAt: serverTimestamp(),
     appliedByUid: uid,
     updatedAt: serverTimestamp(),
   };

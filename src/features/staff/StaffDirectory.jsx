@@ -6,8 +6,18 @@
  */
 
 import { useState, useMemo } from "react";
-import { useToast, useConfirm, Pagination, usePagination, isStaffRole, isInstructorRole } from "../shared";
+import {
+  useToast,
+  useConfirm,
+  Pagination,
+  usePagination,
+  isStaffRole,
+  isInstructorRole,
+  createApprovalEnvelope,
+  submitApprovalRequest,
+} from "../shared";
 import { updateStaffStatus, checkStaffHasAttendanceHistory } from "../dashboard/usersRepository";
+import { auth } from "../../firebase";
 import { copyText } from "../../utils/copyText";
 import {
   STAFF_ROLES,
@@ -34,6 +44,7 @@ export default function StaffDirectory({
   classes = [],
   invites = [],
   currentUserId = null,
+  currentUserRole = null,
   onEditStaff = null,
   onPrintBadge = null,
   onDeleteStaff = null,
@@ -135,12 +146,39 @@ export default function StaffDirectory({
 
     setUpdatingStatusId(user.id);
     try {
-      await updateStaffStatus(user.id, newStatus);
-      toast(
-        `Updated ${user.displayName || "Staff"}'s status to ${
-          STAFF_STATUS_MAP[newStatus]?.label || newStatus
-        }.`
-      );
+      const isDeactivation = newStatus === "resigned" || newStatus === "terminated";
+      const isDirector = currentUserRole === "director";
+
+      if (isDeactivation && !isDirector) {
+        // Dual-control maker-checker: Staff deactivation requires Director sign-off (Blueprint v3.4 §26 G-007)
+        const envelope = createApprovalEnvelope(
+          "STAFF_DEACTIVATION",
+          {
+            role: currentUserRole || "staff",
+            uid: currentUserId,
+            displayName: auth.currentUser?.displayName || "Staff Member",
+          },
+          {
+            targetUserId: user.id,
+            targetName: user.displayName || user.name || "Staff Member",
+            targetRole: user.role,
+            targetStatus: newStatus,
+            reason: `Staff status change to ${newStatus}`,
+          }
+        );
+        await submitApprovalRequest(envelope);
+        toast(
+          `Deactivation request for ${user.displayName || "Staff"} submitted for Director approval.`,
+          "info"
+        );
+      } else {
+        await updateStaffStatus(user.id, newStatus);
+        toast(
+          `Updated ${user.displayName || "Staff"}'s status to ${
+            STAFF_STATUS_MAP[newStatus]?.label || newStatus
+          }.`
+        );
+      }
     } catch (err) {
       toast("Error updating status: " + err.message, "error");
     } finally {

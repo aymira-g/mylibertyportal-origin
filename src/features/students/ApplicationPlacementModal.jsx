@@ -15,7 +15,7 @@ import {
   ShieldAlert,
   Building2,
 } from "lucide-react";
-import { LEVEL_LIST, TIERS, TIER_KEYS } from "../../constants/levels";
+import { LEVEL_LIST, TIERS, TIER_KEYS, UNASSESSED } from "../../constants/levels";
 import { normalizeBranch, matchesBranchFilter } from "../../constants/branches";
 import { LevelBadge, PAYMENT_PLAN_LIST, isCompatible, useOverlayHistory } from "../shared";
 import { getBatchAvailability } from "../classes/batchAvailability";
@@ -59,7 +59,7 @@ export default function ApplicationPlacementModal({
   );
 
   const [selectedLevel, setSelectedLevel] = useState(
-    app?.currentLevel || appLevels[0]?.id || "warrior"
+    app?.currentLevel || UNASSESSED
   );
   const [selectedClassId, setSelectedClassId] = useState("");
   const [selectedPlan, setSelectedPlan] = useState("monthly");
@@ -90,9 +90,8 @@ export default function ApplicationPlacementModal({
     return classes.find((c) => c.id === selectedClassId) || null;
   }, [classes, selectedClassId]);
 
-  // If a batch is chosen, its classLevel locks the effective level
-  const effectiveLevel = selectedClass?.classLevel || selectedLevel;
-  const levelLockedByBatch = Boolean(selectedClass?.classLevel);
+  // Batch scheduling does NOT mutate academic level (ADR 2026-10-13 Q3)
+  const effectiveLevel = selectedLevel;
   const levelDiffersFromChosen = Boolean(
     selectedClass?.classLevel && selectedClass.classLevel !== selectedLevel
   );
@@ -311,9 +310,9 @@ export default function ApplicationPlacementModal({
             <select
               value={selectedLevel}
               onChange={(e) => setSelectedLevel(e.target.value)}
-              disabled={levelLockedByBatch}
-              className={`w-full p-2.5 border rounded-xl font-bold text-xs bg-white text-slate-800 focus:border-[#1a3a8f] outline-none ${levelLockedByBatch ? "opacity-60 bg-slate-100 cursor-not-allowed" : ""}`}
+              className="w-full p-2.5 border rounded-xl font-bold text-xs bg-white text-slate-800 focus:border-[#1a3a8f] outline-none"
             >
+              <option value={UNASSESSED}>Not Yet Assessed (Diagnostic Pending)</option>
               {appProgId === "english_course"
                 ? TIER_KEYS.map((tierKey) => {
                     const tier = TIERS[tierKey];
@@ -335,11 +334,9 @@ export default function ApplicationPlacementModal({
                   ))}
             </select>
 
-            {levelLockedByBatch && (
-              <p className="text-[11px] text-amber-700 bg-amber-50 p-2 rounded-xl border border-amber-100 font-medium">
-                {levelDiffersFromChosen
-                  ? `Level will be set to "${selectedClass?.classLevel?.toUpperCase()}" to match the chosen batch.`
-                  : `Level is locked to the chosen batch (${selectedClass?.classLevel?.toUpperCase()}).`}
+            {levelDiffersFromChosen && (
+              <p className="text-[11px] text-indigo-700 bg-indigo-50 p-2 rounded-xl border border-indigo-100 font-medium">
+                Note: Chosen cohort is Level {selectedClass?.classLevel?.toUpperCase()}. The student will be scheduled into this class while preserving their intake level as {selectedLevel.toUpperCase()}.
               </p>
             )}
           </div>

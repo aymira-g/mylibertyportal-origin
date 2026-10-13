@@ -30,6 +30,12 @@ A decision document defines:
 | [`2026-10-04-executive-break-glass-procedure.md`](./2026-10-04-executive-break-glass-procedure.md) | Executive Deadlock Break-Glass Procedure (Console-level recovery) | 2026-10-04 | Active |
 | [`2026-10-05-delegation-of-discounts-and-refunds-to-executives.md`](./2026-10-05-delegation-of-discounts-and-refunds-to-executives.md) | Exclusive Executive Authority for Tuition Discounts, Fee Waivers, and Refunds | 2026-10-05 | Active *(Executive discount authority active; cash reconciliation superseded by 2026-10-07 G-009)* |
 | [`2026-10-07-resolution-of-governance-questions-g001-g011.md`](./2026-10-07-resolution-of-governance-questions-g001-g011.md) | Formal Owner Decision: Resolution of Governance Questions (G-001 through G-011) | 2026-10-07 | Active *(Ratified by Owner / Director Kifry)* |
+| [`2026-10-13-class-scheduling-and-corporate-events-authority.md`](./2026-10-13-class-scheduling-and-corporate-events-authority.md) | Class Batch Scheduling Workflow (Option B) & Corporate Events Authority | 2026-10-13 | Active *(Ratified by Owner / Director Kifry)* |
+| [`2026-10-13-branch-typology-and-lean-branch-governance-amendment.md`](./2026-10-13-branch-typology-and-lean-branch-governance-amendment.md) | Branch Typology (Main Campus vs Lean Satellites), Lean Branch Operations & Central Academic Lead | 2026-10-13 | Active *(Ratified by Owner / Director Kifry)* |
+| [`2026-10-13-payment-correction-payment-data-access-and-cash-discrepancy.md`](./2026-10-13-payment-correction-payment-data-access-and-cash-discrepancy.md) | Payment Correction/Void, Payment Data Access Boundaries, Installments & Cash Discrepancies | 2026-10-13 | Active *(Ratified by Owner / Director Kifry)* |
+| [`2026-10-13-student-promotions-admissions-and-academic-placement.md`](./2026-10-13-student-promotions-admissions-and-academic-placement.md) | Student Promotions, Admissions Authority, Academic Placement, and Student Data Deletion | 2026-10-13 | Active *(Ratified by Owner / Director Kifry)* |
+| [`2026-10-13-student-class-transfer-dual-control-workflow.md`](./2026-10-13-student-class-transfer-dual-control-workflow.md) | Dual-Control Student Class Transfer Blocking Workflow & Satellite Checker Authority | 2026-10-13 | Active *(Ratified by Owner / Director Kifry)* |
+
 
 ## Lifecycle Rule
 

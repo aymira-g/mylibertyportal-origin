@@ -86,21 +86,34 @@ export async function getAuthenticatedParentBundle(parentUid) {
   const parent = { id: parentDoc.id, ...parentDoc.data() };
   const childStudentIds = Array.isArray(parent.childStudentIds) ? parent.childStudentIds : [];
 
+  const childResults = await Promise.all(
+    childStudentIds.map(async (childId) => {
+      try {
+        const childDoc = await getDoc(doc(db, "users", childId));
+        if (childDoc.exists()) {
+          const child = childDoc.data();
+          if (child.role === "student" && (!child.status || child.status === "active")) {
+            return { type: "active", data: { id: childDoc.id, ...child } };
+          } else if (child.role === "student") {
+            return { type: "inactive" };
+          }
+        }
+        return null;
+      } catch (err) {
+        console.warn(`Failed to read linked child ${childId}:`, err);
+        return null;
+      }
+    })
+  );
+
   const children = [];
   let inactiveChildCount = 0;
-  for (const childId of childStudentIds) {
-    try {
-      const childDoc = await getDoc(doc(db, "users", childId));
-      if (childDoc.exists()) {
-        const child = childDoc.data();
-        if (child.role === "student" && (!child.status || child.status === "active")) {
-          children.push({ id: childDoc.id, ...child });
-        } else if (child.role === "student") {
-          inactiveChildCount++;
-        }
-      }
-    } catch (err) {
-      console.warn(`Failed to read linked child ${childId}:`, err);
+  for (const res of childResults) {
+    if (!res) continue;
+    if (res.type === "active") {
+      children.push(res.data);
+    } else if (res.type === "inactive") {
+      inactiveChildCount++;
     }
   }
 

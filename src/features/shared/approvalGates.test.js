@@ -159,6 +159,31 @@ describe("Maker-Checker Approval Gates", () => {
     expect(transferEnvelope.approverBranchId).toBe("kota_gorontalo");
     expect(transferEnvelope.payload.targetClassId).toBe("class-2");
 
+    // Student transfer at satellite branch -> routes to Division Manager (G-012 & ADR 2026-10-13)
+    const satTransferEnvelope = createApprovalEnvelope(
+      "STUDENT_CLASS_TRANSFER",
+      { name: "Staff Bone", uid: "u-fo-3", role: "frontoffice", branchId: "bone_bolango" },
+      { payload: { studentId: "s-1", toClassId: "c-2" } }
+    );
+    expect(satTransferEnvelope.approverRole).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+    expect(satTransferEnvelope.approverBranchId).toBe("bone_bolango");
+
+    // Satellite transfer where Division Manager is requester -> escalates to Vice Director
+    const satMgrTransferEnvelope = createApprovalEnvelope(
+      "STUDENT_CLASS_TRANSFER",
+      { name: "Mgr Bone", uid: "u-mgr-1", role: "manager", branchId: "bone_bolango" },
+      { payload: { studentId: "s-1", toClassId: "c-2" } }
+    );
+    expect(satMgrTransferEnvelope.approverRole).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+
+    // Main campus transfer where Ops Lead is requester -> escalates to Vice Director
+    const mainOpsTransferEnvelope = createApprovalEnvelope(
+      "STUDENT_CLASS_TRANSFER",
+      { name: "Ops Lead", uid: "u-ops-1", role: "opslead", branchId: "kota_gorontalo" },
+      { payload: { studentId: "s-1", toClassId: "c-2" } }
+    );
+    expect(mainOpsTransferEnvelope.approverRole).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+
     // Division extraction from requester or context (DOM09-COR-01)
     const envWithReqDiv = createApprovalEnvelope("TUITION_PLAN_CHANGE", {
       role: "frontoffice",
@@ -202,7 +227,7 @@ describe("Maker-Checker Approval Gates", () => {
 
     // System Admin is a technical maintenance role (Blueprint v3.1 §4 & §5.3):
     // Admin only satisfies technical ADMIN gates, NOT business approval gates
-    expect(canApproveGate("admin", APPROVAL_ROLES.ADMIN)).toBe(true);
+    expect(canApproveGate("admin", "admin")).toBe(true);
     expect(canApproveGate("admin", APPROVAL_ROLES.DIVISION_MANAGER)).toBe(false);
     expect(canApproveGate("admin", APPROVAL_ROLES.INSTRUCTOR_LEADER)).toBe(false);
     expect(canApproveGate("admin", APPROVAL_ROLES.OPS_LEAD)).toBe(false);
@@ -221,6 +246,15 @@ describe("Maker-Checker Approval Gates", () => {
     expect(canApproveGate("opslead", null, "RETROACTIVE_STUDENT_ATTENDANCE")).toBe(true);
     expect(canApproveGate("director", null, "RETROACTIVE_STUDENT_ATTENDANCE")).toBe(false);
     expect(canApproveGate("manager", null, "RETROACTIVE_STUDENT_ATTENDANCE")).toBe(false);
+
+    // STUDENT_CLASS_TRANSFER allows opslead, manager, director, vice_director (ADR 2026-10-13)
+    expect(canApproveGate("opslead", null, "STUDENT_CLASS_TRANSFER")).toBe(true);
+    expect(canApproveGate("manager", null, "STUDENT_CLASS_TRANSFER")).toBe(true);
+    expect(canApproveGate("director", null, "STUDENT_CLASS_TRANSFER")).toBe(true);
+    expect(canApproveGate("vice_director", null, "STUDENT_CLASS_TRANSFER")).toBe(true);
+    expect(canApproveGate("frontoffice", null, "STUDENT_CLASS_TRANSFER")).toBe(false);
+    expect(canApproveGate("instructor", null, "STUDENT_CLASS_TRANSFER")).toBe(false);
+    expect(canApproveGate("admin", null, "STUDENT_CLASS_TRANSFER")).toBe(false);
 
     // Division manager cannot approve Director escalated actions, nor OpsLead (peers do not approve peers)
     expect(canApproveGate("manager", APPROVAL_ROLES.DIRECTOR)).toBe(false);
@@ -308,10 +342,28 @@ describe("Maker-Checker Approval Gates", () => {
   });
 
   describe("Cash Discrepancy Materiality Tiers (Owner Decision §4.5)", () => {
-    it("routes < Rp 20.000 to Ops Lead", () => {
+    it("routes < Rp 20.000 to Ops Lead at Main Campus", () => {
+      expect(getCashDiscrepancyApprover({ amount: 15000, branchId: "kota_gorontalo" })).toBe(APPROVAL_ROLES.OPS_LEAD);
+      expect(getCashDiscrepancyApprover({ amount: -19999, branchId: "kota_gorontalo" })).toBe(APPROVAL_ROLES.OPS_LEAD);
+      expect(getCashDiscrepancyApprover({ amount: 0, branchId: "kota_gorontalo" })).toBe(APPROVAL_ROLES.OPS_LEAD);
       expect(getCashDiscrepancyApprover({ amount: 15000 })).toBe(APPROVAL_ROLES.OPS_LEAD);
-      expect(getCashDiscrepancyApprover({ amount: -19999 })).toBe(APPROVAL_ROLES.OPS_LEAD);
-      expect(getCashDiscrepancyApprover({ amount: 0 })).toBe(APPROVAL_ROLES.OPS_LEAD);
+    });
+
+    it("routes < Rp 20.000 at lean satellite branches to Course Division Manager (G-012 / OD-4)", () => {
+      expect(getCashDiscrepancyApprover({ amount: 15000, branchId: "bone_bolango" })).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+      expect(getCashDiscrepancyApprover({ amount: 10000, branchId: "limboto" })).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+      expect(getCashDiscrepancyApprover({ amount: -5000, branchId: "pohuwato" })).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+    });
+
+    it("escalates to Vice Director if Course Division Manager handled drawer at lean satellite (< 20.000)", () => {
+      expect(
+        getCashDiscrepancyApprover({
+          amount: 10000,
+          branchId: "bone_bolango",
+          drawerHandlerUid: "user_mgr_1",
+          managerUid: "user_mgr_1",
+        })
+      ).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
     });
 
     it("escalates to Vice Director if Ops Lead handled the drawer themselves (< 20.000)", () => {
@@ -347,10 +399,17 @@ describe("Maker-Checker Approval Gates", () => {
 
   describe("Staff Status & Leave Authorization Workflow (Owner Decision §4.5)", () => {
     it("routes subordinates to their respective domain superiors", () => {
-      expect(getStaffStatusApprover({ subjectRole: "frontoffice" })).toBe(APPROVAL_ROLES.OPS_LEAD);
-      expect(getStaffStatusApprover({ subjectRole: "officeboy" })).toBe(APPROVAL_ROLES.OPS_LEAD);
-      expect(getStaffStatusApprover({ subjectRole: "instructor" })).toBe(APPROVAL_ROLES.INSTRUCTOR_LEADER);
-      expect(getStaffStatusApprover({ subjectRole: "marketing" })).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+      // Main branch (Kota Gorontalo) routes to Operational Leader
+      expect(getStaffStatusApprover({ subjectRole: "frontoffice", branchId: "kota_gorontalo" })).toBe(APPROVAL_ROLES.OPS_LEAD);
+      expect(getStaffStatusApprover({ subjectRole: "officeboy", branchId: "kota_gorontalo" })).toBe(APPROVAL_ROLES.OPS_LEAD);
+      expect(getStaffStatusApprover({ subjectRole: "instructor", branchId: "kota_gorontalo" })).toBe(APPROVAL_ROLES.INSTRUCTOR_LEADER);
+      expect(getStaffStatusApprover({ subjectRole: "marketing", branchId: "kota_gorontalo" })).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+
+      // Lean satellite branches (Bone Bolango, Limboto, Pohuwato) route to Course Division Manager under G-012
+      expect(getStaffStatusApprover({ subjectRole: "frontoffice", branchId: "bone_bolango" })).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+      expect(getStaffStatusApprover({ subjectRole: "officeboy", branchId: "bone_bolango" })).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+      expect(getStaffStatusApprover({ subjectRole: "frontoffice", branchId: "limboto" })).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+      expect(getStaffStatusApprover({ subjectRole: "frontoffice", branchId: "pohuwato" })).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
     });
 
     it("routes branch leadership peers to Vice Director (Director if VD is away)", () => {

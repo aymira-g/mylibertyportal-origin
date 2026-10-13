@@ -15,6 +15,25 @@ export const BRANCH_MAP = Object.freeze({
   limboto: "Limboto",
 });
 
+export const MAIN_CAMPUS_BRANCH_ID = "kota_gorontalo";
+export const LEAN_SATELLITE_BRANCH_IDS = Object.freeze([
+  "bone_bolango",
+  "limboto",
+  "pohuwato",
+]);
+
+/**
+ * Checks whether a branch identifier or name corresponds to a lean satellite branch (Type 2).
+ *
+ * @param {string | null | undefined} branchOrId
+ * @returns {boolean}
+ */
+export function isLeanSatelliteBranch(branchOrId) {
+  if (!branchOrId) return false;
+  const id = branchToId(branchOrId);
+  return LEAN_SATELLITE_BRANCH_IDS.includes(id);
+}
+
 /**
  * Mapping of legacy or alternate branch spellings to their canonical names.
  */

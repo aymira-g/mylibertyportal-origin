@@ -30,7 +30,7 @@ export default function DigitalReceiptTab({ activeReceipt, onSendWhatsApp, onPri
             </span>
             {activeReceipt.approvalStatus === "pending" && (
               <p className="text-[10px] text-amber-700 font-bold mt-1">
-                ⏳ Discount pending manager review
+                ⏳ Discount pending executive review
               </p>
             )}
             <p className="text-[11px] text-slate-400 font-mono mt-1">

@@ -218,6 +218,24 @@ describe("transferStudentBetweenClasses", () => {
         })
       ).rejects.toThrow();
     });
+
+    it("rejects a transfer if student is already enrolled in the target class (DOM06-COR-02)", async () => {
+      const alreadyInTarget = {
+        id: "B",
+        classLevel: "elite",
+        maxCapacity: 10,
+        studentIds: ["s1", "s9"],
+        enrollments: [{ studentId: "s1", level: "elite" }],
+      };
+      await expect(
+        transferStudentBetweenClasses({
+          sourceClass: source,
+          targetClassId: "B",
+          targetClass: alreadyInTarget,
+          studentId: "s1",
+        })
+      ).rejects.toThrow("Student is already enrolled in the target class.");
+    });
   });
 });
 

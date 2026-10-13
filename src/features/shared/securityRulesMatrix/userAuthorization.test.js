@@ -94,6 +94,44 @@ describe("User & Parent/Student Authorization Rules Matrix", () => {
       expect(canReadClass(classWithChild3, parentB)).toBe(true);
     });
 
+    it("DOM08-SEC-02: revokes portal access when parent account is inactive or suspended", () => {
+      const classWithChild1 = { studentIds: ["student_1"] };
+      const attChild1 = { studentId: "student_1", classId: "c1" };
+
+      const activeParent = { ...parentA, status: "active" };
+      const legacyParent = { ...parentA }; // no status field
+      const inactiveParent = { ...parentA, status: "inactive" };
+      const suspendedParent = { ...parentA, status: "suspended" };
+      const resignedParent = { ...parentA, status: "resigned" };
+      const terminatedParent = { ...parentA, status: "terminated" };
+
+      // Active and legacy pass
+      expect(isParent(activeParent)).toBe(true);
+      expect(canReadAttendance(attChild1, activeParent)).toBe(true);
+      expect(canReadClass(classWithChild1, activeParent)).toBe(true);
+
+      expect(isParent(legacyParent)).toBe(true);
+      expect(canReadAttendance(attChild1, legacyParent)).toBe(true);
+      expect(canReadClass(classWithChild1, legacyParent)).toBe(true);
+
+      // Inactive and suspended are denied immediately at rule boundary
+      expect(isParent(inactiveParent)).toBe(false);
+      expect(canReadAttendance(attChild1, inactiveParent)).toBe(false);
+      expect(canReadClass(classWithChild1, inactiveParent)).toBe(false);
+
+      expect(isParent(suspendedParent)).toBe(false);
+      expect(canReadAttendance(attChild1, suspendedParent)).toBe(false);
+      expect(canReadClass(classWithChild1, suspendedParent)).toBe(false);
+
+      expect(isParent(resignedParent)).toBe(false);
+      expect(canReadAttendance(attChild1, resignedParent)).toBe(false);
+      expect(canReadClass(classWithChild1, resignedParent)).toBe(false);
+
+      expect(isParent(terminatedParent)).toBe(false);
+      expect(canReadAttendance(attChild1, terminatedParent)).toBe(false);
+      expect(canReadClass(classWithChild1, terminatedParent)).toBe(false);
+    });
+
     it("prevents parents from mutating childStudentIds on their own user document", () => {
       const parentDoc = { id: "parent_a", role: "parent", branchId: "kota_gorontalo" };
 

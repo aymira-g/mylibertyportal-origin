@@ -323,7 +323,6 @@ export default function KidsFrontOfficeDashboard({ branch = null }) {
           instructors={instructors}
           unenrolledStudents={unenrolledStudents}
           role="frontoffice"
-          isAdmin={false}
         />
       ),
     },

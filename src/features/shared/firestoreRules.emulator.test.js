@@ -51,6 +51,9 @@ const USERS = {
   cleanerGto: { role: "cleaner", branchId: "kota_gorontalo" },
   parent1: { role: "parent", branchId: "kota_gorontalo", childStudentIds: ["student1"] },
   parent2: { role: "parent", branchId: "bone_bolango", childStudentIds: ["student2"] },
+  parentActive: { role: "parent", branchId: "kota_gorontalo", childStudentIds: ["student1"], status: "active" },
+  parentInactive: { role: "parent", branchId: "kota_gorontalo", childStudentIds: ["student1"], status: "inactive" },
+  parentSuspended: { role: "parent", branchId: "kota_gorontalo", childStudentIds: ["student1"], status: "suspended" },
   student1: { role: "student", branchId: "kota_gorontalo" },
   student2: { role: "student", branchId: "bone_bolango" },
 };
@@ -368,6 +371,30 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         updateDoc(doc(authed("foGto"), "payments", "pay1"), { notes: "Paid in cash" })
       );
     });
+
+    it("blocks technical Admin from creating or updating payments (DOM04-SEC-02 / OD-2)", async () => {
+      await assertFails(
+        updateDoc(doc(authed("admin"), "payments", "pay1"), { notes: "Admin note" })
+      );
+      await assertFails(
+        addDoc(collection(authed("admin"), "payments"), PAYMENT_KOTA)
+      );
+    });
+
+    it("blocks Director from mutating core financial fields on existing payments (DOM04-SEC-02 / OD-1)", async () => {
+      await assertFails(
+        updateDoc(doc(authed("dirGto"), "payments", "pay1"), { amount: 100000 })
+      );
+      await assertFails(
+        updateDoc(doc(authed("dirGto"), "payments", "pay1"), { studentId: "student2" })
+      );
+    });
+
+    it("allows Director to update allowed fields on existing payments", async () => {
+      await assertSucceeds(
+        updateDoc(doc(authed("dirGto"), "payments", "pay1"), { notes: "Executive note" })
+      );
+    });
   });
 
   describe("payment recording batch (F1)", () => {
@@ -466,7 +493,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       decidedBy: USERS[uid].role,
       decidedByUid: uid,
       decidedAt: "2026-09-21T02:00:00.000Z",
-      updatedAt: "2026-09-21T02:00:00.000Z",
+      updatedAt: serverTimestamp(),
     });
 
     it("routes manager approvals to the manager of that branch", async () => {
@@ -480,6 +507,48 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       await assertSucceeds(getDoc(doc(authed("mgrBoba"), "approvals", "apprBoba")));
       await assertFails(getDoc(doc(authed("mgrGto"), "approvals", "apprBoba")));
       await assertSucceeds(updateDoc(doc(authed("mgrBoba"), "approvals", "apprBoba"), decision("mgrBoba")));
+    });
+
+    it("allows Central Academic Lead (Kota Gorontalo) to decide satellite academic approvals under G-012 (DOM07-GOV-04)", async () => {
+      const satellitePlacement = {
+        actionId: "PLACEMENT_LEVEL_OVERRIDE",
+        status: "pending",
+        approverRole: "instructorleader",
+        approverBranchId: "bone_bolango",
+        requestedByUid: "insBoba",
+        requestedAt: "2026-10-13T00:00:00.000Z",
+      };
+      await seedDoc(["approvals", "apprAcadBoba"], satellitePlacement);
+
+      // Central Academic Lead at Kota Gorontalo can view and decide satellite academic ticket
+      await assertSucceeds(getDoc(doc(authed("ilGto"), "approvals", "apprAcadBoba")));
+      await assertSucceeds(updateDoc(doc(authed("ilGto"), "approvals", "apprAcadBoba"), decision("ilGto")));
+
+      // Satellite Instructor Leader (Bone Bolango) CANNOT decide main branch academic tickets
+      const mainPlacement = {
+        actionId: "PLACEMENT_LEVEL_OVERRIDE",
+        status: "pending",
+        approverRole: "instructorleader",
+        approverBranchId: "kota_gorontalo",
+        requestedByUid: "insGto",
+        requestedAt: "2026-10-13T00:00:00.000Z",
+      };
+      await seedDoc(["approvals", "apprAcadGto"], mainPlacement);
+      await assertFails(getDoc(doc(authed("ilBoba"), "approvals", "apprAcadGto")));
+      await assertFails(updateDoc(doc(authed("ilBoba"), "approvals", "apprAcadGto"), decision("ilBoba")));
+
+      // Central Academic Lead CANNOT approve non-academic gates from satellite branch
+      const satelliteOpsTicket = {
+        actionId: "RETROACTIVE_STUDENT_ATTENDANCE",
+        status: "pending",
+        approverRole: "opslead",
+        approverBranchId: "bone_bolango",
+        requestedByUid: "foBoba",
+        requestedAt: "2026-10-13T00:00:00.000Z",
+      };
+      await seedDoc(["approvals", "apprOpsBoba"], satelliteOpsTicket);
+      await assertFails(getDoc(doc(authed("ilGto"), "approvals", "apprOpsBoba")));
+      await assertFails(updateDoc(doc(authed("ilGto"), "approvals", "apprOpsBoba"), decision("ilGto")));
     });
 
     it("blocks non-approver roles from deciding", async () => {
@@ -678,6 +747,151 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
         updateDoc(doc(authed("foKg"), "users", "student1"), { currentLevel: "elite" })
       );
     });
+
+    it("DOM05-SEC-02: Front Office can promote student level when bound to an eligible progress report", async () => {
+      // 1. Seed student with currentLevel: "warrior"
+      await seedDoc(["users", "promoStudent"], {
+        role: "student",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        currentLevel: "warrior",
+        rating: "1",
+      });
+
+      // 2. Seed an eligible progress report for promoStudent recommending "elite"
+      await seedDoc(["progressReports", "repValid"], {
+        studentId: "promoStudent",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        eligibleForPromotion: true,
+        recommendedLevel: "elite",
+        instructorId: "insGto",
+      });
+
+      // 3. Front Office updates promoStudent with currentLevel: "elite" and promotedFromReport: "repValid" -> ALLOWED
+      await assertSucceeds(
+        updateDoc(doc(authed("foGto"), "users", "promoStudent"), {
+          currentLevel: "elite",
+          rating: "2",
+          promotedFromReport: "repValid",
+        })
+      );
+    });
+
+    it("DOM05-SEC-02: Promotion is denied if jumping levels, report ineligible, or wrong student", async () => {
+      await seedDoc(["users", "promoStudent2"], {
+        role: "student",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        currentLevel: "warrior",
+        rating: "1",
+      });
+
+      // Report recommending multi-level jump (e.g. warrior -> master)
+      await seedDoc(["progressReports", "repJump"], {
+        studentId: "promoStudent2",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        eligibleForPromotion: true,
+        recommendedLevel: "master",
+        instructorId: "insGto",
+      });
+
+      // Report marked not eligible
+      await seedDoc(["progressReports", "repIneligible"], {
+        studentId: "promoStudent2",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        eligibleForPromotion: false,
+        recommendedLevel: "elite",
+        instructorId: "insGto",
+      });
+
+      // Report for a different student
+      await seedDoc(["progressReports", "repOtherStudent"], {
+        studentId: "student2",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        eligibleForPromotion: true,
+        recommendedLevel: "elite",
+        instructorId: "insGto",
+      });
+
+      // Multi-level jump fails closed (must use PLACEMENT_LEVEL_OVERRIDE approval ticket)
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "users", "promoStudent2"), {
+          currentLevel: "master",
+          rating: "3",
+          promotedFromReport: "repJump",
+        })
+      );
+
+      // Ineligible report fails
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "users", "promoStudent2"), {
+          currentLevel: "elite",
+          rating: "2",
+          promotedFromReport: "repIneligible",
+        })
+      );
+
+      // Other student's report fails
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "users", "promoStudent2"), {
+          currentLevel: "elite",
+          rating: "2",
+          promotedFromReport: "repOtherStudent",
+        })
+      );
+    });
+
+    it("F-6 / ADR Decision 3: Front Office cannot create students directly with elevated levels", async () => {
+      // Direct creation with currentLevel: "epic" is rejected
+      await assertFails(
+        setDoc(doc(authed("foGto"), "users", "newStudentElevated"), {
+          role: "student",
+          branchId: "kota_gorontalo",
+          division: "courses",
+          displayName: "Elevated Kid",
+          currentLevel: "epic",
+        })
+      );
+
+      // Creation with currentLevel: "unassessed" succeeds
+      await assertSucceeds(
+        setDoc(doc(authed("foGto"), "users", "newStudentUnassessed"), {
+          role: "student",
+          branchId: "kota_gorontalo",
+          division: "courses",
+          displayName: "Fresh Kid",
+          currentLevel: "unassessed",
+        })
+      );
+
+      // Creation without currentLevel succeeds
+      await assertSucceeds(
+        setDoc(doc(authed("foGto"), "users", "newStudentNoLevel"), {
+          role: "student",
+          branchId: "kota_gorontalo",
+          division: "courses",
+          displayName: "No Level Kid",
+        })
+      );
+    });
+
+    it("F-7 / ADR Decision 4: Admin cannot delete student records", async () => {
+      await seedDoc(["users", "studentToDelete"], {
+        role: "student",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        displayName: "Historic Student",
+      });
+
+      // Admin hard-delete of student record is rejected by security rules
+      await assertFails(
+        deleteDoc(doc(authed("admin"), "users", "studentToDelete"))
+      );
+    });
   });
 
   describe("shifts kiosk flow (C3 guard, H2 autoClosed)", () => {
@@ -765,6 +979,42 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       await assertSucceeds(updateDoc(doc(authed("mgrGto"), "shifts", "shift1"), applied("corr1")));
     });
 
+    it("allows Director and Vice Director to apply approved corrections across branches (DOM07-SEC-04)", async () => {
+      // Main branch shift approved correction
+      await assertSucceeds(updateDoc(doc(authed("dirGto"), "shifts", "shift1"), applied("corr1")));
+      await assertSucceeds(updateDoc(doc(authed("vdGto"), "shifts", "shift1"), applied("corr1")));
+
+      // Satellite branch shift approved correction
+      await seedDoc(["shifts", "shiftBoba"], { ...SHIFT_KOTA, branchId: "bone_bolango", branch: "Bone Bolango" });
+      await seedDoc(["approvals", "corrBoba"], {
+        ...APPROVED_CORRECTION,
+        approverBranchId: "bone_bolango",
+        payload: {
+          ...APPROVED_CORRECTION.payload,
+          shiftId: "shiftBoba",
+        },
+      });
+      await assertSucceeds(
+        updateDoc(doc(authed("dirGto"), "shifts", "shiftBoba"), {
+          ...SHIFT_KOTA,
+          branchId: "bone_bolango",
+          branch: "Bone Bolango",
+          clockIn: "2026-09-21T00:30:00.000Z",
+          corrected: true,
+          reviewStatus: "pending",
+          appliedFromApproval: "corrBoba",
+        })
+      );
+
+      // Negative test: Executive CANNOT perform arbitrary shift edits without approved envelope
+      await assertFails(
+        updateDoc(doc(authed("dirGto"), "shifts", "shift1"), {
+          ...SHIFT_KOTA,
+          clockOut: "2026-09-21T09:00:00.000Z",
+        })
+      );
+    });
+
     it("blocks corrections without an approved, shift-matching approval", async () => {
       await seedDoc(["approvals", "corrPending"], { ...APPROVED_CORRECTION, status: "pending" });
       await seedDoc(["approvals", "corrOther"], {
@@ -822,7 +1072,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       decidedAt: "2026-10-08T01:00:00.000Z",
       decisionNotes: "",
       rejectionReason: "",
-      updatedAt: "2026-10-08T01:00:00.000Z",
+      updatedAt: serverTimestamp(),
     });
 
     it("denies a decision when the approverRole is not permitted for the actionId", async () => {
@@ -867,6 +1117,13 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
 
       await assertSucceeds(updateDoc(doc(authed("ilGto"), "approvals", "okLegacy"), decide("ilGto")));
       await assertSucceeds(updateDoc(doc(authed("opsGto"), "approvals", "okCash"), decide("opsGto")));
+      await seedDoc(
+        ["approvals", "okCashExecFallback"],
+        misaddressed({ actionId: "CASH_DISCREPANCY", approverRole: "ops_lead" })
+      );
+      await assertSucceeds(
+        updateDoc(doc(authed("dirGto"), "approvals", "okCashExecFallback"), decide("dirGto"))
+      );
       await assertSucceeds(
         updateDoc(doc(authed("mgrGto"), "approvals", "okTuition"), decide("mgrGto"))
       );
@@ -956,12 +1213,30 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       await seedDoc(["approvals", "corr1"], APPROVED_CORRECTION);
     });
 
-    it("lets admin append any audit event for a shift they acted on", async () => {
+    it("lets executive log a manual adjustment behind an approved correction, and strictly prevents admin from creating shift audit events (DOM07-SEC-04)", async () => {
+      // Executive (Director) can log manual_adjustment behind approved correction
       await assertSucceeds(
+        addDoc(collection(authed("dirGto"), "shiftAuditEvents"), {
+          shiftId: "shift1",
+          actorId: "dirGto",
+          action: "manual_adjustment",
+          appliedFromApproval: "corr1",
+        })
+      );
+      // Admin is strictly barred from appending shift audit events
+      await assertFails(
         addDoc(collection(authed("admin"), "shiftAuditEvents"), {
           shiftId: "shift1",
           actorId: "admin",
           action: "flag_review",
+        })
+      );
+      await assertFails(
+        addDoc(collection(authed("admin"), "shiftAuditEvents"), {
+          shiftId: "shift1",
+          actorId: "admin",
+          action: "manual_adjustment",
+          appliedFromApproval: "corr1",
         })
       );
     });
@@ -1820,6 +2095,82 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       );
     });
 
+    it("DOM08-SEC-02: revokes access for inactive or suspended parent accounts", async () => {
+      await seedDoc(["classes", "class1"], {
+        instructorId: "insGto",
+        studentIds: ["student1"],
+        branchId: "kota_gorontalo",
+        status: "open",
+      });
+      await seedDoc(["classAttendance", "attKota1"], {
+        classId: "class1",
+        studentId: "student1",
+        attendanceDate: "2026-10-12",
+        status: "PRESENT",
+      });
+      await seedDoc(["payments", "payKota1"], {
+        studentId: "student1",
+        branchId: "kota_gorontalo",
+        amount: 350000,
+      });
+
+      // 1. Active parent with status: 'active' succeeds on classes, attendance, and payments
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(authed("parentActive"), "classes"),
+            where("branchId", "==", "kota_gorontalo"),
+            where("studentIds", "array-contains", "student1")
+          )
+        )
+      );
+      await assertSucceeds(getDoc(doc(authed("parentActive"), "classAttendance", "attKota1")));
+      await assertSucceeds(getDoc(doc(authed("parentActive"), "payments", "payKota1")));
+
+      // 2. Legacy parent without status field succeeds on classes, attendance, and payments
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(authed("parent1"), "classes"),
+            where("branchId", "==", "kota_gorontalo"),
+            where("studentIds", "array-contains", "student1")
+          )
+        )
+      );
+      await assertSucceeds(getDoc(doc(authed("parent1"), "classAttendance", "attKota1")));
+      await assertSucceeds(getDoc(doc(authed("parent1"), "payments", "payKota1")));
+
+      // 3. Inactive parent cannot query classes for linked student
+      await assertFails(
+        getDocs(
+          query(
+            collection(authed("parentInactive"), "classes"),
+            where("branchId", "==", "kota_gorontalo"),
+            where("studentIds", "array-contains", "student1")
+          )
+        )
+      );
+
+      // 4. Suspended parent cannot query classes for linked student
+      await assertFails(
+        getDocs(
+          query(
+            collection(authed("parentSuspended"), "classes"),
+            where("branchId", "==", "kota_gorontalo"),
+            where("studentIds", "array-contains", "student1")
+          )
+        )
+      );
+
+      // 5. Inactive parent cannot read child attendance or payments
+      await assertFails(getDoc(doc(authed("parentInactive"), "classAttendance", "attKota1")));
+      await assertFails(getDoc(doc(authed("parentInactive"), "payments", "payKota1")));
+
+      // 6. Suspended parent cannot read child attendance or payments
+      await assertFails(getDoc(doc(authed("parentSuspended"), "classAttendance", "attKota1")));
+      await assertFails(getDoc(doc(authed("parentSuspended"), "payments", "payKota1")));
+    });
+
     it("INT-020: Front Office parent listing and querying with branch isolation", async () => {
       // 1. Kota front office can query students, instructors, and parents
       await assertSucceeds(
@@ -2418,6 +2769,28 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       });
       await assertFails(deleteDoc(doc(authed("admin"), "corporateEvents", "ceSecTest")));
 
+      // staffLeave (DOM07-UI-02 / Blueprint §7.3)
+      await seedDoc(["staffLeave", "slSecTest"], {
+        userId: "insGto",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        type: "cuti",
+        startDate: "2026-10-25",
+        endDate: "2026-10-27",
+        status: "approved",
+        createdBy: "dirGto",
+      });
+      await assertFails(deleteDoc(doc(authed("admin"), "staffLeave", "slSecTest")));
+
+      // shiftAuditEvents (DOM07-SEC-04 / Blueprint §7.3)
+      await seedDoc(["shiftAuditEvents", "saeSecTest"], {
+        shiftId: "shift1",
+        actorId: "foGto",
+        action: "manual_adjustment",
+        appliedFromApproval: "corr1",
+      });
+      await assertFails(deleteDoc(doc(authed("admin"), "shiftAuditEvents", "saeSecTest")));
+
       // users: Admin may delete a non-executive staff profile.
       // Corrected 2026-10-09 (Front Office Phase 1): this previously asserted the delete FAILED.
       // That assertion matched commit 7cf64a1's shortened clause, but it contradicted the Admin
@@ -2464,8 +2837,8 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       await assertFails(deleteDoc(doc(authed("admin"), "users", "vdGto")));
       await assertFails(deleteDoc(doc(authed("admin"), "users", "admin")));
 
-      // Admin retains the maintenance path for student and parent records.
-      await assertSucceeds(deleteDoc(doc(authed("admin"), "users", "delStdTest")));
+      // Admin retains the maintenance path for parent records, but cannot delete student records (ADR 2026-10-13 Q4)
+      await assertFails(deleteDoc(doc(authed("admin"), "users", "delStdTest")));
       await assertSucceeds(deleteDoc(doc(authed("admin"), "users", "delParTest")));
     });
 
@@ -3138,20 +3511,20 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
       it("allows executives and division managers to log leave, and allows leave for manager role", async () => {
         // Executive can log leave for instructor
         await assertSucceeds(
-          setDoc(doc(authed("director"), "staffLeave", "leave1"), {
+          setDoc(doc(authed("dirGto"), "staffLeave", "leave1"), {
             userId: "insGto",
             branchId: "kota_gorontalo",
             type: "sakit",
             startDate: "2026-10-20",
             endDate: "2026-10-21",
             status: "approved",
-            createdBy: "director",
+            createdBy: "dirGto",
           })
         );
 
         // Executive can log leave for division manager (DOM07-SEC-02: manager is in isTrackedLeaveRole)
         await assertSucceeds(
-          setDoc(doc(authed("director"), "staffLeave", "leave2"), {
+          setDoc(doc(authed("dirGto"), "staffLeave", "leave2"), {
             userId: "mgrGto",
             branchId: "kota_gorontalo",
             division: "courses",
@@ -3159,7 +3532,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
             startDate: "2026-10-25",
             endDate: "2026-10-27",
             status: "approved",
-            createdBy: "director",
+            createdBy: "dirGto",
           })
         );
 
@@ -3200,6 +3573,417 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules against the real emulator", () =
             endDate: "2026-10-22",
             status: "approved",
             createdBy: "insGto",
+          })
+        );
+
+        // Technical Admin CANNOT create, update, or delete staff leave records (DOM07-UI-02 / Blueprint §7.3)
+        await assertFails(
+          setDoc(doc(authed("admin"), "staffLeave", "leaveAdminCreated"), {
+            userId: "insGto",
+            branchId: "kota_gorontalo",
+            type: "sakit",
+            startDate: "2026-10-22",
+            endDate: "2026-10-22",
+            status: "approved",
+            createdBy: "admin",
+          })
+        );
+        await assertFails(
+          updateDoc(doc(authed("admin"), "staffLeave", "leave1"), {
+            status: "rejected",
+          })
+        );
+        await assertFails(
+          deleteDoc(doc(authed("admin"), "staffLeave", "leave1"))
+        );
+      });
+    });
+
+    describe("ADR 2026-10-13: Class Scheduling (Option B) & Corporate Events Authority", () => {
+      it("enforces class batch creation permissions: Ops Lead and Division Manager succeed for same branch; Admin, Front Office, and cross-branch fail", async () => {
+        // Ops Lead can create class for own branch
+        await assertSucceeds(
+          setDoc(doc(authed("opsGto"), "classes", "clsOpsGto"), {
+            name: "Warrior A",
+            className: "Warrior A",
+            branchId: "kota_gorontalo",
+            branch: "Kota Gorontalo",
+            division: "courses",
+            instructorId: "insGto",
+            studentIds: [],
+          })
+        );
+
+        // Division Manager can create class for own branch
+        await assertSucceeds(
+          setDoc(doc(authed("mgrGto"), "classes", "clsMgrGto"), {
+            name: "Master B",
+            className: "Master B",
+            branchId: "kota_gorontalo",
+            branch: "Kota Gorontalo",
+            division: "courses",
+            instructorId: "insGto",
+            studentIds: [],
+          })
+        );
+
+        // Cross-branch class creation fails
+        await assertFails(
+          setDoc(doc(authed("opsGto"), "classes", "clsCrossBranch"), {
+            name: "Epic C",
+            className: "Epic C",
+            branchId: "bone_bolango",
+            branch: "Bone Bolango",
+            division: "courses",
+            instructorId: "insGto",
+            studentIds: [],
+          })
+        );
+
+        // Front Office cannot create class
+        await assertFails(
+          setDoc(doc(authed("foGto"), "classes", "clsFoCreate"), {
+            name: "Warrior D",
+            className: "Warrior D",
+            branchId: "kota_gorontalo",
+            branch: "Kota Gorontalo",
+            division: "courses",
+            studentIds: [],
+          })
+        );
+
+        // Admin cannot create class (business scope stripped per G-002)
+        await assertFails(
+          setDoc(doc(authed("admin"), "classes", "clsAdminCreate"), {
+            name: "Warrior E",
+            className: "Warrior E",
+            branchId: "kota_gorontalo",
+            branch: "Kota Gorontalo",
+            division: "courses",
+            studentIds: [],
+          })
+        );
+      });
+
+      it("enforces corporate events scope: only executives can create, update, or delete audienceType 'all'; branch staff restricted to own branch", async () => {
+        // Executive can create company-wide event
+        await assertSucceeds(
+          setDoc(doc(authed("dirGto"), "corporateEvents", "allCompanyEvent"), {
+            name: "Annual Liberty Summit",
+            eventDate: "2026-11-01",
+            audienceType: "all",
+            audienceValue: "all",
+          })
+        );
+
+        // Division Manager CANNOT create company-wide event
+        await assertFails(
+          setDoc(doc(authed("mgrGto"), "corporateEvents", "allCompanyEventMgr"), {
+            name: "Manager Proposed Holiday",
+            eventDate: "2026-11-02",
+            audienceType: "all",
+            audienceValue: "all",
+          })
+        );
+
+        // Division Manager CAN create branch event for own branch
+        await assertSucceeds(
+          setDoc(doc(authed("mgrGto"), "corporateEvents", "gtoBranchEvent"), {
+            name: "Kota Gorontalo Open Day",
+            eventDate: "2026-11-05",
+            audienceType: "branch",
+            audienceValue: "kota_gorontalo",
+            branchId: "kota_gorontalo",
+          })
+        );
+
+        // Division Manager CANNOT update company-wide event
+        await assertFails(
+          updateDoc(doc(authed("mgrGto"), "corporateEvents", "allCompanyEvent"), {
+            name: "Tampered Holiday",
+          })
+        );
+
+        // Executive CAN update company-wide event
+        await assertSucceeds(
+          updateDoc(doc(authed("dirGto"), "corporateEvents", "allCompanyEvent"), {
+            name: "Annual Liberty Summit (Updated)",
+          })
+        );
+
+        // Division Manager CANNOT delete company-wide event
+        await assertFails(
+          deleteDoc(doc(authed("mgrGto"), "corporateEvents", "allCompanyEvent"))
+        );
+
+        // Executive CAN delete company-wide event
+        await assertSucceeds(
+          deleteDoc(doc(authed("dirGto"), "corporateEvents", "allCompanyEvent"))
+        );
+
+        // Division Manager CAN delete own branch event
+        await assertSucceeds(
+          deleteDoc(doc(authed("mgrGto"), "corporateEvents", "gtoBranchEvent"))
+        );
+      });
+    });
+
+    describe("Domain 9: Approvals / Maker-Checker Workflows & Audit Logs (DOM09)", () => {
+      it("prohibits minting admin, director, or vice_director via staff onboarding envelope (DOM09-SEC-01 / F-2)", async () => {
+        // Seed approved NEW_STAFF_ACCOUNT trying to mint admin
+        await seedDoc(["approvals", "apMintAdmin"], {
+          actionId: "NEW_STAFF_ACCOUNT",
+          status: "approved",
+          mode: "blocking",
+          approverRole: "director",
+          approverBranchId: "kota_gorontalo",
+          requestedBy: "FO Budi",
+          requestedByUid: "foGto",
+          decidedBy: "Director",
+          decidedByUid: "dirGto",
+          payload: { uid: "maliciousAdmin", role: "admin", branchId: "kota_gorontalo", division: "courses" },
+          approvedRole: "admin",
+          approvedBranchId: "kota_gorontalo",
+          approvedDivision: "courses",
+        });
+
+        // Director attempts to set user with role: 'admin' using this envelope -> must fail
+        await assertFails(
+          setDoc(doc(authed("dirGto"), "users", "maliciousAdmin"), {
+            displayName: "Malicious Admin",
+            role: "admin",
+            branchId: "kota_gorontalo",
+            division: "courses",
+            status: "active",
+            appliedFromApproval: "apMintAdmin",
+          })
+        );
+
+        // Seed approved NEW_STAFF_ACCOUNT with instructor role
+        await seedDoc(["approvals", "apValidInstructor"], {
+          actionId: "NEW_STAFF_ACCOUNT",
+          status: "approved",
+          mode: "blocking",
+          approverRole: "director",
+          approverBranchId: "kota_gorontalo",
+          requestedBy: "FO Budi",
+          requestedByUid: "foGto",
+          decidedBy: "Director",
+          decidedByUid: "dirGto",
+          payload: { uid: "validInstructor", role: "instructor", branchId: "kota_gorontalo", division: "courses" },
+          approvedRole: "instructor",
+          approvedBranchId: "kota_gorontalo",
+          approvedDivision: "courses",
+        });
+
+        // Director creates valid instructor -> succeeds
+        await assertSucceeds(
+          setDoc(doc(authed("dirGto"), "users", "validInstructor"), {
+            displayName: "Valid Instructor",
+            role: "instructor",
+            branchId: "kota_gorontalo",
+            division: "courses",
+            status: "active",
+            appliedFromApproval: "apValidInstructor",
+          })
+        );
+
+        // Attempt to create user with role mismatched from approvedRole ('manager' instead of 'instructor') -> must fail
+        await assertFails(
+          setDoc(doc(authed("dirGto"), "users", "validInstructorMismatch"), {
+            displayName: "Role Mismatch",
+            role: "manager",
+            branchId: "kota_gorontalo",
+            division: "courses",
+            status: "active",
+            appliedFromApproval: "apValidInstructor",
+          })
+        );
+      });
+
+      it("enforces strict Director-only gate for STAFF_ROLE_ELEVATION and STAFF_DEACTIVATION (DOM09-GOV-01 / F-3)", async () => {
+        // Pending STAFF_ROLE_ELEVATION
+        await seedDoc(["approvals", "apElevate"], {
+          actionId: "STAFF_ROLE_ELEVATION",
+          status: "pending",
+          mode: "blocking",
+          approverRole: "director",
+          approverBranchId: "kota_gorontalo",
+          requestedBy: "FO Budi",
+          requestedByUid: "foGto",
+          requestedAt: "2026-10-14T00:00:00.000Z",
+          payload: { uid: "insGto", targetRole: "manager" },
+        });
+
+        // Vice Director attempts to approve STAFF_ROLE_ELEVATION -> must fail
+        await assertFails(
+          updateDoc(doc(authed("vdGto"), "approvals", "apElevate"), {
+            status: "approved",
+            decidedBy: "Vice Director",
+            decidedByUid: "vdGto",
+            decidedAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          })
+        );
+
+        // Director approves STAFF_ROLE_ELEVATION -> succeeds
+        await assertSucceeds(
+          updateDoc(doc(authed("dirGto"), "approvals", "apElevate"), {
+            status: "approved",
+            decidedBy: "Director",
+            decidedByUid: "dirGto",
+            decidedAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          })
+        );
+
+        // Pending STAFF_DEACTIVATION
+        await seedDoc(["approvals", "apDeact"], {
+          actionId: "STAFF_DEACTIVATION",
+          status: "pending",
+          mode: "blocking",
+          approverRole: "director",
+          approverBranchId: "kota_gorontalo",
+          requestedBy: "FO Budi",
+          requestedByUid: "foGto",
+          requestedAt: "2026-10-14T00:00:00.000Z",
+          payload: { targetUserId: "insGto", targetStatus: "resigned" },
+        });
+
+        // Vice Director attempts to approve STAFF_DEACTIVATION -> must fail
+        await assertFails(
+          updateDoc(doc(authed("vdGto"), "approvals", "apDeact"), {
+            status: "approved",
+            decidedBy: "Vice Director",
+            decidedByUid: "vdGto",
+            decidedAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          })
+        );
+
+        // Director approves STAFF_DEACTIVATION -> succeeds
+        await assertSucceeds(
+          updateDoc(doc(authed("dirGto"), "approvals", "apDeact"), {
+            status: "approved",
+            decidedBy: "Director",
+            decidedByUid: "dirGto",
+            decidedAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          })
+        );
+      });
+
+      it("prohibits non-Director from deactivating staff without approved STAFF_DEACTIVATION envelope (DOM09-GOV-02 / F-4)", async () => {
+        // Vice Director attempts direct deactivation of staff -> must fail
+        await assertFails(
+          updateDoc(doc(authed("vdGto"), "users", "insGto"), {
+            status: "resigned",
+            updatedAt: "2026-10-14T00:00:00.000Z",
+          })
+        );
+
+        // Admin attempts direct deactivation of staff -> must fail
+        await assertFails(
+          updateDoc(doc(authed("admin"), "users", "insGto"), {
+            status: "resigned",
+            updatedAt: "2026-10-14T00:00:00.000Z",
+          })
+        );
+
+        // Director directly deactivates staff -> succeeds
+        await assertSucceeds(
+          updateDoc(doc(authed("dirGto"), "users", "insGto"), {
+            status: "resigned",
+            updatedAt: "2026-10-14T00:00:00.000Z",
+          })
+        );
+
+        // Seed approved STAFF_DEACTIVATION envelope for cleanerGto
+        await seedDoc(["approvals", "apDeactCleaner"], {
+          actionId: "STAFF_DEACTIVATION",
+          status: "approved",
+          mode: "blocking",
+          approverRole: "director",
+          approverBranchId: "kota_gorontalo",
+          requestedBy: "FO Budi",
+          requestedByUid: "foGto",
+          decidedBy: "Director",
+          decidedByUid: "dirGto",
+          payload: { targetUserId: "cleanerGto", targetStatus: "terminated" },
+        });
+
+        // Vice Director applies deactivation with valid approved envelope -> succeeds
+        await assertSucceeds(
+          updateDoc(doc(authed("vdGto"), "users", "cleanerGto"), {
+            status: "terminated",
+            appliedFromApproval: "apDeactCleaner",
+            updatedAt: "2026-10-14T00:00:00.000Z",
+          })
+        );
+      });
+
+      it("enforces updatedAt server timestamp integrity and single-use applied sealing (DOM09-SEC-02 / DOM09-SEC-03)", async () => {
+        await seedDoc(["approvals", "apTimeCheck"], {
+          actionId: "TUITION_PLAN_CHANGE",
+          status: "pending",
+          mode: "blocking",
+          approverRole: "manager",
+          approverBranchId: "kota_gorontalo",
+          requestedBy: "FO Budi",
+          requestedByUid: "foGto",
+          requestedAt: "2026-10-14T00:00:00.000Z",
+          payload: null,
+        });
+
+        // Manager attempts to approve with spoofed updatedAt ISO string instead of serverTimestamp() -> must fail
+        await assertFails(
+          updateDoc(doc(authed("mgrGto"), "approvals", "apTimeCheck"), {
+            status: "approved",
+            decidedBy: "Manager",
+            decidedByUid: "mgrGto",
+            decidedAt: serverTimestamp(),
+            updatedAt: "2026-10-10T00:00:00.000Z",
+          })
+        );
+
+        // Manager approves using serverTimestamp() -> succeeds
+        await assertSucceeds(
+          updateDoc(doc(authed("mgrGto"), "approvals", "apTimeCheck"), {
+            status: "approved",
+            decidedBy: "Manager",
+            decidedByUid: "mgrGto",
+            decidedAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          })
+        );
+
+        // Marking envelope applied with spoofed updatedAt string -> must fail
+        await assertFails(
+          updateDoc(doc(authed("mgrGto"), "approvals", "apTimeCheck"), {
+            applied: true,
+            appliedAt: serverTimestamp(),
+            appliedByUid: "mgrGto",
+            updatedAt: "2026-10-10T00:00:00.000Z",
+          })
+        );
+
+        // Marking envelope applied with serverTimestamp() and valid appliedByUid -> succeeds
+        await assertSucceeds(
+          updateDoc(doc(authed("mgrGto"), "approvals", "apTimeCheck"), {
+            applied: true,
+            appliedAt: serverTimestamp(),
+            appliedByUid: "mgrGto",
+            updatedAt: serverTimestamp(),
+          })
+        );
+
+        // Re-applying an already applied envelope -> must fail (DOM09-SEC-02 single-use seal)
+        await assertFails(
+          updateDoc(doc(authed("mgrGto"), "approvals", "apTimeCheck"), {
+            applied: true,
+            appliedAt: serverTimestamp(),
+            appliedByUid: "mgrGto",
+            updatedAt: serverTimestamp(),
           })
         );
       });

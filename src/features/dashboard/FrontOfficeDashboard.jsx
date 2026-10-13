@@ -374,7 +374,6 @@ export default function FrontOfficeDashboard({ role = "frontoffice", branch = nu
           instructors={instructors}
           unenrolledStudents={unenrolledStudents}
           role="frontoffice"
-          isAdmin={false}
         />
       ),
     },

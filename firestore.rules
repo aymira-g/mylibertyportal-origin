@@ -43,6 +43,10 @@ service cloud.firestore {
       return isDirector() || isViceDirector() || isAdmin();
     }
 
+    function isOrgExecutive() {
+      return isDirector() || isViceDirector();
+    }
+
     function isManager() {
       let p = userProfile();
       return signedIn()
@@ -255,9 +259,9 @@ service cloud.firestore {
     //
     // Keep in sync with securityRulesMatrix.helpers.js -> GATE_APPROVER_ROLES / gateAllowsApprover().
     function gateAllowsApprover(actionId, approverRole) {
-      return (actionId == 'STAFF_ROLE_ELEVATION' && (approverRole == 'director' || approverRole == 'vice_director'))
+      return (actionId == 'STAFF_ROLE_ELEVATION' && approverRole == 'director')
         || (actionId == 'NEW_STAFF_ACCOUNT' && (approverRole == 'director' || approverRole == 'vice_director'))
-        || (actionId == 'STAFF_DEACTIVATION' && (approverRole == 'director' || approverRole == 'vice_director'))
+        || (actionId == 'STAFF_DEACTIVATION' && approverRole == 'director')
         || (actionId == 'DISCOUNT_OR_REFUND' && (approverRole == 'director' || approverRole == 'vice_director'))
         || (actionId == 'TUITION_PLAN_CHANGE' && (approverRole == 'manager' || approverRole == 'director' || approverRole == 'vice_director'))
         || (actionId == 'STUDENT_WITHDRAWAL_OR_FREEZE' && (approverRole == 'manager' || approverRole == 'director' || approverRole == 'vice_director'))
@@ -266,28 +270,39 @@ service cloud.firestore {
         || (actionId == 'SUBSTITUTE_INSTRUCTOR' && (approverRole == 'instructorleader' || approverRole == 'instructor_leader'))
         || (actionId == 'CLASS_CANCELLATION_OR_RESCHEDULE' && (approverRole == 'opslead' || approverRole == 'ops_lead'))
         || (actionId == 'RETROACTIVE_STUDENT_ATTENDANCE' && (approverRole == 'opslead' || approverRole == 'ops_lead'))
-        || (actionId == 'STUDENT_CLASS_TRANSFER' && (approverRole == 'opslead' || approverRole == 'ops_lead'))
+        || (actionId == 'STUDENT_CLASS_TRANSFER' && (approverRole == 'opslead' || approverRole == 'ops_lead' || approverRole == 'manager' || approverRole == 'director' || approverRole == 'vice_director'))
         || (actionId == 'STAFF_SHIFT_SELF_CORRECTION' && (approverRole == 'opslead' || approverRole == 'ops_lead' || approverRole == 'manager' || approverRole == 'director' || approverRole == 'vice_director'))
         || (actionId == 'STAFF_STATUS_CHANGE' && (approverRole == 'opslead' || approverRole == 'ops_lead' || approverRole == 'instructorleader' || approverRole == 'instructor_leader' || approverRole == 'manager' || approverRole == 'director' || approverRole == 'vice_director'));
     }
 
     function isApproverForDoc(data) {
       let targetRole = data != null && 'approverRole' in data ? data.approverRole : 'manager';
-      let roleMatches = ((targetRole == 'director' || targetRole == 'vice_director') && (isDirector() || isViceDirector()))
-        || (targetRole == 'manager' && ((isManager() && isDivisionAllowedForManager(data)) || isDirector() || isViceDirector()))
-        || ((targetRole == 'instructor_leader' || targetRole == 'instructorleader') && (hasRole('instructorleader') || hasRole('instructor_leader')))
-        || ((targetRole == 'ops_lead' || targetRole == 'opslead') && isOpsLead())
-        || (targetRole == 'frontoffice' && isFrontOffice());
-      // Approval docs route by approverBranchId (see approvalGates.js); fall back
-      // to the generic branch fields for legacy docs.
-      let branchMatches = (isDirector() || isViceDirector()) || (data != null && 'approverBranchId' in data
+      let p = userProfile();
+      let r = signedIn() && p != null && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated')) ? p.role : '';
+      let isExec = r in ['director', 'vice_director'];
+      let isStrictDirectorGate = data != null && 'actionId' in data && (data.actionId == 'STAFF_ROLE_ELEVATION' || data.actionId == 'STAFF_DEACTIVATION');
+      let roleMatches = (
+        (isStrictDirectorGate && r == 'director')
+        || (!isStrictDirectorGate && (targetRole == 'director' || targetRole == 'vice_director') && isExec)
+        || (targetRole == 'manager' && (isExec || (r == 'manager' && isDivisionAllowedForManager(data))))
+        || ((targetRole == 'instructor_leader' || targetRole == 'instructorleader') && (r in ['instructorleader', 'instructor_leader']))
+        || ((targetRole == 'ops_lead' || targetRole == 'opslead') && (isExec || (r in ['opslead', 'ops_lead', 'frontofficelead'])))
+        || (targetRole == 'frontoffice' && (r in ['frontoffice', 'opslead', 'ops_lead', 'frontofficelead']))
+      );
+      // Central Academic Lead (Instructor Leader at Kota Gorontalo) has province-wide pedagogical scope
+      // over academic actions under ADR G-012. All other roles/actions route strictly by branch.
+      let isCentralAcademicLead = (r in ['instructorleader', 'instructor_leader'])
+        && (userBranch() == 'kota_gorontalo')
+        && (data != null && 'actionId' in data && (data.actionId == 'PLACEMENT_LEVEL_OVERRIDE' || data.actionId == 'SUBSTITUTE_INSTRUCTOR'));
+      let branchMatches = isExec || isCentralAcademicLead || (data != null && 'approverBranchId' in data
         ? data.approverBranchId == userBranch()
         : isSameBranch(data));
       return roleMatches && branchMatches;
     }
 
     function roleOf(uid) {
-      return get(/databases/$(database)/documents/users/$(uid)).data.role;
+      let u = get(/databases/$(database)/documents/users/$(uid));
+      return u != null && ('data' in u) && u.data != null && ('role' in u.data) ? u.data.role : '';
     }
 
     function isTrackedShiftRole(r) {
@@ -335,7 +350,21 @@ service cloud.firestore {
         && approval.requestedByUid != approval.decidedByUid
         && approval.decidedByUid != targetUserId
         && ('approverRole' in approval)
-        && (approval.approverRole in ['director', 'vice_director']);
+        && approval.approverRole == 'director';
+    }
+
+    function isApprovedStaffDeactivation(targetUserId, approvalId) {
+      let approval = get(/databases/$(database)/documents/approvals/$(approvalId)).data;
+      return approval.actionId == 'STAFF_DEACTIVATION'
+        && approval.status == 'approved'
+        && (!('applied' in approval) || approval.applied != true)
+        && 'payload' in approval
+        && approval.payload != null
+        && (approval.payload.targetUserId == targetUserId || approval.payload.uid == targetUserId)
+        && approval.requestedByUid != approval.decidedByUid
+        && approval.decidedByUid != targetUserId
+        && ('approverRole' in approval)
+        && approval.approverRole == 'director';
     }
 
     // ── Placement level authority (OD-IL-ENF2, design A′; owner-ratified 2026-10-08) ──
@@ -443,6 +472,16 @@ service cloud.firestore {
     // generic gateAllowsApprover chain (rules-engine expression budget).
     function isApprovedNewStaffAccount(targetUserId, approvalId) {
       let approval = get(/databases/$(database)/documents/approvals/$(approvalId)).data;
+      let appRole = ('approvedRole' in approval && approval.approvedRole != null)
+        ? approval.approvedRole
+        : (('payload' in approval && approval.payload != null && 'role' in approval.payload) ? approval.payload.role : '');
+      let appBranch = ('approvedBranchId' in approval && approval.approvedBranchId != null)
+        ? approval.approvedBranchId
+        : (('payload' in approval && approval.payload != null && 'branchId' in approval.payload) ? approval.payload.branchId : '');
+      let appDiv = ('approvedDivision' in approval && approval.approvedDivision != null)
+        ? approval.approvedDivision
+        : (('payload' in approval && approval.payload != null && 'division' in approval.payload) ? approval.payload.division : '');
+
       return approval.actionId == 'NEW_STAFF_ACCOUNT'
         && approval.status == 'approved'
         && (!('applied' in approval) || approval.applied != true)
@@ -451,7 +490,11 @@ service cloud.firestore {
         && (approval.approverRole == 'director' || approval.approverRole == 'vice_director')
         && ('payload' in approval)
         && approval.payload != null
-        && approval.payload.uid == targetUserId;
+        && approval.payload.uid == targetUserId
+        && (request.resource.data.role in ['instructor', 'instructorleader', 'instructor_leader', 'opslead', 'ops_lead', 'frontoffice', 'frontofficelead', 'manager', 'marketing', 'officeboy', 'cleaner'])
+        && (appRole == '' || request.resource.data.role == appRole)
+        && (appBranch == '' || request.resource.data.branchId == appBranch)
+        && (appDiv == '' || request.resource.data.division == appDiv);
     }
 
     function shiftMatchesCorrectionPayload(approvalId, reqData, resData) {
@@ -481,8 +524,7 @@ service cloud.firestore {
       let c = classDoc(classId);
       return c != null
         && (
-          isAdmin()
-          || (
+          (
             isFrontOffice()
             && isSameBranch(c)
           )
@@ -517,7 +559,7 @@ service cloud.firestore {
       let p = userProfile();
       return signedIn()
         && p != null
-        && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'))
+        && (!('status' in p) || p.status == 'active')
         && p.role == 'parent';
     }
 
@@ -530,6 +572,105 @@ service cloud.firestore {
         && isSameBranch(get(/databases/$(database)/documents/users/$(studentId)).data)
         && (!('status' in get(/databases/$(database)/documents/users/$(studentId)).data)
           || get(/databases/$(database)/documents/users/$(studentId)).data.status == 'active');
+    }
+
+    function isNextAcademicLevel(cur, next) {
+      return (cur == 'warrior' && next == 'elite')
+        || (cur == 'elite' && next == 'master')
+        || (cur == 'master' && next == 'grandmaster')
+        || (cur == 'grandmaster' && next == 'epic')
+        || (cur == 'unassessed' && next == 'warrior');
+    }
+
+    function isApprovedPromotion(studentId, req, res) {
+      let rId = ('promotedFromReport' in req && req.promotedFromReport is string) ? req.promotedFromReport : '';
+      let cur = ('currentLevel' in res && res.currentLevel != null && res.currentLevel != '') ? res.currentLevel : 'unassessed';
+      return rId != ''
+        && exists(/databases/$(database)/documents/progressReports/$(rId))
+        && get(/databases/$(database)/documents/progressReports/$(rId)).data.studentId == studentId
+        && get(/databases/$(database)/documents/progressReports/$(rId)).data.eligibleForPromotion == true
+        && isNextAcademicLevel(cur, req.currentLevel)
+        && (!('recommendedLevel' in get(/databases/$(database)/documents/progressReports/$(rId)).data)
+          || get(/databases/$(database)/documents/progressReports/$(rId)).data.recommendedLevel == null
+          || get(/databases/$(database)/documents/progressReports/$(rId)).data.recommendedLevel == ''
+          || get(/databases/$(database)/documents/progressReports/$(rId)).data.recommendedLevel == req.currentLevel);
+    }
+
+    function canUpdateUser(userId) {
+      let p = userProfile();
+      let r = signedIn() && p != null && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated')) && ('role' in p) ? p.role : '';
+      let req = request.resource.data;
+      let res = resource.data;
+      let diffKeys = req.diff(res).affectedKeys();
+      let isExec = r in ['director', 'vice_director', 'admin'];
+      let isStaffOrMgr = r in ['frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'manager'];
+
+      return (
+        (isExec
+          && (
+            req.role != res.role
+              ? (
+                  ('appliedFromApproval' in req)
+                  && req.appliedFromApproval is string
+                  && isApprovedRoleElevation(userId, req.appliedFromApproval, req.role)
+                )
+              : true
+          )
+          && (
+            (r in ['director', 'vice_director'])
+            || !(res.role in ['director', 'vice_director'])
+            || !('status' in req)
+            || !(req.status in ['resigned', 'terminated'])
+          )
+          && (
+            (!('status' in req) || !(req.status in ['resigned', 'terminated']) || (res.role in ['student', 'parent']))
+            || (r == 'director')
+            || (
+              ('appliedFromApproval' in req)
+              && req.appliedFromApproval is string
+              && isApprovedStaffDeactivation(userId, req.appliedFromApproval)
+            )
+          )
+        )
+        || (isStaffOrMgr
+          && res.role == 'student'
+          && req.role == 'student'
+          && isSameBranch(res)
+          && isSameBranch(req)
+          && isDivisionAllowedForBranchStaff(res)
+          && isDivisionAllowedForBranchStaff(req)
+          && (!('branchId' in res) || req.branchId == res.branchId)
+          && diffKeys.hasOnly([
+            'displayName', 'name', 'phone', 'dob', 'address', 'parentName', 'parentPhone',
+            'emergencyContact', 'emergencyPhone', 'notes', 'placementTests', 'status',
+            'statusUpdatedAt', 'statusUpdatedBy',
+            'enrollmentDate',
+            'updatedAt', 'photoURL', 'nickname', 'gender', 'nis', 'school', 'grade',
+            'placeOfBirth', 'religion', 'programId', 'program', 'batchType', 'classType',
+            'schoolOrJob', 'classOrSemester', 'joinedDate', 'fatherName', 'fatherJob',
+            'fatherPhone', 'motherName', 'motherJob', 'motherPhone', 'referralSource',
+            'rating', 'paymentPlan', 'paymentStatus', 'lastPaymentPeriod', 'lastPaymentDate',
+            'lastPaymentAmount', 'lastPaymentMethod', 'paidUntil', 'branch', 'division',
+            'currentLevel', 'promotedFromReport'
+          ])
+          && (
+            !diffKeys.hasAny(['currentLevel', 'promotedFromReport'])
+            || isApprovedPromotion(userId, req, res)
+          )
+        )
+        || (isStaffOrMgr
+          && res.role == 'parent'
+          && req.role == 'parent'
+          && isSameBranch(res)
+          && isSameBranch(req)
+          && (!('branchId' in res) || req.branchId == res.branchId)
+          && diffKeys.hasOnly(['displayName', 'phone', 'updatedAt', 'status', 'branch', 'childStudentIds'])
+        )
+        || (signedIn()
+          && userId == request.auth.uid
+          && diffKeys.hasOnly(['displayName', 'phone', 'dob', 'photoURL', 'nickname'])
+        )
+      );
     }
 
     match /users/{userId} {
@@ -564,6 +705,10 @@ service cloud.firestore {
           ))
         || (isFrontDeskStaff() && request.resource.data.role in ['student', 'parent'] && isSameBranch(request.resource.data)
           && (request.resource.data.role != 'student' || isDivisionAllowedForBranchStaff(request.resource.data))
+          && (request.resource.data.role != 'student'
+            || !('currentLevel' in request.resource.data)
+            || request.resource.data.currentLevel in ['', 'unassessed']
+            || (('division' in request.resource.data) && request.resource.data.division == 'kindergarten'))
           && (request.resource.data.role != 'parent'
             || !('childStudentIds' in request.resource.data)
             || request.resource.data.childStudentIds.size() == 0))
@@ -589,59 +734,8 @@ service cloud.firestore {
       //
       // Scope note: this governs *record removal* only. Staff role and status changes remain gated
       // behind STAFF_DEACTIVATION / STAFF_ROLE_ELEVATION and are unaffected by this clause.
-      allow delete: if isAdmin() && !(resource.data.role in ['director', 'vice_director', 'admin']);
-      allow update: if (
-          isExecutive()
-          && (
-            request.resource.data.role != resource.data.role
-              ? (
-                  ('appliedFromApproval' in request.resource.data)
-                  && request.resource.data.appliedFromApproval is string
-                  && isApprovedRoleElevation(userId, request.resource.data.appliedFromApproval, request.resource.data.role)
-                )
-              : true
-          )
-          && (
-            // Admins cannot terminate or resign Director or Vice Director accounts
-            (isDirector() || isViceDirector())
-            || !(resource.data.role in ['director', 'vice_director'])
-            || !('status' in request.resource.data)
-            || !(request.resource.data.status in ['resigned', 'terminated'])
-          )
-        )
-        || ((isFrontDeskStaff() || isManager())
-          && resource.data.role == 'student'
-          && request.resource.data.role == 'student'
-          && isSameBranch(resource.data)
-          && isSameBranch(request.resource.data)
-          && isDivisionAllowedForBranchStaff(resource.data)
-          && isDivisionAllowedForBranchStaff(request.resource.data)
-          && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId)
-          && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly([
-              'displayName', 'name', 'phone', 'dob', 'address', 'parentName', 'parentPhone',
-              'emergencyContact', 'emergencyPhone', 'notes', 'placementTests', 'status',
-              'statusUpdatedAt', 'statusUpdatedBy',
-              'enrollmentDate',
-              'updatedAt', 'photoURL', 'nickname', 'gender', 'nis', 'school', 'grade',
-              'placeOfBirth', 'religion', 'programId', 'program', 'batchType', 'classType',
-              'schoolOrJob', 'classOrSemester', 'joinedDate', 'fatherName', 'fatherJob',
-              'fatherPhone', 'motherName', 'motherJob', 'motherPhone', 'referralSource',
-              'rating', 'paymentPlan', 'paymentStatus', 'lastPaymentPeriod', 'lastPaymentDate',
-              'lastPaymentAmount', 'lastPaymentMethod', 'paidUntil', 'branch', 'division'
-            ]))
-        || ((isFrontDeskStaff() || isManager())
-          && resource.data.role == 'parent'
-          && request.resource.data.role == 'parent'
-          && isSameBranch(resource.data)
-          && isSameBranch(request.resource.data)
-          && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId)
-          && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['displayName', 'phone', 'updatedAt', 'status', 'branch', 'childStudentIds']))
-        || (signedIn()
-          && userId == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['displayName', 'phone', 'dob', 'photoURL', 'nickname']));
+      allow delete: if isAdmin() && !(resource.data.role in ['director', 'vice_director', 'admin', 'student']);
+      allow update: if canUpdateUser(userId);
     }
 
     match /invites/{inviteId} {
@@ -667,6 +761,32 @@ service cloud.firestore {
       allow create: if false;
     }
 
+    function canUpdateClass() {
+      let p = userProfile();
+      let r = signedIn() && p != null && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated')) && ('role' in p) ? p.role : '';
+      let isExec = r in ['director', 'vice_director'];
+      let req = request.resource.data;
+      let res = resource.data;
+      let isMgrOrLead = r in ['manager', 'opslead', 'ops_lead', 'frontofficelead'];
+      let isFO = r in ['frontoffice', 'opslead', 'ops_lead', 'frontofficelead'];
+      let diffKeys = req.diff(res).affectedKeys();
+
+      return isExec
+        || ((isMgrOrLead || isFO)
+          && isSameBranch(res)
+          && isSameBranch(req)
+          && isDivisionAllowedForBranchStaff(res)
+          && isDivisionAllowedForBranchStaff(req)
+          && (
+            (isMgrOrLead && (!('branchId' in res) || req.branchId == res.branchId))
+            || (isFO
+              && diffKeys.hasOnly(['studentIds', 'enrollments', 'updatedAt'])
+              && (!('maxCapacity' in res) || req.studentIds.size() <= res.maxCapacity)
+              && (!('capacity' in res) || req.studentIds.size() <= res.capacity)
+              && (!('maxStudents' in res) || req.studentIds.size() <= res.maxStudents))
+          ));
+    }
+
     match /classes/{classId} {
       allow get: if isExecutive()
         || (isStaff() && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data))
@@ -684,17 +804,9 @@ service cloud.firestore {
           ))
         || (signedIn() && ('studentIds' in resource.data) && resource.data.studentIds.hasAny([request.auth.uid]))
         || (isParent() && isSameBranchStrict(resource.data) && ('childStudentIds' in userProfile()) && ('studentIds' in resource.data) && resource.data.studentIds.hasAny(userProfile().childStudentIds));
-      allow create: if isAdmin() || isExecutive();
-      allow update: if isAdmin() || isExecutive()
-        || (isFrontOffice()
-          && isSameBranch(resource.data)
-          && isSameBranch(request.resource.data)
-          && isDivisionAllowedForBranchStaff(resource.data)
-          && isDivisionAllowedForBranchStaff(request.resource.data)
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentIds', 'enrollments', 'updatedAt'])
-          && (!('maxCapacity' in resource.data) || request.resource.data.studentIds.size() <= resource.data.maxCapacity)
-          && (!('capacity' in resource.data) || request.resource.data.studentIds.size() <= resource.data.capacity)
-          && (!('maxStudents' in resource.data) || request.resource.data.studentIds.size() <= resource.data.maxStudents));
+      allow create: if isDirector() || isViceDirector()
+        || ((isOpsLead() || isManager()) && isSameBranch(request.resource.data) && isDivisionAllowedForManager(request.resource.data));
+      allow update: if canUpdateClass();
       allow delete: if isDirector() || isViceDirector();
     }
 
@@ -732,7 +844,7 @@ service cloud.firestore {
       allow list: if isExecutive()
         || (isStaff() && isSameBranchStrict(resource.data) && isDivisionAllowedForBranchStaff(resource.data));
       // Student scans: Executives, Front Office, Instructor, and Instructor Leader; scanned person must be a student
-      allow create: if (isExecutive() || isFrontOffice() || hasRole('instructor') || hasRole('instructorleader') || hasRole('instructor_leader'))
+      allow create: if (isOrgExecutive() || isFrontOffice() || hasRole('instructor') || hasRole('instructorleader') || hasRole('instructor_leader'))
         && isSameBranch(request.resource.data)
         && isDivisionAllowedForBranchStaff(request.resource.data)
         && request.resource.data.userId is string
@@ -740,7 +852,7 @@ service cloud.firestore {
         && roleOf(request.resource.data.userId) == 'student'
         && isSameBranch(get(/databases/$(database)/documents/users/$(request.resource.data.userId)).data);
       // Double-scan idempotency: allow Front Office and Instructors to update existing day scan as long as student identity is preserved
-      allow update: if isExecutive()
+      allow update: if isOrgExecutive()
         || ((isFrontOffice() || hasRole('instructor') || hasRole('instructorleader') || hasRole('instructor_leader'))
           && isSameBranch(resource.data)
           && isSameBranch(request.resource.data)
@@ -760,67 +872,74 @@ service cloud.firestore {
               resource.data.audienceType == 'all'
               || isSameBranchStrict(resource.data)
            ));
-      allow create: if (isExecutive() || isManager() || isFrontOffice())
-        && request.resource.data.name is string
-        && request.resource.data.eventDate is string
-        && request.resource.data.audienceType in ['all', 'branch', 'role', 'division']
-        && (isExecutive() || (
+      allow create: if (
+        ((isDirector() || isViceDirector()) && (
           request.resource.data.audienceType != 'branch'
           || request.resource.data.audienceValue == userBranch()
           || (request.resource.data.audienceValue == 'Kota Gorontalo' && userBranch() == 'kota_gorontalo')
           || (request.resource.data.audienceValue == 'Bone Bolango' && userBranch() == 'bone_bolango')
           || (request.resource.data.audienceValue == 'Pohuwato' && userBranch() == 'pohuwato')
           || (request.resource.data.audienceValue == 'Limboto' && userBranch() == 'limboto')
-        ));
-      allow update: if isExecutive()
-        || (isManager() && resource.data.audienceType == 'all' && request.resource.data.audienceType == 'all')
-        || ((isManager() || isFrontOffice())
+        ))
+        || (
+          (isManager() || isOpsLead() || isFrontOffice())
+          && request.resource.data.audienceType == 'branch'
+          && (
+            request.resource.data.audienceValue == userBranch()
+            || (request.resource.data.audienceValue == 'Kota Gorontalo' && userBranch() == 'kota_gorontalo')
+            || (request.resource.data.audienceValue == 'Bone Bolango' && userBranch() == 'bone_bolango')
+            || (request.resource.data.audienceValue == 'Pohuwato' && userBranch() == 'pohuwato')
+            || (request.resource.data.audienceValue == 'Limboto' && userBranch() == 'limboto')
+          )
+        )
+      )
+      && request.resource.data.name is string
+      && request.resource.data.eventDate is string
+      && request.resource.data.audienceType in ['all', 'branch', 'role', 'division'];
+      allow update: if (isDirector() || isViceDirector())
+        || ((isManager() || isOpsLead() || isFrontOffice())
+          && resource.data.audienceType == 'branch'
+          && request.resource.data.audienceType == 'branch'
           && isSameBranch(resource.data)
           && (
-            request.resource.data.audienceType != 'branch'
-            || request.resource.data.audienceValue == userBranch()
+            request.resource.data.audienceValue == userBranch()
             || (request.resource.data.audienceValue == 'Kota Gorontalo' && userBranch() == 'kota_gorontalo')
             || (request.resource.data.audienceValue == 'Bone Bolango' && userBranch() == 'bone_bolango')
             || (request.resource.data.audienceValue == 'Pohuwato' && userBranch() == 'pohuwato')
             || (request.resource.data.audienceValue == 'Limboto' && userBranch() == 'limboto')
           ));
-      allow delete: if (isManager() || isFrontOffice()) && isSameBranch(resource.data);
+      allow delete: if (isDirector() || isViceDirector())
+        || ((isManager() || isOpsLead() || isFrontOffice())
+          && resource.data.audienceType == 'branch'
+          && isSameBranch(resource.data));
+    }
+
+    function canReadClassAttendance() {
+      let p = userProfile();
+      let r = signedIn() && p != null && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated')) && ('role' in p) ? p.role : '';
+      let isExec = r in ['director', 'vice_director', 'admin'];
+      let res = resource != null ? resource.data : null;
+      let sId = res != null && ('studentId' in res) ? res.studentId : '';
+      let cId = res != null && ('classId' in res) ? res.classId : '';
+      let isPar = r == 'parent' && (!('status' in p) || p.status == 'active');
+      let isStaffOrLeader = r in ['manager', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'instructor', 'instructorleader', 'instructor_leader'];
+
+      return isExec
+        || (signedIn() && sId != '' && sId == request.auth.uid)
+        || (isPar && sId != '' && isParentOf(sId))
+        || (isStaffOrLeader && res != null && (
+          ((r in ['manager', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead'])
+            && isSameBranch(classDoc(cId))
+            && isDivisionAllowedForBranchStaff(classDoc(cId)))
+          || ((r in ['instructor', 'instructorleader', 'instructor_leader'])
+            && isAssignedToClass(cId))
+          || ((r in ['instructorleader', 'instructor_leader'])
+            && isSameBranch(classDoc(cId)))
+        ));
     }
 
     match /classAttendance/{attendanceId} {
-      allow read: if
-        isExecutive()
-        || (
-          (isManager() || isFrontOffice())
-          && isSameBranch(classDoc(resource.data.classId))
-          && isDivisionAllowedForBranchStaff(classDoc(resource.data.classId))
-        )
-        || (
-          (
-            hasRole('instructor')
-            || hasRole('instructorleader')
-            || hasRole('instructor_leader')
-          )
-          && isAssignedToClass(resource.data.classId)
-        )
-        // Instructor Leader branch-scope attendance monitoring (read-only).
-        // Matched against the REAL class document rather than the attendance
-        // document: classDoc() always resolves an actual document, so the branch
-        // comparison stays sound for `list` — the lenient isSameBranch() fallback
-        // documented at the top of this file treats a fieldless synthetic list doc
-        // as Kota Gorontalo and would otherwise leak every branch's records.
-        || (
-          isInstructorLeader()
-          && isSameBranch(classDoc(resource.data.classId))
-        )
-        || (
-          signedIn()
-          && resource.data.studentId == request.auth.uid
-        )
-        || (
-          signedIn()
-          && isParentOf(resource.data.studentId)
-        );
+      allow read: if canReadClassAttendance();
 
       // First attendance creation only. Enforce deterministic document ID {classId}_{studentId}_{attendanceDate}.
       //
@@ -863,29 +982,46 @@ service cloud.firestore {
           .hasOnly(['status', 'note', 'method', 'markedBy', 'markedByName', 'markedAt', 'updatedAt']);
     }
 
+    function canGetPayment() {
+      let p = userProfile();
+      let r = signedIn() && p != null && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated')) && ('role' in p) ? p.role : '';
+      let isExec = r in ['director', 'vice_director', 'admin'];
+      let res = resource != null ? resource.data : null;
+      let sId = res != null && ('studentId' in res) ? res.studentId : '';
+      let isPar = r == 'parent' && (!('status' in p) || p.status == 'active');
+
+      return isExec
+        || (signedIn() && sId != '' && sId == request.auth.uid)
+        || (isPar && sId != '' && isParentOf(sId))
+        || (res != null
+          && (r in ['manager', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead'])
+          && isSameBranch(res)
+          && isDivisionAllowedForBranchStaff(res));
+    }
+
     match /payments/{paymentId} {
-      allow get: if isExecutive()
-        || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isDivisionAllowedForBranchStaff(resource.data))
-        || (signedIn() && (resource.data.studentId == request.auth.uid || isParentOf(resource.data.studentId)));
+      allow get: if canGetPayment();
       allow list: if isExecutive()
         || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data) && isDivisionAllowedForBranchStaff(resource.data))
         || (signedIn() && resource.data.studentId == request.auth.uid)
         || (isParent() && isSameBranchStrict(resource.data) && ('childStudentIds' in userProfile()) && userProfile().childStudentIds.hasAny([resource.data.studentId]));
-      allow create: if (isExecutive() || (isFrontOffice() && isSameBranch(request.resource.data) && isDivisionAllowedForBranchStaff(request.resource.data)))
+      allow create: if ((isDirector() || isViceDirector()) || (isFrontOffice() && isSameBranch(request.resource.data) && isDivisionAllowedForBranchStaff(request.resource.data)))
         && request.resource.data.amount is number
         && request.resource.data.amount > 0
         && request.resource.data.studentId is string
         && roleOf(request.resource.data.studentId) == 'student'
         && isSameBranch(get(/databases/$(database)/documents/users/$(request.resource.data.studentId)).data);
-      allow update: if isExecutive()
-        || (
-          isFrontOffice()
-          && isSameBranch(resource.data)
-          && isSameBranch(request.resource.data)
-          && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId)
-          && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['notes', 'approvalStatus', 'referenceNumber', 'updatedAt'])
-        );
+      allow update: if (
+          (isDirector() || isViceDirector())
+          || (
+            isFrontOffice()
+            && isSameBranch(resource.data)
+            && isSameBranch(request.resource.data)
+            && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId)
+          )
+        )
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['notes', 'approvalStatus', 'referenceNumber', 'updatedAt']);
     }
 
     match /deskInquiries/{inquiryId} {
@@ -927,8 +1063,11 @@ service cloud.firestore {
           )
         )
         && (
-          (request.resource.data.actionId != 'STAFF_ROLE_ELEVATION' && request.resource.data.actionId != 'DISCOUNT_OR_REFUND')
-          || (('approverRole' in request.resource.data) && request.resource.data.approverRole in ['director', 'vice_director'])
+          (request.resource.data.actionId != 'STAFF_ROLE_ELEVATION' && request.resource.data.actionId != 'STAFF_DEACTIVATION' && request.resource.data.actionId != 'DISCOUNT_OR_REFUND')
+          || (('approverRole' in request.resource.data) && (
+            (request.resource.data.actionId in ['STAFF_ROLE_ELEVATION', 'STAFF_DEACTIVATION'] && request.resource.data.approverRole == 'director')
+            || (request.resource.data.actionId == 'DISCOUNT_OR_REFUND' && request.resource.data.approverRole in ['director', 'vice_director'])
+          ))
         )
         // Every envelope must name an approver role the ratified registry permits for its
         // actionId, so a mis-addressed ticket cannot be created in the first place.
@@ -942,14 +1081,16 @@ service cloud.firestore {
             (resource.data.status == 'pending'
               && request.resource.data.status in ['approved', 'rejected']
               && request.resource.data.decidedByUid == request.auth.uid
+              && (request.resource.data.decidedAt == request.time || (request.resource.data.decidedAt is string && request.resource.data.decidedAt.size() > 0))
               && request.resource.data.diff(resource.data).affectedKeys()
-                .hasOnly(['status', 'decidedBy', 'decidedByUid', 'decidedAt', 'decisionNotes', 'rejectionReason', 'updatedAt']))
+                .hasOnly(['status', 'decidedBy', 'decidedByUid', 'decidedAt', 'decisionNotes', 'rejectionReason', 'updatedAt', 'approvedRole', 'approvedBranchId', 'approvedDivision']))
             ||
             (resource.data.status == 'approved'
               && request.resource.data.status == resource.data.status
               && request.resource.data.applied == true
               && (!('applied' in resource.data) || resource.data.applied != true)
-              && request.resource.data.appliedByUid == request.auth.uid
+              && (!('appliedByUid' in request.resource.data) || request.resource.data.appliedByUid == request.auth.uid)
+              && (request.resource.data.appliedAt == request.time || (request.resource.data.appliedAt is string && request.resource.data.appliedAt.size() > 0))
               && request.resource.data.diff(resource.data).affectedKeys()
                 .hasOnly(['applied', 'appliedAt', 'appliedByUid', 'updatedAt']))
           )
@@ -989,6 +1130,56 @@ service cloud.firestore {
       allow update, delete: if isExecutive() || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
     }
 
+    function canUpdateShift(shiftId) {
+      let p = userProfile();
+      let r = signedIn() && p != null && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated')) && ('role' in p) ? p.role : '';
+      let req = request.resource.data;
+      let res = resource.data;
+      let ub = userBranch();
+      let sameBranch = signedIn() && ub != null && (
+        (('branchId' in res) && res.branchId == ub) ||
+        (!('branchId' in res) && ('branch' in res) && (
+          (res.branch == 'Bone Bolango' && ub == 'bone_bolango') ||
+          (res.branch == 'Pohuwato' && ub == 'pohuwato') ||
+          (res.branch == 'Limboto' && ub == 'limboto') ||
+          (res.branch == 'Cabang Utama' && ub == 'kota_gorontalo') ||
+          (res.branch == 'Kota Gorontalo' && ub == 'kota_gorontalo')
+        )) ||
+        (!('branchId' in res) && !('branch' in res) && ub == 'kota_gorontalo')
+      );
+      let isFO = r in ['frontoffice', 'opslead', 'ops_lead', 'frontofficelead'];
+      let isMgr = r == 'manager';
+      let diffKeys = req.diff(res).affectedKeys();
+
+      return (
+        // Shift clock-out and updates: Front Office (kiosk clock-out)
+        (isFO
+          && sameBranch
+          && res.clockOut == null
+          && req.clockOut is string
+          && req.userId == res.userId
+          && (!('branch' in res) || req.branch == res.branch)
+          && (!('branchId' in res) || req.branchId == res.branchId)
+          && req.clockIn == res.clockIn
+          && diffKeys.hasOnly(['clockOut', 'updatedAt', 'cashReconciliation', 'notes', 'status', 'verifiedBy', 'verifiedAt', 'autoClosed']))
+        // Approved shift self-corrections:
+        // Front Office and Manager can apply for sameBranch.
+        // Director and Vice Director can apply across ANY branch (province-wide executive escalation)
+        // specifically when gated by an approved STAFF_SHIFT_SELF_CORRECTION envelope.
+        || ((((isFO || isMgr) && sameBranch) || isOrgExecutive())
+          && req.userId == res.userId
+          && ('appliedFromApproval' in req)
+          && req.appliedFromApproval is string
+          && isApprovedShiftCorrection(shiftId, req.appliedFromApproval)
+          && shiftMatchesCorrectionPayload(req.appliedFromApproval, req, res)
+          && diffKeys.hasOnly(['clockIn', 'clockOut', 'corrected', 'reviewStatus', 'appliedFromApproval']))
+        // Front Office and Manager can mark a completed/closed shift as reviewed
+        || ((isFO || isMgr)
+          && sameBranch
+          && diffKeys.hasOnly(['reviewStatus']))
+      );
+    }
+
     match /shifts/{shiftId} {
       allow get: if isExecutive()
         || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isDivisionAllowedForBranchStaff(resource.data))
@@ -996,8 +1187,10 @@ service cloud.firestore {
       allow list: if isExecutive()
         || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data) && isDivisionAllowedForBranchStaff(resource.data))
         || (signedIn() && resource.data.userId == request.auth.uid);
-      // Staff scans: Admin and Front Office (reception kiosk station), for tracked roles only, new shifts start open
-      allow create: if (isAdmin() || (isFrontOffice() && isSameBranch(request.resource.data) && isDivisionAllowedForBranchStaff(request.resource.data)))
+      // Staff scans: Front Office (reception kiosk station), for tracked roles only, new shifts start open
+      allow create: if isFrontOffice()
+        && isSameBranch(request.resource.data)
+        && isDivisionAllowedForBranchStaff(request.resource.data)
         && request.resource.data.userId is string
         && request.resource.data.userId.size() > 0
         && request.resource.data.clockIn is string
@@ -1005,45 +1198,18 @@ service cloud.firestore {
         && request.resource.data.clockOut == null
         && isTrackedShiftRole(roleOf(request.resource.data.userId))
         && isSameBranch(get(/databases/$(database)/documents/users/$(request.resource.data.userId)).data);
-      // Shift clock-out and updates: Admin or Front Office (kiosk clock-out)
-      allow update: if isAdmin()
-        || (isFrontOffice()
-          && isSameBranch(resource.data)
-          && resource.data.clockOut == null
-          && request.resource.data.clockOut is string
-          && request.resource.data.userId == resource.data.userId
-          && (!('branch' in resource.data) || request.resource.data.branch == resource.data.branch)
-          && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId)
-          && request.resource.data.clockIn == resource.data.clockIn
-          && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['clockOut', 'updatedAt', 'cashReconciliation', 'notes', 'status', 'verifiedBy', 'verifiedAt', 'autoClosed']))
-        // Approved shift self-corrections: Front Office / Manager may only apply a correction
-        // already approved via the maker-checker approvals collection (dual-control enforced by rules).
-        || ((isFrontOffice() || isManager())
-          && isSameBranch(resource.data)
-          && request.resource.data.userId == resource.data.userId
-          && request.resource.data.appliedFromApproval is string
-          && isApprovedShiftCorrection(shiftId, request.resource.data.appliedFromApproval)
-          && shiftMatchesCorrectionPayload(request.resource.data.appliedFromApproval, request.resource.data, resource.data)
-          && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['clockIn', 'clockOut', 'corrected', 'reviewStatus', 'appliedFromApproval']))
-        // Front Office and Manager can mark a completed/closed shift as reviewed
-        || ((isFrontOffice() || isManager())
-          && isSameBranch(resource.data)
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reviewStatus']));
+      // Shift clock-out and updates: Front Office (kiosk clock-out)
+      allow update: if canUpdateShift(shiftId);
     }
 
     match /shiftAuditEvents/{eventId} {
       allow read: if isExecutive() || (isManager() && isSameBranchStrict(resource.data));
-      allow create: if (isAdmin()
-          && request.resource.data.actorId == request.auth.uid
-          && request.resource.data.shiftId is string)
-        || ((isFrontOffice() || isManager())
-          && request.resource.data.actorId == request.auth.uid
-          && request.resource.data.shiftId is string
-          && request.resource.data.action == 'manual_adjustment'
-          && request.resource.data.appliedFromApproval is string
-          && isApprovedShiftCorrection(request.resource.data.shiftId, request.resource.data.appliedFromApproval));
+      allow create: if (isFrontOffice() || isManager() || isOrgExecutive())
+        && request.resource.data.actorId == request.auth.uid
+        && request.resource.data.shiftId is string
+        && request.resource.data.action == 'manual_adjustment'
+        && request.resource.data.appliedFromApproval is string
+        && isApprovedShiftCorrection(request.resource.data.shiftId, request.resource.data.appliedFromApproval);
       allow update, delete: if false; // append-only immutable audit trail
     }
 
@@ -1054,11 +1220,12 @@ service cloud.firestore {
       allow list: if isExecutive()
         || (isManager() && isSameBranchStrict(resource.data))
         || (signedIn() && resource.data.userId == request.auth.uid);
-      allow create: if (isExecutive()
+      allow create: if (isOrgExecutive()
           || (isManager() && isSameBranch(request.resource.data) && isDivisionAllowedForManager(request.resource.data)))
         && request.resource.data.status == 'approved'
         && isTrackedLeaveRole(roleOf(request.resource.data.userId));
-      allow update, delete: if isExecutive();
+      allow update, delete: if isOrgExecutive()
+        || (isManager() && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
     }
 
     match /materials/{materialId} {
@@ -1107,7 +1274,10 @@ service cloud.firestore {
           && request.resource.data.branchId is string
           && request.resource.data.branch is string
           && request.resource.data.source == 'schoolOutreach';
-        allow update: if isAdmin();
+        allow update: if isExecutive()
+          || ((isManager() || hasRole('marketing'))
+            && isSameBranchStrict(resource.data)
+            && isSameBranchStrict(request.resource.data));
       }
     }
 
@@ -1123,7 +1293,10 @@ service cloud.firestore {
         && request.resource.data.branchId is string
         && request.resource.data.branch is string
         && request.resource.data.source == 'schoolOutreach';
-      allow update: if isAdmin();
+      allow update: if isExecutive()
+        || ((isManager() || hasRole('marketing'))
+          && isSameBranchStrict(resource.data)
+          && isSameBranchStrict(request.resource.data));
     }
 
     match /kioskDevices/{deviceId} {

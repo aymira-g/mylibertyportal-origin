@@ -19,7 +19,6 @@ import {
   useOverlayHistory,
 } from "../shared";
 import {
-  transferStudentBetweenClasses,
   addStudentToClass,
 } from "./classesRepository";
 import { todayWita } from "../../utils/dateWita.js";
@@ -131,17 +130,7 @@ export default function TransferModal({
 
     try {
       if (sourceClass) {
-        await transferStudentBetweenClasses({
-          sourceClass,
-          targetClassId,
-          targetClass: selectedTargetClass,
-          studentId: student.id,
-          dateTransferred: transferDate || todayWita(),
-          newLevel: selectedTargetClass?.classLevel || student.currentLevel,
-          transferReason: finalReason || "Batch transfer",
-        });
-
-        // Dual-control logged approval/audit trail for student class transfer (DOM06-GOV-01)
+        // Dual-control blocking approval workflow for student class transfer (ADR 2026-10-13)
         const currentUser = auth.currentUser;
         const canonicalBranchId =
           sourceClass.branchId ||
@@ -158,6 +147,20 @@ export default function TransferModal({
             branchId: canonicalBranchId,
           },
           {
+            payload: {
+              studentId: student.id,
+              studentName: student.displayName || student.name || "Student",
+              fromClassId: sourceClass.id,
+              fromClassName: sourceClass.className,
+              sourceClass: sourceClass.id,
+              toClassId: selectedTargetClass?.id,
+              toClassName: selectedTargetClass?.className,
+              targetClassId: selectedTargetClass?.id,
+              reason: finalReason || "Batch transfer",
+              dateTransferred: transferDate || todayWita(),
+              newLevel: selectedTargetClass?.classLevel || student.currentLevel,
+              branchId: canonicalBranchId,
+            },
             studentId: student.id,
             studentName: student.displayName || student.name || "Student",
             sourceClassId: sourceClass.id,
@@ -169,11 +172,11 @@ export default function TransferModal({
           }
         );
         if (envelope) {
-          submitApprovalRequest(envelope).catch(console.warn);
+          await submitApprovalRequest(envelope);
         }
 
         toast(
-          `Transferred ${student.displayName || "Student"} from ${sourceClass.className} to ${selectedTargetClass.className}.`,
+          `Transfer request submitted for dual-control authorization (${sourceClass.className} → ${selectedTargetClass.className}). Student remains in current batch pending verification.`,
           "success"
         );
       } else {

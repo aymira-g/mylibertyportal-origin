@@ -148,7 +148,7 @@ export function setClassGroupLevel(classItems, level) {
 export async function transferStudentBetweenClasses({
   sourceClass,
   targetClassId,
-  targetClass,
+  targetClass = null,
   studentId,
   dateTransferred = todayWita(),
   newLevel = null,
@@ -181,6 +181,11 @@ export async function transferStudentBetweenClasses({
     const sourceStudentIds = liveSource.studentIds || [];
     if (!sourceStudentIds.includes(studentId)) {
       throw new Error("Student is not enrolled in the source class.");
+    }
+
+    const targetStudentIds = liveTarget.studentIds || [];
+    if (targetStudentIds.includes(studentId)) {
+      throw new Error("Student is already enrolled in the target class.");
     }
 
     if (!getBatchAvailability(liveTarget).canEnroll) {

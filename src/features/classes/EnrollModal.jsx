@@ -1,11 +1,19 @@
 import { useState, useMemo } from "react";
 import { UserPlus, ArrowRightLeft, X } from "lucide-react";
-import { LevelBadge, isCompatible, useToast, useOverlayHistory } from "../shared";
+import {
+  LevelBadge,
+  isCompatible,
+  useToast,
+  useOverlayHistory,
+  createApprovalEnvelope,
+  submitApprovalRequest,
+} from "../shared";
 import {
   addStudentToClass,
-  transferStudentBetweenClasses,
 } from "./classesRepository";
 import { todayWita } from "../../utils/dateWita.js";
+import { auth } from "../../firebase";
+import { branchToId } from "../../constants/branches.js";
 
 export default function EnrollModal({
   batch,
@@ -32,11 +40,14 @@ export default function EnrollModal({
     return students.filter((s) => (s.status || "active") === "active" && !enrolledSet.has(s.id));
   }, [students, enrolledSet]);
 
-  // Students currently enrolled in other cohorts available for lateral transfer
+  // Students currently enrolled in other cohorts available for lateral transfer (scoped to same branch)
   const transferCandidates = useMemo(() => {
     const list = [];
+    const batchBranchId = batch?.branchId || (batch?.branch ? branchToId(batch.branch) : null);
     allClasses.forEach((cls) => {
       if (cls.id === batchId) return;
+      const clsBranchId = cls.branchId || (cls.branch ? branchToId(cls.branch) : null);
+      if (batchBranchId && clsBranchId && clsBranchId !== batchBranchId) return;
       (cls.studentIds || []).forEach((sId) => {
         if (enrolledSet.has(sId)) return;
         const student = students.find((s) => s.id === sId && (s.status || "active") === "active");
@@ -50,7 +61,7 @@ export default function EnrollModal({
       });
     });
     return list;
-  }, [allClasses, batchId, enrolledSet, students]);
+  }, [allClasses, batchId, batch, enrolledSet, students]);
 
   const selectedTransfer = useMemo(() => {
     return transferCandidates.find((t) => t.key === selectedTransferKey) || null;
@@ -88,17 +99,51 @@ export default function EnrollModal({
 
     try {
       if (enrollMode === "transfer") {
-        await transferStudentBetweenClasses({
-          sourceClass: selectedTransfer.sourceClass,
-          targetClassId: batch.id,
-          targetClass: batch,
-          studentId: selectedTransfer.student.id,
-          dateTransferred: effectiveDate,
-          newLevel: targetLevel,
-          transferReason: `Transferred into ${batch.className}`,
-        });
+        const currentUser = auth.currentUser;
+        const canonicalBranchId =
+          batch.branchId ||
+          (batch.branch ? branchToId(batch.branch) : null) ||
+          selectedTransfer.sourceClass?.branchId ||
+          (selectedTransfer.sourceClass?.branch ? branchToId(selectedTransfer.sourceClass.branch) : null);
+
+        const envelope = createApprovalEnvelope(
+          "STUDENT_CLASS_TRANSFER",
+          {
+            name: currentUser?.displayName || currentUser?.email || "Staff",
+            uid: currentUser?.uid,
+            role: "frontoffice",
+            branchId: canonicalBranchId,
+          },
+          {
+            payload: {
+              studentId: selectedTransfer.student.id,
+              studentName: selectedTransfer.student.displayName || selectedTransfer.student.name || "Student",
+              fromClassId: selectedTransfer.sourceClass.id,
+              fromClassName: selectedTransfer.sourceClass.className,
+              sourceClass: selectedTransfer.sourceClass.id,
+              toClassId: batch.id,
+              toClassName: batch.className,
+              targetClassId: batch.id,
+              reason: `Transfer into ${batch.className}`,
+              dateTransferred: effectiveDate,
+              newLevel: targetLevel,
+              branchId: canonicalBranchId,
+            },
+            studentId: selectedTransfer.student.id,
+            studentName: selectedTransfer.student.displayName || selectedTransfer.student.name || "Student",
+            sourceClassId: selectedTransfer.sourceClass.id,
+            sourceClassName: selectedTransfer.sourceClass.className,
+            targetClassId: batch.id,
+            targetClassName: batch.className,
+            reason: `Transfer into ${batch.className}`,
+            dateTransferred: effectiveDate,
+          }
+        );
+        if (envelope) {
+          await submitApprovalRequest(envelope);
+        }
         toast(
-          `Transferred "${selectedTransfer.student.displayName || "Student"}" from ${selectedTransfer.sourceClass.className} to ${batch.className}!`,
+          `Transfer request submitted for dual-control authorization (${selectedTransfer.sourceClass.className} → ${batch.className}). Student remains in current batch pending verification.`,
           "success"
         );
       } else {

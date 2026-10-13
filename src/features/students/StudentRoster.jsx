@@ -44,7 +44,9 @@ export default function StudentRoster({
   isAdmin = false,
   userRole = null,
   branchId = null,
+  division = null,
   canViewParents = false,
+  canViewAllBranches = false,
 }) {
   const toast = useToast();
   const confirm = useConfirm();
@@ -59,10 +61,13 @@ export default function StudentRoster({
   const [updatingStatusId, setUpdatingStatusId] = useState(null);
   const [linkModalStudent, setLinkModalStudent] = useState(null);
 
+  const isOrgExecutive = ["director", "vice_director"].includes(userRole);
+  const effectiveCanViewAllBranches = canViewAllBranches || isOrgExecutive || (isAdmin && !branchId);
   const effectiveCanViewParents =
     canViewParents ||
     isAdmin ||
-    ["admin", "manager", "frontoffice", "opslead", "frontofficelead"].includes(userRole);
+    isOrgExecutive ||
+    ["manager", "frontoffice", "opslead", "frontofficelead"].includes(userRole);
   const [rosterView, setRosterView] = useState("students"); // "students" | "parents"
 
   const linkedParentsMap = useMemo(() => {
@@ -176,26 +181,28 @@ export default function StudentRoster({
     await handleDelete(student.id, { skipConfirm: true });
   };
 
+  const effectiveDivision = division || null;
+
   const loadPendingPromotions = useCallback(() => {
     if (readOnly || userRole === "instructor") {
       setPendingPromotions([]);
       return;
     }
-    fetchPendingPromotions(branchId)
+    fetchPendingPromotions(branchId, effectiveDivision)
       .then((reports) => {
         setPendingPromotions(reports);
       })
       .catch((err) => {
         console.error("Error loading pending promotions:", err);
       });
-  }, [branchId, readOnly, userRole]);
+  }, [branchId, effectiveDivision, readOnly, userRole]);
 
   useEffect(() => {
     let active = true;
     if (readOnly || userRole === "instructor") {
       return;
     }
-    fetchPendingPromotions(branchId)
+    fetchPendingPromotions(branchId, effectiveDivision)
       .then((reports) => {
         if (active) {
           setPendingPromotions(reports);
@@ -207,7 +214,7 @@ export default function StudentRoster({
     return () => {
       active = false;
     };
-  }, [branchId, readOnly, userRole]);
+  }, [branchId, effectiveDivision, readOnly, userRole]);
 
   const pendingPromotionsMap = useMemo(() => {
     const map = {};
@@ -494,6 +501,7 @@ export default function StudentRoster({
         <ParentsList
           branchId={branchId}
           isAdmin={isAdmin}
+          canViewAllBranches={effectiveCanViewAllBranches}
           canView={effectiveCanViewParents}
         />
       ) : (
@@ -593,7 +601,6 @@ export default function StudentRoster({
         <PaymentModal
           student={students.find((s) => s.id === paymentStudent.id) || paymentStudent}
           onClose={() => setPaymentStudent(null)}
-          isAdmin={isAdmin}
         />
       )}
 

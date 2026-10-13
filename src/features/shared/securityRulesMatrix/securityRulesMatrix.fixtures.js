@@ -62,6 +62,12 @@ export const instructorLeaderGorontalo = {
   branchId: "kota_gorontalo",
 };
 
+export const instructorLeaderBoneBolango = {
+  uid: "il_boba",
+  role: "instructor_leader",
+  branchId: "bone_bolango",
+};
+
 export const instructorGorontalo = {
   uid: "ins_gtlo",
   role: "instructor",

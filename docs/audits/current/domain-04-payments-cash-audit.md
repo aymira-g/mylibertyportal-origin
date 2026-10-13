@@ -144,18 +144,67 @@ Reporting Aggregation (`FinancialReportsTab` / `financeUtils.summarizePaymentsBy
 - **Severity:** Medium.
 - **Status:** **CLOSED (REMEDIATED)**.
 
+### Finding 5: DOM04-SEC-02 — CLOSED (REMEDIATED)
+- **Section / Workflow:** Security Rules / Payment Mutability (`firestore.rules:915-930`).
+- **Trigger:** System Admin or Executive attempts update on existing `/payments` document.
+- **Root Cause:** `firestore.rules` update rule permitted `isExecutive()` without diff check; allowed Admin writes and unrestricted mutations (`amount`, `studentId`, `method`, `recordedAt`, `recordedBy`).
+- **Remediation Implemented:**
+  - Stripped `isAdmin()` write access; replaced with `(isDirector() || isViceDirector())`.
+  - Enforced `request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes', 'approvalStatus', 'referenceNumber', 'updatedAt'])` universally across all permitted actors.
+  - Added emulator test coverage verifying Admin write rejection and Director field immutability.
+- **Severity:** High.
+- **Status:** **CLOSED (REMEDIATED)**.
+
+### Finding 6: DOM04-GOV-02 — CLOSED (REMEDIATED)
+- **Section / Workflow:** Dual-Control Approvals / Cash Drawer Routing (`approvalGates.js:456-482`, `firestore.rules:274-292`).
+- **Trigger:** Staff clocks out with cash discrepancy < Rp 20.000 at a lean satellite branch (`bone_bolango`, `limboto`, `pohuwato`).
+- **Root Cause:** Routing hardcoded `approverRole: "opslead"`, which does not exist at lean satellite branches, causing a permanent operational deadlock.
+- **Remediation Implemented:**
+  - Implemented branch-aware cash discrepancy routing per Blueprint v3.4 G-012 & OD-4: discrepancies < Rp 20.000 at lean satellite branches route to Course Division Manager (`manager`), escalating to `vice_director` if manager is drawer handler.
+  - In `firestore.rules:283`, added `isExec` as fallback approver for `ops_lead` targets.
+  - Added unit test and emulator test coverage.
+- **Severity:** High.
+- **Status:** **CLOSED (REMEDIATED)**.
+
+### Finding 7: DOM04-FIN-01 — CLOSED (REMEDIATED)
+- **Section / Workflow:** Cashier Intake / Discount Enforcement (`PaymentModal.jsx:230-258`).
+- **Trigger:** Cashier types manual amount below standard tuition rate for monthly plan.
+- **Root Cause:** `discountAmount` was read only from `pricing.discountAmount` (which is `0` for monthly plans). Custom lower tuition was accepted with `discountAmount: 0`, bypassing `DISCOUNT_OR_REFUND` approval envelope.
+- **Remediation Implemented:**
+  - In `PaymentModal.jsx`, calculated `effectiveDiscount` comparing entered amount with `pricing.finalPrice`. If entered amount is lower than expected price, `effectiveDiscount` is enforced and triggers `DISCOUNT_OR_REFUND` approval envelope.
+  - Flagged payment with `approvalStatus = "pending"`.
+- **Severity:** Medium.
+- **Status:** **CLOSED (REMEDIATED)**.
+
+### Finding 8: DOM04-COR-02 — CLOSED (REMEDIATED)
+- **Section / Workflow:** Approvals / Division Queue Scoping (`PaymentModal.jsx:232-249`).
+- **Trigger:** Front Office submits `DISCOUNT_OR_REFUND` approval request for a Kindergarten student.
+- **Root Cause:** `createApprovalEnvelope` omitted `division`, saving ticket with `division: null` and routing to Course queues.
+- **Remediation Implemented:**
+  - Passed `division: studentDivision` in requester envelope and payload.
+- **Severity:** Medium.
+- **Status:** **CLOSED (REMEDIATED)**.
+
+### Finding 9: DOM04-UI-01 — CLOSED (REMEDIATED)
+- **Section / Workflow:** Receipt / UI Labels (`DigitalReceiptTab.jsx:33`).
+- **Trigger:** Viewing receipt for payment with pending discount.
+- **Root Cause:** Displayed `"⏳ Discount pending manager review"` instead of `"⏳ Discount pending executive review"`.
+- **Remediation Implemented:**
+  - Corrected label to `"⏳ Discount pending executive review"` per G-009 / OD-3.
+- **Severity:** Low.
+- **Status:** **CLOSED (REMEDIATED)**.
+
 ---
 
 ## 4. Verification & Regression Results
 
-Following implementation of all 4 remediations, Level 1 Light Regression verification was executed across the full test suite, linter, typechecker, and production build:
+Following implementation of all remediations, Level 1 Light Regression verification was executed across the full test suite, Firestore emulator, linter, typechecker, and production build:
 
 | Verification Suite | Target | Result | Output Evidence |
 |---|---|---|---|
-| **Vitest Finance Suite** | `src/features/finance` | **PASS (50 / 50)** | `financeUtils.test.js` (4), `receiptMessages.test.js` (26), `paymentsRepository.test.js` (20) |
-| **Vitest Shared Suite** | `src/features/shared` | **PASS (304 / 304)** | `ApprovalInbox.test.js` (2), `approvalGates.test.js` (24), `approvals.test.js` (33) |
-| **Vitest Full Suite** | All 104 test files | **PASS (1,316 / 1,316)** | 103 passed, 1 emulator-only file skipped (122 tests) |
-| **ESLint** | `eslint .` | **PASS (0 errors, 0 warnings)** | Clean lint across the workspace |
+| **Vitest Unit Suite** | All 104 test files | **PASS (1,372 / 1,372)** | 104 passed, 0 failed, 1 emulator-only file skipped (128 tests) |
+| **Firestore Emulator Suite** | `firestoreRules.emulator.test.js` | **PASS (128 / 128)** | 128 live security rules tests passed; 0 evaluation limit warnings |
+| **ESLint** | `eslint .` | **PASS (0 errors, 0 warnings)** | Clean workspace lint |
 | **TypeScript Typecheck** | `tsc --noEmit` | **PASS (0 errors)** | Zero typing errors |
-| **Production Build** | `vite build` | **PASS** | 2,641 modules transformed, PWA precache generated |
+| **Production Build** | `vite build` | **PASS** | 2,645 modules transformed in 709ms |
 

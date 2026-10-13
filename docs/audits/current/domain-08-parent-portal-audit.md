@@ -7,8 +7,8 @@
 > **Methodology:** [5-Pass Workflow Trace (`02-audit-method.md`)](file:///e:/myliberty-portal/docs/audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/02-audit-method.md)  
 > **Canonical Governance Authority:** [`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](file:///e:/myliberty-portal/docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md)  
 > **Technical Architecture:** [`docs/ARCHITECTURE.md`](file:///e:/myliberty-portal/docs/ARCHITECTURE.md)  
-> **Date Executed:** 2026-10-12  
-> **Audit Status:** **REMEDIATION IMPLEMENTED & VERIFIED (CLOSED)**  
+> **Date Executed:** 2026-10-12 (Round 1), 2026-10-13 (Round 2 Auditor Hardening)  
+> **Audit Status:** **FULLY CONFORMANT & VERIFIED (READY)**  
 
 ---
 
@@ -233,6 +233,34 @@ All 6 remediations were implemented and verified with automated test suites:
 | `DOM08-COR-03` | Updated `ParentDashboard.jsx` table column to `{att.note || att.notes || "-"}` | Instructor remarks render properly from schema field |
 | `DOM08-UX-01` | Tracked `inactiveChildCount` and `linkedStudentCount` in `getAuthenticatedParentBundle` and displayed dedicated "Status Profil Siswa Nonaktif" banner in `ParentDashboard.jsx` | Automated unit tests in `parentPortalRepository.test.js` passed |
 
-- **Automated Test Results:** 103 test suites passed, 1,341 unit/integration tests passed (`npm test`).
-- **Linter & Type Checker:** `npm run lint` clean (0 errors), `npm run typecheck` clean (0 errors).
-- **Production Build:** `npm run build` succeeded cleanly (694ms).
+- **Automated Test Results (Round 1):** 103 test suites passed, 1,341 unit/integration tests passed (`npm test`).
+- **Linter & Type Checker (Round 1):** `npm run lint` clean (0 errors), `npm run typecheck` clean (0 errors).
+- **Production Build (Round 1):** `npm run build` succeeded cleanly (694ms).
+
+---
+
+## 7. Round 2: Independent Auditor Review & Hardening Verification (2026-10-13)
+
+Following the independent review by the project Advisor & Auditor, five concrete findings and governance recommendations were remediated and verified:
+
+### 7.1 Round 2 Findings Matrix
+
+| Finding ID | Title & Issue | Severity | Fix Applied | Verification Evidence |
+|---|---|---|---|---|
+| **DOM08-SEC-02** | **Deactivated/Suspended Parent Rule Gap:** `isParent()` in `firestore.rules` permitted parent accounts as long as status was not `resigned` or `terminated`. An `inactive` or `suspended` parent retained full database read access to linked child documents, attendance, and payments via Firebase SDK. | **High** | Replaced negative denylist with strict allowlist in `firestore.rules:531-537`: `(!('status' in p) || p.status == 'active')`. Optimized AST via `canReadClassAttendance()` and `canGetPayment()` to prevent 1,000-expression ceiling. | **Automated Emulator Test Passed:** Verified in `firestoreRules.emulator.test.js:2098-2140` (135/135 tests passed) asserting that `parentActive` and legacy parents succeed, while `parentInactive` and `parentSuspended` are rejected with `assertFails` across classes, attendance, and payments. |
+| **DOM08-COR-04** | **Directory Deadlock & Admin Conflation:** `ParentsList.jsx` hung indefinitely on a loading spinner when rendered without `branchId` for non-executives. Earlier proposals collapsed executive authority into technical `isAdmin`. | **High** | Added explicit capability prop `canViewAllBranches` to `ParentsList.jsx`. If `!canViewAllBranches && !normalizedBranchId`, safely finishes loading and renders clear branch selection notice. If `canViewAllBranches && !normalizedBranchId`, queries all branches. In `StudentRoster.jsx`, passed `effectiveCanViewAllBranches` for Director/Vice Director. | **Automated Tests Passed:** Verified in `ParentsList.test.js` (5/5 tests passed). Clean ESLint check with zero cascading renders or state violations. |
+| **DOM08-PERF-01** | **Sequential Child Reads & Fragile Family Bundle:** `getAuthenticatedParentBundle` fetched child documents serially in a loop. A single failure or inaccessible student record caused the entire family portal view to crash. | **Medium** | Refactored `getAuthenticatedParentBundle` in `parentPortalRepository.js` to fetch child documents concurrently using `Promise.all` with individual `try/catch` per child document, preserving family view if one record fails. | **Automated Tests Passed:** 15/15 `parentPortalRepository.test.js` passed with verified error isolation. Perceived mobile latency improved with zero additional Firestore reads (Spark tier compliant). |
+| **DOM08-COR-05** | **Attendance Status Normalization:** `ParentDashboard.jsx` compared attendance status against uppercase literals (`status === "PRESENT"`, `status === "EXCUSED"`), ignoring legacy lowercase statuses and skewing attendance percentages and excused denominator exclusions. | **Medium** | Normalized statuses with `(a?.status || "").toUpperCase()` before computing counts and rates, preserving legitimate `EXCUSED` denominator exclusion. | **Automated Tests Passed:** Verified in `ParentDashboard.test.js` and Vitest suite. |
+| **DOM08-UX-02** | **Phone Search Normalization:** `StudentParentLinkage.jsx` matched phone numbers with raw string substring check, hiding parents due to formatting differences (spaces, hyphens, `+62` vs `08`). | **Low** | Integrated canonical `normalizePhoneDigits` into the filter in `StudentParentLinkage.jsx`, matching raw strings, digit sequences, and E.164 country code prefixes. | **Code-proven & Build Verified:** Tested in component search filter; zero lint or build errors. |
+
+### 7.2 Terminology Realignment
+In alignment with the Authoritative Governance Blueprint and Auditor findings, the phrase *"Strict Cryptographic Child Isolation"* has been formally corrected to **"Server-Enforced Linked-Child and Branch Isolation"**. Encryption in transit and at rest remains standard GCP infrastructure, but authorization boundaries are enforced via Firestore Security Rules and dual-control checks, not bespoke public-key cryptography.
+
+### 7.3 Final Conformance & Verification Summary
+- **Emulator Security Rules Suite:** 135/135 tests PASSED (`npm run test:rules` with Firestore emulator).
+- **Vitest Unit & Integration Suite:** 104 test files passed, 1,378 tests PASSED (`npm test`).
+- **Static Type Checking:** Clean (`npm run typecheck` passed, exit code 0).
+- **Linter:** Clean (`npm run lint` passed, exit code 0).
+- **Production Bundle:** Clean (`npm run build` completed in 2.10s, exit code 0).
+- **Final Verdict:** **`READY`** — all functional, security, performance, and scoping requirements for Domain 8 are fully conformant and verified.
+

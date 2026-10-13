@@ -66,6 +66,19 @@ describe("createTodo", () => {
     const op = fake.opsOf("add")[0];
     expect(op.data.division).toBe("kindergarten");
   });
+
+  it("stores canonical satellite branch and branchId correctly", async () => {
+    await createTodo({
+      text: "Inspect facility AC unit",
+      type: "directive",
+      branch: "Bone Bolango",
+      branchId: "bone_bolango",
+    });
+
+    const op = fake.opsOf("add")[0];
+    expect(op.data.branch).toBe("Bone Bolango");
+    expect(op.data.branchId).toBe("bone_bolango");
+  });
 });
 
 describe("toggleTodoComplete", () => {

@@ -13,7 +13,7 @@ const TodayTab = forwardRef(
    * @param {{ branchFilter?: string; isAdminView?: boolean; isSupervisor?: boolean; isFrontOffice?: boolean; isManager?: boolean; division?: string }} props
    * @param {any} ref
    */
-  function TodayTab({ branchFilter = "all", isAdminView = false, isSupervisor = false, isFrontOffice = false, isManager = false, division = "all" }, ref) {
+  function TodayTab({ branchFilter = "all", isAdminView = false, isFrontOffice = false, isManager = false, division = "all" }, ref) {
     const toast = useToast();
     const [todayScans, setTodayScans] = useState([]);
     const [todayClasses, setTodayClasses] = useState([]);
@@ -22,7 +22,7 @@ const TodayTab = forwardRef(
     const [todayFilter, setTodayFilter] = useState("all"); // "all" | "checked_in" | "missing"
     const [todaySearch, setTodaySearch] = useState("");
 
-    const effectiveSupervisor = isSupervisor || isAdminView || isManager;
+    const isExecutive = Boolean(isAdminView) && !isManager && !isFrontOffice;
 
     const fetchTodayScans = useCallback(async () => {
       setTodayLoading(true);
@@ -31,7 +31,7 @@ const TodayTab = forwardRef(
         const branchId = branchFilter && branchFilter !== "all" ? branchToId(branchFilter) : null;
         const data = await fetchTodayScansData(
           startIso,
-          effectiveSupervisor,
+          isExecutive,
           isFrontOffice,
           branchId,
           isManager,
@@ -46,7 +46,7 @@ const TodayTab = forwardRef(
       } finally {
         setTodayLoading(false);
       }
-    }, [effectiveSupervisor, isFrontOffice, isManager, branchFilter, division, toast]);
+    }, [isExecutive, isFrontOffice, isManager, branchFilter, division, toast]);
 
     useEffect(() => {
       fetchTodayScans();

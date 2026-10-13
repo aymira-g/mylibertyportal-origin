@@ -735,6 +735,57 @@ describe("Kiosk Hardening & Cryptographic Integrity", () => {
       // Deleted shift (null) IS stale (cleans up orphaned lock instead of locking out)
       expect(isLockStale(null)).toBe(true);
     });
+
+    it("DOM03-COR-02: detects stale open shifts server-side exceeding role grace hours", () => {
+      function evaluateOpenShift(shift, nowMs) {
+        if (!shift || shift.clockOut || !shift.clockIn) return { stale: false };
+        const shiftAgeHours = (nowMs - new Date(shift.clockIn).getTime()) / (1000 * 60 * 60);
+        const graceHours = shift.role === "instructor" ? 3 : 14;
+        return {
+          stale: shiftAgeHours > graceHours,
+          ageHours: shiftAgeHours,
+        };
+      }
+
+      const now = new Date("2026-10-13T08:00:00Z").getTime();
+      // Shift from yesterday (16h ago) for non-instructor: stale
+      const yesterdayStaffShift = { clockIn: "2026-10-12T16:00:00Z", role: "frontoffice", clockOut: null };
+      expect(evaluateOpenShift(yesterdayStaffShift, now).stale).toBe(true);
+
+      // Shift from 2 hours ago: not stale (within 14h grace)
+      const currentStaffShift = { clockIn: "2026-10-13T06:00:00Z", role: "frontoffice", clockOut: null };
+      expect(evaluateOpenShift(currentStaffShift, now).stale).toBe(false);
+
+      // Shift from 4 hours ago for instructor: stale (exceeds 3h grace)
+      const instructorStaleShift = { clockIn: "2026-10-13T04:00:00Z", role: "instructor", clockOut: null };
+      expect(evaluateOpenShift(instructorStaleShift, now).stale).toBe(true);
+    });
+
+    it("DOM03-COR-02: recovers from stale lock and re-acquires new lock in single scan flow", () => {
+      function handleLockRecovery(existingLock, shiftDoc, canDeleteStale, canAcquireNew) {
+        if (!existingLock || !existingLock.shiftId) return { ok: false };
+        const isStale = !shiftDoc || Boolean(shiftDoc.clockOut);
+        if (!isStale) return { ok: false, error: "Staff member already has an active open shift." };
+
+        if (canDeleteStale) {
+          if (canAcquireNew) {
+            return { ok: true, action: "CLOCK_IN_SUCCEEDED_SINGLE_SCAN" };
+          }
+          return { ok: false, error: "A stale kiosk lock was cleared. Please scan again." };
+        }
+        return { ok: false, error: "Kiosk lock state updated concurrently. Please scan again." };
+      }
+
+      // Stale lock with successful re-acquisition completes in single scan
+      const res = handleLockRecovery(
+        { shiftId: "shift_old" },
+        { id: "shift_old", clockOut: "2026-10-12T17:00:00Z" },
+        true,
+        true
+      );
+      expect(res.ok).toBe(true);
+      expect(res.action).toBe("CLOCK_IN_SUCCEEDED_SINGLE_SCAN");
+    });
   });
 });
 

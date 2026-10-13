@@ -23,13 +23,14 @@ import { ScheduledLeavesList } from "./ScheduledLeavesList";
 
 const StaffDutyTab = forwardRef(
   /**
-   * @param {{ branchFilter?: string; rangeDays?: number; isAdminView?: boolean; isSupervisor?: boolean; isActualAdmin?: boolean; isManager?: boolean; canPerformAdminActions?: boolean; division?: string }} props
+   * @param {{ branchFilter?: string; rangeDays?: number; isExecutiveView?: boolean; isAdminView?: boolean; isSupervisor?: boolean; isActualAdmin?: boolean; isManager?: boolean; canPerformAdminActions?: boolean; division?: string }} props
    * @param {any} ref
    */
   function StaffDutyTab(
     {
       branchFilter = "all",
       rangeDays = 30,
+      isExecutiveView = false,
       isAdminView = false,
       isSupervisor = false,
       isActualAdmin = false,
@@ -241,8 +242,8 @@ const StaffDutyTab = forwardRef(
             </p>
           </div>
 
-          {/* Admin & Manager actions: Log leave */}
-          {(canPerformAdminActions || isActualAdmin || isAdminView || isManager) && (
+          {/* Executive & Manager actions: Log leave */}
+          {(isExecutiveView || isManager) && (
             <button
               onClick={() => setLeaveModalOpen(true)}
               className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
@@ -253,8 +254,8 @@ const StaffDutyTab = forwardRef(
           )}
         </div>
 
-        {/* At-a-Glance KPI Summary Radar (Admin & Manager) */}
-        {(isActualAdmin || isAdminView) && (
+        {/* At-a-Glance KPI Summary Radar (Executive, Manager & Admin) */}
+        {(isExecutiveView || isManager || isActualAdmin || isAdminView) && (
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-100">
               <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-900">
@@ -397,11 +398,11 @@ const StaffDutyTab = forwardRef(
           label="shifts"
         />
 
-        {/* Scheduled Staff Leaves Ledger (Admin & Manager) */}
-        {(isActualAdmin || isAdminView || isManager) && (
+        {/* Scheduled Staff Leaves Ledger (Executive & Manager) */}
+        {(isExecutiveView || isManager) && (
           <ScheduledLeavesList
             leaves={leaves}
-            canPerformAdminActions={canPerformAdminActions || isActualAdmin || isAdminView}
+            canPerformAdminActions={isExecutiveView || isManager}
             onDeleteLeave={handleDeleteLeave}
           />
         )}

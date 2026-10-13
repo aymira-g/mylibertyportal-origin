@@ -21,7 +21,7 @@ export default function ClassManager({
   instructors = [],
   unenrolledStudents = [],
   role = "admin",
-  isAdmin = true,
+  canManageBatches = undefined,
 }) {
   const toast = useToast();
   const confirm = useConfirm();
@@ -35,7 +35,25 @@ export default function ClassManager({
   const [outreachBatch, setOutreachBatch] = useState(null);
   const [transferringStudent, setTransferringStudent] = useState(null);
 
-  const canEnroll = isAdmin || isFrontOfficeRole(role);
+  const isExecutive = role === "director" || role === "vice_director";
+  const hasBranchOpsLead = useMemo(() => {
+    return (users || []).some(
+      (u) =>
+        (u.role === "opslead" || u.role === "ops_lead") &&
+        (!u.status || (u.status !== "resigned" && u.status !== "terminated"))
+    );
+  }, [users]);
+
+  // ADR 2026-10-13 Option B: Executives, Ops Lead (primary), or Division Manager (fallback if no Ops Lead)
+  const canSchedule =
+    canManageBatches !== undefined
+      ? Boolean(canManageBatches)
+      : isExecutive ||
+        role === "opslead" ||
+        role === "ops_lead" ||
+        (role === "manager" && !hasBranchOpsLead);
+
+  const canEnroll = canSchedule || isFrontOfficeRole(role);
 
   // ── Global Conflict Detection ──────────────────────────────────────────
   const { teacherConflicts, roomConflicts } = useMemo(() => {
@@ -207,7 +225,7 @@ export default function ClassManager({
           </div>
 
           {/* New Batch Trigger */}
-          {isAdmin && (
+          {canSchedule && (
             <button
               onClick={() => setIsNewBatchModalOpen(true)}
               className="px-4 py-2 bg-[#1a3a8f] hover:bg-[#122b6e] text-white rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
@@ -316,7 +334,7 @@ export default function ClassManager({
           classes={classes}
           instructors={instructors}
           users={users}
-          canEdit={isAdmin}
+          canEdit={canSchedule}
           role={role}
         />
       )}
@@ -327,11 +345,11 @@ export default function ClassManager({
           classes={classes}
           users={users}
           unenrolledStudents={unenrolledStudents}
-          isAdmin={isAdmin}
+          isAdmin={canSchedule}
           canEnroll={canEnroll}
           onOutreach={(cls) => setOutreachBatch(cls)}
           onEditBatch={(cls) => setEditingBatchFromCard(cls)}
-          onDeleteClass={handleDeleteClass}
+          onDeleteClass={isExecutive ? handleDeleteClass : undefined}
           onTransferStudent={(data) => setTransferringStudent(data)}
           onRemoveStudent={handleRemoveStudentFromClass}
           onAddStudent={handleAddStudentToClass}
@@ -339,8 +357,8 @@ export default function ClassManager({
         />
       )}
 
-      {/* ── Schedule New Batch Modal (Admin only) ── */}
-      {isAdmin && (
+      {/* ── Schedule New Batch Modal ── */}
+      {canSchedule && (
         <BatchModal
           isOpen={isNewBatchModalOpen}
           onClose={() => setIsNewBatchModalOpen(false)}
@@ -350,8 +368,8 @@ export default function ClassManager({
         />
       )}
 
-      {/* ── Batch Edit Modal (Admin only) ── */}
-      {isAdmin && (
+      {/* ── Batch Edit Modal ── */}
+      {canSchedule && (
         <BatchModal
           isOpen={Boolean(editingBatchFromCard)}
           onClose={() => setEditingBatchFromCard(null)}

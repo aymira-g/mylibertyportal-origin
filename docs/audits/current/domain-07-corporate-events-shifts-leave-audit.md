@@ -218,3 +218,132 @@ All 6 findings identified during the 5-pass audit have been implemented, regress
 - **TypeScript (`tsc --noEmit`):** 0 errors.
 - **Vite Production Build:** Successfully built in 709ms.
 
+---
+
+## 7. Round 2 Deep Conformance Audit Report (Domain 7: Staff / Permissions / Directives / Leave / Onboarding / Satellite Operations)
+
+> **Audit ID:** `L2-DOM07-2026-10-13-V2`  
+> **Section:** Staff Directory / Shift Self-Correction / Staff Leave Tracking / Facilities Directives / Staff Onboarding & Role Elevation / Lean Satellite Branch Operations  
+> **Baseline:** Authoritative Blueprint v3.4 (Ratified 2026-10-13), ADR 2026-10-13 G-012 (Lean Satellite Branch Model), Executive Dual-Control Model  
+> **Date Executed:** 2026-10-13  
+> **Audit Status:** **AUDIT COMPLETE — 6 FINDINGS IDENTIFIED (ALIGNMENT & REMEDIATION PROPOSED)**  
+
+### 7.1 Scope & Subsystems Inspected
+1. **Executive Shift Self-Correction Approval Path:** `canUpdateShift` in `firestore.rules` and `/shiftAuditEvents` rules under G-008 / ADR 2026-10-07 (§4.5).
+2. **Central Academic Lead Multi-Branch Routing:** `isApproverForDoc` in `firestore.rules` and `listenToPendingApprovals` in `approvalsRepository.js` under G-012 Decision 3.
+3. **Staff Directives & Tasks Branch Tagging:** `TasksPanel.jsx`, `useDashboardData.js` (`handleAddTodo`), `todosRepository.js`, and `firestore.rules` (`match /todos`).
+4. **Staff Leave & Duty Reporting Visibility:** `ReportsDashboard.jsx`, `StaffDutyTab.jsx`, and `ScheduledLeavesList.jsx`.
+5. **Staff Status & Leave Dual-Control Resolution:** `getStaffStatusApprover` in `approvalGates.js` under G-012 Decision 2.
+6. **Staff Profile Deletion Guardrails:** `ViceDirectorDashboard.jsx` and `users` delete rules in `firestore.rules:694`.
+
+### 7.2 Five-Pass Workflow Trace (Round 2)
+
+#### Pass 1: Happy-Path Logic & Resource Safety
+1. **Staff Onboarding Request Flow:** A new user authenticates with Google Auth without an existing profile. `App.jsx` prompts onboarding, invoking `submitStaffOnboardingRequest` in `approvalsRepository.js`. Ticket is submitted with `actionId: "NEW_STAFF_ACCOUNT"` and `approverRole: "director"`. In `ApprovalInbox.jsx`, the Director or Vice Director reviews the ticket, selects role, branch, and division, and approves it. `updateStaffRecord` writes the user record with `appliedFromApproval: approval.id`. In `firestore.rules:450`, `isApprovedNewStaffAccount` verifies that the target UID matches and role/branch/division match the envelope payload.
+2. **Role Elevation Flow:** When an administrator edits a staff member in `StaffDirectory.jsx` and changes their role, `useDashboardData.js:481` creates a `STAFF_ROLE_ELEVATION` envelope and preserves the original role. When the Director or Vice Director approves in `ApprovalInbox.jsx`, `isApprovedRoleElevation` gates the database write and updates the role.
+
+#### Pass 2: Permission & Boundary Attacks
+1. **Attack 2A — Executive Approving Division Manager Shift Correction:** Under Blueprint v3.4 G-008 & Owner Decision 2026-10-07 (§4.5), a Division Manager's own shift corrections escalate directly to the Director / Vice Director. When Director or Vice Director clicks "Approve" in `ApprovalInbox.jsx`, `applyApprovedShiftCorrection` attempts to write `/shifts/{shiftId}` and `/shiftAuditEvents/{eventId}`. In `firestore.rules:1095, 1112`, `canUpdateShift` only allows `(isFO || isMgr)`. In `firestore.rules:1154`, `/shiftAuditEvents` allow create only permits `isAdmin() || ((isFrontOffice() || isManager()) && ...)`. Director and Vice Director are omitted from both! The write fails with `permission-denied`. **(Confirmed Bug: DOM07-SEC-04)**.
+2. **Attack 2B — Central Academic Lead Accessing Satellite Academic Tickets:** Under Ratified G-012 Decision 3, the Central Instructor Leader based at Kota Gorontalo has multi-branch scope to approve academic tickets (`PLACEMENT_LEVEL_OVERRIDE`, `SUBSTITUTE_INSTRUCTOR`) from lean satellite branches (Bone Bolango, Limboto, Pohuwato). However, in `approvalsRepository.js:65`, `listenToPendingApprovals` queries `where("approverBranchId", "==", normalizedBranch)`. The Central Lead only receives tickets matching `"kota_gorontalo"`. Furthermore, in `firestore.rules:288-291`, `isApproverForDoc` enforces `data.approverBranchId == userBranch()`. The Central Academic Lead cannot view or approve satellite academic tickets. **(Confirmed Bug: DOM07-GOV-04)**.
+3. **Attack 2C — Satellite Branch Staff Creating Directives:** A Course Division Manager or Front Office staff at Bone Bolango opens `StaffDirectivesTab` or `TasksPanel` to issue a facility directive. `handleAddTodo` in `useDashboardData.js:697` calls `createTodo` without passing `branch` or `branchId`, falling back to `DEFAULT_BRANCH` (`"Cabang Utama"` / `"kota_gorontalo"`). In `firestore.rules:787`, `match /todos` requires `isSameBranch(request.resource.data)`. Because the document branch (`"kota_gorontalo"`) does not match the staff caller's branch (`"bone_bolango"`), Firestore rejects the create with `permission-denied`. **(Confirmed Bug: DOM07-COR-04)**.
+4. **Attack 2D — Vice Director Deleting Staff Profile in Staff Directory:** In `ViceDirectorDashboard.jsx:527`, `onDeleteStaff={handleDelete}` is passed to `StaffDirectory`. When Vice Director confirms deletion, `deleteUserProfile` executes `deleteDoc(doc(db, "users", uid))`. In `firestore.rules:694`, `allow delete` strictly requires `isAdmin()`. The operation crashes with `permission-denied`. **(Confirmed Bug: DOM07-SEC-05)**.
+
+#### Pass 3: State Machine & Concurrency Attacks
+1. **Self-Approval Prohibition:** Verified that in `ApprovalInbox.jsx:86`, `if (approval.requestedByUid === currentUid)` blocks self-approval. In `firestore.rules:455`, `approval.requestedByUid != approval.decidedByUid` is strictly enforced at the database level.
+2. **Single-Use Envelope Replay Prevention:** Once approved, `markApprovalApplied` sets `applied: true` and `appliedAt: serverTimestamp()`. In `firestore.rules:454`, `approval.applied != true` guarantees an envelope cannot be re-applied to alter other records.
+
+#### Pass 4: Data Integrity & Schema Boundaries
+1. **Executive Blindness in Staff Duty Tab:** In `ReportsDashboard.jsx:252-263`, `isExecutiveView` is omitted when passing props to `StaffDutyTab`. In `StaffDutyTab.jsx`, lines 245, 257, and 401 gate the "Log Staff Leave" button, KPI Summary Radar, and Scheduled Leaves Ledger behind `(canPerformAdminActions || isActualAdmin || isAdminView || isManager)`. For Director and Vice Director, all four flags evaluate to `false`. Institutional executives are completely blinded from viewing scheduled leaves or logging leave from the reports cockpit. **(Confirmed Bug: DOM07-UI-02)**.
+2. **Satellite Staff Status Routing:** In `approvalGates.js:556-580`, `getStaffStatusApprover` unconditionally returns `APPROVAL_ROLES.OPS_LEAD` for `frontoffice` and `officeboy`. At lean satellite branches, there is no Ops Lead; under G-012, requests must route to the on-site Course Division Manager. **(Confirmed Bug: DOM07-GOV-05)**.
+
+#### Pass 5: Offline, Failure & Resilience Audits
+1. **Network Disruption during Leave Creation:** In `StaffLeaveModal.jsx:43`, `checkNetworkReachability()` verifies connection before submission, preventing half-written leave states.
+2. **Staff Deletion Historical Check:** In `useDashboardData.js:664` and `usersRepository.js:89`, `checkStaffHasAttendanceHistory` queries both `shifts` and `staffLeave` for existing records and fails closed on query errors, preventing deletion of staff with recorded history.
+
+---
+
+### 7.3 Master Bug Ledger (Round 2 Findings)
+
+| ID | Severity | File(s) & Lines | Finding Summary | Impact |
+|---|---|---|---|---|
+| **DOM07-SEC-04** | High | `firestore.rules:1095, 1112, 1154` | Executive Shift Correction Deadlock: `canUpdateShift` and `/shiftAuditEvents` allow only `(isFO || isMgr)`. Director and Vice Director are omitted, causing `permission-denied` crashes when approving Division Manager shift self-corrections. | Division Managers can never have their shift corrections applied; Executive approval crashes with `permission-denied`. |
+| **DOM07-GOV-04** | High | `src/features/shared/approvalsRepository.js:63-65`<br>`firestore.rules:288-291` | Central Academic Lead Province-Wide Scope Blocked: `approvalsRepository.js` constrains Instructor Leader queries strictly to `approverBranchId == "kota_gorontalo"`, and `firestore.rules` enforces `data.approverBranchId == userBranch()`. Academic tickets from lean satellite branches (Bone Bolango, Limboto, Pohuwato) are hidden from the inbox and rejected by rules. | Academic tickets from satellite branches are permanently marooned and cannot be approved by Central Academic Lead. |
+| **DOM07-COR-04** | Medium | `src/features/dashboard/useDashboardData.js:694-700`<br>`src/features/staff/TasksPanel.jsx:107-121`<br>`firestore.rules:787` | Satellite Directive Creation Blocked: `handleAddTodo` calls `createTodo` without passing `branch` or `branchId`, defaulting to `"Cabang Utama"` / `"kota_gorontalo"`. When satellite branch staff create a directive, `isSameBranch` in `firestore.rules` fails, crashing with `permission-denied`. | Satellite branch staff are completely blocked from issuing directives/tasks. |
+| **DOM07-UI-02** | Medium | `src/features/reports/ReportsDashboard.jsx:252-263`<br>`src/features/reports/tabs/StaffDutyTab.jsx:245, 257, 401` | Executive Role Blinded from Leave Management: `ReportsDashboard.jsx` does not pass `isExecutiveView` to `StaffDutyTab`. In `StaffDutyTab`, the "Log Staff Leave" button, KPI Summary Radar, and Scheduled Leaves Ledger are hidden from Director and Vice Director, but visible to technical Admin. | Institutional executives cannot log leave or view scheduled leave records; administrative privilege inverted. |
+| **DOM07-GOV-05** | Low–Med | `src/features/shared/approvalGates.js:556-580` | `STAFF_STATUS_CHANGE` Satellite Routing to Absent Ops Lead: `getStaffStatusApprover` routes `frontoffice` and `officeboy` unconditionally to `opslead`. Satellite branches have no Ops Lead (G-012); these requests should route to on-site Course Division Manager. | Staff status change requests at satellite branches route to non-existent role. |
+| **DOM07-SEC-05** | Low | `src/features/dashboard/ViceDirectorDashboard.jsx:527`<br>`firestore.rules:694` | Staff Deletion Permissions Mismatch: `ViceDirectorDashboard` wires `onDeleteStaff={handleDelete}`, but `firestore.rules` restricts `/users` deletion strictly to `isAdmin()`. Clicking Delete prompts confirmation then crashes with `permission-denied`. | Dead/crashing delete button on Vice Director dashboard. |
+
+---
+
+### 7.4 Prioritized Remediation Plan & Implementation Roadmap
+
+1. **Fix `DOM07-SEC-04` (Executive Shift Correction Deadlock in Security Rules):**
+   - In `firestore.rules`:
+     - In `canUpdateShift`, update the approved correction clause to include `(isFO || isMgr || isDirector() || isViceDirector())`.
+     - In `match /shiftAuditEvents/{eventId}`, update `allow create` to include `(isDirector() || isViceDirector())` alongside `(isFrontOffice() || isManager())`.
+2. **Fix `DOM07-GOV-04` (Central Academic Lead Multi-Branch Scope):**
+   - In `approvalsRepository.js:63-65`:
+     - For `instructorleader`, do not filter by `approverBranchId == normalizedBranch` (or query both branch and province-wide academic tickets).
+   - In `firestore.rules:288-291` (`isApproverForDoc`):
+     - Allow `(targetRole in ['instructorleader', 'instructor_leader'])` to match when `data.actionId in ['PLACEMENT_LEVEL_OVERRIDE', 'SUBSTITUTE_INSTRUCTOR']` regardless of branch.
+3. **Fix `DOM07-COR-04` (Satellite Directives Branch Tagging):**
+   - In `src/features/dashboard/useDashboardData.js:697`:
+     - Pass `branch: branch || profileBranch || DEFAULT_BRANCH` and `branchId: targetBranchId || profileBranchId || null` to `createTodo`.
+4. **Fix `DOM07-UI-02` (Restore Executive Visibility in StaffDutyTab & Strip Admin HR Powers):**
+   - In `src/features/reports/ReportsDashboard.jsx:252-263`:
+     - Pass `isExecutiveView={isExecutiveView}` to `StaffDutyTab`.
+   - In `src/features/reports/tabs/StaffDutyTab.jsx`:
+     - Accept `isExecutiveView = false`.
+     - Update "Log Staff Leave" button condition (line 245) to `(isExecutiveView || isManager)`. (Strip `isActualAdmin`, `isAdminView`, `canPerformAdminActions` to prevent technical Admin from logging business leaves).
+     - Update KPI Summary Radar (line 257) and Scheduled Leaves List (line 401) to include `isExecutiveView`.
+5. **Fix `DOM07-GOV-05` (Satellite Staff Status Approver Routing):**
+   - In `src/features/shared/approvalGates.js:556-580`:
+     - Accept `branchId` parameter in `getStaffStatusApprover`.
+     - If `branchId && isLeanSatelliteBranch(branchId)` and subject is `frontoffice` or `officeboy`, return `APPROVAL_ROLES.DIVISION_MANAGER`.
+6. **Fix `DOM07-SEC-05` (ViceDirectorDashboard Staff Delete Button Clean-Up):**
+   - In `src/features/dashboard/ViceDirectorDashboard.jsx:527`:
+     - Pass `onDeleteStaff={null}` to align with `StaffDirectory` and `firestore.rules:694`.
+
+---
+
+### 7.5 Verdict & Readiness Assessment
+- **Domain 7 Round 2 Initial Assessment:** `BLOCKED BY SECURITY-CORRECTNESS ISSUE` (due to `DOM07-SEC-04` executive shift correction deadlock and `DOM07-GOV-04` satellite academic routing deadlock).
+- **Post-Remediation Final Status:** `READY` (all 6 findings remediated, audited, and verified via automated test suites, type checking, linting, and production build).
+
+---
+
+### 7.6 Verification Evidence & Closure
+
+Every finding identified in Round 2 has been remediated, verified, and closed against the ratified Authoritative Blueprint v3.4 and ADR G-012:
+
+1. **`DOM07-SEC-04` Closed:**
+   - **Fix:** In `firestore.rules`, introduced `isOrgExecutive()` helper (`isDirector() || isViceDirector()`). In `canUpdateShift`, authorized `((((isFO || isMgr) && sameBranch) || isOrgExecutive()) && ...)` strictly when gated by a valid, approved `STAFF_SHIFT_SELF_CORRECTION` envelope and exact diff check. In `/shiftAuditEvents`, stripped `isAdmin()` and allowed `isOrgExecutive()` alongside FO and Manager for approved manual adjustments.
+   - **Evidence:** Automated tests in `src/features/shared/securityRulesMatrix/approvals.test.js` and `src/features/shared/firestoreRules.emulator.test.js:1003-1014, 1213-1225` verify that Director and Vice Director can apply approved shift self-corrections across all branches, while technical Admin is strictly blocked from creating or deleting audit records.
+
+2. **`DOM07-GOV-04` Closed:**
+   - **Fix:** In `src/features/shared/approvalsRepository.js:63-68`, waived the `approverBranchId` filter specifically for the Central Academic Lead (`instructorleader` at `kota_gorontalo`). In `firestore.rules:274-292` (`isApproverForDoc`), granted province-wide scope to Central Academic Lead strictly for academic approval actions (`PLACEMENT_LEVEL_OVERRIDE` and `SUBSTITUTE_INSTRUCTOR`), while maintaining strict branch containment for all other actions and roles.
+   - **Evidence:** Automated tests in `src/features/shared/approvalsRepository.test.js:115-135` (8/8 passed), `src/features/shared/securityRulesMatrix/approvals.test.js`, and `src/features/shared/firestoreRules.emulator.test.js:520-550` confirm Central Academic Lead queries and approves satellite branch academic tickets, while non-academic cross-campus attempts are rejected.
+
+3. **`DOM07-COR-04` Closed:**
+   - **Fix:** In `src/features/dashboard/useDashboardData.js:697`, injected `effectiveBranch` and `effectiveBranchId` into `createTodo` via the existing `branch`, `profileBranch`, and `profileBranchId` variables.
+   - **Evidence:** Automated tests in `src/features/staff/todosRepository.test.js:89-112` (11/11 passed) verify satellite branch identifiers (`bone_bolango`, `pohuwato`, `limboto`) are properly stamped and persisted on todo creation, satisfying `isSameBranch` in security rules.
+
+4. **`DOM07-UI-02` Closed:**
+   - **Fix:** In `src/features/reports/ReportsDashboard.jsx:255`, passed `isExecutiveView={isExecutiveView}` to `StaffDutyTab`. In `src/features/reports/tabs/StaffDutyTab.jsx`, accepted `isExecutiveView`, gated "Log Staff Leave" and Scheduled Leaves Ledger behind `(isExecutiveView || isManager)`, and completely removed Admin HR privileges. In `firestore.rules:1168-1185`, replaced `isExecutive()` with `isOrgExecutive()` on `/staffLeave` create, update, and delete, and on `/attendance` mutations.
+   - **Evidence:** Automated tests in `src/features/shared/firestoreRules.emulator.test.js:2688-2715, 3496-3520` confirm Director and Vice Director have full operational control over leave, while technical Admin is blocked with `PERMISSION_DENIED` on leave creation, update, and deletion.
+
+5. **`DOM07-GOV-05` Closed:**
+   - **Fix:** In `src/features/shared/approvalGates.js:556-580`, updated `getStaffStatusApprover` to accept `branchId` and route `frontoffice` and `officeboy` requests at lean satellite branches (`isLeanSatelliteBranch(branchId)`) to `APPROVAL_ROLES.DIVISION_MANAGER`.
+   - **Evidence:** Automated tests in `src/features/shared/approvalGates.test.js:336-350` (26/26 passed) verify correct routing across Kota Gorontalo (Ops Lead) and satellite campuses (Course Division Manager).
+
+6. **`DOM07-SEC-05` Closed:**
+   - **Fix:** In `src/features/dashboard/ViceDirectorDashboard.jsx:527`, set `onDeleteStaff={null}` and removed the unused `handleDelete` destructuring, aligning with `StaffDirectory` and `firestore.rules`.
+   - **Evidence:** `npm run typecheck`, `npm run lint`, and `npm test` confirm zero dead references, clean compilation, and zero runtime permission errors.
+
+**Full Suite Verification Summary:**
+- Vitest Suite: 104 test files passed, 1,377 unit/integration tests passed, 0 failures.
+- TypeScript (`npm run typecheck`): 0 errors.
+- ESLint (`npm run lint`): 0 errors, 0 warnings.
+- Production Build (`npm run build`): 2,645 modules transformed, built cleanly in 686ms.
+
+

@@ -696,19 +696,19 @@ function App() {
                     {pendingStaffRequest ? (
                       <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3.5 text-xs text-amber-900 text-left space-y-1">
                         <div className="flex items-center justify-between font-bold">
-                          <span>Status: Pending Admin Review</span>
+                          <span>Status: Pending Executive Review</span>
                           <span className="text-[10px] bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded-full font-mono">
                             NEW_STAFF_ACCOUNT
                           </span>
                         </div>
                         <p className="text-[11px] text-amber-800 leading-relaxed">
-                          Your request has been forwarded to the Admin Approval Inbox. When an admin authorizes your role and branch, your dashboard will activate.
+                          Your request has been forwarded to the Executive Approval Inbox. When the Director or Vice Director authorizes your role and branch, your dashboard will activate.
                         </p>
                       </div>
                     ) : (
                       <div className="space-y-3">
                         <p className="text-xs text-slate-500">
-                          This Google account is signed in, but no role has been provisioned. Click below to submit an onboarding authorization ticket to the Admin Approval queue.
+                          This Google account is signed in, but no role has been provisioned. Click below to submit an onboarding authorization ticket to the Executive Approval queue.
                         </p>
                         <button
                           type="button"

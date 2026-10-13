@@ -63,7 +63,7 @@ export const db = initializeFirestore(app, {
 function initAppCheck(targetApp) {
   if (typeof window === "undefined") return null;
 
-  const isDev = Boolean(import.meta.env.DEV || window.location?.hostname === "localhost");
+  const isDev = Boolean(import.meta.env.DEV);
   const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
   if (isDev) {

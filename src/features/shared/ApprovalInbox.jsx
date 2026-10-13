@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   listenToPendingApprovals,
+  listenToUnappliedApprovals,
   approveApprovalRequest,
   rejectApprovalRequest,
   markApprovalApplied,
@@ -13,6 +14,8 @@ import {
 } from "../dashboard/frontoffice/deskInquiriesRepository";
 import { updateStaffRecord } from "../dashboard/usersRepository";
 import { updatePaymentApprovalStatus } from "../finance/paymentsRepository";
+import { transferStudentBetweenClasses } from "../classes/classesRepository";
+import { todayWita } from "../../utils/dateWita";
 import { useToast } from "./useToast";
 import { useConfirm } from "./useConfirm";
 import { idToBranch, BRANCH_MAP } from "../../constants/branches";
@@ -27,17 +30,22 @@ import {
   FileCheck,
   User,
   Building,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 
 export function ApprovalInbox({
-  userRole = "admin",
+  userRole = null,
   branchId = null,
   division = null,
   title = "Pending Authorization Requests",
   subtitle = "Maker-Checker dual-control operational review queue.",
   initialApprovals = null,
+  initialUnappliedApprovals = null,
 }) {
   const [approvals, setApprovals] = useState(() => initialApprovals || []);
+  const [unappliedApprovals, setUnappliedApprovals] = useState(() => initialUnappliedApprovals || []);
+  const [activeTab, setActiveTab] = useState("pending");
   const [loading, setLoading] = useState(() => initialApprovals === null);
   const [selectedDomain, setSelectedDomain] = useState("all");
   const [processingId, setProcessingId] = useState(null);
@@ -61,7 +69,7 @@ export function ApprovalInbox({
   };
 
   useEffect(() => {
-    const unsubscribe = listenToPendingApprovals(
+    const unsubPending = listenToPendingApprovals(
       userRole,
       branchId,
       (items) => {
@@ -75,8 +83,171 @@ export function ApprovalInbox({
       { division }
     );
 
-    return () => unsubscribe();
+    const unsubUnapplied = listenToUnappliedApprovals
+      ? listenToUnappliedApprovals(
+          userRole,
+          branchId,
+          (items) => {
+            setUnappliedApprovals(items);
+          },
+          (err) => {
+            console.warn("ApprovalInbox unapplied listen error:", err);
+          },
+          { division }
+        )
+      : () => {};
+
+    return () => {
+      unsubPending();
+      unsubUnapplied();
+    };
   }, [userRole, branchId, division]);
+
+  const executeDownstreamAction = async (approval, currentUid) => {
+    if (approval.actionId === "STAFF_SHIFT_SELF_CORRECTION" && approval.payload?.afterData) {
+      await applyApprovedShiftCorrection({ approval });
+      return { success: true, message: `Authorized & applied: ${approval.label}` };
+    }
+
+    if (approval.actionId === "PLACEMENT_LEVEL_OVERRIDE" && approval.payload?.inquiryId) {
+      await applyApprovedPlacementOverride({ approval, actorUid: currentUid });
+      try {
+        await markApprovalApplied(approval.id, currentUid);
+      } catch (markErr) {
+        console.warn("markApprovalApplied error for placement override:", markErr);
+      }
+      return {
+        success: true,
+        message: `Authorized & applied: placement level set to ${approval.payload.assessedLevel}.`,
+      };
+    }
+
+    if (approval.actionId === "STAFF_ROLE_ELEVATION" && approval.payload?.targetUserId) {
+      await updateStaffRecord(approval.payload.targetUserId, {
+        role: approval.payload.targetRole,
+        appliedFromApproval: approval.id,
+        roleUpdatedAt: new Date().toISOString(),
+        roleUpdatedBy: currentUid || null,
+      });
+      try {
+        await markApprovalApplied(approval.id, currentUid);
+      } catch (markErr) {
+        console.warn("markApprovalApplied error for elevation:", markErr);
+      }
+      return {
+        success: true,
+        message: `Staff role elevation applied! Role updated to ${approval.payload.targetRole}.`,
+      };
+    }
+
+    if (
+      approval.actionId === "STAFF_DEACTIVATION" &&
+      (approval.payload?.targetUserId || approval.payload?.uid)
+    ) {
+      const targetUid = approval.payload.targetUserId || approval.payload.uid;
+      const targetStatus = approval.payload.targetStatus || "resigned";
+      await updateStaffRecord(targetUid, {
+        status: targetStatus,
+        appliedFromApproval: approval.id,
+        statusUpdatedAt: new Date().toISOString(),
+        statusUpdatedBy: currentUid || null,
+      });
+      try {
+        await markApprovalApplied(approval.id, currentUid);
+      } catch (markErr) {
+        console.warn("markApprovalApplied error for deactivation:", markErr);
+      }
+      return {
+        success: true,
+        message: `Staff deactivation applied! Account marked as ${targetStatus}.`,
+      };
+    }
+
+    if (approval.actionId === "NEW_STAFF_ACCOUNT" && approval.payload?.uid) {
+      const assignedRole = approval.approvedRole || staffRoleAssignments[approval.id] || "instructor";
+      const assignedBranchId = approval.approvedBranchId || staffBranchAssignments[approval.id] || "kota_gorontalo";
+      const assignedBranchName = idToBranch(assignedBranchId);
+      const assignedDivision = approval.approvedDivision || staffDivisionAssignments[approval.id] || "courses";
+
+      await updateStaffRecord(approval.payload.uid, {
+        email: approval.payload.email || "",
+        displayName: approval.payload.displayName || approval.payload.email || "Staff Member",
+        nickname: approval.payload.displayName || "",
+        role: assignedRole,
+        branch: assignedBranchName,
+        branchId: assignedBranchId,
+        division: assignedDivision,
+        status: "active",
+        phone: "",
+        photoURL: approval.payload.photoURL || "",
+        joinedDate: new Date().toISOString().split("T")[0],
+        createdAt: new Date().toISOString(),
+        appliedFromApproval: approval.id,
+      });
+      try {
+        await markApprovalApplied(approval.id, currentUid);
+      } catch (markErr) {
+        console.warn("markApprovalApplied error for onboarding:", markErr);
+      }
+      return {
+        success: true,
+        message: `Staff account provisioned! Assigned ${assignedRole} (${assignedDivision}) at ${assignedBranchName}.`,
+      };
+    }
+
+    if (approval.actionId === "DISCOUNT_OR_REFUND" && approval.payload?.paymentId) {
+      await updatePaymentApprovalStatus(approval.payload.paymentId, "approved");
+      try {
+        await markApprovalApplied(approval.id, currentUid);
+      } catch (markErr) {
+        console.warn("markApprovalApplied error for discount:", markErr);
+      }
+      return {
+        success: true,
+        message: `Authorized: Fee discount approved for ${approval.payload.studentName || "student"}.`,
+      };
+    }
+
+    if (
+      approval.actionId === "STUDENT_CLASS_TRANSFER" &&
+      approval.payload?.studentId &&
+      (approval.payload?.toClassId || approval.payload?.targetClassId) &&
+      (approval.payload?.fromClassId || approval.payload?.sourceClass)
+    ) {
+      const payload = approval.payload;
+      const fromClassId = payload.fromClassId || payload.sourceClass;
+      const toClassId = payload.toClassId || payload.targetClassId;
+      await transferStudentBetweenClasses({
+        sourceClass: fromClassId,
+        targetClassId: toClassId,
+        targetClass: null,
+        studentId: payload.studentId,
+        dateTransferred: payload.dateTransferred || todayWita(),
+        newLevel: payload.newLevel || null,
+        transferReason: payload.reason || "Approved batch transfer",
+      });
+      try {
+        await markApprovalApplied(approval.id, currentUid);
+      } catch (markErr) {
+        console.warn("markApprovalApplied error for student transfer:", markErr);
+      }
+      return {
+        success: true,
+        message: `Authorized & transferred: ${payload.studentName || "Student"} transferred successfully.`,
+      };
+    }
+
+    // Default logged/non-downstream actions (e.g. CASH_DISCREPANCY, CLASS_CANCELLATION_OR_RESCHEDULE)
+    try {
+      await markApprovalApplied(approval.id, currentUid);
+    } catch (markErr) {
+      console.warn("markApprovalApplied error for logged action:", markErr);
+    }
+    return {
+      success: true,
+      message: `Authorized: ${approval.label}`,
+    };
+  };
 
   const handleApprove = async (approval) => {
     if (processingId) return;
@@ -118,122 +289,55 @@ export function ApprovalInbox({
 
     setProcessingId(approval.id);
     try {
-      await approveApprovalRequest(approval.id);
+      const decisionData = {};
+      if (approval.actionId === "NEW_STAFF_ACCOUNT") {
+        decisionData.approvedRole = staffRoleAssignments[approval.id] || "instructor";
+        decisionData.approvedBranchId = staffBranchAssignments[approval.id] || "kota_gorontalo";
+        decisionData.approvedDivision = staffDivisionAssignments[approval.id] || "courses";
+      }
 
-      if (approval.actionId === "STAFF_SHIFT_SELF_CORRECTION" && approval.payload?.afterData) {
-        try {
-          await applyApprovedShiftCorrection({ approval });
-          toast(`Authorized & applied: ${approval.label}`, "success");
-        } catch (applyErr) {
-          toast(
-            `Approved, but the correction could not be applied (${applyErr.message}). An admin can apply it from Staff Duty Reports.`,
-            "warning"
-          );
-        }
-      } else if (approval.actionId === "PLACEMENT_LEVEL_OVERRIDE" && approval.payload?.inquiryId) {
-        // The override only takes effect here. Until now the inquiry carries
-        // pendingPlacementOverride and enrollment is held.
-        try {
-          await applyApprovedPlacementOverride({ approval, actorUid: currentUid });
-          try {
-            await markApprovalApplied(approval.id, currentUid);
-          } catch (markErr) {
-            console.warn("markApprovalApplied error for placement override:", markErr);
-          }
-          toast(
-            `Authorized & applied: placement level set to ${approval.payload.assessedLevel}.`,
-            "success"
-          );
-        } catch (applyErr) {
-          toast(
-            `Approved, but the placement override could not be applied (${applyErr.message}). The inquiry level is unchanged.`,
-            "warning"
-          );
-        }
-      } else if (approval.actionId === "STAFF_ROLE_ELEVATION" && approval.payload?.targetUserId) {
-        try {
-          await updateStaffRecord(approval.payload.targetUserId, {
-            role: approval.payload.targetRole,
-            appliedFromApproval: approval.id,
-            roleUpdatedAt: new Date().toISOString(),
-            roleUpdatedBy: currentUid || null,
-          });
-          try {
-            await markApprovalApplied(approval.id, currentUid);
-          } catch (markErr) {
-            console.warn("markApprovalApplied error for elevation:", markErr);
-          }
-          toast(
-            `Staff role elevation applied! Role updated to ${approval.payload.targetRole}.`,
-            "success"
-          );
-        } catch (elevationErr) {
-          toast(
-            `Approved ticket, but failed to update user profile: ${elevationErr.message}`,
-            "error"
-          );
-        }
-      } else if (approval.actionId === "NEW_STAFF_ACCOUNT" && approval.payload?.uid) {
-        const assignedRole = staffRoleAssignments[approval.id] || "instructor";
-        const assignedBranchId = staffBranchAssignments[approval.id] || "kota_gorontalo";
-        const assignedBranchName = idToBranch(assignedBranchId);
-        const assignedDivision = staffDivisionAssignments[approval.id] || "courses";
-        try {
-          await updateStaffRecord(approval.payload.uid, {
-            email: approval.payload.email || "",
-            displayName: approval.payload.displayName || approval.payload.email || "Staff Member",
-            nickname: approval.payload.displayName || "",
-            role: assignedRole,
-            branch: assignedBranchName,
-            branchId: assignedBranchId,
-            division: assignedDivision,
-            status: "active",
-            phone: "",
-            photoURL: approval.payload.photoURL || "",
-            joinedDate: new Date().toISOString().split("T")[0],
-            createdAt: new Date().toISOString(),
-            // Required by firestore.rules: a staff account may only be created alongside an
-            // approved NEW_STAFF_ACCOUNT envelope (OD-IL-ENF4, owner decision 2026-10-09).
-            appliedFromApproval: approval.id,
-          });
-          try {
-            await markApprovalApplied(approval.id, currentUid);
-          } catch (markErr) {
-            console.warn("markApprovalApplied error for onboarding:", markErr);
-          }
-          toast(
-            `Staff account provisioned! Assigned ${assignedRole} (${assignedDivision}) at ${assignedBranchName}.`,
-            "success"
-          );
-        } catch (provisionErr) {
-          toast(
-            `Approved ticket, but failed to provision user profile: ${provisionErr.message}`,
-            "error"
-          );
-        }
-      } else if (approval.actionId === "DISCOUNT_OR_REFUND" && approval.payload?.paymentId) {
-        try {
-          await updatePaymentApprovalStatus(approval.payload.paymentId, "approved");
-          try {
-            await markApprovalApplied(approval.id, currentUid);
-          } catch (markErr) {
-            console.warn("markApprovalApplied error for discount:", markErr);
-          }
-          toast(
-            `Authorized: Fee discount approved for ${approval.payload.studentName || "student"}.`,
-            "success"
-          );
-        } catch (discErr) {
-          toast(
-            `Approved ticket, but failed to update payment record: ${discErr.message}`,
-            "warning"
-          );
-        }
-      } else {
-        toast(`Authorized: ${approval.label}`, "success");
+      await approveApprovalRequest(approval.id, decisionData);
+
+      const approvalForExecution = {
+        ...approval,
+        ...decisionData,
+      };
+
+      try {
+        const result = await executeDownstreamAction(approvalForExecution, currentUid);
+        toast(result.message, "success");
+      } catch (downstreamErr) {
+        toast(
+          `Approved ticket, but failed to execute downstream action (${downstreamErr.message}). The ticket is preserved in the Action Required queue for retry.`,
+          "warning"
+        );
       }
     } catch (err) {
       toast("Failed to approve: " + err.message, "error");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleRetryExecution = async (approval) => {
+    if (processingId) return;
+    const currentUid = auth.currentUser?.uid;
+
+    const isReachable = await checkNetworkReachability();
+    if (!isReachable) {
+      toast(
+        "Cannot execute action: connection is offline or unstable. Please check your internet connection.",
+        "error"
+      );
+      return;
+    }
+
+    setProcessingId(approval.id);
+    try {
+      const result = await executeDownstreamAction(approval, currentUid);
+      toast(result.message, "success");
+    } catch (err) {
+      toast(`Retry failed: ${err.message}`, "error");
     } finally {
       setProcessingId(null);
     }
@@ -294,10 +398,21 @@ export function ApprovalInbox({
     }
   };
 
+  const formatTimestamp = (ts) => {
+    if (!ts) return "Recently";
+    try {
+      const d = ts.toDate ? ts.toDate() : new Date(ts);
+      return isNaN(d.getTime()) ? "Recently" : d.toLocaleString("id-ID");
+    } catch {
+      return "Recently";
+    }
+  };
+
+  const currentList = activeTab === "pending" ? approvals : unappliedApprovals;
   const filteredApprovals =
     selectedDomain === "all"
-      ? approvals
-      : approvals.filter((a) => a.domain === selectedDomain);
+      ? currentList
+      : currentList.filter((a) => a.domain === selectedDomain);
 
   return (
     <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-sm space-y-5">
@@ -310,6 +425,12 @@ export function ApprovalInbox({
             {approvals.length > 0 && (
               <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-extrabold text-xs">
                 {approvals.length} pending
+              </span>
+            )}
+            {unappliedApprovals.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-900 font-extrabold text-xs flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3 text-rose-600" />
+                {unappliedApprovals.length} unapplied
               </span>
             )}
           </div>
@@ -334,6 +455,45 @@ export function ApprovalInbox({
         </div>
       </div>
 
+      {/* Tab Switcher: Pending vs Action Required / Unapplied */}
+      <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+        <button
+          type="button"
+          onClick={() => setActiveTab("pending")}
+          className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 ${
+            activeTab === "pending"
+              ? "bg-[#1a3a8f] text-white shadow-xs"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          <span>Pending Review</span>
+          {approvals.length > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-900 font-extrabold text-[10px]">
+              {approvals.length}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("unapplied")}
+          className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 ${
+            activeTab === "unapplied"
+              ? "bg-amber-600 text-white shadow-xs"
+              : unappliedApprovals.length > 0
+              ? "bg-amber-100 text-amber-900 hover:bg-amber-200"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          <AlertTriangle className="w-3.5 h-3.5" />
+          <span>Action Required / Unapplied</span>
+          {unappliedApprovals.length > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-extrabold text-[10px]">
+              {unappliedApprovals.length}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* List */}
       {loading ? (
         <div className="py-12 text-center text-xs text-slate-400 font-semibold animate-pulse">
@@ -344,7 +504,9 @@ export function ApprovalInbox({
           <FileCheck className="w-10 h-10 text-slate-300 mx-auto" />
           <p className="font-extrabold text-sm text-slate-700">All clear!</p>
           <p className="text-xs text-slate-400 max-w-sm mx-auto">
-            There are currently no pending dual-control authorization requests in your queue.
+            {activeTab === "pending"
+              ? "There are currently no pending dual-control authorization requests in your queue."
+              : "There are no approved tickets requiring execution retry. All authorized actions have been applied."}
           </p>
         </div>
       ) : (
@@ -352,7 +514,11 @@ export function ApprovalInbox({
           {filteredApprovals.map((req) => (
             <div
               key={req.id}
-              className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 transition flex flex-col md:flex-row md:items-center justify-between gap-4"
+              className={`p-4 rounded-2xl border transition flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                activeTab === "unapplied"
+                  ? "border-amber-300 bg-amber-50/40 hover:bg-amber-50/60"
+                  : "border-slate-200/80 bg-slate-50/50 hover:bg-slate-50"
+              }`}
             >
               <div className="space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2">
@@ -366,6 +532,11 @@ export function ApprovalInbox({
                   >
                     {req.mode}
                   </span>
+                  {activeTab === "unapplied" && (
+                    <span className="px-2 py-0.5 rounded-md font-bold text-[10px] uppercase tracking-wide bg-amber-200 text-amber-900">
+                      Unapplied / Action Required
+                    </span>
+                  )}
                   {req.approverBranchId && (
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200">
                       <Building className="w-3 h-3 text-slate-400" />
@@ -381,17 +552,21 @@ export function ApprovalInbox({
                   </span>
                   <span className="inline-flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5 text-slate-400" />
-                    {(() => {
-                      if (!req.requestedAt) return "Recently";
-                      try {
-                        const d = new Date(req.requestedAt);
-                        return isNaN(d.getTime()) ? "Recently" : d.toLocaleString("id-ID");
-                      } catch {
-                        return "Recently";
-                      }
-                    })()}
+                    {formatTimestamp(req.requestedAt)}
                   </span>
                 </div>
+
+                {activeTab === "unapplied" && (
+                  <div className="bg-amber-100/70 border border-amber-300/80 rounded-xl p-2.5 text-xs text-amber-900 flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">Approved, Action Pending Execution</p>
+                      <p className="text-[11px] text-amber-800">
+                        Approved on {formatTimestamp(req.decidedAt)} by {req.decidedBy || "Approver"}, but the downstream operation was not completed. Click Retry Execution to finalize.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {req.reason && (
                   <p className="text-xs text-slate-600 bg-white p-2.5 rounded-xl border border-slate-200/60 font-medium">
@@ -410,6 +585,17 @@ export function ApprovalInbox({
                   </div>
                 )}
 
+                {req.actionId === "STAFF_DEACTIVATION" && (
+                  <div className="bg-rose-50/70 border border-rose-200/80 rounded-xl p-3 text-xs space-y-1">
+                    <div className="font-bold text-slate-800">
+                      Staff Member: <span className="font-semibold text-rose-700">{req.payload?.targetName || req.payload?.targetEmail || req.payload?.targetUserId || "Staff"}</span>
+                    </div>
+                    <div className="text-slate-600">
+                      Deactivation Status: <strong className="text-rose-800 font-bold uppercase">{req.payload?.targetStatus || "resigned"}</strong>
+                    </div>
+                  </div>
+                )}
+
                 {req.actionId === "NEW_STAFF_ACCOUNT" && (
                   <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 space-y-2 text-xs">
                     <div className="font-bold text-slate-800">
@@ -420,9 +606,10 @@ export function ApprovalInbox({
                       <div className="flex items-center gap-1.5">
                       <label className="font-bold text-slate-700">Assign Role:</label>
                       <select
-                        value={staffRoleAssignments[req.id] || "instructor"}
+                        value={req.approvedRole || staffRoleAssignments[req.id] || "instructor"}
+                        disabled={activeTab === "unapplied"}
                         onChange={(e) => handleRoleChange(req.id, e.target.value)}
-                        className="bg-white border border-slate-200 rounded-lg px-2 py-1 font-semibold text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1a3a8f]"
+                        className="bg-white border border-slate-200 rounded-lg px-2 py-1 font-semibold text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1a3a8f] disabled:bg-slate-100"
                       >
                         <option value="instructor">Instructor</option>
                         <option value="instructorleader">Instructor Leader</option>
@@ -437,9 +624,10 @@ export function ApprovalInbox({
                     <div className="flex items-center gap-1.5">
                       <label className="font-bold text-slate-700">Assign Branch:</label>
                       <select
-                        value={staffBranchAssignments[req.id] || "kota_gorontalo"}
+                        value={req.approvedBranchId || staffBranchAssignments[req.id] || "kota_gorontalo"}
+                        disabled={activeTab === "unapplied"}
                         onChange={(e) => handleBranchChange(req.id, e.target.value)}
-                        className="bg-white border border-slate-200 rounded-lg px-2 py-1 font-semibold text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1a3a8f]"
+                        className="bg-white border border-slate-200 rounded-lg px-2 py-1 font-semibold text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1a3a8f] disabled:bg-slate-100"
                       >
                         {Object.entries(BRANCH_MAP).map(([bId, bName]) => (
                           <option key={bId} value={bId}>
@@ -452,9 +640,10 @@ export function ApprovalInbox({
                     <div className="flex items-center gap-1.5">
                       <label className="font-bold text-slate-700">Assign Division:</label>
                       <select
-                        value={staffDivisionAssignments[req.id] || "courses"}
+                        value={req.approvedDivision || staffDivisionAssignments[req.id] || "courses"}
+                        disabled={activeTab === "unapplied"}
                         onChange={(e) => handleDivisionChange(req.id, e.target.value)}
-                        className="bg-white border border-slate-200 rounded-lg px-2 py-1 font-semibold text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1a3a8f]"
+                        className="bg-white border border-slate-200 rounded-lg px-2 py-1 font-semibold text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1a3a8f] disabled:bg-slate-100"
                       >
                         <option value="courses">Courses</option>
                         <option value="kindergarten">Kindergarten</option>
@@ -468,54 +657,65 @@ export function ApprovalInbox({
 
               {/* Action Buttons */}
               <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
-                {(() => {
-                  const isAuthorized = canApproveGate(userRole, req.actionId || req);
-                  const isSelfRequest = req.requestedByUid && req.requestedByUid === auth.currentUser?.uid;
+                {activeTab === "unapplied" ? (
+                  <button
+                    disabled={processingId === req.id}
+                    onClick={() => handleRetryExecution(req)}
+                    className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${processingId === req.id ? "animate-spin" : ""}`} />
+                    <span>Retry Execution</span>
+                  </button>
+                ) : (
+                  (() => {
+                    const isAuthorized = canApproveGate(userRole, req.actionId || req);
+                    const isSelfRequest = req.requestedByUid && req.requestedByUid === auth.currentUser?.uid;
 
-                  if (!isAuthorized) {
+                    if (!isAuthorized) {
+                      return (
+                        <span
+                          className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-500 font-bold text-xs border border-slate-200 flex items-center gap-1.5"
+                          title="This action requires a designated authority under governance rules"
+                        >
+                          <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Higher Sign-Off Required</span>
+                        </span>
+                      );
+                    }
+
+                    if (isSelfRequest) {
+                      return (
+                        <span
+                          className="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 font-bold text-xs border border-amber-200 flex items-center gap-1.5"
+                          title="Dual-control restriction: You cannot approve your own request"
+                        >
+                          <span>Self-Request (Cannot Sign)</span>
+                        </span>
+                      );
+                    }
+
                     return (
-                      <span
-                        className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-500 font-bold text-xs border border-slate-200 flex items-center gap-1.5"
-                        title="This action requires a designated authority under governance rules"
-                      >
-                        <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Higher Sign-Off Required</span>
-                      </span>
+                      <>
+                        <button
+                          disabled={processingId === req.id}
+                          onClick={() => handleReject(req)}
+                          className="px-3.5 py-2 rounded-xl bg-slate-200 hover:bg-rose-100 text-slate-700 hover:text-rose-700 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                          <span>Reject</span>
+                        </button>
+                        <button
+                          disabled={processingId === req.id}
+                          onClick={() => handleApprove(req)}
+                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Authorize</span>
+                        </button>
+                      </>
                     );
-                  }
-
-                  if (isSelfRequest) {
-                    return (
-                      <span
-                        className="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 font-bold text-xs border border-amber-200 flex items-center gap-1.5"
-                        title="Dual-control restriction: You cannot approve your own request"
-                      >
-                        <span>Self-Request (Cannot Sign)</span>
-                      </span>
-                    );
-                  }
-
-                  return (
-                    <>
-                      <button
-                        disabled={processingId === req.id}
-                        onClick={() => handleReject(req)}
-                        className="px-3.5 py-2 rounded-xl bg-slate-200 hover:bg-rose-100 text-slate-700 hover:text-rose-700 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                      >
-                        <XCircle className="w-3.5 h-3.5" />
-                        <span>Reject</span>
-                      </button>
-                      <button
-                        disabled={processingId === req.id}
-                        onClick={() => handleApprove(req)}
-                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Authorize</span>
-                      </button>
-                    </>
-                  );
-                })()}
+                  })()
+                )}
               </div>
             </div>
           ))}

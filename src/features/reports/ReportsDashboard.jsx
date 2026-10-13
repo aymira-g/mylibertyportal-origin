@@ -253,6 +253,7 @@ export default function ReportsDashboard({
           ref={activeTabRef}
           branchFilter={branchFilter}
           rangeDays={rangeDays}
+          isExecutiveView={isExecutiveView}
           isAdminView={isActualAdmin}
           isSupervisor={isSupervisor}
           isActualAdmin={isActualAdmin}

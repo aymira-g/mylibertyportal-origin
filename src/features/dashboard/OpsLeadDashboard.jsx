@@ -232,7 +232,7 @@ export default function OpsLeadDashboard({ branch = null, role = "opslead" }) {
           classes={classes}
           instructors={instructors}
           users={users}
-          canEdit={false}
+          canEdit={true}
           role="opslead"
           isOverviewWidget={false}
         />

@@ -44,6 +44,10 @@ export function isExecutive(user) {
   );
 }
 
+export function isOrgExecutive(user) {
+  return isDirector(user) || isViceDirector(user);
+}
+
 export function isManager(user) {
   return Boolean(
     user && isActiveUser(user) && user.role === "manager"
@@ -110,7 +114,11 @@ export function isStaff(user) {
 }
 
 export function isParent(user) {
-  return Boolean(user && user.role === "parent");
+  return Boolean(
+    user &&
+      (!("status" in user) || user.status === "active") &&
+      user.role === "parent"
+  );
 }
 
 export function isParentOf(studentId, user) {
@@ -399,9 +407,9 @@ export function canListUsers(queryData, user) {
  * Fails closed: an actionId absent from this table permits no approver role.
  */
 export const GATE_APPROVER_ROLES = Object.freeze({
-  STAFF_ROLE_ELEVATION: ["director", "vice_director"],
+  STAFF_ROLE_ELEVATION: ["director"],
   NEW_STAFF_ACCOUNT: ["director", "vice_director"],
-  STAFF_DEACTIVATION: ["director", "vice_director"],
+  STAFF_DEACTIVATION: ["director"],
   DISCOUNT_OR_REFUND: ["director", "vice_director"],
   TUITION_PLAN_CHANGE: ["manager", "director", "vice_director"],
   STUDENT_WITHDRAWAL_OR_FREEZE: ["manager", "director", "vice_director"],
@@ -410,7 +418,13 @@ export const GATE_APPROVER_ROLES = Object.freeze({
   SUBSTITUTE_INSTRUCTOR: ["instructorleader", "instructor_leader"],
   CLASS_CANCELLATION_OR_RESCHEDULE: ["opslead", "ops_lead"],
   RETROACTIVE_STUDENT_ATTENDANCE: ["opslead", "ops_lead"],
-  STUDENT_CLASS_TRANSFER: ["opslead", "ops_lead"],
+  STUDENT_CLASS_TRANSFER: [
+    "opslead",
+    "ops_lead",
+    "manager",
+    "director",
+    "vice_director",
+  ],
   STAFF_SHIFT_SELF_CORRECTION: [
     "opslead",
     "ops_lead",
@@ -441,7 +455,12 @@ export function isApproverForDoc(data, user) {
   const targetRole = (data && data.approverRole) || "manager";
   let roleMatches = false;
 
-  if (targetRole === "director" || targetRole === "vice_director") {
+  const isStrictDirectorGate =
+    data && (data.actionId === "STAFF_ROLE_ELEVATION" || data.actionId === "STAFF_DEACTIVATION");
+
+  if (isStrictDirectorGate) {
+    roleMatches = isDirector(user);
+  } else if (targetRole === "director" || targetRole === "vice_director") {
     roleMatches = isDirector(user) || isViceDirector(user);
   } else if (
     targetRole === "manager" &&
@@ -462,9 +481,19 @@ export function isApproverForDoc(data, user) {
     roleMatches = true;
   }
 
+  // Central Academic Lead (Instructor Leader at Kota Gorontalo) has province-wide pedagogical scope
+  // over academic actions under ADR G-012. All other roles/actions route strictly by branch.
+  const isCentralAcademicLead =
+    (user.role === "instructorleader" || user.role === "instructor_leader") &&
+    userBranch(user) === "kota_gorontalo" &&
+    data &&
+    "actionId" in data &&
+    (data.actionId === "PLACEMENT_LEVEL_OVERRIDE" || data.actionId === "SUBSTITUTE_INSTRUCTOR");
+
   const branchMatches =
     isDirector(user) ||
     isViceDirector(user) ||
+    isCentralAcademicLead ||
     (data && "approverBranchId" in data
       ? data.approverBranchId === userBranch(user)
       : isSameBranch(data, user));
@@ -503,7 +532,22 @@ export function isApprovedRoleElevation(targetUserId, approvalDoc, targetRole) {
     approvalDoc.requestedByUid !== approvalDoc.decidedByUid &&
     approvalDoc.decidedByUid !== targetUserId &&
     "approverRole" in approvalDoc &&
-    ["director", "vice_director"].includes(approvalDoc.approverRole)
+    approvalDoc.approverRole === "director"
+  );
+}
+
+export function isApprovedStaffDeactivation(targetUserId, approvalDoc) {
+  if (!approvalDoc) return false;
+  return (
+    approvalDoc.actionId === "STAFF_DEACTIVATION" &&
+    approvalDoc.status === "approved" &&
+    approvalDoc.applied !== true &&
+    approvalDoc.payload != null &&
+    (approvalDoc.payload.targetUserId === targetUserId || approvalDoc.payload.uid === targetUserId) &&
+    approvalDoc.requestedByUid !== approvalDoc.decidedByUid &&
+    approvalDoc.decidedByUid !== targetUserId &&
+    "approverRole" in approvalDoc &&
+    approvalDoc.approverRole === "director"
   );
 }
 

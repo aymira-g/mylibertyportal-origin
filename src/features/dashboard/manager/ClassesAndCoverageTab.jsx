@@ -22,6 +22,15 @@ export function ClassesAndCoverageTab({ classes, users, currentUserId }) {
     return map;
   }, [users]);
 
+  // ADR 2026-10-13 Option B: Division Manager schedules batches only if branch lacks an active Ops Lead
+  const hasBranchOpsLead = useMemo(() => {
+    return (users || []).some(
+      (u) =>
+        (u.role === "opslead" || u.role === "ops_lead") &&
+        (!u.status || (u.status !== "resigned" && u.status !== "terminated"))
+    );
+  }, [users]);
+
   const augmentedClasses = useMemo(() => {
     return classes.map((c) => {
       const hasInstructor = Boolean(c.instructorId && instructorMap.has(c.instructorId));
@@ -118,7 +127,7 @@ export function ClassesAndCoverageTab({ classes, users, currentUserId }) {
         <AvailableBatches
           classes={classes}
           users={users}
-          canEdit={false}
+          canEdit={!hasBranchOpsLead}
           role="manager"
           currentUserId={currentUserId}
         />

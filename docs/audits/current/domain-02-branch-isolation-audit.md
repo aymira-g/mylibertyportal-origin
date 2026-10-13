@@ -146,3 +146,124 @@ Client-Side Presentation & Aggregation
   2. Added test assertions verifying foreign branch event access denial.
 - **Status:** **CLOSED (REMEDIATED)**
 
+---
+
+## 5. Re-Verification Pass R2 (Independent Audit Batch 1 v2)
+
+> **Audit ID:** `L2-DOM02-R2-2026-10-12`  
+> **Re-Verification Date:** 2026-10-12  
+> **Commit Inspected:** `e23b1711c4cd7858ea4545b245cd47e13c4e9e68` (main)  
+> **Working Tree:** Clean  
+> **Audit Stance:** Evidence-first adversarial re-verification; test results weighed over claims.  
+> **Detailed Evidence Artifact:** [`docs/audits/current/evidence/batch1-authorization-matrix.md`](evidence/batch1-authorization-matrix.md)
+
+### 5.1 Re-Verification of Previously Closed Findings
+
+1. **DOM02-SEC-01 (`fetchStaffShifts` Unscoped Query): RE-VERIFIED CLOSED**
+   - *Status in Ledger:* CLOSED (Automated Test Passed).
+   - *R2 Finding:* Verified in `src/features/reports/reportsRepository.js:16-19` and `reportsRepository.test.js:154-162`. If a Division Manager queries without `branchId`, the repository fails safe and returns empty results rather than emitting an unauthorized unscoped query. Holds.
+
+2. **DOM02-SEC-02 (Front Office Cockpits Querying `/deskInquiries` Before Branch Resolves): RE-VERIFIED CLOSED**
+   - *Status in Ledger:* CLOSED (Automated Test Passed).
+   - *R2 Finding:* Verified in `WalkInInquiryTab.jsx:223-225, 250-254`. Tab unmounts or early-returns if `!branchLabel`, preventing false 403 / permission-denied crashes. Holds.
+
+3. **DOM02-SEC-03 (Payments Rules Parent/Student List): RE-VERIFIED CLOSED**
+   - *Status in Ledger:* CLOSED (Code-proven).
+   - *R2 Finding:* Verified in `firestore.rules:872-873`. Rules permit student queries by own `studentId` and parent queries matching `childStudentIds`. Holds.
+
+4. **DOM02-VER-01 (Stale Test Fixtures in Matrix): RE-VERIFIED CLOSED**
+   - *Status in Ledger:* CLOSED (Automated Test Passed).
+   - *R2 Finding:* Verified in `src/features/shared/securityRulesMatrix/branchIsolation.test.js`. Holds.
+
+---
+
+### 5.2 New Findings in Domain 2 & Firestore Rules Engine
+
+#### Finding DOM02-SEC-04: Firestore Rules Engine AST Evaluation Ceiling Exceeded on Approvals Update
+- **Classification:** Bug / Runtime Security Rules Failure
+- **Severity:** **CRITICAL**
+- **Affected Rules:** [`firestore.rules:937-960`](file:///e:/myliberty-portal/firestore.rules#L937-L960) (`match /approvals/{approvalId} -> allow update`)
+- **Governing Requirement:** Blueprint v3.3 §26 (G-006 / G-007 Maker-Checker Workflow Integrity).
+- **Evidence:** Executing `npm run test:rules` against the live emulator fails 4 separate tests with:
+  ```text
+  FirebaseError: 7 PERMISSION_DENIED:
+  Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L937
+  ```
+  Failed tests:
+  - `approval decision contract (C2) > routes manager approvals to the manager of that branch`
+  - `approval decision contract (C2) > gives the Bone Bolango manager access to Bone Bolango approvals`
+  - `gate binding hardening > still allows legitimate pairs, including legacy alias spellings`
+  - `gate binding hardening > routes NEW_STAFF_ACCOUNT to the Director and rejects the old admin addressing`
+- **Root Cause:** In commit `cddafe1`, `isDivisionAllowedForManager(data)` was added inside `isApproverForDoc` line 277. This function unrolls multiple calls to `userDivision()` and `userProfile()`. Evaluated alongside `isSameBranch()`, `gateAllowsApprover()`, `affectedKeys()`, and server timestamp checks, the AST complexity exceeds Google Firestore's hard engine ceiling of 1,000 evaluated expressions per transaction.
+- **Impact:** System-wide blocker. In production, no manager or executive can approve or reject any pending approval ticket!
+- **Corrective Direction:** Refactor `isApproverForDoc` to cache profile variables or evaluate cheap leaf attributes first, collapsing redundant `userProfile()` and `userDivision()` expressions.
+- **Blocking Status:** **BLOCKS RELEASE (CRITICAL OPERATIONAL OUTAGE)**.
+
+#### Finding DOM02-SEC-05: Null Pointer Evaluation Crash in `/staffLeave` Create Rule
+- **Classification:** Bug / Security Rules Exception
+- **Severity:** **HIGH**
+- **Affected Rules:** [`firestore.rules:290, 1057-1060`](file:///e:/myliberty-portal/firestore.rules#L290)
+- **Governing Requirement:** Authoritative Blueprint §5.4 & Level 1 Fail-Closed Invariant.
+- **Evidence:** Executing `npm run test:rules` fails test:
+  ```text
+  FAIL Phase 1 Security Hardening > Staff Leave (/staffLeave/{leaveId}) — DOM07-SEC-01 & DOM07-SEC-02 > allows executives and division managers to log leave, and allows leave for manager role
+  FirebaseError: 7 PERMISSION_DENIED: evaluation error at L1057:24 for 'create' @ L1057 ... Null value error. for 'create' @ L1057
+  ```
+- **Root Cause:** Line 290 defines `function roleOf(uid) { return get(/databases/$(database)/documents/users/$(uid)).data.role; }`. When a target user profile document does not exist, `.data` is null, causing `.role` to throw `Null value error` and crashing the rules engine.
+- **Why It Matters:** An unseeded or corrupt user reference crashes leave creation with an unhandled server error rather than a clean denial, and prevented test verification from succeeding.
+- **Corrective Direction:** Make `roleOf(uid)` null-safe:
+  ```javascript
+  function roleOf(uid) {
+    let u = get(/databases/$(database)/documents/users/$(uid));
+    return u != null && ('data' in u) && u.data != null && ('role' in u.data) ? u.data.role : '';
+  }
+  ```
+- **Blocking Status:** Must fix before completion.
+
+#### Finding DOM02-COR-01: Branch Normalization Disparity Between Worker and Firestore Rules
+- **Classification:** Compatibility Bug / False 403 Authorization Failure
+- **Severity:** **MEDIUM**
+- **Affected Files:** [`firestore.rules:112, 126`](file:///e:/myliberty-portal/firestore.rules#L112), [`cloudflare-worker/worker.js:483-492`](file:///e:/myliberty-portal/cloudflare-worker/worker.js#L483-L492)
+- **Governing Requirement:** Blueprint v3.1 §5.1 (Branch normalization consistency across all boundaries).
+- **Evidence:**
+  - `firestore.rules` maps legacy branch name `"Cabang Utama"` to `'kota_gorontalo'`.
+  - `cloudflare-worker/worker.js` defines `normalizeBranchId`:
+    ```javascript
+    for (const [id, name] of Object.entries(BRANCH_MAP)) { ... }
+    return clean.replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    ```
+    Because `BRANCH_MAP` does not contain `"Cabang Utama"`, the Worker normalizes `"Cabang Utama"` to `'cabang_utama'`.
+  - When a staff member with legacy profile `branch: "Cabang Utama"` scans at a Kota Gorontalo kiosk terminal (`device.branchId = "kota_gorontalo"`), the Worker compares `'cabang_utama' !== 'kota_gorontalo'` and rejects the scan with HTTP 403 Forbidden.
+- **Corrective Direction:** Add `"Cabang Utama"` alias mapping directly into `BRANCH_MAP` / `normalizeBranchId` in `worker.js`.
+- **Blocking Status:** Fix before completion.
+
+#### Finding DOM02-GOV-01: Branch Division Manager Permitted to Modify Company-Wide Corporate Events
+- **Classification:** Governance Conflict
+- **Severity:** **MEDIUM**
+- **Affected Rules:** [`firestore.rules:776`](file:///e:/myliberty-portal/firestore.rules#L776) (`match /corporateEvents/{eventId}`)
+- **Governing Requirement:** Blueprint v3.3 §5.4 (Division Managers hold branch and division authority only; province-wide and company-wide events are an Executive prerogative).
+- **Evidence:** Line 776 explicitly permits:
+  ```javascript
+  allow update: if isExecutive()
+    || (isManager() && resource.data.audienceType == 'all' && request.resource.data.audienceType == 'all')
+  ```
+- **Why It Matters:** A Course or Kindergarten Division Manager at one branch can edit, reschedule, or alter calendar events that affect all branches across the entire organization.
+- **Corrective Direction:** Restrict updates of company-wide events (`audienceType == 'all'`) to `isExecutive()`. Managers may only update branch-scoped events within their own branch (`audienceType != 'all' && isSameBranch(resource.data)`).
+- **Blocking Status:** Fix before completion.
+
+#### Finding DOM02-VER-02: Stale Actor Persona in Rules Test Suite Fixture
+- **Classification:** Test Integrity Defect
+- **Severity:** **LOW**
+- **Affected File:** [`src/features/shared/firestoreRules.emulator.test.js:3141, 3154`](file:///e:/myliberty-portal/src/features/shared/firestoreRules.emulator.test.js#L3141)
+- **Evidence:** Test uses `authed("director")`. The test environment persona map `USERS` only registers `dirGto`, so `users/director` is never created in the emulator, leading directly to the evaluation crash in test DOM07-SEC-01.
+- **Corrective Direction:** Change `authed("director")` to `authed("dirGto")` in the test suite once rule fixes are authorized.
+
+---
+
+### 5.3 Execution Summary & R2 Metric Log
+- **Total Test Files Evaluated:** 105
+- **Unit & Integration Tests Passed:** 1,367
+- **Firestore Emulator Tests:** 118 passed / 5 failed (123 total)
+- **Domain 2 Posture:** 4 closed findings re-verified; 2 severe rule engine defects discovered (1 Critical 1000-expression ceiling crash, 1 High Null value crash); 2 governance/compatibility gaps logged.
+
+

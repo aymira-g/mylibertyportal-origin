@@ -520,4 +520,21 @@ describe("fetchTodayScansData & fetchStudentProgressData branch scoping (DOM03-S
     expect(result.classes).toHaveLength(1);
     expect(result.students).toHaveLength(1);
   });
+
+  it("fails safe when manager is passed with isAdminView=true but branchId is omitted (DOM03-SEC-03)", async () => {
+    fake.seed("attendance", [
+      { id: "att1", branchId: "kota_gorontalo", timestamp: "2026-10-12T01:00:00.000Z" },
+    ]);
+    // Simulates UI passing effectiveSupervisor (true) into isAdminView parameter for manager without branchId
+    const resultScans = await fetchTodayScansData("2026-10-12T00:00:00.000Z", true, false, null, true);
+    expect(resultScans.scans).toEqual([]);
+    expect(resultScans.classes).toEqual([]);
+    expect(resultScans.students).toEqual([]);
+
+    const resultProgress = await fetchStudentProgressData(true, false, null, null, true);
+    expect(resultProgress.users).toEqual([]);
+    expect(resultProgress.classes).toEqual([]);
+    expect(resultProgress.attendance).toEqual([]);
+    expect(resultProgress.progress).toEqual([]);
+  });
 });

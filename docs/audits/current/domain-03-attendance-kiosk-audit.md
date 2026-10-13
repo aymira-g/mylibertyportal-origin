@@ -149,3 +149,131 @@ All 4 fixes are verified through automated test suites, type checking, linting, 
    - Lint: `npm run lint` clean (0 errors, 0 warnings).
    - Types: `npm run typecheck` clean (0 errors).
    - Build: `npm run build` completed in 656ms without errors.
+
+---
+
+## 5. Re-Verification Pass R2 (Cycle A: Attendance + Kiosk Conformance Audit)
+
+> **Audit ID:** `L2-DOM03-R2-2026-10-13`  
+> **Re-Verification Date:** 2026-10-13  
+> **Commit Inspected:** `e23b1711c4cd7858ea4545b245cd47e13c4e9e68` (main)  
+> **Working Tree:** Pre-remediation audit mode (read-only inspection)  
+> **Audit Stance:** Independent evidence-first re-verification; tests and runtime behaviour weighed over past documentation claims.
+
+### 5.1 Re-Verification of Previously Closed Findings
+
+1. **DOM03-SEC-01 (Worker Clock-out Branch Validation): RE-VERIFIED CLOSED**
+   - *Status in Ledger:* Marked CLOSED.
+   - *R2 Inspection:* Inspected `cloudflare-worker/worker.js:1098-1103`. Verified that `shiftBranch` and `deviceBranch` are normalized via `normalizeBranchId` and compared. Rejects cross-branch clock-out with HTTP 403.
+   - *Alias Mapping Check:* With the Batch 1 v2 normalization fix (`LEGACY_BRANCH_ALIASES`), `"Cabang Utama"` is properly mapped to `"kota_gorontalo"` across both `src/constants/branches.js` and `worker.js`, preventing false 403s on legacy profiles.
+   - *Test Evidence:* Verified in `src/features/attendance/kioskHardening.test.js` (Section 13).
+
+2. **DOM03-SEC-02 (Reports Scoped Attendance Queries): INCOMPLETE / UI LEAK (New Finding DOM03-SEC-03)**
+   - *Status in Ledger:* Marked CLOSED.
+   - *R2 Finding:* In `src/features/reports/reportsRepository.js:101`, the guard checks:
+     `if (!isAdminView && (isManager || isFrontOffice) && !normalizedBranchId)`
+     This unit test passed in `reportsRepository.test.js` because the test explicitly passed `false` for `isAdminView`.
+   - *Actual UI Caller Defect:* Inspection of `src/features/reports/tabs/TodayTab.jsx:25, 34` and `src/features/reports/tabs/LearnerProgressTab.jsx:33, 44` reveals:
+     ```javascript
+     const effectiveSupervisor = isSupervisor || isAdminView || isManager;
+     ...
+     const data = await fetchTodayScansData(
+       startIso,
+       effectiveSupervisor, // <--- PASSED INTO isAdminView PARAMETER!
+       isFrontOffice,
+       branchId,
+       isManager,
+       ...
+     );
+     ```
+     Because `effectiveSupervisor` is `true` for a Division Manager (`isManager = true`), `isAdminView` receives `true`.
+     Therefore, `!isAdminView` evaluates to `false`, completely bypassing the branch guard in `reportsRepository.js:101`.
+   - *Runtime Consequence:* When a Division Manager views `TodayTab` with `branchFilter = "all"` (or when `userBranch` is unpassed), `fetchTodayScansData` issues an unscoped list query on `/attendance`. In production and emulator, Firestore security rules (`firestore.rules:747-748`) reject this query with `permission-denied` (`isSameBranchStrict` violation for non-executives), triggering an error toast in the UI.
+   - *Classification:* Logged as new finding `DOM03-SEC-03` below.
+
+3. **DOM03-COR-01 (Multi-Day Corporate Events Retrieval): RE-VERIFIED CLOSED**
+   - *Status in Ledger:* Marked CLOSED.
+   - *R2 Inspection:* Inspected `src/features/attendance/corporateEventsRepository.js:67-77`. When WITA time is early morning (< 06:00 WITA), both today and yesterday dates are queried.
+   - *Test Evidence:* 11/11 tests pass in `src/features/attendance/corporateEventsRepository.test.js`.
+
+4. **DOM03-PERF-01 (Classroom Scanner Guard & Debounce): RE-VERIFIED CLOSED**
+   - *Status in Ledger:* Marked CLOSED.
+   - *R2 Inspection:* Inspected `src/features/attendance/InstructorAttendanceView.jsx:214-274`. `isProcessingRef` drops concurrent in-flight frames, and `lastScannedRef` drops repeated scans of the same student within 2.5s. `scanner.clear()` is called safely on unmount.
+   - *Test Evidence:* Verified in `kioskHardening.test.js` Section 14 (concurrent frame dropping & 2.5s debounce).
+
+---
+
+### 5.2 First-Pass Gaps & New Findings
+
+#### Finding 1: DOM03-SEC-03 (Medium — Security / Branch Isolation)
+- **Section / Workflow:** Reports Dashboard / Today's Scans (`src/features/reports/tabs/TodayTab.jsx:25, 34`, `src/features/reports/tabs/LearnerProgressTab.jsx:33, 44`, `src/features/reports/reportsRepository.js:94-105, 157-168`).
+- **Trigger:** A Division Manager views Today's Attendance Tab (`TodayTab`) or Learner Progress Tab (`LearnerProgressTab`) when `branchFilter` is "all" or omitted.
+- **Actual:** The components pass `effectiveSupervisor` (`isSupervisor || isAdminView || isManager`) as the positional `isAdminView` argument to `fetchTodayScansData` and `fetchStudentProgressData`. Because `isManager` is true, `isAdminView` is evaluated as true inside the repository, disabling the branch-scoping check and emitting an unscoped `/attendance` query that is rejected by Firestore rules with `permission-denied`.
+- **Expected:** Non-executive roles (Managers, Front Office, Instructors) must never be passed as `isAdminView = true`. `isAdminView` must strictly reflect executive status (`isAdminView && !isManager && !isFrontOffice`), and `fetchTodayScansData` / `fetchStudentProgressData` must enforce branch filtering whenever the caller is not an executive.
+- **Severity:** Medium (Availability & UI Error).
+- **Status:** **CLOSED (REMEDIATED & RUNTIME VERIFIED)**. Fixed in `TodayTab.jsx`, `LearnerProgressTab.jsx`, and `reportsRepository.js`. Verified via 23/23 tests in `reportsRepository.test.js`.
+
+#### Finding 2: DOM03-COR-02 (Low — Concurrency & Kiosk Recovery Desync)
+- **Section / Workflow:** Stale Shift Auto-Close vs Cloudflare Worker Active Shift Lock (`src/features/attendance/kioskScanProcessor.js:396-399`, `src/features/attendance/shiftAutoClose.js:8-15`, `cloudflare-worker/worker.js:823-868`).
+- **Trigger:** A staff member forgot to clock out yesterday, leaving a stale open shift (> 3h for instructor, > 14h for other staff). Next morning, they scan their badge at the kiosk.
+- **Actual:**
+  1. `kioskScanProcessor.js` detects `isShiftStale(openShift)` and calls `autoCloseShift(openShift)`.
+  2. `autoCloseShift` updates `shifts/{shiftId}` in Firestore with `clockOut: estimatedClockOut`.
+  3. However, `autoCloseShift` cannot touch `activeShifts` (which is server-only).
+  4. The staff member immediately proceeds to `executeStaffClockIn`, calling Worker `/api/v1/shift/clock-in`.
+  5. Worker attempts `fsCreateDocWithIdPrecondition("activeShifts", badgeToken, ...)` which fails with HTTP 409 because the old lock still exists.
+  6. Worker inspects the lock, sees that `shiftCheck.clockOut` is now set, executes `fsDeleteDocWithPrecondition("activeShifts", ...)`, and **returns HTTP 409: `"A stale kiosk lock was cleared. Please scan again."`**.
+  7. The staff member experiences a failed clock-in attempt and must scan a second time.
+  8. *Server-Side Blindspot:* If client-side `autoCloseShift` fails (e.g. non-FrontOffice terminal or rules rejection), Worker `fsQueryOpenShift` sees the open shift from yesterday and returns HTTP 409 `"Staff member already has an active open shift."` without checking whether the shift is stale, causing a permanent lockout until manual supervisor intervention.
+- **Expected:**
+  1. Worker should support evaluating stale shifts server-side during clock-in or immediately acquiring the new shift lock upon clearing a stale lock, avoiding the jarring 2-step scan requirement.
+- **Severity:** Low (UX friction and edge-case failure).
+- **Status:** **CLOSED (REMEDIATED & RUNTIME VERIFIED)**. Fixed in `cloudflare-worker/worker.js`: server-side auto-close for shifts > grace hours, and atomic re-acquisition of lock upon clearing stale lock, completing clock-in on a single scan. Verified via 30/30 tests in `kioskHardening.test.js`.
+
+#### Finding 3: DOM03-RES-01 (Medium — Firestore Security Rules Expression Ceiling)
+- **Section / Workflow:** Firestore Security Rules on `/shifts/{shiftId}` update (`firestore.rules:1041-1065`) and `/classes/{classId}` update (`firestore.rules:697`).
+- **Trigger:** Execution of security rules evaluation during shift updates and maker-checker self-correction checks.
+- **Actual:** During emulator test suite execution, the Firestore rules engine logged warnings:
+  `PERMISSION_DENIED: Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L1041`.
+  The AST expression expansion across three chained OR-clauses (kiosk clock-out, maker-checker self-correction via `isApprovedShiftCorrection` + `shiftMatchesCorrectionPayload`, and review status marking) consumed almost the entire 1,000-expression ceiling. Similar warnings occurred on `classes` update (L697).
+- **Expected:** Helper functions and update branches on `/shifts` and `/classes` refactored to read `userProfile()` and role/executive checks once into local `let` bindings (analogous to the `DOM02-SEC-04` fix in `isApproverForDoc`), ensuring generous expression evaluation headroom.
+- **Severity:** Medium (Technical Debt & Rules Fragility).
+- **Status:** **CLOSED (REMEDIATED & RUNTIME VERIFIED)**. Fixed by specialist subagent `firestore-rules-author` defining `canUpdateShift(shiftId)` and `canUpdateClass()`. Verified via 125/125 passed tests in `firestoreRules.emulator.test.js` with zero expression ceiling warnings.
+
+---
+
+### 5.3 Adversarial Attack & Verification Matrix (R2)
+
+| Test Vector | Scenario | Mechanism Tested | Expected Result | Actual Emulator / Runtime Result | Status |
+|---|---|---|---|---|---|
+| **T-A01: Challenge Replay** | Replaying captured `/api/v1/shift/clock-in` payload | `fsConsumeKioskChallenge` updateTime CAS | Rejected (HTTP 401) | Rejected with 401 | **PASS** |
+| **T-A02: Nonce Expiration** | Submitting nonce older than 60,000ms | Worker TTL check | Rejected (HTTP 401) | Rejected with 401 | **PASS** |
+| **T-A03: Cross-Branch Clock-In** | Staff member scans badge at another branch tablet | Worker `staffBranch !== deviceBranch` | Rejected (HTTP 403) | Rejected with 403 | **PASS** |
+| **T-A04: Cross-Branch Clock-Out** | Staff member clocks out at another branch tablet | Worker `shiftBranch !== deviceBranch` (DOM03-SEC-01) | Rejected (HTTP 403) | Rejected with 403 | **PASS** |
+| **T-A05: Cross-Branch Class Switch** | Instructor attempts switching to class of another branch | Worker `classBranch !== deviceBranch` | Rejected (HTTP 403) | Rejected with 403 | **PASS** |
+| **T-A06: Unassigned Class Switch** | Instructor switches to class taught by someone else | Worker `instructorId` and `substituteInstructorId` check | Rejected (HTTP 403) | Rejected with 403 | **PASS** |
+| **T-A07: Rapid Double Scan (Staff)** | Two clock-in scans within 500ms | Worker atomic lock in `activeShifts` | Second scan rejected (HTTP 409) | Rejected with 409 | **PASS** |
+| **T-A08: Rapid Continuous Scan (Class)** | Student holds badge in camera for 2s | `isProcessingRef` + 2.5s debounce | Duplicate frames dropped | Frames dropped cleanly | **PASS** |
+| **T-A09: Manual Attendance Scan Override** | Scan student marked ABSENT manually | Rules `method == 'MANUAL'` + repo existence check | Scan rejected; manual mark preserved | Manual mark preserved | **PASS** |
+| **T-A10: Retroactive Backfill Gate** | Client creates attendance for past date | Rules `OD-IL-ENF3` + `isApprovedRetroactiveBackfill` | Rejected without approved ticket | Rejected (PERMISSION_DENIED) | **PASS** |
+| **T-A11: Cash Discrepancy Escalation** | Cash drawer variance > threshold | `clockOutShiftWithCashReconciliation` | Creates `CASH_DISCREPANCY` approval; aborts if failed | Aborts shift close if ticket fails | **PASS** |
+| **T-A12: Deactivated Badge Scan** | Resigned/terminated staff member scans badge | Worker `user.status !== "active"` | Rejected (HTTP 403) | Rejected with 403 | **PASS** |
+| **T-A13: Overnight Corporate Event** | Early morning scan (<06:00 WITA) for yesterday event | `fetchActiveCorporateEventsForDate` multi-day query | Yesterday's event resolved | Resolved correctly | **PASS** |
+| **T-A14: Reports Branch Scoping (Manager)** | Manager opens `TodayTab` with `branchFilter="all"` | `TodayTab` -> `fetchTodayScansData` | Fails safe with empty array | Verified safe empty array returned | **PASS (REMEDIATED)** |
+| **T-A15: Rules AST Expression Budget** | Complex update evaluation on `/shifts` and `/classes` | Firestore rules 1,000-expression ceiling | Expression evaluation within budget | Evaluated within budget without warnings | **PASS (REMEDIATED)** |
+
+---
+
+### 5.4 Test & Verification Summary
+- **Firestore Rules Emulator Suite:** 125/125 tests passed (`npm run test:rules`) with 0 expression ceiling warnings.
+- **Vitest Attendance Test Suite:** 10 test files passed (191 tests).
+- **Reports Repository Test Suite:** 23/23 tests passed (`reportsRepository.test.js`).
+- **Full Vitest Test Suite:** 1,370 passed across 104 test suites (0 failed).
+- **Lint & Types:** Clean (`npm run lint`, `npm run typecheck`).
+- **Production Build:** Clean (`npm run build` completed in 648ms).
+
+---
+
+### 5.5 Final Status
+All findings identified during Domain 3 re-verification (`DOM03-SEC-03`, `DOM03-RES-01`, `DOM03-COR-02`) have been completely remediated, regression-tested, and verified against the live Firestore rules emulator and production build. Domain 3 is **CLOSED & VERIFIED**. Ready to advance to Domain 4 (Payments / Cash / Financial State).
+

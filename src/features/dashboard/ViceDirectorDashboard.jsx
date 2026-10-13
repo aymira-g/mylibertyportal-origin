@@ -63,7 +63,6 @@ export default function ViceDirectorDashboard() {
     setFormData,
     handleSave,
     handleEdit,
-    handleDelete,
     handleAddTodo,
     handleDeleteTodo,
     handleToggleTodo,
@@ -449,6 +448,7 @@ export default function ViceDirectorDashboard() {
             userRole="vice_director"
             branchId={selectedBranch === "all" ? null : branchToId(selectedBranch)}
             canViewParents={true}
+            canViewAllBranches={true}
           />
         </div>
       ),
@@ -482,7 +482,6 @@ export default function ViceDirectorDashboard() {
             instructors={instructors}
             unenrolledStudents={unenrolledStudents}
             role="vice_director"
-            isAdmin={false}
           />
         </div>
       ),
@@ -523,9 +522,10 @@ export default function ViceDirectorDashboard() {
             classes={classes}
             invites={invites}
             currentUserId={auth.currentUser?.uid}
+            currentUserRole="vice_director"
             onEditStaff={handleEdit}
             onPrintBadge={setSelectedStudent}
-            onDeleteStaff={handleDelete}
+            onDeleteStaff={null}
             onNavigateToInvites={() => handleTabChange("invites")}
           />
         </div>

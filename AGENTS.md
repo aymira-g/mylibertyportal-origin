@@ -85,7 +85,7 @@ Before making decisions concerning:
    - a role sounds senior;
    - or a feature appears to require a permission.
 3. **Separation of System Admin from the Organization:** System Admin is a technical system-access role, not an organizational position. It does not inherit Director, Vice Director, Division Manager, or business approval authority. Technical access must never be used to bypass organizational approval chains or self-privilege-escalate.
-4. **Current Implementation as a Reconciliation Target:** The existing application is the starting implementation to be reconciled to the blueprint through controlled, evidence-based change — not the authority that defines the desired organizational model. Do not assume every existing permission is correct merely because it exists, nor assume it is wrong merely because it differs from v3.1–v3.3.
+4. **Current Implementation as a Reconciliation Target:** The existing application is the starting implementation to be reconciled to the blueprint through controlled, evidence-based change — not the authority that defines the desired organizational model. Do not assume every existing permission is correct merely because it exists, nor assume it is wrong merely because it differs from v3.1–v3.4.
 5. **Preserve Explicit Governance Gaps:** Where the blueprint records an unresolved decision (e.g. §26 Owner Decision Register), preserve that open state. An undefined governance rule is a governance gap, not permission for an implementation agent to invent a rule.
 6. **No Unilateral Blueprint Implementation:** Do not redesign dashboards, change Firestore rules, or alter role permissions based on the blueprint unless explicitly instructed in an approved, scoped implementation task.
 7. **No Branch Manager / Branch Head Concept (Blueprint v3.1 §5.4 / v3.3 §5.5):** The concept of Branch Manager / Branch Head is removed from the organizational model. Agents must **not** invent or recreate Branch Manager under another name such as "Branch Head", "Site Manager", "Branch Lead", or an equivalent catch-all authority.
@@ -102,6 +102,10 @@ Before making decisions concerning:
     - The Vice Director does not become unrestricted Acting Director merely because the Director is absent or unavailable.
     - The model is ratified and binding (Blueprint §26 G-004, §41; owner-ratified 2026-10-07). Agents must not treat Director and Vice Director as interchangeable or collapse them into generic Admin semantics.
 13. **Executive Visibility Does Not Imply Execution Authority (Blueprint v3.3 Principle 16):** Broad cross-branch visibility required for strategic or operational oversight does not confer operational execution or business-write authority outside explicitly assigned workflows. Operational data mutations remain strictly owned by their respective domain actors (Front Office, Division Managers).
+14. **Branch Typology & Lean Satellite Operations (Blueprint v3.4 §4, §5, G-012, ADR 2026-10-13):** The branch network is formally partitioned into two operating tiers:
+    - **Type 1: Main Campus (`kota_gorontalo`):** Dual-division (Course Academy + Kindergarten) with dedicated functional leadership (Course Division Manager, Kindergarten Division Manager, Operational Leader, Instructor Leader).
+    - **Type 2: Lean Satellite Branches (`bone_bolango`, `limboto`, `pohuwato`):** Lean single-division operations (Course Division only). Staffed by a Course Division Manager, Front Office, and teaching Instructors. The Course Division Manager supervises site logistics, cohort scheduling (ADR 2026-10-13 Option B), and Front Office coordination without recreating a Branch Manager.
+    - **Central Academic Lead Province-Wide Scope:** The Instructor Leader based at Kota Gorontalo holds province-wide pedagogical scope across all branches for sensitive academic actions (`PLACEMENT_LEVEL_OVERRIDE`, `SUBSTITUTE_INSTRUCTOR`).
 
 ### Architecture authority
 

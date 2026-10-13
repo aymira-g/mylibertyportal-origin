@@ -1,8 +1,8 @@
 # MyLiberty Portal — Authoritative Organizational, Authority & Rebuild Blueprint
 
-**Version:** 3.3  
+**Version:** 3.4  
 **Status:** RATIFIED AUTHORITATIVE BASELINE — APPROVED BY OWNER (KIFRY)  
-**Date:** 2026-10-07  
+**Date:** 2026-10-13  
 **Scope:** Organizational identity, authority, access governance, workflow governance, data-scope principles, implementation derivation, and rebuild/re-foundation rules
 
 > **Canonical Repository Location:** `docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`
@@ -39,7 +39,7 @@ This change is intended to simplify authority, reduce role overlap, preserve sep
 
 ### Version 3.3 executive clarification
 
-Version 3.3 proposes an explicit **Executive Dual-Control Model** for the Director and Vice Director:
+Version 3.3 establishes the ratified **Executive Dual-Control Model** for the Director and Vice Director:
 
 - **Director — Strategic Control:** strategic direction, strategic performance assessment, major executive decisions, and final executive authority where explicitly assigned.
 - **Vice Director — Operational Control:** execution, coordination, multi-branch operational oversight, exception follow-up, corrective-action coordination, and delegated executive authority.
@@ -50,6 +50,15 @@ Version 3.3 proposes an explicit **Executive Dual-Control Model** for the Direct
 - Sensitive actions that separately require Maker–Checker / Signer controls remain governed by their own workflow rules; the Executive Dual-Control Model must not be interpreted as a requirement that every sensitive action receive approval from both executive roles.
 
 This distinction is the implementation-governance interpretation of **G-004**. It was formally ratified by the Owner on **2026-10-07** (see §26 and §41) and is therefore binding, not a proposal.
+
+### Version 3.4 branch typology & lean branch amendment
+
+Version 3.4 (ratified 2026-10-13) formally adopts the **Branch Typology Model** ([`docs/decisions/2026-10-13-branch-typology-and-lean-branch-governance-amendment.md`](../decisions/2026-10-13-branch-typology-and-lean-branch-governance-amendment.md)):
+
+- **Type 1: Main Campus (`kota_gorontalo`):** Full-service campus operating both Course Academy and Kindergarten educational streams with dedicated functional leadership (Course Division Manager, Kindergarten Division Manager, Operational Leader, Instructor Leader, Front Office, Instructors, Facilities).
+- **Type 2: Lean Satellite Branches (`bone_bolango`, `limboto`, `pohuwato`):** Lean single-division operations (Course Division only; Kindergarten inactive). Staffed strictly by a Course Division Manager, Front Office, and teaching Instructors.
+- **Operational Oversight at Lean Branches:** The Course Division Manager serves as the operational supervisor for local site logistics, class cohort scheduling (ADR 2026-10-13 Option B), and Front Office coordination (acting as Checker for daily shifts and cash discrepancies < Rp 20.000).
+- **Central Academic Lead:** The Instructor Leader based at Kota Gorontalo holds province-wide academic coordination scope (`multi-branch`) across all branches for pedagogy, curriculum standardization, teacher evaluations, and placement test overrides.
 
 ---
 
@@ -211,33 +220,31 @@ The Teaching and Learning Structure covers:
 
 # 4. Physical Organization
 
-The current organization operates through **four physical branches** across the province.
+The organization operates through **four physical branches** across Gorontalo Province, categorized into two operational branch typologies (ratified 2026-10-13, ADR 2026-10-13):
 
-Each branch contains two core divisions:
+### 4.1 Branch Typology Classification
 
-1. **Course Division**
-2. **Kindergarten Division**
+| Branch Tier | Physical Locations | Active Educational Divisions | Staffing Structure |
+|---|---|---|---|
+| **Type 1: Main Campus** (*Cabang Utama*) | `kota_gorontalo` (Cabang Utama) | **Course Division** & **Kindergarten Division** | Full 4-peer leadership structure:<br>• Course Division Manager<br>• Kindergarten Division Manager<br>• Operational Leader<br>• Instructor Leader<br>• Front Office, Instructors, Facilities/Office Boy |
+| **Type 2: Lean Satellite Branch** (*Cabang Pembantu*) | `bone_bolango`<br>`limboto`<br>`pohuwato` | **Course Division only** *(Kindergarten inactive until explicitly expanded by Owner Decision)* | Lean operational structure:<br>• Course Division Manager<br>• Front Office / Reception<br>• Teaching Instructors<br>• Facilities / Office Boy *(as assigned)* |
 
-Each physical branch also contains branch-scope operational and teaching leadership functions as defined in §5.
+Each physical branch remains a meaningful organizational and data-scope boundary even though it does not possess a single branch-wide manager.
 
-The current four-branch / two-division structure is an organizational fact at the time of this blueprint.
-
-It is not a permanent promise that the company can never reorganize.
-
-Any addition, removal, merger, or restructuring of organizational units requires an explicit governance amendment.
-
-A branch remains a meaningful organizational and data-scope boundary even though it no longer has a single branch-wide manager.
+Any addition, removal, merger, or restructuring of physical branches or divisional activations requires an explicit governance amendment.
 
 ---
 
 # 5. Organizational Hierarchy
 
-The established hierarchy is:
+The established hierarchy reflects the complementary Executive Dual-Control Model operating over the two branch tiers:
+
+### 5.0.1 Main Campus Hierarchy (Kota Gorontalo)
 
 ```text
-Director
-└── Vice Director
-    └── Four Physical Branches
+Director (Strategic Control)
+└── Vice Director (Operational Control)
+    └── Main Campus (Kota Gorontalo)
         ├── Course Division Manager
         │   └── Course Division Marketing
         ├── Kindergarten Division Manager
@@ -245,8 +252,22 @@ Director
         ├── Operational Leader
         │   ├── Front Office / Admin
         │   └── Office Boy / Facilities
-        └── Instructor Leader
+        └── Instructor Leader (Central Academic Lead — Province-Wide Scope)
             └── Instructors / Tutors
+```
+
+### 5.0.2 Lean Satellite Branch Hierarchy (Bone Bolango, Limboto, Pohuwato)
+
+```text
+Director (Strategic Control)
+└── Vice Director (Operational Control)
+    └── Lean Satellite Branch (Bone Bolango / Limboto / Pohuwato)
+        ├── Course Division Manager (Site Operational Supervisor & Class Scheduler)
+        │   ├── Front Office / Admin
+        │   └── Course Division Marketing (where assigned)
+        ├── Central Instructor Leader (Academic Oversight & Placement Overrides from Main Campus)
+        │   └── Teaching Instructors / Tutors
+        └── Office Boy / Facilities (Campus Scope)
 ```
 
 ## 5.1 Meaning of the physical branch node
@@ -288,10 +309,12 @@ Where an action crosses multiple functions, the authority must come from the app
 ## 5.3 Established relationships
 
 - Course Division Marketing operates under the Course Division Manager.
-- Kindergarten Division Marketing operates under the Kindergarten Division Manager.
-- Front Office / Admin and Office Boy / Facilities operate under the Operational Leader.
-- Instructors / Tutors operate under the Instructor Leader.
-- All four branch-scope leadership functions belong to the relevant physical branch.
+- Kindergarten Division Marketing operates under the Kindergarten Division Manager (active at Main Campus).
+- At the Main Campus (Kota Gorontalo), Front Office / Admin and Office Boy / Facilities operate under the Operational Leader.
+- At Lean Satellite Branches, Front Office / Admin operates under the Course Division Manager for daily site operations, room logistics, and schedule coordination.
+- Instructors / Tutors operate under the academic supervision of the Central Instructor Leader.
+- The Central Instructor Leader operates from the Main Campus with province-wide academic coordination scope (`multi-branch`) across all branches for pedagogy, curriculum standardization, teacher evaluations, and placement test overrides.
+- All branch-assigned leadership functions belong to their relevant physical branch, with the Central Instructor Leader holding province-wide academic coordination scope.
 - The Vice Director provides multi-branch oversight within the authority actually delegated to the role.
 
 The exact detailed reporting mechanics among the branch-scope leaders and upward executive authority must not be guessed beyond what this blueprint establishes.
@@ -546,7 +569,8 @@ The Course Division Manager leads the Course Division within an assigned physica
 - Course Division management;
 - branch-local Course Division targets;
 - oversight of Course Division activities within assigned authority;
-- leadership of Course Division Marketing.
+- leadership of Course Division Marketing;
+- fallback class cohort scheduling for the Course Division at branches lacking an assigned Operational Leader (ratified 2026-10-13, ADR 2026-10-13).
 
 The Course Division Manager is **not** a Branch Manager or Branch Head.
 
@@ -569,7 +593,8 @@ The Kindergarten Division Manager leads the Kindergarten Division within an assi
 - Kindergarten division operational targets;
 - student programs;
 - intake;
-- leadership of the Kindergarten Division and its approved support functions.
+- leadership of the Kindergarten Division and its approved support functions;
+- fallback class cohort scheduling for the Kindergarten Division at branches lacking an assigned Operational Leader (ratified 2026-10-13, ADR 2026-10-13).
 
 The role does not report through a Branch Manager because no such role exists in v3.1.
 
@@ -614,7 +639,11 @@ The Operational Leader coordinates branch-site operations.
 - site logistics;
 - facility-maintenance coordination;
 - front-office performance coordination;
-- operational coordination of Front Office / Admin and Office Boy / Facilities.
+- operational coordination of Front Office / Admin and Office Boy / Facilities;
+- primary branch-site class cohort scheduling, room allocation, and timetable conflict prevention (ratified 2026-10-13, ADR 2026-10-13).
+
+**Branch Presence & Lean Branch Operating Rule (ADR 2026-10-13):**
+The Operational Leader is actively assigned to the Main Campus (`kota_gorontalo`). At Lean Satellite Branches (`bone_bolango`, `limboto`, `pohuwato`), site operational coordination, room logistics, and class cohort scheduling are handled by the Course Division Manager.
 
 The Operational Leader is an operational organizational role, not System Admin.
 
@@ -651,18 +680,18 @@ This function does not automatically receive:
 
 ## 6.11 Instructor Leader
 
-The Instructor Leader leads academic delivery within the assigned branch scope.
+The Instructor Leader leads academic delivery across Gorontalo Province as the **Central Academic Lead**.
 
 **Established responsibilities:**
 
-- curriculum standardization;
-- academic quality control;
-- teacher schedule assignments;
-- teacher evaluations.
+- province-wide curriculum standardization and pedagogical quality control across all physical branches;
+- teacher schedule assignments and coverage coordination;
+- teacher performance evaluations;
+- academic placement test overrides (`PLACEMENT_LEVEL_OVERRIDE`) and substitute instructor approvals (`SUBSTITUTE_INSTRUCTOR`) across all branches.
 
-The Instructor Leader belongs to the Teaching and Learning Structure.
+The Instructor Leader belongs to the Teaching and Learning Structure and is based at the Main Campus (`kota_gorontalo`), exercising province-wide academic coordination scope (`multi-branch`) to support both the Main Campus and Lean Satellite Branches.
 
-The higher-level reporting line is resolved by **G-003** (ratified 2026-10-07, see §26): operationally to the **Vice Director**, strategically to the **Director**. All branch Instructors report directly to the Instructor Leader.
+The higher-level reporting line is resolved by **G-003** (ratified 2026-10-07, see §26): operationally to the **Vice Director**, strategically to the **Director**. All branch Instructors report directly to the Central Instructor Leader.
 
 The Instructor Leader is **not** a Branch Manager and does not automatically inherit general operational or financial authority.
 
@@ -1316,7 +1345,7 @@ Priority order:
 2. **Staff Access / Role-Change Workflow**
 3. **Staff Attendance Correction Workflow**
 4. **Staff Joining / Leaving Workflow**
-5. **Class Creation / Scheduling Workflow**
+5. **Class Creation / Scheduling Workflow** *(Ratified by Owner on 2026-10-13 — Option B: Operational Leader primary, Division Manager fallback at branches lacking an Ops Lead; Executive Leadership supervisory; see docs/decisions/2026-10-13-class-scheduling-and-corporate-events-authority.md)*
 6. **Student / Parent Access Workflow**
 
 These workflow cards are governance artifacts, not UI specifications.
@@ -1357,10 +1386,11 @@ The following governance decisions have been formally reviewed, ratified, and ad
 | **G-009** | What are the operational boundaries for financial correction, refund, discount, and price changes, including cash-drawer reconciliation ownership after removal of Branch Manager? | **RESOLVED — Tiered Cash Discrepancy & Financial Authority Ratified:**<br>• **< Rp 20.000:** Approved by Operational Leader (`opslead`). Escalates to Vice Director if Ops Lead handled the drawer.<br>• **Rp 20.000 – Rp 49.999:** Approved by Vice Director (`vice_director`).<br>• **$\ge$ Rp 50.000:** Approved by Director (`director`) (or Vice Director as Acting Director if Director on approved leave).<br>• Drawer handler cannot approve discrepancy (Maker $\ne$ Checker).<br>• Routine tuition collections executed directly without approval envelopes.<br>• Discounts and refunds strictly restricted to Executive layer (`director`, `vice_director`). |
 | **G-010** | Which governance changes require preservation as superseded historical decisions? | **RESOLVED — Supersession Protocol Ratified:** Historical records under `docs/decisions/` are preserved rather than deleted. Superseded decisions are tagged with `Status: SUPERSEDED BY ADR-XXX` / `Blueprint v3.3` with date, rationale, and link to the governing document. |
 | **G-011** | What detailed upward reporting/accountability arrangement applies to the branch-scope Course Division Manager, Kindergarten Division Manager, Operational Leader, and Instructor Leader? | **RESOLVED — Peer Accountability & Executive Dual-Reporting Ratified:** The four branch leadership roles are functional peers. Daily operational execution, exception coordination, and multi-branch tracking report upward to the **Vice Director** (Operational Control). Academic curriculum standards, strategic planning, and major policy escalations report upward to the **Director** (Strategic Control). |
+| **G-012** | How do branches with lean staffing structures operate when lacking an Operational Leader, Instructor Leader, or Kindergarten Division? | **RESOLVED — Branch Typology & Lean Satellite Operating Model Ratified (2026-10-13, ADR 2026-10-13):**<br>• **Branch Classification:** Main Campus (Kota Gorontalo) maintains full 4-role leadership and dual divisions. Satellite branches (Bone Bolango, Limboto, Pohuwato) are lean single-division campuses (Courses only) staffed by Course Division Manager, Front Office, and Instructors.<br>• **Operational Oversight at Lean Branches:** Course Division Manager serves as operational supervisor for site logistics, class scheduling (ADR 2026-10-13), and Front Office coordination (acting as Checker for shifts and discrepancies < Rp 20.000).<br>• **Central Academic Lead:** Instructor Leader based at Kota Gorontalo holds province-wide academic coordination scope (`multi-branch`) across all branches for pedagogy, evaluations, and placement overrides.<br>• **Strict Boundaries:** Course Division Manager does not become a general Branch Manager; discounts, refunds, and staff elevations remain strictly reserved for Executive sign-off. |
 
 ### Rule for resolved decisions
 
-All governance items G-001 through G-011 are formally resolved and binding across all software layers. Implementation agents must strictly enforce these contracts without introducing unapproved deviations.
+All governance items G-001 through G-012 are formally resolved and binding across all software layers. Implementation agents must strictly enforce these contracts without introducing unapproved deviations.
 
 ---
 
@@ -1477,7 +1507,7 @@ The recommended sequence is:
 - resolve the minimum owner decisions required to unblock implementation;
 - formally mark conflicting historical decisions as superseded where applicable;
 - approve the removal of Branch Manager and the corresponding redistribution of authority;
-- approve or refine the Executive Dual-Control interpretation in G-004.
+- approve or refine the Executive Dual-Control interpretation in G-004 (ratified 2026-10-07).
 
 ## Phase 2 — High-risk workflows
 
@@ -1906,7 +1936,7 @@ Never reverse the dependency by allowing the existing UI, a technical role, an o
 
 This section records the owner's formal approval of this blueprint.
 
-**Blueprint:** MyLiberty Portal — Authoritative Organizational, Authority & Rebuild Blueprint v3.3
+**Blueprint:** MyLiberty Portal — Authoritative Organizational, Authority & Rebuild Blueprint v3.4
 
 **Approval status:** `APPROVED — RATIFIED AUTHORITATIVE BASELINE`
 
@@ -1914,13 +1944,14 @@ This section records the owner's formal approval of this blueprint.
 
 **Role / Authority:** Owner / Director
 
-**Approval date:** 2026-10-07
+**Approval date:** 2026-10-07 (v3.3 Baseline); amended and ratified 2026-10-13 (v3.4 Branch Typology Amendment)
 
 **Notes / approved exceptions:**
 
-- Decisions **G-001 through G-011** are ratified and binding across all software layers (see §26).
+- Decisions **G-001 through G-012** are ratified and binding across all software layers (see §26).
 - This approval includes the Director / Vice Director authority split and the Executive Dual-Control Model, ratified as **G-004** (see §26 and §5.4).
-- Items recorded elsewhere in this document as unresolved, and which were **not** part of the G-001 – G-011 register, remain open governance gaps. Approval of this document does not approve them; see §26 and the "does not claim to have finalized" list in §39.
+- **2026-10-13 Ratification (Blueprint v3.4):** The Owner / Director (Kifry) formally ratified the Branch Typology Model, Lean Satellite Branch operating rules, and Central Academic Lead province-wide scope as **G-012** (recorded in [`docs/decisions/2026-10-13-branch-typology-and-lean-branch-governance-amendment.md`](../decisions/2026-10-13-branch-typology-and-lean-branch-governance-amendment.md)) and Class Batch Scheduling Option B (recorded in [`docs/decisions/2026-10-13-class-scheduling-and-corporate-events-authority.md`](../decisions/2026-10-13-class-scheduling-and-corporate-events-authority.md)).
+- Items recorded elsewhere in this document as unresolved, and which were **not** part of the G-001 – G-012 register, remain open governance gaps. Approval of this document does not approve them; see §26 and the "does not claim to have finalized" list in §39.
 - Amendments and supersessions follow the normal owner-decision process recorded under `docs/decisions/`.
 
 **Recorded basis:** Owner ratification is recorded canonically in

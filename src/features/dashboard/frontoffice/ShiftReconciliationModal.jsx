@@ -101,7 +101,7 @@ export default function ShiftReconciliationModal({
 
       if (exceedsThreshold) {
         toast(
-          `Shift closed with discrepancy of ${formatIDR(Math.abs(discrepancy))}. Escalated to Branch Manager for review.`,
+          `Shift closed with discrepancy of ${formatIDR(Math.abs(discrepancy))}. Escalated to Operations / Executive Leadership for review.`,
           "warning"
         );
       } else {
@@ -241,7 +241,7 @@ export default function ShiftReconciliationModal({
                   Dual-Control Escalation Triggered:
                 </span>
                 Discrepancy exceeds tolerance threshold ({formatIDR(threshold)}). This shift will
-                automatically be flagged in the <strong>Branch Manager Approval Queue</strong> for review.
+                automatically be flagged in the <strong>Supervisor Approval Queue</strong> for review.
               </div>
             )}
           </div>

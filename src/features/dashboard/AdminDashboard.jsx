@@ -220,6 +220,7 @@ export default function AdminDashboard() {
           classes={classes}
           invites={invites}
           currentUserId={auth.currentUser?.uid}
+          currentUserRole="admin"
           onEditStaff={handleEdit}
           onPrintBadge={setSelectedStudent}
           onDeleteStaff={handleDelete}

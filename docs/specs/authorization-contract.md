@@ -22,7 +22,7 @@ $$\text{User Access Scope} = \text{ROLE (Capability)} \times \text{BRANCH (Organ
 **Key Axiom:** Division is a functional scope, **not** an entitlement automatically bundled with a role. No staff role is permanently or inherently forced into a single division scope unless constrained by an explicit business rule.
 
 > [!IMPORTANT]
-> **Blueprint v3.1–v3.3 Organizational Model:**  
+> **Blueprint v3.1–v3.4 Organizational Model:**  
 > The concept of **Branch Manager / Branch Head is removed from the organizational model** ([`Blueprint §5.5`](../governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md#55-explicit-removal-of-the-branch-manager-layer)).  
 > A physical branch is an organizational and data-scope boundary, **not** a managerial authority role. There is no implicit branch-wide manager. Authority requires the full conjunction:  
 > $$\text{Role} + \text{Branch Scope} + \text{Division Scope} + \text{Capability} + \text{Workflow State} = \text{Authorized Action}$$
@@ -162,4 +162,17 @@ The Instructor Leader leads academic delivery within the assigned branch scope a
 **Known divergence (pre-existing, not introduced here).** Layer 3 above describes `isDivisionAllowedForBranchStaff(data)` as `!(isManager() || isFrontOffice())`. The implemented helper uses a narrower role list — `role in ['manager', 'branch_manager', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'marketing']` in `firestore.rules` — so `instructor`, `instructorleader`, and `instructor_leader` are **not** division-gated on division-scoped collections. The both-divisions read scope above does not depend on that omission: it is stated explicitly by the `isInstructorLeader()` clauses. The divergence is recorded as a reconciliation item rather than silently normalized; see `docs/reports/instructor-leader-dashboard/01-phase1-completion-report.md`.
 
 **Deployment requirement.** These clauses take effect only once `firestore.rules` is deployed, and the `progressReports` branch window additionally requires the composite index `progressReports(branchId ASC, examDate DESC)` in `firestore.indexes.json`.
+
+### 6.7 Branch Typology & Central Academic Lead (Blueprint v3.4, ADR 2026-10-13)
+
+Under the ratified Branch Typology Model ([`docs/decisions/2026-10-13-branch-typology-and-lean-branch-governance-amendment.md`](../decisions/2026-10-13-branch-typology-and-lean-branch-governance-amendment.md)):
+- **Branch Typologies:**
+  - **Type 1: Main Campus (`kota_gorontalo`):** Dual-division (Courses & Kindergarten) with full 4-role peer leadership.
+  - **Type 2: Lean Satellite Branches (`bone_bolango`, `limboto`, `pohuwato`):** Single-division (Courses only); staffed by Course Division Manager, Front Office, and Instructors.
+- **Lean Branch Site Operations & Checker Functions:**
+  - At Lean Satellite Branches, the Course Division Manager acts as the operational supervisor for local site logistics, class cohort scheduling (ADR 2026-10-13 Option B), and Front Office coordination.
+  - Front Office Maker $\rightarrow$ Course Division Manager Checker for daily shift reviews and cash discrepancies < Rp 20.000 (substituting for the absent Ops Lead under G-009). Discrepancies $\ge$ Rp 20.000 escalate to Vice Director / Director.
+- **Central Academic Lead Province-Wide Scope:**
+  - The Instructor Leader based at Kota Gorontalo holds province-wide academic coordination scope (`multi-branch`) across all branches.
+  - Sensitive academic tickets from lean branches (`PLACEMENT_LEVEL_OVERRIDE`, `SUBSTITUTE_INSTRUCTOR`) route to and are approved by the Central Instructor Leader (with Vice Director as executive escalation under G-007).
 

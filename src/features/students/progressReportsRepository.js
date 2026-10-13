@@ -8,6 +8,7 @@ import {
   updateDoc,
   where,
   serverTimestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { getStars } from "../shared/levels";
 import { branchToId, idToBranch, DEFAULT_BRANCH_ID } from "../../constants/branches.js";
@@ -39,23 +40,17 @@ export async function fetchInstructorProgressReports(instructorId) {
     );
 }
 
-export async function fetchPendingPromotions(branchId = null) {
+export async function fetchPendingPromotions(branchId = null, division = null) {
   const constraints = [where("eligibleForPromotion", "==", true)];
   if (branchId && branchId !== "all") {
     constraints.push(where("branchId", "==", branchToId(branchId)));
   }
+  if (division && division !== "all") {
+    constraints.push(where("division", "==", division));
+  }
   const q = query(collection(db, "progressReports"), ...constraints);
   const snap = await getDocs(q);
   return snap.docs.map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }));
-}
-
-async function clearPromotionEligibility(reportId) {
-  if (!reportId) return;
-  const reportRef = doc(db, "progressReports", reportId);
-  await updateDoc(reportRef, {
-    eligibleForPromotion: false,
-    promotedAt: serverTimestamp(),
-  });
 }
 
 export async function clearStudentPendingPromotions(studentId) {
@@ -81,17 +76,26 @@ export async function clearStudentPendingPromotions(studentId) {
 
 export async function promoteStudentLevel(studentId, nextLevel, reportId = null) {
   if (!studentId || !nextLevel) return;
+  const batch = writeBatch(db);
   const studentRef = doc(db, "users", studentId);
   const stars = getStars(nextLevel);
-  await updateDoc(studentRef, {
+  batch.update(studentRef, {
     currentLevel: nextLevel,
     rating: String(stars || 1),
     updatedAt: serverTimestamp(),
+    promotedFromReport: reportId || "",
   });
 
   if (reportId) {
-    await clearPromotionEligibility(reportId);
+    const reportRef = doc(db, "progressReports", reportId);
+    batch.update(reportRef, {
+      eligibleForPromotion: false,
+      promotedAt: serverTimestamp(),
+    });
   }
+
+  await batch.commit();
+
   await clearStudentPendingPromotions(studentId);
 }
 

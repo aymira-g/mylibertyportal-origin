@@ -1,0 +1,274 @@
+/**
+ * Real Firestore Rules Emulator Tests — Attendance and Shifts
+ */
+import { describe, beforeAll, beforeEach, afterAll, it } from "vitest";
+import { assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
+import {
+  doc,
+  updateDoc,
+  collection,
+  addDoc,
+} from "firebase/firestore";
+import {
+  setupEmulatorHarness,
+  HAS_EMULATOR,
+  SHIFT_KOTA,
+  APPROVED_CORRECTION,
+} from "./setup.js";
+
+let testEnv;
+let authed;
+let seedDoc;
+let seedUsers;
+
+describe.skipIf(!HAS_EMULATOR)("firestore.rules — Attendance and Shifts", () => {
+  beforeAll(async () => {
+    const harness = await setupEmulatorHarness("attendance-shifts");
+    testEnv = harness.testEnv;
+    authed = harness.authed;
+    seedDoc = harness.seedDoc;
+    seedUsers = harness.seedUsers;
+  });
+
+  afterAll(async () => {
+    await testEnv?.cleanup();
+  });
+
+  beforeEach(async () => {
+    await testEnv.clearFirestore();
+    await seedUsers();
+  });
+
+  describe("shifts kiosk flow (C3 guard, H2 autoClosed)", () => {
+    beforeEach(async () => {
+      await seedDoc(["shifts", "shift1"], SHIFT_KOTA);
+    });
+
+    it("lets same-branch front office clock in tracked staff", async () => {
+      await assertSucceeds(
+        addDoc(collection(authed("foGto"), "shifts"), {
+          ...SHIFT_KOTA,
+          userId: "insGto",
+        })
+      );
+    });
+
+    it("blocks cross-branch clock-in, closed-shift creation, and untracked roles", async () => {
+      await assertFails(
+        addDoc(collection(authed("foGto"), "shifts"), { ...SHIFT_KOTA, branchId: "bone_bolango" })
+      );
+      await assertFails(
+        addDoc(collection(authed("foGto"), "shifts"), { ...SHIFT_KOTA, clockOut: "2026-09-21T09:00:00.000Z" })
+      );
+      await assertFails(
+        addDoc(collection(authed("foGto"), "shifts"), { ...SHIFT_KOTA, userId: "student1" })
+      );
+    });
+
+    it("allows kiosk clock-out with the autoClosed key", async () => {
+      await assertSucceeds(
+        updateDoc(doc(authed("foGto"), "shifts", "shift1"), {
+          ...SHIFT_KOTA,
+          clockOut: "2026-09-21T09:00:00.000Z",
+          updatedAt: "2026-09-21T09:00:00.000Z",
+          autoClosed: true,
+        })
+      );
+    });
+
+    it("blocks clock-out payloads that smuggle extra fields like an approval envelope", async () => {
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "shifts", "shift1"), {
+          ...SHIFT_KOTA,
+          clockOut: "2026-09-21T09:00:00.000Z",
+          approval: { actionId: "STAFF_SHIFT_SELF_CORRECTION" },
+        })
+      );
+    });
+
+    it("blocks clock-out that rewrites identity or clock-in time", async () => {
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "shifts", "shift1"), {
+          ...SHIFT_KOTA,
+          userId: "student1",
+          clockOut: "2026-09-21T09:00:00.000Z",
+        })
+      );
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "shifts", "shift1"), {
+          ...SHIFT_KOTA,
+          clockIn: "2026-09-21T03:00:00.000Z",
+          clockOut: "2026-09-21T09:00:00.000Z",
+        })
+      );
+      await assertFails(updateDoc(doc(authed("foBoba"), "shifts", "shift1"), { clockOut: "t" }));
+    });
+  });
+
+  describe("approved shift self-correction gate (C4)", () => {
+    beforeEach(async () => {
+      await seedDoc(["shifts", "shift1"], SHIFT_KOTA);
+      await seedDoc(["approvals", "corr1"], APPROVED_CORRECTION);
+    });
+
+    const applied = (approvalId) => ({
+      ...SHIFT_KOTA,
+      clockIn: "2026-09-21T00:30:00.000Z",
+      corrected: true,
+      reviewStatus: "pending",
+      appliedFromApproval: approvalId,
+    });
+
+    it("applies an approved correction for the matching shift", async () => {
+      await assertSucceeds(updateDoc(doc(authed("foGto"), "shifts", "shift1"), applied("corr1")));
+      await assertSucceeds(updateDoc(doc(authed("mgrGto"), "shifts", "shift1"), applied("corr1")));
+    });
+
+    it("allows Director and Vice Director to apply approved corrections across branches (DOM07-SEC-04)", async () => {
+      // Main branch shift approved correction
+      await assertSucceeds(updateDoc(doc(authed("dirGto"), "shifts", "shift1"), applied("corr1")));
+      await assertSucceeds(updateDoc(doc(authed("vdGto"), "shifts", "shift1"), applied("corr1")));
+
+      // Satellite branch shift approved correction
+      await seedDoc(["shifts", "shiftBoba"], { ...SHIFT_KOTA, branchId: "bone_bolango", branch: "Bone Bolango" });
+      await seedDoc(["approvals", "corrBoba"], {
+        ...APPROVED_CORRECTION,
+        approverBranchId: "bone_bolango",
+        payload: {
+          ...APPROVED_CORRECTION.payload,
+          shiftId: "shiftBoba",
+        },
+      });
+      await assertSucceeds(
+        updateDoc(doc(authed("dirGto"), "shifts", "shiftBoba"), {
+          ...SHIFT_KOTA,
+          branchId: "bone_bolango",
+          branch: "Bone Bolango",
+          clockIn: "2026-09-21T00:30:00.000Z",
+          corrected: true,
+          reviewStatus: "pending",
+          appliedFromApproval: "corrBoba",
+        })
+      );
+
+      // Negative test: Executive CANNOT perform arbitrary shift edits without approved envelope
+      await assertFails(
+        updateDoc(doc(authed("dirGto"), "shifts", "shift1"), {
+          ...SHIFT_KOTA,
+          clockOut: "2026-09-21T09:00:00.000Z",
+        })
+      );
+    });
+
+    it("blocks corrections without an approved, shift-matching approval", async () => {
+      await seedDoc(["approvals", "corrPending"], { ...APPROVED_CORRECTION, status: "pending" });
+      await seedDoc(["approvals", "corrOther"], {
+        ...APPROVED_CORRECTION,
+        payload: { shiftId: "shift999", afterData: { clockIn: "t" } },
+      });
+      await assertFails(updateDoc(doc(authed("foGto"), "shifts", "shift1"), applied("corrPending")));
+      await assertFails(updateDoc(doc(authed("foGto"), "shifts", "shift1"), applied("corrOther")));
+      await assertFails(updateDoc(doc(authed("foGto"), "shifts", "shift1"), applied("nonexistent")));
+    });
+
+    it("blocks corrections touching anything beyond the correction keys", async () => {
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "shifts", "shift1"), { ...applied("corr1"), notes: "oops" })
+      );
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "shifts", "shift1"), { ...applied("corr1"), userId: "student1" })
+      );
+    });
+
+    it("blocks corrections if target values do not match approved afterData (INT-019)", async () => {
+      const tampered = {
+        ...applied("corr1"),
+        clockIn: "2026-09-21T00:00:00.000Z", // does not match approved 00:30:00
+      };
+      await assertFails(updateDoc(doc(authed("foGto"), "shifts", "shift1"), tampered));
+    });
+
+    it("blocks instructors and other branches from applying corrections", async () => {
+      await assertFails(updateDoc(doc(authed("insGto"), "shifts", "shift1"), applied("corr1")));
+      await assertFails(updateDoc(doc(authed("mgrBoba"), "shifts", "shift1"), applied("corr1")));
+    });
+  });
+
+
+  describe("shift audit events (C4 dual-control trail)", () => {
+    beforeEach(async () => {
+      await seedDoc(["shifts", "shift1"], SHIFT_KOTA);
+      await seedDoc(["approvals", "corr1"], APPROVED_CORRECTION);
+    });
+
+    it("lets executive log a manual adjustment behind an approved correction, and strictly prevents admin from creating shift audit events (DOM07-SEC-04)", async () => {
+      // Executive (Director) can log manual_adjustment behind approved correction
+      await assertSucceeds(
+        addDoc(collection(authed("dirGto"), "shiftAuditEvents"), {
+          shiftId: "shift1",
+          actorId: "dirGto",
+          action: "manual_adjustment",
+          appliedFromApproval: "corr1",
+        })
+      );
+      // Admin is strictly barred from appending shift audit events
+      await assertFails(
+        addDoc(collection(authed("admin"), "shiftAuditEvents"), {
+          shiftId: "shift1",
+          actorId: "admin",
+          action: "flag_review",
+        })
+      );
+      await assertFails(
+        addDoc(collection(authed("admin"), "shiftAuditEvents"), {
+          shiftId: "shift1",
+          actorId: "admin",
+          action: "manual_adjustment",
+          appliedFromApproval: "corr1",
+        })
+      );
+    });
+
+    it("lets front office log a manual adjustment only behind an approved correction", async () => {
+      await assertSucceeds(
+        addDoc(collection(authed("foGto"), "shiftAuditEvents"), {
+          shiftId: "shift1",
+          actorId: "foGto",
+          action: "manual_adjustment",
+          appliedFromApproval: "corr1",
+        })
+      );
+      await assertFails(
+        addDoc(collection(authed("foGto"), "shiftAuditEvents"), {
+          shiftId: "shift1",
+          actorId: "foGto",
+          action: "note",
+          appliedFromApproval: "corr1",
+        })
+      );
+      await assertFails(
+        addDoc(collection(authed("foGto"), "shiftAuditEvents"), {
+          shiftId: "shift1",
+          actorId: "foGto",
+          action: "manual_adjustment",
+          appliedFromApproval: "bogus",
+        })
+      );
+      await assertFails(
+        addDoc(collection(authed("foGto"), "shiftAuditEvents"), {
+          shiftId: "shift1",
+          actorId: "admin",
+          action: "manual_adjustment",
+          appliedFromApproval: "corr1",
+        })
+      );
+    });
+
+    it("keeps the audit trail append-only", async () => {
+      await seedDoc(["shiftAuditEvents", "evt1"], { shiftId: "shift1", actorId: "admin" });
+      await assertFails(updateDoc(doc(authed("admin"), "shiftAuditEvents", "evt1"), { tampered: true }));
+      await assertFails(updateDoc(doc(authed("admin"), "shiftAuditEvents", "evt1"), {}));
+    });
+  });
+
+});

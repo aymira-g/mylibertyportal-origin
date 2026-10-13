@@ -30,6 +30,8 @@
 | 2026-10-14 | Domain 9 Remediation: DOM09-COR-01 (unapplied ticket queue & retry), DOM09-SEC-01 (staff onboarding role allowlist & executive protection), DOM09-GOV-01 (strict Director role elevation), DOM09-GOV-02 (staff deactivation gate), DOM09-UX-01 (executive review copy), DOM09-LOG-01 (sealing logged envelopes), DOM09-DEB-01 (Admin dead code removal) | Approvals · Maker-Checker · Security Rules · Users · Dashboard | **PASS** | No | 1,381 passed, 0 failed; 139/139 emulator tests passed; lint, typecheck, build clean |
 | 2026-10-13 | Bundle Code Splitting Step 1: Eliminated barrel import traps for ParentPortalPage and StandaloneKioskPage in App.jsx | Routing · Performance · Bundle Splitting | **PASS** | No | Parent portal chunk isolated to 11.99 kB (down from 467 kB); StandaloneKioskPage chunk isolated to 136 kB; 1,381 tests passed; lint, typecheck, build clean |
 | 2026-10-13 | Code Splitting: Modularized 902-line approvalGates.js by extracting constants into approvalGates.constants.js | Architecture · Dual-Control Approvals | **PASS** | No | approvalGates.js reduced from 903 to 533 lines; constants file 394 lines; 100% backward compatible; 1,381 tests passed; lint, typecheck, build clean |
+| 2026-10-14 | Test Suite Modularization: Split 3,993-line monolith firestoreRules.emulator.test.js into src/features/shared/firestoreRulesEmulator/ (7 domain suites + setup.js) | Test Architecture · Firestore Rules Emulator | **PASS** | No | 139/139 emulator tests passed (duration reduced 37% from 24.20s to 15.07s via per-suite project isolation); 1,381 unit tests passed; lint, typecheck, build clean |
+
 
 ---
 

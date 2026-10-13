@@ -4,7 +4,7 @@
  * NOTE: This is a pure-logic mathematical simulation of firestore.rules used
  * for fast unit-level authorization and regression tests. It is NOT production
  * code and is NOT a substitute for real Firestore emulator verification.
- * (Authoritative emulator suite: src/features/shared/firestoreRules.emulator.test.js)
+ * (Authoritative emulator suite: src/features/shared/firestoreRulesEmulator/)
  */
 
 export function isActiveUser(user) {

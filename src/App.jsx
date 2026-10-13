@@ -28,10 +28,10 @@ import { lazyWithRetry } from "./utils/lazyWithRetry";
 const RegistrationPage = lazyWithRetry(() => import("./features/auth/RegistrationPage"));
 const StaffSignup = lazyWithRetry(() => import("./features/auth/StaffSignup"));
 const StandaloneKioskPage = lazyWithRetry(() =>
-  import("./features/attendance").then((m) => ({ default: m.StandaloneKioskPage }))
+  import("./features/attendance/StandaloneKioskPage")
 );
 const ParentPortalPage = lazyWithRetry(() =>
-  import("./features/students").then((m) => ({ default: m.ParentPortalPage }))
+  import("./features/students/ParentPortalPage")
 );
 const AdminDashboard = lazyWithRetry(() => import("./features/dashboard/AdminDashboard"));
 const ExecutiveDashboard = lazyWithRetry(() => import("./features/dashboard/ExecutiveDashboard"));

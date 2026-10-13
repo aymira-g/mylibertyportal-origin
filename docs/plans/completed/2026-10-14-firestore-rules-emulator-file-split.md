@@ -20,6 +20,7 @@ Created the directory `src/features/shared/firestoreRulesEmulator/` following th
 - Removed the monolithic file `src/features/shared/firestoreRules.emulator.test.js`.
 - Updated `package.json` `"test:rules"` to execute `vitest run src/features/shared/firestoreRulesEmulator`.
 - Updated reference in `src/features/shared/securityRulesMatrix/securityRulesMatrix.helpers.js`.
+- Updated GitHub Actions CI workflow in `.github/workflows/firestore-rules.yml` to target `src/features/shared/firestoreRulesEmulator`.
 
 ## 3. Cost & Risk Check
 - **Cost:** Free tier only, zero new dependencies, zero infrastructure changes.

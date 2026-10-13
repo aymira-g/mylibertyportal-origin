@@ -20,7 +20,7 @@ on:
       - "firestore.indexes.json"
       - "firebase.json"
       - "package.json"
-      - "src/features/shared/firestoreRules.emulator.test.js"
+      - "src/features/shared/firestoreRulesEmulator/**"
       - "src/features/shared/securityRulesMatrix/**"
       - ".github/workflows/firestore-rules.yml"
   pull_request:
@@ -55,4 +55,4 @@ jobs:
       # devDependencies on purpose: the Hosting deploy workflows run `npm ci` on every
       # push, and a local firebase-tools would slow every deploy to serve one job.
       - name: Run Firestore rules tests against the emulator
-        run: npx --yes firebase-tools@15.32.0 emulators:exec --only firestore "npx vitest run src/features/shared/firestoreRules.emulator.test.js"
+        run: npx --yes firebase-tools@15.32.0 emulators:exec --only firestore "npx vitest run src/features/shared/firestoreRulesEmulator"

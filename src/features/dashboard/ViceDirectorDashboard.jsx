@@ -23,6 +23,7 @@ import { ReportsDashboard } from "../reports";
 import { StudentApplications, UserForm, StudentRoster, BadgeModal } from "../students";
 import { CorporateEventsPanel } from "../attendance";
 import { ClassManager } from "../classes";
+import { getClassCapacity } from "../classes/classesUtils";
 import { StaffDirectory, InvitesPanel, TasksPanel } from "../staff";
 import { BRANCHES, branchToId, matchesBranchFilter } from "../../constants/branches";
 import {
@@ -139,7 +140,7 @@ export default function ViceDirectorDashboard() {
       let totalCapacity = 0;
       let enrolledSeats = 0;
       bClasses.forEach((cls) => {
-        const cap = Number(cls.maxCapacity || cls.capacity || cls.maxStudents) || 12;
+        const cap = getClassCapacity(cls);
         totalCapacity += cap;
         const enrolled = Array.isArray(cls.studentIds) ? cls.studentIds.length : 0;
         enrolledSeats += enrolled;

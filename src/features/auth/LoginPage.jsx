@@ -372,7 +372,7 @@ export default function LoginPage({ onLogin, onGoogleLogin = null, loading = fal
           </form>
 
           {/* ── Mode 1: Quick Test Accounts for Dev Mode ── */}
-          {isDevSwitcherEnabled && (
+          {isDevSwitcherEnabled && MODE_1_TEST_ACCOUNTS.length > 0 && (
             <div className="pt-2">
               <details open className="group rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/40 p-3.5 transition">
                 <summary className="text-xs font-bold text-indigo-950 cursor-pointer flex items-center justify-between list-none select-none">

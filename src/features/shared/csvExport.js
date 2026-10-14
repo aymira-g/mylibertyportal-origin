@@ -2,9 +2,12 @@
 // browser download. Used anywhere a table of records (roster, classes,
 // attendance, analytics) needs to leave the app as a spreadsheet file
 // instead of a printed page.
-function csvEscape(value) {
-  let str = String(value ?? "");
-  if (str.startsWith("=")) {
+export function csvEscape(value) {
+  if (value == null) return "";
+  if (typeof value === "number") return String(value);
+  let str = String(value);
+  const isPureNumber = /^-?\d+(\.\d+)?$/.test(str.trim());
+  if (!isPureNumber && /^[=+\-@\t\r]/.test(str)) {
     str = `'${str}`;
   }
   if (/[",\n\r]/.test(str)) return `"${str.replace(/"/g, '""')}"`;

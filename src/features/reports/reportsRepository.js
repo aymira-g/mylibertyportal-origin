@@ -1,5 +1,5 @@
 import { auth, db } from "../../firebase";
-import { collection, getDocs, getDoc, doc, query, where, limit } from "firebase/firestore";
+import { collection, getDocs, getDoc, doc, query, where, limit, orderBy } from "firebase/firestore";
 import { normalizeBranch, branchToId } from "../../constants/branches.js";
 import { isStaffRole } from "../shared/roles.js";
 
@@ -153,7 +153,7 @@ export async function fetchTodayScansData(sinceWitaIso, isAdminView, isFrontOffi
 }
 
 /**
- * @returns {Promise<{ users: any[], classes: any[], attendance: any[], progress: any[] }>}
+ * @returns {Promise<{ users: any[], classes: any[], attendance: any[], progress: any[], isProgressCapped: boolean }>}
  */
 export async function fetchStudentProgressData(isAdminView, isFrontOffice, since = null, branchId = null, isManager = false, division = null) {
   const normalizedBranchId = branchId ? branchToId(branchId) : null;
@@ -165,7 +165,7 @@ export async function fetchStudentProgressData(isAdminView, isFrontOffice, since
   // Never emit an unscoped list query that would violate isSameBranchStrict.
   if (!isExecutive && (isManager || isFrontOffice) && !normalizedBranchId) {
     console.warn("fetchStudentProgressData: branchId is required for non-executive view; returning empty results to prevent unauthorized unscoped query.");
-    return { users: [], classes: [], attendance: [], progress: [] };
+    return { users: [], classes: [], attendance: [], progress: [], isProgressCapped: false };
   }
 
   const classesFilters = [];
@@ -192,6 +192,11 @@ export async function fetchStudentProgressData(isAdminView, isFrontOffice, since
   if (division && division !== "all") {
     progressFilters.push(where("division", "==", division));
   }
+  if (since) {
+    const sinceDate = typeof since === "string" ? since.slice(0, 10) : since;
+    progressFilters.push(where("examDate", ">=", sinceDate));
+  }
+  progressFilters.push(orderBy("examDate", "desc"));
   progressFilters.push(limit(200));
   const progressQuery = query(collection(db, "progressReports"), ...progressFilters);
 
@@ -235,6 +240,7 @@ export async function fetchStudentProgressData(isAdminView, isFrontOffice, since
     classes: classesSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
     attendance: attendanceSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
     progress: progressSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+    isProgressCapped: progressSnap.docs.length >= 200,
   };
 }
 

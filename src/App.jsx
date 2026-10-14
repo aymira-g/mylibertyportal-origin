@@ -98,8 +98,8 @@ function App() {
   const [pendingStaffRequest, setPendingStaffRequest] = useState(null);
   const [requestingAccess, setRequestingAccess] = useState(false);
 
-  const isPreviewAllowed = Boolean(isDevSwitcherEnabled);
-  const canUseDevSwitcher = Boolean(isDevSwitcherEnabled);
+  const isPreviewAllowed = Boolean(import.meta.env.DEV && isDevSwitcherEnabled);
+  const canUseDevSwitcher = Boolean(import.meta.env.DEV && isDevSwitcherEnabled);
 
   const effectiveRole = (isPreviewAllowed && previewRole) || role;
   const effectiveDivision = (isPreviewAllowed && previewDivision) || division;

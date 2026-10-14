@@ -169,7 +169,7 @@ export function filterStaffMembers({
   }
 
   if (branchFilter !== "all") {
-    list = list.filter((u) => matchesBranchFilter(u.branch, branchFilter));
+    list = list.filter((u) => matchesBranchFilter(u.branchId || u.branch, branchFilter));
   }
 
   const q = (search || "").trim().toLowerCase();

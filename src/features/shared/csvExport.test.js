@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { exportTableCSV } from "./csvExport.js";
+import { exportTableCSV, csvEscape } from "./csvExport.js";
 
 let blob;
 let link;
@@ -77,5 +77,64 @@ describe("exportTableCSV", () => {
     exportTableCSV("x", ["Name"], [["=1+1"]]);
     const { text } = await read();
     expect(text.split("\r\n")[1].startsWith("=")).toBe(false);
+  });
+
+  it("prefixes non-numeric cells starting with +, -, @, \\t, \\r with apostrophe", async () => {
+    exportTableCSV(
+      "x",
+      ["A", "B", "C", "D", "E"],
+      [["+1+1", "-cmd|' /C calc'!A0", "@SUM(A1:B2)", "\tmalicious", "\rpayload"]]
+    );
+    const { text } = await read();
+    const row = text.split("\r\n")[1];
+    expect(row).toContain("'+1+1");
+    expect(row).toContain("'-cmd|' /C calc'!A0");
+    expect(row).toContain("'@SUM(A1:B2)");
+    expect(row).toContain("'\tmalicious");
+    expect(row).toContain("'\rpayload");
+  });
+
+  it("preserves pure negative and positive numbers without apostrophe prefix", async () => {
+    exportTableCSV(
+      "x",
+      ["Num", "StrNum", "Float", "Zero"],
+      [[-50000, "-75000", "-12.50", 0]]
+    );
+    const { text } = await read();
+    const row = text.split("\r\n")[1];
+    expect(row).toBe("-50000,-75000,-12.50,0");
+  });
+});
+
+describe("csvEscape unit tests", () => {
+  it("handles null, undefined, empty, and regular strings", () => {
+    expect(csvEscape(null)).toBe("");
+    expect(csvEscape(undefined)).toBe("");
+    expect(csvEscape("")).toBe("");
+    expect(csvEscape("Budi")).toBe("Budi");
+  });
+
+  it("preserves negative and positive numbers as strings", () => {
+    expect(csvEscape(-50000)).toBe("-50000");
+    expect(csvEscape("-50000")).toBe("-50000");
+    expect(csvEscape("-12.5")).toBe("-12.5");
+    expect(csvEscape(100)).toBe("100");
+    expect(csvEscape(0)).toBe("0");
+  });
+
+  it("prefixes formula injection triggers", () => {
+    expect(csvEscape("=SUM(1)")).toBe("'=SUM(1)");
+    expect(csvEscape("=SUM(1,2)")).toBe('"\'=SUM(1,2)"');
+    expect(csvEscape("+cmd")).toBe("'+cmd");
+    expect(csvEscape("-cmd")).toBe("'-cmd");
+    expect(csvEscape("@ALERT")).toBe("'@ALERT");
+    expect(csvEscape("\ttab")).toBe("'\ttab");
+    expect(csvEscape("\rcarriage")).toBe('"\'\rcarriage"');
+  });
+
+  it("escapes quotes and special characters", () => {
+    expect(csvEscape('He said "hi"')).toBe('"He said ""hi"""');
+    expect(csvEscape("line1\nline2")).toBe('"line1\nline2"');
+    expect(csvEscape("a,b")).toBe('"a,b"');
   });
 });

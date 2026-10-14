@@ -1,6 +1,6 @@
-import { collection, getDocs, limit, query, writeBatch, doc } from "firebase/firestore";
+import { collection, getDocs, limit, query } from "firebase/firestore";
 import { db } from "../../firebase";
-import { BRANCH_MAP, branchToId, idToBranch } from "../../constants/branches";
+import { BRANCH_MAP } from "../../constants/branches";
 
 export const AUDIT_COLLECTIONS = [
   { id: "users", label: "Users (Students & Staff)" },
@@ -125,93 +125,6 @@ export async function runBranchHealthAudit(maxPerCollection = 100) {
     totalMissing: sumMissing,
     collections: results,
     timestamp: new Date().toISOString(),
-  };
-}
-
-/**
- * Migrates a bounded batch of legacy documents in a specific collection,
- * populating canonical branchId and normalized branch name.
- * Strictly bounded to protect Firestore write limits.
- *
- * @param {string} collectionId
- * @param {number} batchSize - Max documents to update per batch (default 50)
- * @returns {Promise<{ collectionId: string, scanned: number, migrated: number, skipped: number }>}
- */
-export async function migrateLegacyBranchBatch(collectionId, batchSize = 50) {
-  const colRef = collection(db, collectionId);
-  const q = query(colRef, limit(batchSize));
-  const snap = await getDocs(q);
-
-  const batch = writeBatch(db);
-  let migratedCount = 0;
-  let skippedCount = 0;
-
-  for (const docSnap of snap.docs) {
-    const data = docSnap.data();
-    const status = classifyDocBranchStatus(data);
-
-    if (status === "legacy" || status === "missing") {
-      const rawBranch = data.branch || data.branchId || "Kota Gorontalo";
-      const branchId = branchToId(rawBranch);
-      const branch = idToBranch(branchId);
-
-      batch.update(doc(db, collectionId, docSnap.id), {
-        branchId,
-        branch,
-        branchMigratedAt: new Date().toISOString(),
-      });
-      migratedCount++;
-    } else {
-      skippedCount++;
-    }
-  }
-
-  if (migratedCount > 0) {
-    await batch.commit();
-  }
-
-  return {
-    collectionId,
-    scanned: snap.docs.length,
-    migrated: migratedCount,
-    skipped: skippedCount,
-  };
-}
-
-/**
- * Migrates a bounded batch across all core collections sequentially.
- *
- * @param {number} batchSizePerCollection
- * @returns {Promise<{ totalMigrated: number, results: Array<object> }>}
- */
-export async function migrateAllLegacyCollections(batchSizePerCollection = 30) {
-  const results = [];
-  let totalMigrated = 0;
-
-  for (const colDef of AUDIT_COLLECTIONS) {
-    try {
-      const res = await migrateLegacyBranchBatch(colDef.id, batchSizePerCollection);
-      totalMigrated += res.migrated;
-      results.push({
-        label: colDef.label,
-        ...res,
-      });
-    } catch (err) {
-      console.warn(`[BranchMigration] Failed to migrate ${colDef.id}:`, err);
-      results.push({
-        collectionId: colDef.id,
-        label: colDef.label,
-        scanned: 0,
-        migrated: 0,
-        skipped: 0,
-        error: err instanceof Error ? err.message : "Migration failed",
-      });
-    }
-  }
-
-  return {
-    totalMigrated,
-    results,
   };
 }
 

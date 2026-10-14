@@ -10,6 +10,7 @@ import {
   Target,
 } from "lucide-react";
 import { BRANCHES, matchesBranchFilter } from "../../../constants/branches";
+import { getClassCapacity } from "../../classes/classesUtils";
 import { DivisionBalanceCard } from "./DivisionBalanceCard";
 import { ExecutiveTuitionHealthCard } from "./ExecutiveTuitionHealthCard";
 import { getTier } from "../../../constants/levels";
@@ -76,7 +77,7 @@ export function ExecutiveAnalyticsPanel({
     let totalCap = 0;
     let enrolled = 0;
     filteredClasses.forEach((cls) => {
-      totalCap += Number(cls.capacity) || 12;
+      totalCap += getClassCapacity(cls);
       enrolled += Array.isArray(cls.studentIds) ? cls.studentIds.length : 0;
     });
     const fillRate = totalCap > 0 ? Math.round((enrolled / totalCap) * 100) : 0;

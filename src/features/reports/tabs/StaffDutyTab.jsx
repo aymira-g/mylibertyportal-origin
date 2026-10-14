@@ -110,7 +110,7 @@ const StaffDutyTab = forwardRef(
       const branchShifts =
         branchFilter === "all"
           ? shifts
-          : shifts.filter((s) => matchesBranchFilter(s.branch, branchFilter));
+          : shifts.filter((s) => matchesBranchFilter(s.branchId || s.branch, branchFilter));
       return detectMultipleOpenShifts(branchShifts);
     }, [shifts, branchFilter]);
 
@@ -120,7 +120,7 @@ const StaffDutyTab = forwardRef(
       const branchShifts =
         branchFilter === "all"
           ? shifts
-          : shifts.filter((s) => matchesBranchFilter(s.branch, branchFilter));
+          : shifts.filter((s) => matchesBranchFilter(s.branchId || s.branch, branchFilter));
 
       const staffMap = new Map(staffMembers.map((m) => [m.id, m]));
       const branchLeaves =
@@ -128,7 +128,7 @@ const StaffDutyTab = forwardRef(
           ? leaves
           : leaves.filter((l) => {
               const m = staffMap.get(l.userId);
-              return matchesBranchFilter(m?.branch, branchFilter);
+              return matchesBranchFilter(m?.branchId || m?.branch, branchFilter);
             });
 
       const onDutyList = branchShifts.filter((s) => getShiftStatus(s) === "on_duty");
@@ -163,7 +163,7 @@ const StaffDutyTab = forwardRef(
     const filteredShifts = useMemo(() => {
       let list = shifts;
       if (branchFilter !== "all") {
-        list = list.filter((s) => matchesBranchFilter(s.branch, branchFilter));
+        list = list.filter((s) => matchesBranchFilter(s.branchId || s.branch, branchFilter));
       }
       if (shiftRoleFilter !== "all") {
         list = list.filter((s) => s.role === shiftRoleFilter);

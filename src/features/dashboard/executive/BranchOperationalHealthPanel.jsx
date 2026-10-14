@@ -1,6 +1,7 @@
 import { Activity, AlertTriangle, ArrowRight, ShieldAlert, ShieldCheck } from "lucide-react";
 import { BRANCHES, matchesBranchFilter } from "../../../constants/branches";
 import { getPaymentHealthStatus } from "../../../constants/paymentPlans";
+import { getClassCapacity } from "../../classes/classesUtils";
 
 /**
  * BranchOperationalHealthPanel: Operational health & daily/weekly execution tracking
@@ -45,7 +46,7 @@ export function BranchOperationalHealthPanel({
     let totalSeats = 0;
     let enrolledSeats = 0;
     bClasses.forEach((c) => {
-      totalSeats += Number(c.capacity) || 12;
+      totalSeats += getClassCapacity(c);
       enrolledSeats += Array.isArray(c.studentIds) ? c.studentIds.length : 0;
     });
 

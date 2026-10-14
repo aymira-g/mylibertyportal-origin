@@ -96,7 +96,7 @@ const InstructorPunctualityTab = forwardRef(
 
     const filteredAnalytics = useMemo(() => {
       if (branchFilter === "all") return analytics;
-      return analytics.filter((a) => matchesBranchFilter(a.branch, branchFilter));
+      return analytics.filter((a) => matchesBranchFilter(a.branchId || a.branch, branchFilter));
     }, [analytics, branchFilter]);
 
     // Expose exportCSV to parent

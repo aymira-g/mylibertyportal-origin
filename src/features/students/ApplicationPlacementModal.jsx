@@ -71,9 +71,9 @@ export default function ApplicationPlacementModal({
     return classes.filter(
       (cls) =>
         getBatchAvailability(cls).canEnroll &&
-        (!app.branch || matchesBranchFilter(cls.branch, app.branch))
+        (!(app.branchId || app.branch) || matchesBranchFilter(cls.branchId || cls.branch, app.branchId || app.branch))
     );
-  }, [classes, app.branch]);
+  }, [classes, app.branch, app.branchId]);
 
   // Sort batches: applicant's program first, branch, batchType, then compatible with selectedLevel, then by name
   const sortedClasses = useMemo(() => {
@@ -369,7 +369,7 @@ export default function ApplicationPlacementModal({
               })}
             </select>
 
-            {selectedClass && !matchesBranchFilter(selectedClass.branch, app.branch) && (
+            {selectedClass && !matchesBranchFilter(selectedClass.branchId || selectedClass.branch, app.branchId || app.branch) && (
               <p className="text-[11px] text-amber-850 bg-amber-50 p-2.5 rounded-xl border border-amber-200 font-medium flex items-center gap-1.5">
                 <Building2 className="w-3.5 h-3.5 shrink-0 text-amber-700" />
                 <span>

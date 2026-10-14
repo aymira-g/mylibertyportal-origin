@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { AlertTriangle } from "lucide-react";
 import { auth, db } from "../../firebase";
 import { collection, onSnapshot, query, where, doc } from "firebase/firestore";
 import {
@@ -87,6 +88,7 @@ export default function ManagerDashboard() {
     return managerProfile.branchId || branchToId(managerProfile.branch || DEFAULT_BRANCH);
   }, [managerProfile]);
 
+  const hasUnsetDivision = Boolean(managerProfile && !managerProfile.division);
   const managerDivision = useMemo(() => {
     return managerProfile?.division || "courses";
   }, [managerProfile]);
@@ -422,15 +424,15 @@ export default function ManagerDashboard() {
 
   // Branch-scoped datasets
   const scopedUsers = useMemo(() => {
-    return users.filter((u) => matchesBranchFilter(u.branch, myBranch));
+    return users.filter((u) => matchesBranchFilter(u.branchId || u.branch, myBranch));
   }, [users, myBranch]);
 
   const scopedClasses = useMemo(() => {
-    return classes.filter((c) => matchesBranchFilter(c.branch, myBranch));
+    return classes.filter((c) => matchesBranchFilter(c.branchId || c.branch, myBranch));
   }, [classes, myBranch]);
 
   const scopedApplications = useMemo(() => {
-    return applications.filter((a) => matchesBranchFilter(a.branch, myBranch));
+    return applications.filter((a) => matchesBranchFilter(a.branchId || a.branch, myBranch));
   }, [applications, myBranch]);
 
   // Derived datasets
@@ -480,7 +482,7 @@ export default function ManagerDashboard() {
   const activeShifts = useMemo(() => {
     return shifts
       .filter((s) => getShiftStatus(s) === "on_duty")
-      .filter((s) => matchesBranchFilter(s.branch, myBranch));
+      .filter((s) => matchesBranchFilter(s.branchId || s.branch, myBranch));
   }, [shifts, myBranch]);
 
   const stats = {
@@ -647,12 +649,23 @@ export default function ManagerDashboard() {
     },
   ];
 
+  const divisionWarning = hasUnsetDivision ? (
+    <div className="mx-2 mb-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900" role="alert">
+      <div className="font-semibold flex items-center gap-1.5 mb-1">
+        <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+        Division Not Configured
+      </div>
+      Profile division is missing. Defaulting to &ldquo;courses&rdquo;. Contact Administrator or Vice Director to assign your division.
+    </div>
+  ) : null;
+
   return (
     <DashboardShell
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
       title={`Course Division Manager — ${myBranch}`}
+      extraSidebarContent={divisionWarning}
       primaryTabIds={["overview", "students", "approvals", "classes", "reports"]}
     />
   );

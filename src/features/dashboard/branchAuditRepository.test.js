@@ -3,13 +3,8 @@ import {
   classifyDocBranchStatus,
   computeCollectionBranchMetrics,
   runBranchHealthAudit,
-  migrateLegacyBranchBatch,
-  migrateAllLegacyCollections,
   AUDIT_COLLECTIONS,
 } from "./branchAuditRepository";
-
-const mockBatchUpdate = vi.fn();
-const mockBatchCommit = vi.fn().mockResolvedValue(true);
 
 vi.mock("../../firebase", () => ({
   db: {},
@@ -17,13 +12,8 @@ vi.mock("../../firebase", () => ({
 
 vi.mock("firebase/firestore", () => ({
   collection: vi.fn(),
-  doc: vi.fn((_db, col, id) => `${col}/${id}`),
   query: vi.fn(),
   limit: vi.fn(),
-  writeBatch: vi.fn(() => ({
-    update: mockBatchUpdate,
-    commit: mockBatchCommit,
-  })),
   getDocs: vi.fn().mockResolvedValue({
     docs: [
       { id: "1", data: () => ({ branchId: "kota_gorontalo" }) },
@@ -65,24 +55,5 @@ describe("branchAuditRepository", () => {
     expect(audit.totalScanned).toBeGreaterThan(0);
     expect(audit.overallReadiness).toBeDefined();
     expect(audit.timestamp).toBeDefined();
-  });
-
-  it("migrates legacy and missing documents in a bounded batch", async () => {
-    mockBatchUpdate.mockClear();
-    mockBatchCommit.mockClear();
-
-    const res = await migrateLegacyBranchBatch("payments", 50);
-    expect(res.collectionId).toBe("payments");
-    expect(res.scanned).toBe(3);
-    expect(res.migrated).toBe(2); // Doc 2 (legacy) and Doc 3 (missing)
-    expect(res.skipped).toBe(1); // Doc 1 (already canonical)
-    expect(mockBatchUpdate).toHaveBeenCalledTimes(2);
-    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
-  });
-
-  it("migrates across all audit collections sequentially", async () => {
-    const res = await migrateAllLegacyCollections(30);
-    expect(res.results.length).toBe(AUDIT_COLLECTIONS.length);
-    expect(res.totalMigrated).toBeGreaterThan(0);
   });
 });

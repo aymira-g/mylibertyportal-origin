@@ -5,9 +5,10 @@
 > **Target:** [Domain 10 (`03-audit-domains.md`)](../Comprehensive%20Hidden-Bug%20Audit%20Strategy/03-audit-domains.md#10-pwa--network--service-worker--updates)  
 > **Methodology:** [5-Pass Workflow Trace (`02-audit-method.md`)](../Comprehensive%20Hidden-Bug%20Audit%20Strategy/02-audit-method.md)  
 > **Governance:** [`MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](../../governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md) · **Architecture:** [`ARCHITECTURE.md`](../../ARCHITECTURE.md)  
-> **Date Executed:** 2026-10-12  
+> **Date Executed:** 2026-10-12 (Re-verified 2026-10-14)  
 > **Audit Status:** **PASS — AUDIT COMPLETE & ALL 7 FINDINGS REMEDIATED (CLOSED)**  
-> **Revision note:** All 7 findings remediated under owner authorization (kiosk auto-update option b approved 2026-10-12). Automated tests: 1,356 passed (103 test files), 0 lint errors, 0 type errors, production build clean.
+> **Binding Decision:** [`docs/decisions/2026-10-12-kiosk-unattended-auto-update-policy.md`](../../decisions/2026-10-12-kiosk-unattended-auto-update-policy.md) (Option b: 5m idle auto-update)  
+> **Revision note:** All 7 findings remediated under owner authorization. Targeted PWA suite: 18 passed across 2 test files. Full project regression suite: 1,381 passed across 104 test files (139 emulator rules tests), 0 lint errors, 0 typecheck errors, production build clean. Credentials stripped from client bundles (F-1) and service account key removed from project root (F-2).
 
 ---
 
@@ -100,7 +101,11 @@ Files inspected: `vite.config.js`, `src/main.jsx`, `src/App.jsx` (route early-re
 ---
 
 ## 5. Verdict
-
+ 
 **PASS — ALL 7 FINDINGS REMEDIATED AND CLOSED.**
-Automated test suite: 1,356 passed across 103 test files (123 emulator tests skipped, 0 failed). ESLint clean (0 errors), TypeScript clean (0 errors), production build clean (771ms).
-No database rules changed; zero-budget Spark tier preserved.
+- **Targeted PWA Suite:** 18 passed across 2 test files (`PwaUpdateBanner.test.js`, `networkReachability.test.js`).
+- **Full Project Regression Suite:** 1,381 passed across 104 test files (139 Firestore emulator tests passed).
+- **Static Quality:** ESLint clean (0 errors), TypeScript clean (0 errors via `tsc --noEmit`).
+- **Production Build:** Clean (`vite build` completed, client bundle verified clean of test passwords and test account emails).
+- **Governance:** Binding ADR recorded at [`docs/decisions/2026-10-12-kiosk-unattended-auto-update-policy.md`](../../decisions/2026-10-12-kiosk-unattended-auto-update-policy.md).
+- **Cost Invariant:** Zero database rules changed; zero-budget Spark tier strictly preserved.

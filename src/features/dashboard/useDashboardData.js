@@ -792,7 +792,7 @@ export function useDashboardData({
       );
     }
     if (effectiveBranch && effectiveBranch !== "all") {
-      list = list.filter((c) => matchesBranchFilter(c.branch, effectiveBranch));
+      list = list.filter((c) => matchesBranchFilter(c.branchId || c.branch, effectiveBranch));
     }
     return list;
   }, [classes, division, effectiveBranch]);
@@ -805,7 +805,7 @@ export function useDashboardData({
       );
     }
     if (effectiveBranch && effectiveBranch !== "all") {
-      list = list.filter((a) => matchesBranchFilter(a.branch, effectiveBranch));
+      list = list.filter((a) => matchesBranchFilter(a.branchId || a.branch, effectiveBranch));
     }
     return list;
   }, [applications, division, effectiveBranch]);
@@ -818,7 +818,7 @@ export function useDashboardData({
       );
     }
     if (effectiveBranch && effectiveBranch !== "all") {
-      list = list.filter((s) => matchesBranchFilter(s.branch, effectiveBranch));
+      list = list.filter((s) => matchesBranchFilter(s.branchId || s.branch, effectiveBranch));
     }
     return list;
   }, [users, division, effectiveBranch]);
@@ -829,7 +829,7 @@ export function useDashboardData({
       list = list.filter((u) => matchesDivisionFilter(u.division, division));
     }
     if (effectiveBranch && effectiveBranch !== "all") {
-      list = list.filter((u) => matchesBranchFilter(u.branch, effectiveBranch));
+      list = list.filter((u) => matchesBranchFilter(u.branchId || u.branch, effectiveBranch));
     }
     return list;
   }, [users, division, effectiveBranch]);

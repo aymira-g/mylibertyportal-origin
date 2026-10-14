@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getDuration, getEnrollment, openWhatsAppParentChat } from "./classesUtils.js";
+import { getClassCapacity, getDuration, getEnrollment, openWhatsAppParentChat } from "./classesUtils.js";
 
 describe("getEnrollment", () => {
   const cls = {
@@ -83,5 +83,35 @@ describe("openWhatsAppParentChat", () => {
 
   it("does not crash when no toast function is passed", () => {
     expect(() => openWhatsAppParentChat("", "Budi", { className: "A" })).not.toThrow();
+  });
+});
+
+describe("getClassCapacity", () => {
+  it("prefers canonical maxCapacity when available", () => {
+    expect(getClassCapacity({ maxCapacity: 15, capacity: 10, maxStudents: 8 })).toBe(15);
+  });
+
+  it("falls back to legacy capacity when maxCapacity is missing", () => {
+    expect(getClassCapacity({ capacity: 10, maxStudents: 8 })).toBe(10);
+  });
+
+  it("falls back to maxStudents when maxCapacity and capacity are missing", () => {
+    expect(getClassCapacity({ maxStudents: 8 })).toBe(8);
+  });
+
+  it("falls back to default 12 when no capacity fields exist or when null/undefined", () => {
+    expect(getClassCapacity({})).toBe(12);
+    expect(getClassCapacity(null)).toBe(12);
+    expect(getClassCapacity(undefined)).toBe(12);
+  });
+
+  it("handles string numbers correctly", () => {
+    expect(getClassCapacity({ maxCapacity: "20" })).toBe(20);
+  });
+
+  it("falls back to 12 on invalid or zero numbers", () => {
+    expect(getClassCapacity({ maxCapacity: 0 })).toBe(12);
+    expect(getClassCapacity({ maxCapacity: -5 })).toBe(12);
+    expect(getClassCapacity({ maxCapacity: "not-a-number" })).toBe(12);
   });
 });

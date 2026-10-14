@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useMemo, useImperativeHandle, forwardRef } from "react";
-import { getRecentPayments } from "../../finance/paymentsRepository";
+import { fetchPaymentsForWindow } from "../../finance/paymentsRepository";
 import { formatIDR } from "../../finance/receiptMessages";
 import { summarizePaymentsByMethod } from "../../finance/financeUtils";
 import { exportTableCSV } from "../../shared";
 import { branchToId } from "../../../constants/branches";
-import { filterPayments } from "../reportsUtils";
+import { filterPayments, rangeToSince } from "../reportsUtils";
 import {
   DollarSign,
   Wallet,
@@ -12,7 +12,11 @@ import {
   QrCode,
   Search,
   RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
+
+const financialCache = new Map();
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 const FinancialReportsTab = forwardRef(
   /**
@@ -26,16 +30,29 @@ const FinancialReportsTab = forwardRef(
   function FinancialReportsTab({ branchFilter = "all", rangeDays = 30, division = "all" }, ref) {
     const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isCapped, setIsCapped] = useState(false);
     const [search, setSearch] = useState("");
     const [methodFilter, setMethodFilter] = useState("all");
 
-    const fetchFinancialData = useCallback(async () => {
+    const fetchFinancialData = useCallback(async (force = false) => {
       setLoading(true);
       try {
         const canonicalBranchId = branchFilter !== "all" ? branchToId(branchFilter) : "all";
-        const limitCount = rangeDays === 0 ? 300 : rangeDays <= 7 ? 100 : 200;
-        const list = await getRecentPayments(limitCount, canonicalBranchId, division !== "all" ? division : null);
-        setPayments(list);
+        const cacheKey = `${canonicalBranchId}_${division}_${rangeDays}`;
+        const cached = financialCache.get(cacheKey);
+        if (!force && cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+          setPayments(cached.payments);
+          setIsCapped(cached.isCapped);
+          setLoading(false);
+          return;
+        }
+
+        // Bound All Time (0) to rolling school year (365d) to protect free-tier Spark budget
+        const sinceIso = rangeDays === 0 ? new Date(Date.now() - 365 * 86400000).toISOString() : rangeToSince(rangeDays);
+        const result = await fetchPaymentsForWindow(sinceIso, canonicalBranchId, division !== "all" ? division : null, 2000);
+        financialCache.set(cacheKey, { payments: result.payments, isCapped: result.isCapped, timestamp: Date.now() });
+        setPayments(result.payments);
+        setIsCapped(result.isCapped);
       } catch (err) {
         console.error("Failed to load financial report data:", err);
       } finally {
@@ -100,6 +117,13 @@ const FinancialReportsTab = forwardRef(
 
     return (
       <div className="space-y-6">
+        {isCapped && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 flex items-center gap-2" role="status">
+            <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
+            <span>Showing the latest 2,000 transactions for this period. Filter by campus or narrow the date window for complete breakdowns.</span>
+          </div>
+        )}
+
         {/* KPI Summary Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
           <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-100 space-y-1">
@@ -183,7 +207,7 @@ const FinancialReportsTab = forwardRef(
 
           <button
             type="button"
-            onClick={fetchFinancialData}
+            onClick={() => fetchFinancialData(true)}
             disabled={loading}
             className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1a3a8f] hover:underline self-end sm:self-auto cursor-pointer"
           >

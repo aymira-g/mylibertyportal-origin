@@ -6,6 +6,7 @@ import { filterPayments } from "../reportsUtils";
 
 vi.mock("../../finance/paymentsRepository", () => ({
   getRecentPayments: vi.fn().mockResolvedValue([]),
+  fetchPaymentsForWindow: vi.fn().mockResolvedValue({ payments: [], isCapped: false }),
 }));
 
 describe("FinancialReportsTab & filterPayments (DOM11 Conformance)", () => {

@@ -250,8 +250,8 @@ describe("fetchStudentProgressData", () => {
       { id: "att2", timestamp: "2026-09-20T08:00:00.000Z", branchId: "bone_bolango" },
     ]);
     fake.seed("progressReports", [
-      { id: "p1", studentId: "st1", branchId: "kota_gorontalo" },
-      { id: "p2", studentId: "st2", branchId: "bone_bolango" },
+      { id: "p1", studentId: "st1", branchId: "kota_gorontalo", examDate: "2026-09-20" },
+      { id: "p2", studentId: "st2", branchId: "bone_bolango", examDate: "2026-09-20" },
     ]);
 
     const result = await fetchStudentProgressData(true, false, "2026-09-01T00:00:00.000Z", "Kota Gorontalo");
@@ -278,8 +278,8 @@ describe("fetchStudentProgressData", () => {
       { id: "att1", timestamp: "2026-09-20T08:00:00.000Z", branchId: "kota_gorontalo" },
     ]);
     fake.seed("progressReports", [
-      { id: "p1", studentId: "st1", branchId: "kota_gorontalo", division: "kindergarten" },
-      { id: "p2", studentId: "st2", branchId: "kota_gorontalo", division: "courses" },
+      { id: "p1", studentId: "st1", branchId: "kota_gorontalo", division: "kindergarten", examDate: "2026-09-20" },
+      { id: "p2", studentId: "st2", branchId: "kota_gorontalo", division: "courses", examDate: "2026-09-20" },
     ]);
 
     const result = await fetchStudentProgressData(
@@ -296,6 +296,22 @@ describe("fetchStudentProgressData", () => {
     expect(result.users[0].id).toBe("st1");
     expect(result.progress).toHaveLength(1);
     expect(result.progress[0].id).toBe("p1");
+    expect(result.isProgressCapped).toBe(false);
+  });
+
+  it("filters progressReports by examDate since window and reports capped status", async () => {
+    fake.seed("classes", [{ id: "c1", branchId: "kota_gorontalo" }]);
+    fake.seed("users", [{ id: "st1", role: "student", branchId: "kota_gorontalo" }]);
+    fake.seed("attendance", []);
+    fake.seed("progressReports", [
+      { id: "pOld", studentId: "st1", branchId: "kota_gorontalo", examDate: "2026-08-15" },
+      { id: "pNew", studentId: "st1", branchId: "kota_gorontalo", examDate: "2026-09-15" },
+    ]);
+
+    const result = await fetchStudentProgressData(true, false, "2026-09-01T00:00:00.000Z", "Kota Gorontalo");
+    expect(result.progress).toHaveLength(1);
+    expect(result.progress[0].id).toBe("pNew");
+    expect(result.isProgressCapped).toBe(false);
   });
 });
 

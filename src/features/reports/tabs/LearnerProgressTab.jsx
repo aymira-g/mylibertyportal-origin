@@ -27,6 +27,7 @@ const LearnerProgressTab = forwardRef(
     const [selectedClassId, setSelectedClassId] = useState("all");
     const [healthFilter, setHealthFilter] = useState("all"); // "all" | "at_risk" | "regular"
     const [studentsLoading, setStudentsLoading] = useState(true);
+    const [isProgressCapped, setIsProgressCapped] = useState(false);
     const [expandedId, setExpandedId] = useState(null);
     const [studentSearch, setStudentSearch] = useState("");
 
@@ -42,6 +43,7 @@ const LearnerProgressTab = forwardRef(
           classes: rawClasses,
           attendance,
           progress,
+          isProgressCapped: capped,
         } = await fetchStudentProgressData(
           isExecutive,
           isFrontOffice,
@@ -50,6 +52,7 @@ const LearnerProgressTab = forwardRef(
           isManager,
           division !== "all" ? division : null
         );
+        setIsProgressCapped(Boolean(capped));
 
         const usersById = {};
         users.forEach((u) => {
@@ -168,7 +171,7 @@ const LearnerProgressTab = forwardRef(
       const branchStudents =
         branchFilter === "all"
           ? students
-          : students.filter((s) => matchesBranchFilter(s.branch, branchFilter));
+          : students.filter((s) => matchesBranchFilter(s.branchId || s.branch, branchFilter));
 
       const totalEnrolled = branchStudents.filter((s) => !s.isArchived).length;
       const atRiskCount = branchStudents.filter((s) => s.isAtRisk).length;
@@ -187,7 +190,7 @@ const LearnerProgressTab = forwardRef(
     const filteredStudents = useMemo(() => {
       let list = students;
       if (branchFilter !== "all") {
-        list = list.filter((s) => matchesBranchFilter(s.branch, branchFilter));
+        list = list.filter((s) => matchesBranchFilter(s.branchId || s.branch, branchFilter));
       }
       if (healthFilter === "at_risk") {
         list = list.filter((s) => s.isAtRisk);
@@ -257,6 +260,13 @@ const LearnerProgressTab = forwardRef(
             />
           </div>
         </div>
+
+        {isProgressCapped && (
+          <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs text-blue-900 flex items-center gap-2" role="status">
+            <AlertTriangle className="w-4 h-4 text-blue-700 shrink-0" />
+            <span>Showing the latest 200 progress evaluations. Narrow the date window or select a specific branch to view earlier records.</span>
+          </div>
+        )}
 
         {studentsLoading ? (
           <div className="p-12 text-center text-slate-400 text-xs italic flex items-center justify-center gap-2">

@@ -32,16 +32,6 @@ vi.mock("./branchAuditRepository", () => ({
     ],
     timestamp: "2026-09-30T10:00:00.000Z",
   }),
-  migrateLegacyBranchBatch: vi.fn().mockResolvedValue({
-    collectionId: "payments",
-    scanned: 15,
-    migrated: 3,
-    skipped: 12,
-  }),
-  migrateAllLegacyCollections: vi.fn().mockResolvedValue({
-    totalMigrated: 5,
-    results: [],
-  }),
 }));
 
 describe("BranchHealthAuditCard Component", () => {
@@ -49,7 +39,7 @@ describe("BranchHealthAuditCard Component", () => {
     vi.clearAllMocks();
   });
 
-  it("renders Branch Health Audit header, scan buttons, and readiness title", () => {
+  it("renders Branch Health Audit header, scan button, and readiness title", () => {
     const html = renderToStaticMarkup(
       React.createElement(BranchHealthAuditCard, { defaultExpanded: true })
     );
@@ -57,7 +47,7 @@ describe("BranchHealthAuditCard Component", () => {
     expect(html).toContain("Active Audit");
     expect(html).toContain("Re-run health scan");
     expect(html).toContain("Inspecting...");
-    expect(html).toContain("Backfill All");
+    expect(html).not.toContain("Backfill All");
     expect(html).toContain("Scanning collections for branch partition health...");
   });
 

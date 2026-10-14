@@ -31,3 +31,19 @@ export const openWhatsAppParentChat = (parentPhone, studentName, cls, toast) => 
   const url = `https://wa.me/${formatted}?text=${encodeURIComponent(text)}`;
   window.open(url, "_blank");
 };
+
+/**
+ * Canonical resolution of a class batch's student capacity.
+ * Handles schema evolution across `maxCapacity`, legacy `capacity`, and `maxStudents`,
+ * falling back to the standard cohort default of 12.
+ *
+ * @param {Record<string, any>|null|undefined} cls
+ * @returns {number}
+ */
+export const getClassCapacity = (cls) => {
+  if (!cls || typeof cls !== "object") return 12;
+  const c = /** @type {Record<string, any>} */ (cls);
+  const raw = c.maxCapacity ?? c.capacity ?? c.maxStudents;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 12;
+};

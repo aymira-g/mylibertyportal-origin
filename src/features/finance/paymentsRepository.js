@@ -84,38 +84,56 @@ export async function getRecentPayments(limitCount = 50, branchId = null, divisi
   if (!resolvedBranch) {
     return [];
   }
-  try {
-    const constraints = [];
-    if (resolvedBranch !== "all") {
-      constraints.push(where("branchId", "==", resolvedBranch));
-    }
-    if (division && division !== "all") {
-      constraints.push(where("division", "==", division));
-    }
-    constraints.push(orderBy("recordedAt", "desc"), limit(limitCount));
-    const q = query(
-      collection(db, "payments"),
-      ...constraints
-    );
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }));
-  } catch (err) {
-    // If composite index is pending, fallback to client-side sort
-    console.warn("getRecentPayments fallback without orderBy:", err?.message);
-    const fallbackConstraints = [];
-    if (resolvedBranch !== "all") {
-      fallbackConstraints.push(where("branchId", "==", resolvedBranch));
-    }
-    if (division && division !== "all") {
-      fallbackConstraints.push(where("division", "==", division));
-    }
-    fallbackConstraints.push(limit(limitCount));
-    const q = query(collection(db, "payments"), ...fallbackConstraints);
-    const snap = await getDocs(q);
-    const list = snap.docs.map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }));
-    list.sort((a, b) => new Date(b.recordedAt || 0).getTime() - new Date(a.recordedAt || 0).getTime());
-    return list;
+  const constraints = [];
+  if (resolvedBranch !== "all") {
+    constraints.push(where("branchId", "==", resolvedBranch));
   }
+  if (division && division !== "all") {
+    constraints.push(where("division", "==", division));
+  }
+  constraints.push(orderBy("recordedAt", "desc"), limit(limitCount));
+  const q = query(
+    collection(db, "payments"),
+    ...constraints
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }));
+}
+
+/**
+ * Fetches all payments recorded within a time horizon (recordedAt >= sinceIso).
+ * Guarantees complete totals for the requested window without artificial pagination truncation,
+ * while enforcing a 2,000 document ceiling to preserve zero-budget Spark tier retention.
+ *
+ * @param {string|null} [sinceIso=null]
+ * @param {string|null} [branchId=null]
+ * @param {string|null} [division=null]
+ * @param {number} [maxLimit=2000]
+ * @returns {Promise<{ payments: Array<any>, isCapped: boolean }>}
+ */
+export async function fetchPaymentsForWindow(sinceIso = null, branchId = null, division = null, maxLimit = 2000) {
+  const resolvedBranch = await resolveCallerBranchId(branchId);
+  if (!resolvedBranch) {
+    return { payments: [], isCapped: false };
+  }
+  const constraints = [];
+  if (resolvedBranch !== "all") {
+    constraints.push(where("branchId", "==", resolvedBranch));
+  }
+  if (division && division !== "all") {
+    constraints.push(where("division", "==", division));
+  }
+  if (sinceIso) {
+    constraints.push(where("recordedAt", ">=", sinceIso));
+  }
+  constraints.push(orderBy("recordedAt", "desc"), limit(maxLimit));
+  const q = query(collection(db, "payments"), ...constraints);
+  const snap = await getDocs(q);
+  const payments = snap.docs.map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }));
+  return {
+    payments,
+    isCapped: snap.docs.length >= maxLimit,
+  };
 }
 
 /**

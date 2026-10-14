@@ -154,7 +154,7 @@ export default function AvailableBatches({
         if (programFilter !== "all" && getBatchProgram(b) !== programFilter) return false;
         if (batchTypeFilter !== "all" && !matchesBatchTypeFilter(b.batchType, batchTypeFilter))
           return false;
-        if (branchFilter !== "all" && !matchesBranchFilter(b.branch, branchFilter)) return false;
+        if (branchFilter !== "all" && !matchesBranchFilter(b.branchId || b.branch, branchFilter)) return false;
         if (tierFilter !== "all" && getTier(b.classLevel) !== tierFilter) return false;
         if (levelFilter !== "all" && b.classLevel !== levelFilter) return false;
         if (statusFilter === "open" && (!b.isAvailable || b.seatsAvailable <= 0)) return false;

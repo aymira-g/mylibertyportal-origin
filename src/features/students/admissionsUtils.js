@@ -165,7 +165,7 @@ export function filterApplications({
   });
 
   if (branch && branch !== "all") {
-    list = list.filter((a) => matchesBranchFilter(a.branch, branch));
+    list = list.filter((a) => matchesBranchFilter(a.branchId || a.branch, branch));
   }
 
   if (program && program !== "all") {
@@ -256,8 +256,8 @@ export function sortPlacementBatches(
     }
 
     if (appBranch) {
-      const aBranchMatch = matchesBranchFilter(a.branch, appBranch);
-      const bBranchMatch = matchesBranchFilter(b.branch, appBranch);
+      const aBranchMatch = matchesBranchFilter(a.branchId || a.branch, appBranch);
+      const bBranchMatch = matchesBranchFilter(b.branchId || b.branch, appBranch);
       if (aBranchMatch && !bBranchMatch) return -1;
       if (!aBranchMatch && bBranchMatch) return 1;
     }

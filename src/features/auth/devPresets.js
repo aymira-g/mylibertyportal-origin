@@ -6,14 +6,17 @@
 
 export const isDevSwitcherEnabled = Boolean(import.meta.env.DEV);
 
-export const DEV_TEST_PASSWORD = import.meta.env.VITE_DEV_TEST_PASSWORD || "";
+export const DEV_TEST_PASSWORD = import.meta.env.DEV
+  ? (import.meta.env.VITE_DEV_TEST_PASSWORD || "")
+  : "";
 
 
 /**
  * Mode 1: Test accounts with actual Firestore /users/{uid} documents
  * for live security rules and data query verification.
  */
-export const MODE_1_TEST_ACCOUNTS = [
+export const MODE_1_TEST_ACCOUNTS = import.meta.env.DEV
+  ? [
   {
     label: "Director",
     shortLabel: "Director",
@@ -146,7 +149,7 @@ export const MODE_1_TEST_ACCOUNTS = [
     branch: "kota_gorontalo",
     badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
   },
-];
+] : [];
 
 /**
  * Mode 2: In-memory preview roles for rapid layout and UI testing.
@@ -179,7 +182,8 @@ export {
  * Explicit accounts covering legacy role aliases for test suites, regression tests,
  * and emulator verification without cluttering the primary user-facing quick switcher UI.
  */
-export const MODE_1_LEGACY_ALIAS_ACCOUNTS = [
+export const MODE_1_LEGACY_ALIAS_ACCOUNTS = import.meta.env.DEV
+  ? [
   {
     label: "Front Office Lead (Legacy ops_lead)",
     shortLabel: "FO Lead · ops_lead",
@@ -210,5 +214,5 @@ export const MODE_1_LEGACY_ALIAS_ACCOUNTS = [
     branch: "kota_gorontalo",
     badgeColor: "bg-teal-100 text-teal-800 border-teal-200",
   },
-];
+] : [];
 

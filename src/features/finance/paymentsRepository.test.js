@@ -8,6 +8,7 @@ import {
   updatePaymentApprovalStatus,
   getRecentPayments,
   getPaymentsForRecordedDay,
+  fetchPaymentsForWindow,
   resolveCallerBranchId,
 } from "./paymentsRepository.js";
 
@@ -273,6 +274,29 @@ describe("getRecentPayments & getPaymentsForRecordedDay (DOM04-SEC-01 & DOM04-ID
     mockAuth.currentUser = null;
     const list = await getRecentPayments(50, null);
     expect(list).toEqual([]);
+  });
+
+  it("fetches window payments bounded by since date, branch, and division", async () => {
+    const result = await fetchPaymentsForWindow(
+      "2026-10-12T02:15:00.000Z",
+      "kota_gorontalo",
+      "courses",
+      2000
+    );
+    expect(result.isCapped).toBe(false);
+    expect(result.payments.length).toBe(1);
+    expect(result.payments[0].id).toBe("pay-2");
+  });
+
+  it("reports isCapped true when results reach maxLimit ceiling", async () => {
+    const result = await fetchPaymentsForWindow(
+      "2026-10-12T00:00:00.000Z",
+      "kota_gorontalo",
+      null,
+      1
+    );
+    expect(result.isCapped).toBe(true);
+    expect(result.payments.length).toBe(1);
   });
 });
 

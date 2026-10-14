@@ -9,6 +9,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { BRANCHES, matchesBranchFilter, branchToId } from "../../../constants/branches";
+import { getClassCapacity } from "../../classes/classesUtils";
 import { ExecutiveBranchScopeBar } from "./ExecutiveBranchScopeBar";
 import { MultiBranchPerformanceGrid } from "./MultiBranchPerformanceGrid";
 
@@ -60,7 +61,7 @@ export function BranchPerformancePanel({
       let totalCapacity = 0;
       let enrolledSeats = 0;
       bClasses.forEach((cls) => {
-        const cap = Number(cls.capacity) || 12;
+        const cap = getClassCapacity(cls);
         totalCapacity += cap;
         const enrolled = Array.isArray(cls.studentIds) ? cls.studentIds.length : 0;
         enrolledSeats += enrolled;
@@ -108,7 +109,7 @@ export function BranchPerformancePanel({
     let totalCap = 0;
     let enrolled = 0;
     classes.forEach((cls) => {
-      totalCap += Number(cls.capacity) || 12;
+      totalCap += getClassCapacity(cls);
       enrolled += Array.isArray(cls.studentIds) ? cls.studentIds.length : 0;
     });
     return {

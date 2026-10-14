@@ -157,3 +157,47 @@ Flows and components inspected:
 6. **Automated Verification:**
    - Add unit tests for `ConfirmProvider` and `useOverlayHistory` verifying Escape key dismissals and backdrop dismissals.
    - Execute full test suite, lint, typecheck, and build.
+
+---
+
+## 5. Revision Brief v2 Remediation & Owner Decision OD-1 (2026-10-14)
+
+Following the independent auditor's second-opinion review (`Revision Brief v2 for the Executor`), all additional findings and requirements were implemented and verified:
+
+### 1. OD-1 Owner Decision Resolved: Cashier Manual Count Enforced
+- **Resolution:** Owner Kifry selected **Option 1: Remove the button**.
+- **Implementation:** Completely removed the "Match Expected" auto-fill button (`handleAutoFillExpected()`) from [`ShiftReconciliationModal.jsx`](file:///e:/myliberty-portal/src/features/dashboard/frontoffice/ShiftReconciliationModal.jsx). The expected register totals remain visible for managerial reference, but cashiers are strictly required to manually count and enter actual physical cash and QRIS intakes. Eliminates rubber-stamping and discrepancy obfuscation.
+
+### 2. Multi-Overlay Scroll Lock Manager (`W-3`)
+- **Implementation:** Created reference-counted [`src/features/shared/scrollLock.js`](file:///e:/myliberty-portal/src/features/shared/scrollLock.js) (`lockScroll()`, `unlockScroll()`, `getScrollLockCount()`).
+- **Behavior:** Prevents scroll flickering when stacked modals open/close. Document scroll is locked upon opening the first overlay (count 0 → 1) and restored only when all overlays are closed (count 1 → 0).
+- **Unit Testing:** 4 unit tests in [`scrollLock.test.js`](file:///e:/myliberty-portal/src/features/shared/scrollLock.test.js) passing 100%.
+
+### 3. Modal Categorization, Escape/Back Trapping & Dirty Guarding (`W-1`, `C-1`, `C-2`)
+- **Group A (Read-Only / Ephemeral):** Wired `useOverlayHistory`, backdrop click dismissal, `role="dialog"`, `aria-modal="true"`, and `aria-label="Close"` in [`SchoolDetailModal.jsx`](file:///e:/myliberty-portal/src/features/dashboard/manager/SchoolDetailModal.jsx), [`IosInstallModal.jsx`](file:///e:/myliberty-portal/src/features/pwa/IosInstallModal.jsx), [`BadgeModal.jsx`](file:///e:/myliberty-portal/src/features/students/BadgeModal.jsx), [`ProfilePanel.jsx`](file:///e:/myliberty-portal/src/features/auth/ProfilePanel.jsx), and [`PaymentCashierTab.jsx`](file:///e:/myliberty-portal/src/features/dashboard/frontoffice/PaymentCashierTab.jsx).
+- **Group B (Typed Forms & Money):** Strictly prohibited backdrop click dismissal to prevent accidental data loss. Added unsubmitted dirty confirmation prompts via `useConfirm` before closing on hardware Back or Escape. Blocked dismissal entirely while operations are in flight (`saving` / `submitting`):
+  - [`ShiftReconciliationModal.jsx`](file:///e:/myliberty-portal/src/features/dashboard/frontoffice/ShiftReconciliationModal.jsx)
+  - [`PaymentModal.jsx`](file:///e:/myliberty-portal/src/features/finance/PaymentModal.jsx)
+  - [`StudentParentLinkage.jsx`](file:///e:/myliberty-portal/src/features/students/StudentParentLinkage.jsx)
+  - [`SchoolVisitModal.jsx`](file:///e:/myliberty-portal/src/features/dashboard/marketing/SchoolVisitModal.jsx)
+  - [`BatchOutreachPanel.jsx`](file:///e:/myliberty-portal/src/features/classes/BatchOutreachPanel.jsx)
+- **Group C (Shared Kiosks):** Wired hardware Back and Escape to `onCancel` (canceling pending clock-in or transition) without closing the kiosk screen, and prohibited backdrop dismissal:
+  - [`KioskClockInModal.jsx`](file:///e:/myliberty-portal/src/features/attendance/KioskClockInModal.jsx)
+  - [`KioskTransitionModal.jsx`](file:///e:/myliberty-portal/src/features/attendance/KioskTransitionModal.jsx)
+- **Group D (Camera Scanner):** Wired hardware Back and Escape to `setScannerOpen(false)` in [`InstructorAttendanceView.jsx`](file:///e:/myliberty-portal/src/features/attendance/InstructorAttendanceView.jsx). Added safeguarded Promise rejection catch (`clearPromise?.catch(() => {})`) preventing camera stream teardown errors.
+
+### 4. Stacked Overlay Escape Interception (`C-3`)
+- **Implementation:** In [`ConfirmProvider.jsx`](file:///e:/myliberty-portal/src/features/shared/ConfirmProvider.jsx), attached `keydown` listener in the capture phase (`useCapture: true`) with `e.stopImmediatePropagation()`. Prevents child confirmation dialogs from triggering Escape dismissal on parent modals underneath.
+
+### 5. Accessibility Enhancements (`W-2`, `W-5`, `W-7`)
+- **Search Reset Buttons (`W-2`):** Added `aria-label="Clear search"` in [`StudentRosterFilters.jsx`](file:///e:/myliberty-portal/src/features/students/StudentRosterFilters.jsx) and [`ParentsList.jsx`](file:///e:/myliberty-portal/src/features/students/ParentsList.jsx).
+- **Student Form Field Labels (`W-5`):** Explicitly associated all labels with inputs via unique `htmlFor` and `id` across [`StudentPersonalFields.jsx`](file:///e:/myliberty-portal/src/features/students/StudentPersonalFields.jsx), [`StudentAcademicFields.jsx`](file:///e:/myliberty-portal/src/features/students/StudentAcademicFields.jsx), and [`StudentTuitionFields.jsx`](file:///e:/myliberty-portal/src/features/students/StudentTuitionFields.jsx).
+- **Idle Warning Alert Dialog (`W-7`):** In [`src/App.jsx`](file:///e:/myliberty-portal/src/App.jsx), added `role="alertdialog"`, `aria-modal="true"`, `aria-labelledby="idle-warning-title"`, and reference-counted `lockScroll()` / `unlockScroll()`.
+
+### 6. Verification Results
+- **Unit Tests:** 105 passed test files, 1,398 passed tests, 0 failed tests (`npm test`).
+- **Security Rules Emulator Tests:** 7 passed test files, 139 passed tests, 0 failed tests (`npm run test:rules`).
+- **ESLint:** 0 errors, 0 warnings (`npm run lint`).
+- **TypeScript:** 0 type errors (`npm run typecheck`).
+- **Production Build:** Clean Vite production build completed in 5.31s (`npm run build`).
+- **Status:** **PASS — ALL DOMAIN 12 REMEDIATIONS COMPLETED & VERIFIED**.

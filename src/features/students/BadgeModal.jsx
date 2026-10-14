@@ -57,8 +57,18 @@ export default function BadgeModal({ person, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 animate-in fade-in duration-200"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="badge-modal-title"
+        className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col"
+      >
         {/* Mobile handle indicator */}
         <div className="pt-3 pb-1 flex justify-center sm:hidden">
           <div className="h-1.5 w-12 rounded-full bg-slate-200" />
@@ -68,7 +78,7 @@ export default function BadgeModal({ person, onClose }) {
         <div className="no-print px-5 py-3.5 flex items-center justify-between border-b border-slate-100 bg-slate-50/60">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+            <span id="badge-modal-title" className="text-xs font-bold text-slate-700 uppercase tracking-wider">
               {isStudent ? "Student Identification" : "Staff Credential"}
             </span>
           </div>

@@ -40,7 +40,7 @@ export default function StudentTuitionFields({ formData, field }) {
         {/* 1. Monthly Tuition Rate */}
         <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
           <div className="flex items-center justify-between">
-            <label className="block font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+            <label htmlFor="tuition-monthly-rate" className="block font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5 cursor-pointer">
               <Banknote className="w-3.5 h-3.5 text-[#1a3a8f]" />
               <span>Tuition Rate (IDR)</span>
             </label>
@@ -52,6 +52,7 @@ export default function StudentTuitionFields({ formData, field }) {
               Rp
             </span>
             <input
+              id="tuition-monthly-rate"
               type="number"
               value={formData.tuitionRate === "" || formData.tuitionRate === undefined || formData.tuitionRate === null ? "" : formData.tuitionRate}
               onChange={(e) => field("tuitionRate", e.target.value === "" ? "" : Number(e.target.value))}
@@ -66,7 +67,7 @@ export default function StudentTuitionFields({ formData, field }) {
         {/* 2. Registration Fee */}
         <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
           <div className="flex items-center justify-between">
-            <label className="block font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+            <label htmlFor="tuition-registration-fee" className="block font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5 cursor-pointer">
               <UserPlus className="w-3.5 h-3.5 text-indigo-600" />
               <span>Registration Fee (IDR)</span>
             </label>
@@ -78,6 +79,7 @@ export default function StudentTuitionFields({ formData, field }) {
               Rp
             </span>
             <input
+              id="tuition-registration-fee"
               type="number"
               value={formData.registrationFee === "" || formData.registrationFee === undefined || formData.registrationFee === null ? "" : formData.registrationFee}
               onChange={(e) => field("registrationFee", e.target.value === "" ? "" : Number(e.target.value))}
@@ -92,7 +94,7 @@ export default function StudentTuitionFields({ formData, field }) {
         {/* 3. Handbook for 6 Months */}
         <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
           <div className="flex items-center justify-between">
-            <label className="block font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+            <label htmlFor="tuition-handbook-fee" className="block font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5 cursor-pointer">
               <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
               <span>Handbook 6-Mo (IDR)</span>
             </label>
@@ -104,6 +106,7 @@ export default function StudentTuitionFields({ formData, field }) {
               Rp
             </span>
             <input
+              id="tuition-handbook-fee"
               type="number"
               value={formData.handbookFee === "" || formData.handbookFee === undefined || formData.handbookFee === null ? "" : formData.handbookFee}
               onChange={(e) => field("handbookFee", e.target.value === "" ? "" : Number(e.target.value))}

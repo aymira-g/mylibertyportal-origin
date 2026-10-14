@@ -147,18 +147,16 @@ function toFirestoreFields_(obj) {
 }
 
 function deriveDivisionFromProgram_(program) {
-  if (!program) return "courses";
-  const p = String(program).toLowerCase();
-  if (
-    p.includes("kindergarten") ||
-    p.includes("kids school") ||
-    p.includes("paud") ||
-    p.includes("tk") ||
-    p.includes("nursery")
-  ) {
+  if (!program) return "review";
+  const p = String(program).toLowerCase().trim();
+  // Match whole words to prevent accidental substring collisions (e.g., "praktik", "batik")
+  if (/\b(kindergarten|kids school|paud|tk|nursery|preschool|playgroup)\b/i.test(p)) {
     return "kindergarten";
   }
-  return "courses";
+  if (/\b(course|courses|english|regular|private|toefl|ielts|general|conversation)\b/i.test(p)) {
+    return "courses";
+  }
+  return "review";
 }
 
 function onFormSubmit(e) {
@@ -181,18 +179,35 @@ function onFormSubmit(e) {
     throw new Error("Invalid submission: student full name (displayName) is required.");
   }
 
-  // Normalize branch to standard branchId so branch-isolated admissions views display it
+  // Normalize branch to standard branchId
   const rawBranch = String(application.branch || "").toLowerCase();
-  let branchId = "kota_gorontalo";
+  let branchId = "unassigned";
   if (rawBranch.includes("bone")) {
     branchId = "bone_bolango";
   } else if (rawBranch.includes("pohuwato")) {
     branchId = "pohuwato";
   } else if (rawBranch.includes("limboto")) {
     branchId = "limboto";
+  } else if (rawBranch.includes("gorontalo") || rawBranch.includes("utama") || rawBranch.includes("cabang")) {
+    branchId = "kota_gorontalo";
   }
+
+  const BRANCH_NAMES = {
+    kota_gorontalo: "Kota Gorontalo",
+    bone_bolango: "Bone Bolango",
+    limboto: "Limboto",
+    pohuwato: "Pohuwato",
+    unassigned: "Unassigned (Review Needed)",
+  };
+
   application.branchId = branchId;
+  application.branch = BRANCH_NAMES[branchId] || "Unassigned (Review Needed)";
   application.division = deriveDivisionFromProgram_(application.program);
+
+  // Blueprint v3.4 validation: Kindergarten is strictly offered at Kota Gorontalo (Main Campus)
+  if (application.division === "kindergarten" && branchId !== "kota_gorontalo" && branchId !== "unassigned") {
+    application.intakeWarning = "Satellite branch selected for Kindergarten; requires admissions consultation.";
+  }
 
   const token = getAccessToken_();
   const projectId = getFirebaseProjectId_();
@@ -212,13 +227,10 @@ function onFormSubmit(e) {
 }
 
 // Run this manually (▶ button, select this function) to test the whole
-// pipeline without needing to submit the real form each time.
+// pipeline without writing mock records into production collections.
 function testConnection() {
-  onFormSubmit({
-    namedValues: {
-      "NAMA LENGKAP": ["Test Student"],
-      "NOMOR HP PENDAFTAR": ["081234567890"],
-    },
-  });
-  Logger.log("If no error appeared above, check Firestore's applications collection now.");
+  const token = getAccessToken_();
+  const projectId = getFirebaseProjectId_();
+  Logger.log("Authentication successful with Firebase Project: " + projectId);
+  Logger.log("Token acquired (length " + token.length + "). Dry-run complete. No production records written.");
 }

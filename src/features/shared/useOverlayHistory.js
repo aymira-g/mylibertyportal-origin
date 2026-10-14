@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { lockScroll, unlockScroll } from "./scrollLock";
 
 /**
  * Pushes a transient history entry when an overlay (sheet, modal, drawer) opens,
@@ -7,6 +8,8 @@ import { useEffect, useRef } from "react";
  *
  * Symmetrically unwinds the pushed history state if the overlay is closed
  * programmatically (e.g. tapping "✕ Close", clicking backdrop, or pressing Escape).
+ *
+ * Also manages reference-counted background body scroll locking.
  *
  * @param {boolean} isOpen Whether the overlay is currently visible
  * @param {() => void} onClose Callback invoked to dismiss the overlay
@@ -22,6 +25,8 @@ export function useOverlayHistory(isOpen, onClose, overlayKey = "overlay") {
 
   useEffect(() => {
     if (typeof window === "undefined" || !isOpen) return;
+
+    lockScroll();
 
     // Push an overlay entry onto the history stack
     try {
@@ -50,6 +55,7 @@ export function useOverlayHistory(isOpen, onClose, overlayKey = "overlay") {
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
+      unlockScroll();
       window.removeEventListener("popstate", handlePopState);
       window.removeEventListener("keydown", handleKeyDown);
       // If overlay was closed programmatically (not by Back button), unwind the pushed state

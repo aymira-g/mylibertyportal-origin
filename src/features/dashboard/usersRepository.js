@@ -400,22 +400,43 @@ export function updateParentRecord(uid, parentData = {}) {
   return setDoc(doc(db, "users", uid), payload, { merge: true });
 }
 
-async function linkChildThroughWorker(parentUid, studentId) {
+class WorkerServiceError extends Error {
+  /**
+   * @param {string} message
+   * @param {boolean} [isUnavailable=false]
+   */
+  constructor(message, isUnavailable = false) {
+    super(message);
+    this.name = "WorkerServiceError";
+    this.isUnavailable = isUnavailable;
+  }
+}
+
+async function mutateParentChildLinkThroughWorker(parentUid, studentId, action = "link") {
   const workerBase = import.meta.env?.VITE_AI_WORKER_URL || "";
   const user = auth.currentUser;
   if (!workerBase || !user) {
-    throw new Error("Secure parent linking is unavailable. Please reconnect and try again.");
+    throw new WorkerServiceError("Worker unavailable", true);
   }
-  const response = await fetch(`${workerBase.replace(/\/$/, "")}/api/v1/parent-link`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${await user.getIdToken()}`,
-    },
-    body: JSON.stringify({ parentUid, studentId }),
-  });
+  let response;
+  try {
+    response = await fetch(`${workerBase.replace(/\/$/, "")}/api/v1/parent-link`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${await user.getIdToken()}`,
+      },
+      body: JSON.stringify({ parentUid, studentId, action }),
+    });
+  } catch (netErr) {
+    throw new WorkerServiceError(netErr instanceof Error ? netErr.message : "Network error contacting Worker", true);
+  }
+
   const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(result.error || "Could not link the parent account.");
+  if (!response.ok) {
+    const is5xx = typeof response.status === "number" && response.status >= 500;
+    throw new WorkerServiceError(result.error || `Could not ${action} the parent account.`, is5xx);
+  }
 }
 
 async function linkChildInternal(parentUid, studentId) {
@@ -425,10 +446,15 @@ async function linkChildInternal(parentUid, studentId) {
   // Attempt server-authoritative linking through the Worker if available
   if (workerBase && user) {
     try {
-      await linkChildThroughWorker(parentUid, studentId);
+      await mutateParentChildLinkThroughWorker(parentUid, studentId, "link");
       return;
     } catch (workerErr) {
-      console.warn("linkChildThroughWorker failed, attempting direct Firestore update:", workerErr?.message);
+      // Only fall back to Firestore if Worker service is genuinely unreachable/offline (5xx or network)
+      // Never fall back on business authorization or validation errors (4xx)
+      if (!workerErr?.isUnavailable) {
+        throw workerErr;
+      }
+      console.warn("Worker unavailable, falling back to direct Firestore update:", workerErr?.message);
     }
   }
 
@@ -437,6 +463,34 @@ async function linkChildInternal(parentUid, studentId) {
     doc(db, "users", parentUid),
     {
       childStudentIds: arrayUnion(studentId),
+      updatedAt: new Date().toISOString(),
+    },
+    { merge: true }
+  );
+}
+
+async function unlinkChildInternal(parentUid, studentId) {
+  const workerBase = import.meta.env?.VITE_AI_WORKER_URL || "";
+  const user = auth.currentUser;
+
+  // Attempt server-authoritative unlinking through the Worker if available
+  if (workerBase && user) {
+    try {
+      await mutateParentChildLinkThroughWorker(parentUid, studentId, "unlink");
+      return;
+    } catch (workerErr) {
+      if (!workerErr?.isUnavailable) {
+        throw workerErr;
+      }
+      console.warn("Worker unavailable, falling back to direct Firestore update:", workerErr?.message);
+    }
+  }
+
+  // Fallback to direct Firestore update (authorized for Executive, Manager, Front Office)
+  return setDoc(
+    doc(db, "users", parentUid),
+    {
+      childStudentIds: arrayRemove(studentId),
       updatedAt: new Date().toISOString(),
     },
     { merge: true }
@@ -462,14 +516,7 @@ export function linkChildToParent(parentUid, studentId) {
  */
 export function unlinkChildFromParent(parentUid, studentId) {
   const parsed = parentChildLinkSchema.parse({ parentUid, studentId });
-  return setDoc(
-    doc(db, "users", parsed.parentUid),
-    {
-      childStudentIds: arrayRemove(parsed.studentId),
-      updatedAt: new Date().toISOString(),
-    },
-    { merge: true }
-  );
+  return unlinkChildInternal(parsed.parentUid, parsed.studentId);
 }
 
 /**

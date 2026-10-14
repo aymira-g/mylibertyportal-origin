@@ -15,6 +15,7 @@
 // small, mechanical change rather than a rewrite.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ConfirmContext } from "./useConfirm";
+import { lockScroll, unlockScroll } from "./scrollLock";
 
 export default function ConfirmProvider({ children }) {
   const [request, setRequest] = useState(null);
@@ -64,13 +65,22 @@ export default function ConfirmProvider({ children }) {
 
   useEffect(() => {
     if (!request) return;
+    lockScroll();
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === "function") {
+          e.stopImmediatePropagation();
+        }
         handleChoice(false);
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      unlockScroll();
+      window.removeEventListener("keydown", handleKeyDown, true);
+    };
   }, [request, handleChoice]);
 
   return (

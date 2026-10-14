@@ -14,6 +14,22 @@ const JWKS = createRemoteJWKSet(
 const rateLimits = new Map();
 const inMemoryChallenges = new Map();
 
+function checkRateLimit(key, windowMs) {
+  const now = Date.now();
+  const lastReq = rateLimits.get(key) || 0;
+  if (now - lastReq < windowMs) {
+    return false;
+  }
+  rateLimits.set(key, now);
+  // Periodic prune to prevent memory leaks in long-lived isolates (DOM13-F5)
+  if (rateLimits.size > 500) {
+    for (const [k, v] of rateLimits.entries()) {
+      if (now - v > 60000) rateLimits.delete(k);
+    }
+  }
+  return true;
+}
+
 function getCorsOrigin(request, env) {
   const allowed = env.ALLOWED_ORIGIN || "*";
   if (allowed === "*") return "*";
@@ -91,8 +107,13 @@ function toFirestoreFields(obj) {
   return fields;
 }
 
+/**
+ * @param {any} doc
+ * @returns {Record<string, any> | null}
+ */
 function fromFirestoreDocument(doc) {
   if (!doc || !doc.fields) return null;
+  /** @type {Record<string, any>} */
   const data = {};
   for (const [k, v] of Object.entries(doc.fields)) {
     data[k] = fromFirestoreValue(v);
@@ -241,6 +262,23 @@ async function fsSetDoc(collectionPath, docId, data, token) {
   });
   if (!res.ok) {
     throw new Error(`Firestore PATCH failed: ${res.status} ${await res.text()}`);
+  }
+  return fromFirestoreDocument(await res.json());
+}
+
+async function fsPatchDocFields(collectionPath, docId, data, fieldPaths, token) {
+  const mask = fieldPaths.map((f) => `updateMask.fieldPaths=${encodeURIComponent(f)}`).join("&");
+  const url = `${FIRESTORE_BASE}/${collectionPath}/${encodeURIComponent(docId)}?${mask}`;
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ fields: toFirestoreFields(data) }),
+  });
+  if (!res.ok) {
+    throw new Error(`Firestore PATCH with mask failed: ${res.status} ${await res.text()}`);
   }
   return fromFirestoreDocument(await res.json());
 }
@@ -536,12 +574,9 @@ async function handleKioskChallenge(request, env) {
   }
 
   // Rate limit: 1 challenge request per 2 seconds per device
-  const now = Date.now();
-  const lastReq = rateLimits.get(deviceId) || 0;
-  if (now - lastReq < 1500) {
+  if (!checkRateLimit(deviceId, 1500)) {
     return json({ error: "Rate limit exceeded. Please wait a moment." }, 429, request, env);
   }
-  rateLimits.set(deviceId, now);
 
   const token = await getAuthToken(request, env);
   if (!token) {
@@ -555,7 +590,7 @@ async function handleKioskChallenge(request, env) {
   }
 
   const nonce = generateNonce();
-  const expiresAt = now + 60000; // 60 seconds strict TTL
+  const expiresAt = Date.now() + 60000; // 60 seconds strict TTL
 
   // Store in memory and in Firestore for multi-worker consistency
   inMemoryChallenges.set(deviceId, { nonce, expiresAt });
@@ -798,21 +833,25 @@ async function handleShiftClockIn(request, env) {
     if (eventDoc.status !== "active") {
       return json({ error: "Selected corporate event is not active or has been cancelled." }, 400, request, env);
     }
-    // Verify audience constraints (DOM07-SEC-03)
+    // Verify audience constraints (DOM07-SEC-03 / DOM13-COR-03 / DOM13-F4)
     if (eventDoc.audienceType === "branch") {
-      const targetBranch = eventDoc.branchId || eventDoc.audienceValue;
-      if (targetBranch && targetBranch !== device.branchId && eventDoc.branch !== device.branchId) {
-        return json({ error: "Selected corporate event belongs to a different branch." }, 403, request, env);
+      const eventBranch = normalizeBranchId(eventDoc.branchId || eventDoc.audienceValue || eventDoc.branch);
+      const devBranch = normalizeBranchId(device.branchId);
+      // Fail closed: both event branch and device branch must be defined and match
+      if (!eventBranch || !devBranch || eventBranch !== devBranch) {
+        return json({ error: "Selected corporate event belongs to a different branch or branch is unspecified." }, 403, request, env);
       }
-    } else if (eventDoc.audienceType === "role" && eventDoc.audienceValue) {
+    } else if (eventDoc.audienceType === "role") {
       const allowedRole = normalizeRole(eventDoc.audienceValue);
-      if (allowedRole !== normalizedRole) {
+      // Fail closed: role must be specified and match staff member's role
+      if (!allowedRole || allowedRole !== normalizedRole) {
         return json({ error: "Staff member's role is not eligible for this corporate event." }, 403, request, env);
       }
-    } else if (eventDoc.audienceType === "division" && eventDoc.audienceValue) {
-      const targetDiv = String(eventDoc.audienceValue).trim().toLowerCase();
-      const userDiv = user.division ? String(user.division).trim().toLowerCase() : null;
-      if (userDiv && userDiv !== "all" && targetDiv !== "all" && userDiv !== targetDiv) {
+    } else if (eventDoc.audienceType === "division") {
+      const targetDiv = eventDoc.audienceValue ? String(eventDoc.audienceValue).trim().toLowerCase() : "";
+      const userDiv = user.division ? String(user.division).trim().toLowerCase() : "";
+      // Fail closed: target division must be specified, and user must have a matching division (or either is 'all')
+      if (!targetDiv || (!userDiv && targetDiv !== "all") || (userDiv !== "all" && targetDiv !== "all" && userDiv !== targetDiv)) {
         return json({ error: "Staff member's division is not eligible for this corporate event." }, 403, request, env);
       }
     }
@@ -1376,7 +1415,7 @@ async function handleParentLink(request, env) {
   if (!caller) return json({ error: "Invalid or expired login." }, 401, request, env);
   let body;
   try { body = await request.json(); } catch { return json({ error: "Invalid JSON body." }, 400, request, env); }
-  const { parentUid, studentId } = body || {};
+  const { parentUid, studentId, action = "link" } = body || {};
   if (!parentUid || !studentId) return json({ error: "Parent and student are required." }, 400, request, env);
   const token = await getAuthToken(request, env);
   if (!token) return json({ error: "Server authentication unavailable." }, 500, request, env);
@@ -1385,7 +1424,6 @@ async function handleParentLink(request, env) {
   ]);
   const actorRole = normalizeRole(actor?.role);
   const authorizedRoles = [
-    "admin",
     "director",
     "vice_director",
     "manager",
@@ -1396,22 +1434,55 @@ async function handleParentLink(request, env) {
   if (!actor || !authorizedRoles.includes(actorRole)) {
     return json({ error: "Only authorized school staff can manage parent links." }, 403, request, env);
   }
-  if (!parent || parent.role !== "parent" || !student || student.role !== "student" || (student.status && student.status !== "active")) {
+  if (
+    !parent ||
+    parent.role !== "parent" ||
+    (parent.status && parent.status !== "active") ||
+    !student ||
+    student.role !== "student" ||
+    (student.status && student.status !== "active")
+  ) {
     return json({ error: "The selected active parent or student was not found." }, 404, request, env);
   }
-  const isExecutiveRole = ["admin", "director", "vice_director"].includes(actorRole);
+  const isExecutiveRole = ["director", "vice_director"].includes(actorRole);
   const actorBranch = normalizeBranchId(actor?.branchId || actor?.branch);
   const parentBranch = normalizeBranchId(parent?.branchId || parent?.branch);
   const studentBranch = normalizeBranchId(student?.branchId || student?.branch);
   if (!isExecutiveRole && (actorBranch !== parentBranch || parentBranch !== studentBranch)) {
     return json({ error: "Parent and student must belong to your branch." }, 403, request, env);
   }
-  await fsSetDoc("users", parentUid, {
-    ...parent,
-    childStudentIds: [...new Set([...(parent.childStudentIds || []), studentId])],
-    updatedAt: new Date().toISOString(),
-  }, token);
-  return json({ success: true }, 200, request, env);
+
+  const existingChildren = Array.isArray(parent.childStudentIds) ? parent.childStudentIds : [];
+  const updatedChildIds =
+    action === "unlink"
+      ? existingChildren.filter((id) => id !== studentId)
+      : [...new Set([...existingChildren, studentId])];
+
+  const serverTime = new Date().toISOString();
+  await fsPatchDocFields(
+    "users",
+    parentUid,
+    {
+      childStudentIds: updatedChildIds,
+      updatedAt: serverTime,
+    },
+    ["childStudentIds", "updatedAt"],
+    token
+  );
+
+  await logKioskAudit(
+    action === "unlink" ? "PARENT_CHILD_UNLINKED" : "PARENT_CHILD_LINKED",
+    {
+      actorUid: caller.user_id,
+      actorRole,
+      parentUid,
+      studentId,
+      branchId: parentBranch || actorBranch,
+    },
+    token
+  ).catch((e) => console.warn("Failed to log parent link audit:", e));
+
+  return json({ success: true, action, childStudentIds: updatedChildIds }, 200, request, env);
 }
 
 // ── AI ASSISTANT PROXY ──
@@ -1447,10 +1518,15 @@ async function handleAIAssistant(request, env) {
   if (
     !userDoc ||
     !staffRoles.includes(userRole) ||
-    userDoc.status === "terminated" ||
-    userDoc.status === "resigned"
+    (userDoc.status && userDoc.status !== "active")
   ) {
     return json({ error: "Forbidden: AI Assistant is restricted to active staff members." }, 403, request, env);
+  }
+
+  // Rate limit: 1 request per 3 seconds per staff member to protect Gemini API quota (DOM13-SEC-03 / F5)
+  const userAiKey = `ai:${caller.user_id}`;
+  if (!checkRateLimit(userAiKey, 3000)) {
+    return json({ error: "Please wait a few seconds before sending another AI request." }, 429, request, env);
   }
 
   let body;
@@ -1549,4 +1625,20 @@ export default {
 
     return json({ error: "Not found", path }, 404, request, env);
   },
+};
+
+export {
+  normalizeRole,
+  normalizeBranchId,
+  BRANCH_MAP,
+  LEGACY_BRANCH_ALIASES,
+  LEGACY_ROLE_ALIASES,
+  toFirestoreValue,
+  fromFirestoreValue,
+  toFirestoreFields,
+  fromFirestoreDocument,
+  generateNonce,
+  generateShiftId,
+  checkRateLimit,
+  rateLimits,
 };

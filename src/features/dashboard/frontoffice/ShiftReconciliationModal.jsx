@@ -4,7 +4,7 @@ import {
   calculateCashDiscrepancyThreshold,
   clockOutShiftWithCashReconciliation,
 } from "../../attendance/shiftsRepository";
-import { useToast } from "../../shared";
+import { useToast, useConfirm, useOverlayHistory } from "../../shared";
 import { checkNetworkReachability } from "../../../utils/networkReachability";
 import {
   Wallet,
@@ -13,7 +13,6 @@ import {
   Lock,
   X,
   ArrowRight,
-  Sparkles,
 } from "lucide-react";
 
 /**
@@ -34,16 +33,30 @@ export default function ShiftReconciliationModal({
   onSuccess,
 }) {
   const toast = useToast();
+  const confirm = useConfirm();
   const [countedCashInput, setCountedCashInput] = useState("");
   const [countedQrisInput, setCountedQrisInput] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Auto-fill convenience
-  const handleAutoFillExpected = () => {
-    setCountedCashInput(String(expectedCash));
-    setCountedQrisInput(String(expectedQris));
+  const isDirty = countedCashInput.trim() !== "" || countedQrisInput.trim() !== "" || notes.trim() !== "";
+
+  const handleAttemptClose = async () => {
+    if (submitting) return;
+    if (isDirty) {
+      const confirmed = await confirm({
+        title: "Discard Cash Count?",
+        message: "You have entered unsubmitted cash count values. Are you sure you want to exit without reconciling the shift?",
+        confirmLabel: "Discard & Exit",
+        cancelLabel: "Keep Editing",
+        isDestructive: true,
+      });
+      if (!confirmed) return;
+    }
+    onClose();
   };
+
+  useOverlayHistory(Boolean(isOpen), handleAttemptClose, "shiftReconciliationModal");
 
   const countedCash = Number(countedCashInput) || 0;
   const countedQris = Number(countedQrisInput) || 0;
@@ -120,7 +133,12 @@ export default function ShiftReconciliationModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="shift-recon-title"
+        className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150"
+      >
         {/* Header */}
         <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -128,7 +146,7 @@ export default function ShiftReconciliationModal({
               <Wallet className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-extrabold tracking-tight leading-none text-white">
+              <h2 id="shift-recon-title" className="text-base font-extrabold tracking-tight leading-none text-white">
                 Shift End Cash Count
               </h2>
               <p className="text-xs text-indigo-200 mt-1">
@@ -138,9 +156,10 @@ export default function ShiftReconciliationModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleAttemptClose}
             disabled={submitting}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+            aria-label="Close"
+            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer disabled:opacity-40"
           >
             <X className="w-5 h-5" />
           </button>
@@ -149,24 +168,14 @@ export default function ShiftReconciliationModal({
         {/* Content Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Expected Summary Banner */}
-          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 flex items-center justify-between text-xs">
-            <div>
-              <span className="text-slate-500 font-bold block">Expected Register Intake</span>
-              <span className="font-extrabold text-slate-800 text-sm">
-                {formatIDR(totalExpected)}
-              </span>
-              <span className="text-[11px] text-slate-400 block mt-0.5">
-                Cash: {formatIDR(expectedCash)} • QRIS: {formatIDR(expectedQris)}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={handleAutoFillExpected}
-              className="px-2.5 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold text-xs flex items-center gap-1 transition cursor-pointer border border-indigo-200"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Match Expected</span>
-            </button>
+          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs">
+            <span className="text-slate-500 font-bold block">Expected Register Intake</span>
+            <span className="font-extrabold text-slate-800 text-sm">
+              {formatIDR(totalExpected)}
+            </span>
+            <span className="text-[11px] text-slate-400 block mt-0.5">
+              Cash: {formatIDR(expectedCash)} • QRIS: {formatIDR(expectedQris)}
+            </span>
           </div>
 
           {/* Actual Input Fields */}

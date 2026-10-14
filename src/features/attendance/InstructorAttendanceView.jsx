@@ -13,7 +13,7 @@ import {
   Check,
   UserCheck,
 } from "lucide-react";
-import { useToast, useConfirm, LevelBadge } from "../shared";
+import { useToast, useConfirm, LevelBadge, useOverlayHistory } from "../shared";
 import { todayWita } from "../../utils/dateWita.js";
 import {
   subscribeClassAttendance,
@@ -49,6 +49,8 @@ export default function InstructorAttendanceView({
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerStatus, setScannerStatus] = useState(null);
   const [scannerLastScanned, setScannerLastScanned] = useState(null);
+
+  useOverlayHistory(scannerOpen, () => setScannerOpen(false), "instructorScannerModal");
 
   // Realtime subscription scoped to selected class & today's date
   useEffect(() => {
@@ -297,7 +299,10 @@ export default function InstructorAttendanceView({
       lastScannedRef.current = { id: "", at: 0 };
       if (scannerRef.current) {
         try {
-          scannerRef.current.clear();
+          const clearPromise = scannerRef.current.clear();
+          if (clearPromise && typeof clearPromise.catch === "function") {
+            clearPromise.catch(() => {});
+          }
         } catch {
           // unmount
         }
@@ -606,17 +611,23 @@ export default function InstructorAttendanceView({
       {/* ── Modal: In-Session Camera Scanner ── */}
       {scannerOpen && (
         <div className="fixed inset-0 z-[1000] bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-start p-4 sm:p-6 overflow-y-auto">
-          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-auto space-y-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="class-scanner-title"
+            className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-auto space-y-4"
+          >
             {/* Header */}
             <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
+                <span id="class-scanner-title" className="text-xs font-bold uppercase tracking-wider text-slate-200">
                   {selectedClass?.className || "Class Scanner"}
                 </span>
               </div>
               <button
                 onClick={() => setScannerOpen(false)}
+                aria-label="Close"
                 className="bg-white/10 hover:bg-white/20 text-white p-1.5 rounded-xl transition cursor-pointer"
               >
                 <X className="w-4 h-4" />

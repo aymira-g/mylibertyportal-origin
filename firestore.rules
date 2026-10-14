@@ -661,10 +661,12 @@ service cloud.firestore {
         || (isStaffOrMgr
           && res.role == 'parent'
           && req.role == 'parent'
+          && (!('status' in res) || res.status == 'active')
           && isSameBranch(res)
           && isSameBranch(req)
           && (!('branchId' in res) || req.branchId == res.branchId)
           && diffKeys.hasOnly(['displayName', 'phone', 'updatedAt', 'status', 'branch', 'childStudentIds'])
+          && (!diffKeys.hasAny(['childStudentIds']) || req.childStudentIds is list)
         )
         || (signedIn()
           && userId == request.auth.uid

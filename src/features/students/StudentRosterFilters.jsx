@@ -24,7 +24,9 @@ export default function StudentRosterFilters({
         />
         {searchQuery && (
           <button
+            type="button"
             onClick={() => onSearchChange("")}
+            aria-label="Clear search"
             className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
           >
             <X className="w-3.5 h-3.5" />

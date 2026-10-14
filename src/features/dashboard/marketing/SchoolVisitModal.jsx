@@ -6,10 +6,11 @@ import {
   createSchoolVisit,
   listenToSchoolVisits,
 } from "./schoolOutreachRepository";
-import { useToast } from "../../shared";
+import { useToast, useConfirm, useOverlayHistory } from "../../shared";
 
 export default function SchoolVisitModal({ school, currentUser, onClose, onVisitLogged }) {
   const toast = useToast();
+  const confirm = useConfirm();
 
   const [visitDate, setVisitDate] = useState(todayWita());
   const [statusAfterVisit, setStatusAfterVisit] = useState("visited");
@@ -23,6 +24,31 @@ export default function SchoolVisitModal({ school, currentUser, onClose, onVisit
   const [nextActionDate, setNextActionDate] = useState("");
 
   const [saving, setSaving] = useState(false);
+
+  const isDirty =
+    contactName !== (school?.lastContactName || "") ||
+    phone.trim() !== "" ||
+    outcome.trim() !== "" ||
+    notes.trim() !== "" ||
+    Number(flyersHandedOut) > 0 ||
+    Number(leadsCollected) > 0;
+
+  const handleAttemptClose = async () => {
+    if (saving) return;
+    if (isDirty) {
+      const confirmed = await confirm({
+        title: "Discard School Visit Notes?",
+        message: "You have entered unsaved visit details. Discard and exit without saving?",
+        confirmLabel: "Discard & Exit",
+        cancelLabel: "Keep Editing",
+        isDestructive: true,
+      });
+      if (!confirmed) return;
+    }
+    onClose();
+  };
+
+  useOverlayHistory(Boolean(school), handleAttemptClose, "schoolVisitModal");
   const [errorMsg, setErrorMsg] = useState("");
   const [pastVisits, setPastVisits] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -77,7 +103,12 @@ export default function SchoolVisitModal({ school, currentUser, onClose, onVisit
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
-      <div className="bg-white w-full max-w-lg rounded-3xl shadow-xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="school-visit-title"
+        className="bg-white w-full max-w-lg rounded-3xl shadow-xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]"
+      >
         {/* Header */}
         <div className="p-5 bg-gradient-to-r from-[#1a3a8f] to-[#2a4db3] text-white flex items-start justify-between">
           <div>
@@ -87,12 +118,14 @@ export default function SchoolVisitModal({ school, currentUser, onClose, onVisit
               </span>
               <span className="text-white/80 text-xs font-semibold">{school.district || school.municipality}</span>
             </div>
-            <h3 className="text-lg font-black">{school.name}</h3>
+            <h3 id="school-visit-title" className="text-lg font-black">{school.name}</h3>
             <p className="text-xs text-white/80 mt-0.5 line-clamp-1">{school.address || "Gorontalo"}</p>
           </div>
           <button
-            onClick={onClose}
-            className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition"
+            onClick={handleAttemptClose}
+            disabled={saving}
+            aria-label="Close"
+            className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition cursor-pointer disabled:opacity-40"
           >
             <X className="w-5 h-5" />
           </button>

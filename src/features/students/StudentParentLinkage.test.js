@@ -28,6 +28,7 @@ vi.mock("../dashboard/usersRepository", () => ({
 vi.mock("../shared", () => ({
   useToast: () => vi.fn(),
   useConfirm: () => vi.fn().mockResolvedValue(true),
+  useOverlayHistory: vi.fn(),
 }));
 
 describe("StudentParentLinkage Component", () => {

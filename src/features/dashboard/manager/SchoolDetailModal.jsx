@@ -1,21 +1,35 @@
 import { X } from "lucide-react";
+import { useOverlayHistory } from "../../shared";
 
 export function SchoolDetailModal({ viewSchool, activeSchoolVisits, userMap, onClose }) {
+  useOverlayHistory(Boolean(viewSchool), onClose, "schoolDetailModal");
+
   if (!viewSchool) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-lg rounded-3xl shadow-xl border border-slate-100 overflow-hidden flex flex-col max-h-[85vh]">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="school-detail-modal-title"
+        className="bg-white w-full max-w-lg rounded-3xl shadow-xl border border-slate-100 overflow-hidden flex flex-col max-h-[85vh]"
+      >
         <div className="p-5 bg-gradient-to-r from-slate-800 to-slate-900 text-white flex items-start justify-between">
           <div>
             <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-bold uppercase">
               {viewSchool.tier || "School"}
             </span>
-            <h3 className="text-lg font-black mt-1">{viewSchool.name}</h3>
+            <h3 id="school-detail-modal-title" className="text-lg font-black mt-1">{viewSchool.name}</h3>
             <p className="text-xs text-white/80">{viewSchool.address || viewSchool.district}</p>
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
           >
             <X className="w-5 h-5" />

@@ -135,10 +135,11 @@ export default function StudentAcademicFields({ formData, field, setAcademicLeve
             <h5 className="text-[11px] font-bold text-slate-800">Record New Placement Assessment</h5>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div>
-                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">
+                <label htmlFor="academic-test-score" className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5 cursor-pointer">
                   Score (0-100)
                 </label>
                 <input
+                  id="academic-test-score"
                   type="number"
                   placeholder="e.g. 85"
                   value={testScore}
@@ -155,13 +156,14 @@ export default function StudentAcademicFields({ formData, field, setAcademicLeve
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">
+                <label htmlFor="academic-test-level" className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5 cursor-pointer">
                   Assessed Level *
                 </label>
                 <select
+                  id="academic-test-level"
                   value={testLevel}
                   onChange={(e) => setTestLevel(e.target.value)}
-                  className="w-full p-2 border border-slate-200 rounded-lg text-xs font-bold capitalize"
+                  className="w-full p-2 border border-slate-200 rounded-lg text-xs font-bold capitalize cursor-pointer"
                 >
                   {LEVEL_LIST.map((lvl) => (
                     <option key={lvl.id} value={lvl.id}>
@@ -171,10 +173,11 @@ export default function StudentAcademicFields({ formData, field, setAcademicLeve
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">
+                <label htmlFor="academic-test-tester" className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5 cursor-pointer">
                   Tester / Assessor
                 </label>
                 <input
+                  id="academic-test-tester"
                   type="text"
                   placeholder="Staff name"
                   value={testTester}
@@ -185,10 +188,11 @@ export default function StudentAcademicFields({ formData, field, setAcademicLeve
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">
+                <label htmlFor="academic-test-date" className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5 cursor-pointer">
                   Test Date
                 </label>
                 <input
+                  id="academic-test-date"
                   type="date"
                   value={testDate}
                   onChange={(e) => setTestDate(e.target.value)}
@@ -196,10 +200,11 @@ export default function StudentAcademicFields({ formData, field, setAcademicLeve
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">
+                <label htmlFor="academic-test-notes" className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5 cursor-pointer">
                   Test Notes
                 </label>
                 <input
+                  id="academic-test-notes"
                   type="text"
                   placeholder="e.g. Fluent speaking, place in Master"
                   value={testNotes}
@@ -313,13 +318,14 @@ export default function StudentAcademicFields({ formData, field, setAcademicLeve
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div>
-          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+          <label htmlFor="academic-branch" className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-pointer">
             Branch (Pilihan Cabang)
           </label>
           <select
+            id="academic-branch"
             value={normalizeBranch(formData.branch)}
             onChange={(e) => field("branch", e.target.value)}
-            className="w-full p-2.5 border rounded-xl bg-white font-bold text-xs"
+            className="w-full p-2.5 border rounded-xl bg-white font-bold text-xs cursor-pointer"
           >
             {STANDARD_BRANCHES.map((b) => (
               <option key={b} value={b}>
@@ -332,10 +338,11 @@ export default function StudentAcademicFields({ formData, field, setAcademicLeve
           </select>
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+          <label htmlFor="academic-program" className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-pointer">
             Program
           </label>
           <select
+            id="academic-program"
             value={formData.programId || normalizeProgram(formData.program)}
             onChange={(e) => {
               const chosenId = e.target.value;
@@ -343,7 +350,7 @@ export default function StudentAcademicFields({ formData, field, setAcademicLeve
               field("programId", chosenId);
               field("program", prog.label);
             }}
-            className="w-full p-2.5 border rounded-xl bg-white font-semibold text-xs text-slate-800"
+            className="w-full p-2.5 border rounded-xl bg-white font-semibold text-xs text-slate-800 cursor-pointer"
           >
             {getEnabledPrograms().map((p) => (
               <option key={p.id} value={p.id}>
@@ -360,17 +367,18 @@ export default function StudentAcademicFields({ formData, field, setAcademicLeve
           </select>
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+          <label htmlFor="academic-batch-type" className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-pointer">
             Batch Type (Jenis Kelas)
           </label>
           <select
+            id="academic-batch-type"
             value={normalizeBatchType(formData.batchType || formData.classType)}
             onChange={(e) => {
               const norm = normalizeBatchType(e.target.value);
               field("batchType", norm);
               field("classType", getBatchTypeLabel(norm));
             }}
-            className="w-full p-2.5 border rounded-xl bg-white font-semibold"
+            className="w-full p-2.5 border rounded-xl bg-white font-semibold cursor-pointer"
           >
             {getBatchTypeList().map((t) => (
               <option key={t.id} value={t.id}>
@@ -380,10 +388,11 @@ export default function StudentAcademicFields({ formData, field, setAcademicLeve
           </select>
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+          <label htmlFor="academic-joined-date" className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-pointer">
             Joined Date (Tanggal Bergabung)
           </label>
           <input
+            id="academic-joined-date"
             type="date"
             value={formData.joinedDate || ""}
             onChange={(e) => field("joinedDate", e.target.value)}
@@ -391,10 +400,11 @@ export default function StudentAcademicFields({ formData, field, setAcademicLeve
           />
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+          <label htmlFor="academic-school-job" className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-pointer">
             School / Company (Sekolah/Pekerjaan)
           </label>
           <input
+            id="academic-school-job"
             type="text"
             placeholder="e.g. SMA Negeri 1 / Universitas"
             value={formData.schoolOrJob || ""}
@@ -403,10 +413,11 @@ export default function StudentAcademicFields({ formData, field, setAcademicLeve
           />
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+          <label htmlFor="academic-class-semester" className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-pointer">
             Grade / Semester (Kelas/Semester)
           </label>
           <input
+            id="academic-class-semester"
             type="text"
             placeholder="e.g. Kelas 10 / Semester 4"
             value={formData.classOrSemester || ""}
@@ -416,13 +427,14 @@ export default function StudentAcademicFields({ formData, field, setAcademicLeve
         </div>
         {editId && (
           <div className="md:col-span-3">
-            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+            <label htmlFor="academic-status" className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-pointer">
               Student Lifecycle Status *
             </label>
             <select
+              id="academic-status"
               value={formData.status || "active"}
               onChange={(e) => field("status", e.target.value)}
-              className="w-full p-2.5 border rounded-xl bg-white font-bold text-xs capitalize text-slate-800 focus:border-[#1a3a8f] outline-none"
+              className="w-full p-2.5 border rounded-xl bg-white font-bold text-xs capitalize text-slate-800 focus:border-[#1a3a8f] outline-none cursor-pointer"
             >
               <option value="active">🟢 Active (Currently Enrolled &amp; Attending)</option>
               <option value="on_leave">🟡 On Leave (Temporary Pause / Break)</option>

@@ -6,7 +6,7 @@ import {
   linkChildToParent,
   unlinkChildFromParent,
 } from "../dashboard/usersRepository";
-import { useToast, useConfirm } from "../shared";
+import { useToast, useConfirm, useOverlayHistory } from "../shared";
 import { branchToId } from "../../constants/branches";
 import { normalizePhoneDigits } from "./parentPortalRepository";
 import {
@@ -66,6 +66,25 @@ export default function StudentParentLinkage({
     setActionError("");
     if (onCloseModal) onCloseModal();
   }, [onCloseModal]);
+
+  const isDirty = parentName.trim() !== "" || parentEmail.trim() !== "" || parentPassword.trim() !== "" || parentPhone.trim() !== "";
+
+  const handleAttemptCloseModal = useCallback(async () => {
+    if (submitting) return;
+    if (isDirty) {
+      const confirmed = await confirm({
+        title: "Discard Parent Details?",
+        message: "You have entered unsubmitted parent account details. Discard and close?",
+        confirmLabel: "Discard & Close",
+        cancelLabel: "Keep Editing",
+        isDestructive: true,
+      });
+      if (!confirmed) return;
+    }
+    handleCloseModal();
+  }, [submitting, isDirty, confirm, handleCloseModal]);
+
+  useOverlayHistory(Boolean(showModal), handleAttemptCloseModal, "parentLinkageModal");
 
   useEffect(() => {
     let active = true;
@@ -284,10 +303,15 @@ export default function StudentParentLinkage({
       {/* Link Existing or Create New Parent Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg p-5 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="parent-linkage-title"
+            className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg p-5 space-y-4 animate-in fade-in zoom-in-95 duration-150"
+          >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <h4 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <h4 id="parent-linkage-title" className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
                   <Users className="w-4 h-4 text-[#1a3a8f]" />
                   Parent Account for {studentName}
                 </h4>
@@ -297,8 +321,10 @@ export default function StudentParentLinkage({
               </div>
               <button
                 type="button"
-                onClick={handleCloseModal}
-                className="text-slate-400 hover:text-slate-600 text-sm font-bold p-1 cursor-pointer"
+                onClick={handleAttemptCloseModal}
+                disabled={submitting}
+                aria-label="Close"
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold p-1 cursor-pointer disabled:opacity-40"
               >
                 ✕
               </button>

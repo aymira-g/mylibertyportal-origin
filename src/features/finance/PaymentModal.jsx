@@ -36,7 +36,14 @@ function getDefaultPeriod() {
 export default function PaymentModal({ student, onClose, onPaymentUpdated = null }) {
   const toast = useToast();
   const confirm = useConfirm();
-  useOverlayHistory(Boolean(student), onClose, "paymentModal");
+  const [saving, setSaving] = useState(false);
+
+  const handleAttemptClose = () => {
+    if (saving) return;
+    onClose();
+  };
+
+  useOverlayHistory(Boolean(student), handleAttemptClose, "paymentModal");
   const [activeTab, setActiveTab] = useState("record"); // "record" | "history" | "receipt"
 
   const rawPaidUntil =
@@ -95,7 +102,6 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
   });
   const [method, setMethod] = useState("Bank Transfer"); // "Bank Transfer" | "QRIS" | "Cash"
   const [notes, setNotes] = useState("");
-  const [saving, setSaving] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [history, setHistory] = useState([]);
   const [activeReceipt, setActiveReceipt] = useState(null);
@@ -364,7 +370,12 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 pt-safe pb-safe overflow-y-auto overscroll-contain">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden flex flex-col my-auto max-h-[90vh]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="payment-modal-title"
+        className="bg-white rounded-2xl shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden flex flex-col my-auto max-h-[90vh]"
+      >
         {/* Modal Header */}
         <div className="bg-[#1a3a8f] text-white p-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -372,15 +383,17 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
               💳
             </div>
             <div>
-              <h2 className="text-base font-bold leading-tight">Student Payment Center</h2>
+              <h2 id="payment-modal-title" className="text-base font-bold leading-tight">Student Payment Center</h2>
               <p className="text-xs text-white/80">
                 {student.displayName} (ID: {student.id})
               </p>
             </div>
           </div>
           <button
-            onClick={onClose}
-            className="text-white/70 hover:text-white text-xl font-bold p-1 leading-none rounded-lg hover:bg-white/10 cursor-pointer"
+            onClick={handleAttemptClose}
+            disabled={saving}
+            aria-label="Close"
+            className="text-white/70 hover:text-white text-xl font-bold p-1 leading-none rounded-lg hover:bg-white/10 cursor-pointer disabled:opacity-40"
           >
             ✕
           </button>

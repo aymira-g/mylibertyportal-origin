@@ -340,16 +340,27 @@ export default function PaymentCashierTab({
 
       {/* Student Picker Modal for Recording Payment */}
       {pickerOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-5 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) handleClosePicker();
+          }}
+          className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cashier-picker-title"
+            className="bg-white rounded-3xl p-5 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95"
+          >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h4 className="font-extrabold text-sm text-slate-800 flex items-center gap-2">
+              <h4 id="cashier-picker-title" className="font-extrabold text-sm text-slate-800 flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-[#1a3a8f]" />
                 <span>Select Student to Record Payment</span>
               </h4>
               <button
                 onClick={() => setPickerOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"
+                aria-label="Close"
+                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>

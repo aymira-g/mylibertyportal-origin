@@ -289,15 +289,46 @@ describe("createParentAccount", () => {
 describe("linkChildToParent and unlinkChildFromParent", () => {
   it("links a child through the server-authoritative Worker", async () => {
     await linkChildToParent("parent1", "child1");
-    expect(fetch).toHaveBeenCalledWith(expect.stringMatching(/\/api\/v1\/parent-link$/), expect.objectContaining({ method: "POST" }));
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/v1\/parent-link$/),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ parentUid: "parent1", studentId: "child1", action: "link" }),
+      })
+    );
   });
 
-  it("unlinks a child from a parent with arrayRemove", async () => {
+  it("unlinks a child through the server-authoritative Worker with action: unlink", async () => {
     await unlinkChildFromParent("parent1", "child1");
-    const op = fake.find("users/parent1");
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/v1\/parent-link$/),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ parentUid: "parent1", studentId: "child1", action: "unlink" }),
+      })
+    );
+  });
+
+  it("falls back to direct Firestore update when Worker is unavailable (offline/5xx)", async () => {
+    /** @type {any} */ (fetch).mockImplementationOnce(() => Promise.reject(new Error("Worker offline")));
+    await unlinkChildFromParent("parent2", "child2");
+    const op = fake.find("users/parent2");
     expect(op.opts).toEqual({ merge: true });
-    expect(op.data.childStudentIds).toEqual({ __op: "arrayRemove", items: ["child1"] });
+    expect(op.data.childStudentIds).toEqual({ __op: "arrayRemove", items: ["child2"] });
     expect(op.data.updatedAt).toBeTruthy();
+  });
+
+  it("throws validation error and does NOT fall back on 403 client rejection", async () => {
+    /** @type {any} */ (fetch).mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: false,
+        status: 403,
+        json: () => Promise.resolve({ error: "Only authorized school staff can manage parent links." }),
+      })
+    );
+    await expect(linkChildToParent("parent3", "child3")).rejects.toThrow("Only authorized school staff");
+    const op = fake.find("users/parent3");
+    expect(op).toBeUndefined();
   });
 
   it("throws if IDs are missing", () => {

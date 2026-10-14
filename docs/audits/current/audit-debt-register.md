@@ -23,8 +23,8 @@
 | 10 | PWA / Network / Service Worker | 2026-10-12 (`L2-DOM10`) | 7 findings remediated & verified (DOM10-SW-01..02, DOM10-COR-01, DOM10-UX-01..03, DOM10-PERF-01) | No |
 | 11 | Reports / Dashboards / Derived Data | 2026-10-12 (`L2-DOM11`) | 6 findings remediated & verified (DOM11-COR-01..03, DOM11-PERF-01, DOM11-GOV-01, DOM11-TECH-01) | No |
 | 12 | UX / Navigation / Mobile | 2026-10-12 (`L2-DOM12`) | 5 findings remediated & verified (DOM12-A11Y-01..03, DOM12-UX-01..02) | No |
-| 13 | Cloudflare Worker / Integrations | 2026-10-12 (`L2-DOM13`) | 6 findings remediated & verified (DOM13-SEC-01, DOM13-COR-01..02, DOM13-RES-01, DOM13-INT-01, DOM13-TECH-01) | No |
-| 13b | External Integrations & Ops Tooling (`FormSync.gs`, `scripts/`) | 2026-10-12 (`L2-DOM13`) | Audited and closed within Domain 13 report | No |
+| 13 | Cloudflare Worker / Integrations | 2026-10-14 (`L2-DOM13-R2`) | Re-verification R2 remediated & verified: DOM13-SEC-02 (Parent-link rules + worker alignment), DOM13-SEC-03 (Gemini flash model + rate limit prune), DOM13-COR-03 (corporate audience fail-closed), DOM13-TECH-02 (masked parent PATCH + audit log), DOM13-TEST-01 (33 contract tests) | No (R2 Remediation Verified) |
+| 13b | External Integrations & Ops Tooling (`FormSync.gs`, `scripts/`) | 2026-10-14 (`L2-DOM13-R2`) | DOM13-INT-02 (regex word boundaries, branch unassigned fallback, satellite kindergarten conflict check, dry-run testConnection) | No (R2 Remediation Verified) |
 | 14 | Final Cross-Feature Attack Audit | 2026-10-12 (`L2-LIFECYCLE-ATTACK-2026-10-12`) | 5 findings remediated & verified (DOM-LIFE-01..05) | No |
 
 ## Rules for This Register

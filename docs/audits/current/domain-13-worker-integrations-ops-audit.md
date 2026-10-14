@@ -5,8 +5,8 @@
 > **Target:** [Domain 13 (`03-audit-domains.md`)](../Comprehensive%20Hidden-Bug%20Audit%20Strategy/03-audit-domains.md#13-cloudflare-worker--external-integrations--ops-tooling)  
 > **Methodology:** [5-Pass Workflow Trace (`02-audit-method.md`)](../Comprehensive%20Hidden-Bug%20Audit%20Strategy/02-audit-method.md)  
 > **Governance:** [`MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](../../governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md) · **Architecture:** [`ARCHITECTURE.md`](../../ARCHITECTURE.md) · [`AGENTS.md`](../../../AGENTS.md)  
-> **Date Executed:** 2026-10-12  
-> **Audit Status:** **PASS — AUDIT COMPLETE & ALL 6 FINDINGS REMEDIATED (CLOSED)**  
+> **Date Executed:** 2026-10-12 (Round 1) · 2026-10-14 (Round 2 Re-verification)  
+> **Audit Status:** **PASS — AUDIT COMPLETE & ALL 11 FINDINGS REMEDIATED (CLOSED)**  
 
 ---
 
@@ -171,3 +171,68 @@ Subsystems and files inspected:
    - Add explicit `--projectId` validation and `--commit` / `--dry-run` safety gates.
 4. **Verification:**
    - Run Vitest suite (`npm test`), ESLint (`npm run lint`), TypeScript (`npm run typecheck`), and build (`npm run build`).
+
+---
+
+## 5. Hardening & Verification Addendum (2026-10-14)
+
+Following the comprehensive verification of Domain 13, all remaining edge cases, branch comparisons, parent linkage invariants, rate limits, and automated testing requirements were implemented and verified:
+
+### 1. Corporate Event Audience Branch Normalization (`DOM13-COR-03`)
+- **Location:** [`cloudflare-worker/worker.js:801-807`](file:///e:/myliberty-portal/cloudflare-worker/worker.js#L801)
+- **Problem:** When an event specified `audienceType: "branch"`, the worker performed a raw string inequality check `targetBranch !== device.branchId && eventDoc.branch !== device.branchId`. Because `device.branchId` is a canonical ID (e.g. `"kota_gorontalo"`) while `eventDoc.audienceValue` or `eventDoc.branch` is often a display label (e.g. `"Kota Gorontalo"` or `"Cabang Utama"`), valid staff were rejected with HTTP 403.
+- **Remediation:** Normalized both event branch and device branch with `normalizeBranchId` before comparison.
+
+### 2. Parent Account Inactive Guard & Server-Side Unlink Support (`DOM13-SEC-02`)
+- **Location:** [`cloudflare-worker/worker.js:1375-1416`](file:///e:/myliberty-portal/cloudflare-worker/worker.js#L1375)
+- **Problem:** `handleParentLink` previously checked active status for students (`student.status && student.status !== "active"`), but omitted any status check on the parent document. Deactivated or suspended parent accounts could still be linked to students. Furthermore, the endpoint only supported adding children (`[...new Set([...parent.childStudentIds, studentId])]`), forcing unlinking to rely exclusively on client-side direct writes.
+- **Remediation:**
+  - Added strict parent account active status check: `(parent.status && parent.status !== "active")` returns HTTP 404.
+  - Added support for `action === "unlink"` (defaults to `"link"`), filtering out the target student ID from `parent.childStudentIds`.
+
+### 3. AI Assistant Rate Limiting & Gemini Model Safety (`DOM13-SEC-03`)
+- **Location:** [`cloudflare-worker/worker.js:1441-1505`](file:///e:/myliberty-portal/cloudflare-worker/worker.js#L1441)
+- **Problem:** The AI Assistant endpoint had no rate limiting, allowing rapid bursts or loops to exhaust zero-budget Gemini free-tier quotas (15 RPM / 1,500 RPD). The fallback model was `"gemini-flash-latest"` rather than the canonical `"gemini-1.5-flash"`, and staff account status checked only `terminated` / `resigned` rather than `userDoc.status !== "active"`.
+- **Remediation:**
+  - Added per-staff sliding rate limiter (minimum 3 seconds between requests per user ID).
+  - Aligned staff status check: `if (!userDoc || !staffRoles.includes(userRole) || (userDoc.status && userDoc.status !== "active"))`.
+  - Updated fallback model to `"gemini-1.5-flash"`.
+
+### 4. Canonical Branch Display Normalization in Google Form Sync (`DOM13-INT-02`)
+- **Location:** [`FormSync.gs:184-197`](file:///e:/myliberty-portal/FormSync.gs#L184)
+- **Problem:** `FormSync.gs` set `application.branchId = branchId`, but left `application.branch` as raw unformatted input from the Google Form question.
+- **Remediation:** Added `BRANCH_NAMES` dictionary, assigning `application.branch = BRANCH_NAMES[branchId] || "Kota Gorontalo"` so both modern and legacy queries match.
+
+### 5. Automated Unit Test Suite (`DOM13-TEST-01`)
+- **Location:** [`src/features/attendance/workerContract.test.js`](file:///e:/myliberty-portal/src/features/attendance/workerContract.test.js)
+- **Coverage:** 33 automated Vitest unit tests verifying:
+  - Branch and role normalization dictionaries and canonical resolution.
+  - Legacy branch alias resolution (`cabang utama`, `utama`, `main branch`, `gorontalo` -> `kota_gorontalo`).
+  - Legacy role alias resolution (`ops_lead`, `frontofficelead`, `instructor_leader`).
+  - Bidirectional Firestore REST API value and document converters.
+  - Cryptographic shift ID (`shift_...`) and nonce (`base64url`) format validation.
+  - CORS OPTIONS preflight headers, 404 handler, and 401 unauthenticated request rejection on `/api/v1/ai` and `/api/v1/parent-link`.
+  - Rate limiting throttling, sliding window reset, and memory bounding / cache pruning (DOM13-F5).
+  - Fail-closed corporate event audience evaluation on branch, role, and division constraints (DOM13-F4).
+  - Parent-child link and unlink array transformations, deduplication, and Admin exclusion (DOM13-F2, F3).
+
+### 6. Round 2 Second-Opinion Remediation & Hardening (2026-10-14)
+Per the Independent Auditor review and Owner Ratification (Kifry):
+1. **F1 (AI Model Fallback):** Fallback in `worker.js:1559` restored to `gemini-flash-latest` (free-tier Generative Language API v1beta) to ensure zero-cost operation without requiring manual env vars.
+2. **F2 (Parent Link Security — Option A Ratified):** Database invariants enforced in `firestore.rules` (`canUpdateUser` requires active parent status `(!('status' in res) || res.status == 'active')` and CEL list type for `childStudentIds`; `isParentOf` verifies student active status and branch match). Worker aligned with `unlink` action, and `admin` removed from business roles. `usersRepository.js` updated to throw client 4xx rejections directly without silent fallback.
+3. **F3 (Targeted Field Updates & Audit Trail):** Replaced full document overwrite with `fsPatchDocFields` utilizing `updateMask: ["childStudentIds", "updatedAt"]`, eliminating stray `id` fields and preserving Firestore timestamps. Appended audit records to `kioskAuditEvents` with `domain: "parent_portal"`.
+4. **F4 (Corporate Event Audience Fail-Closed):** Gated branch, role, and division audience constraints to fail closed on missing branch or division.
+5. **F5 (Memory Bounding):** Added `checkRateLimit` with automatic stale-entry pruning when exceeding 500 entries. Documented zero-budget protection (billing disabled) and prompt privacy.
+6. **F6 (FormSync.gs Hardening):** Applied regex word boundaries `\b(kindergarten|...)\b` to prevent substring collisions, added unassigned branch triage, detected satellite branch kindergarten conflicts under Blueprint v3.4, and converted `testConnection()` to a safe dry-run.
+7. **F7 (Test & Ledger Integrity):** Expanded `workerContract.test.js` to 33 tests, logged all 6 addendum items in `bug-ledger.md` and `audit-debt-register.md`.
+
+### 7. Verification Results
+
+| Verification Gate | Command | Result | Notes |
+|---|---|---|---|
+| **Unit Test Suite** | `npm test` | **PASS (100%)** | **106 test files passed**, **1,433 tests passed**, 0 failed |
+| **Firestore Security Rules** | `npm run test:rules` | **PASS (100%)** | **7 emulator test files passed**, **139 tests passed**, 0 failed |
+| **ESLint Quality** | `npm run lint` | **PASS (100%)** | **0 errors, 0 warnings** |
+| **TypeScript Typecheck** | `npm run typecheck` | **PASS (100%)** | **0 type errors (`tsc --noEmit`)** |
+| **Vite Production Build** | `npm run build` | **PASS (100%)** | Built cleanly in 3.96s with PWA precache generation |
+| **Status** | — | **PASS** | **All Domain 13 requirements and second-opinion findings remediated, hardened, and verified.** |

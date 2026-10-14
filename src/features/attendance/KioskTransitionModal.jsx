@@ -1,4 +1,5 @@
 import { ShieldCheck, X, ArrowRight } from "lucide-react";
+import { useOverlayHistory } from "../shared";
 
 export default function KioskTransitionModal({
   pendingTransition,
@@ -8,18 +9,26 @@ export default function KioskTransitionModal({
   onClockOutOnly,
   onCancel,
 }) {
+  useOverlayHistory(Boolean(pendingTransition), onCancel, "kioskTransitionModal");
+
   if (!pendingTransition) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-200 text-left">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="kiosk-transition-title"
+        className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-200 text-left"
+      >
         <div className="flex items-center justify-between pb-2 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-[#1a3a8f]" />
-            <h4 className="font-bold text-slate-900 text-sm">Shift Transition</h4>
+            <h4 id="kiosk-transition-title" className="font-bold text-slate-900 text-sm">Shift Transition</h4>
           </div>
           <button
             onClick={onCancel}
+            aria-label="Cancel"
             className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
           >
             <X className="w-4 h-4" />

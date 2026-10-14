@@ -15,6 +15,8 @@ import {
   ConnectivityBanner,
   DevQuickSwitcher,
   PreviewModeProvider,
+  lockScroll,
+  unlockScroll,
 } from "./features/shared";
 import { normalizeRole } from "./features/shared/roles";
 import { InstallButton, PwaUpdateBanner } from "./features/pwa";
@@ -163,6 +165,13 @@ function App() {
       clearTimeout(logoutTimer);
     };
   }, [user, handleLogout]);
+
+  useEffect(() => {
+    if (idleWarning) {
+      lockScroll();
+      return () => unlockScroll();
+    }
+  }, [idleWarning]);
 
   const refreshProfile = useCallback(
     async (uid) => {
@@ -780,10 +789,15 @@ function App() {
 
       {/* 👈 Idle Warning Overlay */}
       {idleWarning && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0c235f]/80 backdrop-blur-md p-6">
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="idle-warning-title"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0c235f]/80 backdrop-blur-md p-6"
+        >
           <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center border-2 border-amber-400 animate-pulse">
             <p className="text-4xl mb-4">💤</p>
-            <h2 className="text-xl font-black text-slate-800">Are you still there?</h2>
+            <h2 id="idle-warning-title" className="text-xl font-black text-slate-800">Are you still there?</h2>
             <p className="text-slate-500 text-sm mt-2 mb-6 font-medium">
               You've been idle for a while. For security, you will be logged out in 30 seconds.
             </p>

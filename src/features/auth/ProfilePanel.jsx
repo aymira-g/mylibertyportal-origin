@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { auth } from "../../firebase";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { useToast, uploadToCloudinary } from "../shared";
+import { useToast, uploadToCloudinary, useOverlayHistory } from "../shared";
 import { fetchOwnProfile, updateProfilePhoto, updateProfileDetails } from "./authRepository";
 import { InstallButton } from "../pwa";
 
@@ -79,6 +79,8 @@ export default function ProfilePanel({ onClose, onUpdated, onLogout }) {
     }
   };
 
+  useOverlayHistory(Boolean(profile), onClose, "profilePanel");
+
   if (!profile) return null;
 
   return (
@@ -87,15 +89,19 @@ export default function ProfilePanel({ onClose, onUpdated, onLogout }) {
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="profile-panel-title"
         className="bg-white rounded-t-3xl shadow-xl w-full max-w-sm p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-xs space-y-4 sm:rounded-2xl sm:pb-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto h-1.5 w-10 rounded-full bg-slate-200 sm:hidden" />
         <div className="flex justify-between items-center">
-          <h3 className="font-bold text-gray-800 text-sm">My Profile</h3>
+          <h3 id="profile-panel-title" className="font-bold text-gray-800 text-sm">My Profile</h3>
           <button
             onClick={onClose}
-            className="min-h-10 min-w-10 text-gray-400 hover:text-gray-600 text-lg leading-none"
+            aria-label="Close"
+            className="min-h-10 min-w-10 text-gray-400 hover:text-gray-600 text-lg leading-none cursor-pointer"
           >
             ✕
           </button>

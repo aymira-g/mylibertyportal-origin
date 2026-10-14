@@ -1,22 +1,36 @@
 import { Share, PlusSquare, X } from "lucide-react";
+import { useOverlayHistory } from "../shared";
 
 export default function IosInstallModal({ isOpen, onClose }) {
+  useOverlayHistory(Boolean(isOpen), onClose, "iosInstallModal");
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
-      <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 text-slate-800">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ios-install-modal-title"
+        className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 text-slate-800"
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <img src="/pwa-192x192.png" alt="MY LIBERTY" className="w-9 h-9 rounded-xl shadow-xs" />
             <div>
-              <h3 className="font-extrabold text-sm text-slate-900">Install MY LIBERTY</h3>
+              <h3 id="ios-install-modal-title" className="font-extrabold text-sm text-slate-900">Install MY LIBERTY</h3>
               <p className="text-[11px] text-slate-500">Add to iPhone / iPad Home Screen</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+            aria-label="Close"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>

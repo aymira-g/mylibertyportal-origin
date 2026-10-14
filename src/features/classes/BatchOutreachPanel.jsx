@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { MessageCircle, X, Copy, Check, ChevronDown, ChevronUp } from "lucide-react";
 import { normalizeWhatsAppNumber } from "../finance/receiptMessages";
 import { copyText } from "../../utils/copyText";
+import { useOverlayHistory } from "../shared";
 
 // ── Outreach Message Templates ──────────────────────────────────────
 
@@ -87,11 +88,18 @@ export default function BatchOutreachPanel({ batch, users = [], onClose }) {
     window.open(`https://wa.me/${normalized}?text=${encoded}`, "_blank");
   };
 
+  useOverlayHistory(Boolean(batch), onClose, "batchOutreachPanel");
+
   if (!batch) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
-      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-6">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="batch-outreach-title"
+        className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-6"
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-emerald-50/80">
           <div className="flex items-center gap-2.5">
@@ -99,7 +107,7 @@ export default function BatchOutreachPanel({ batch, users = [], onClose }) {
               <MessageCircle className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-extrabold text-slate-900 text-lg">Batch Outreach</h3>
+              <h3 id="batch-outreach-title" className="font-extrabold text-slate-900 text-lg">Batch Outreach</h3>
               <p className="text-xs text-slate-500">
                 {batch.className} — {parentContacts.length} parent
                 {parentContacts.length !== 1 ? "s" : ""} reachable
@@ -108,7 +116,8 @@ export default function BatchOutreachPanel({ batch, users = [], onClose }) {
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition"
+            aria-label="Close"
+            className="p-2 rounded-full hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>

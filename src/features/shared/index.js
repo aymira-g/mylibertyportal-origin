@@ -90,4 +90,5 @@ export {
 } from "./roles";
 export { useUserProfile } from "./useUserProfile";
 export { useOverlayHistory } from "./useOverlayHistory";
+export { lockScroll, unlockScroll, getScrollLockCount } from "./scrollLock";
 export { lazyWithRetry } from "../../utils/lazyWithRetry";

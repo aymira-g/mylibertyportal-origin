@@ -159,9 +159,77 @@ function deriveDivisionFromProgram_(program) {
   return "review";
 }
 
+/**
+ * Safely extracts question answers from either:
+ * 1. Google Sheets "On form submit" trigger (`e.namedValues`)
+ * 2. Google Forms native "On form submit" trigger (`e.response.getItemResponses()`)
+ *
+ * @param {object} e The Apps Script event object
+ * @returns {Record<string, string> | null} Key-value map of UPPERCASE question titles to answers
+ */
+function extractFormAnswers_(e) {
+  if (!e) return null;
+
+  // Case 1: Triggered from Google Sheets ("From spreadsheet" -> "On form submit")
+  if (e.namedValues && typeof e.namedValues === "object") {
+    const map = {};
+    for (const [k, v] of Object.entries(e.namedValues)) {
+      const cleanKey = String(k || "").trim().toUpperCase();
+      const val = Array.isArray(v) ? (v[0] || "") : (v || "");
+      map[cleanKey] = String(val).trim();
+    }
+    return map;
+  }
+
+  // Case 2: Triggered directly from Google Forms ("From form" -> "On form submit")
+  if (e.response && typeof e.response.getItemResponses === "function") {
+    const map = {};
+    const itemResponses = e.response.getItemResponses();
+    for (const itemResponse of itemResponses) {
+      const title = String(itemResponse.getItem().getTitle() || "").trim().toUpperCase();
+      const resp = itemResponse.getResponse();
+      const val = Array.isArray(resp) ? (resp[0] || "") : (resp || "");
+      map[title] = String(val).trim();
+    }
+    return map;
+  }
+
+  return null;
+}
+
+/**
+ * Finds answer by exact question title, trimmed match, or substring match.
+ */
+function findAnswer_(answers, targetQuestion) {
+  const target = String(targetQuestion || "").trim().toUpperCase();
+  if (answers[target] !== undefined && answers[target] !== "") {
+    return answers[target];
+  }
+  // Try substring match to tolerate question variations (e.g. colons, extra words)
+  for (const [q, val] of Object.entries(answers)) {
+    if ((q.includes(target) || target.includes(q)) && val !== "") {
+      return val;
+    }
+  }
+  return "";
+}
+
 function onFormSubmit(e) {
-  if (!e || !e.namedValues) {
-    throw new Error("Invalid submission event: namedValues is missing.");
+  if (!e) {
+    throw new Error(
+      "Cannot run onFormSubmit manually with the 'Run' button because there is no form submission event. " +
+      "To test your configuration, select 'testConnection' from the function dropdown above and click 'Run'. " +
+      "When a real applicant submits the Google Form, this function runs automatically."
+    );
+  }
+
+  const answers = extractFormAnswers_(e);
+  if (!answers || Object.keys(answers).length === 0) {
+    throw new Error(
+      "Invalid submission event: Could not extract form answers from event. " +
+      "If this script is inside Google Forms, ensure the trigger is 'From form' -> 'On form submit'. " +
+      "If inside Google Sheets, ensure the trigger is 'From spreadsheet' -> 'On form submit'."
+    );
   }
 
   const application = {
@@ -171,12 +239,42 @@ function onFormSubmit(e) {
   };
 
   for (const [firestoreField, formQuestion] of Object.entries(FIELD_MAP)) {
-    const answer = e.namedValues[formQuestion];
-    application[firestoreField] = answer ? String(answer[0] || "").trim() : "";
+    application[firestoreField] = findAnswer_(answers, formQuestion);
+  }
+
+  // Fallback heuristics if question titles differ slightly from FIELD_MAP
+  if (!application.displayName) {
+    for (const [q, val] of Object.entries(answers)) {
+      if (q.includes("NAMA") && !q.includes("AYAH") && !q.includes("IBU") && !q.includes("SEKOLAH") && val) {
+        application.displayName = val;
+        break;
+      }
+    }
   }
 
   if (!application.displayName) {
-    throw new Error("Invalid submission: student full name (displayName) is required.");
+    throw new Error(
+      "Invalid submission: Student full name could not be identified from the form answers. " +
+      "Available questions detected: [" + Object.keys(answers).join(", ") + "]"
+    );
+  }
+
+  if (!application.phone) {
+    for (const [q, val] of Object.entries(answers)) {
+      if ((q.includes("HP") || q.includes("TELEPON") || q.includes("WA") || q.includes("WHATSAPP")) && !q.includes("AYAH") && !q.includes("IBU") && val) {
+        application.phone = val;
+        break;
+      }
+    }
+  }
+
+  if (!application.branch) {
+    for (const [q, val] of Object.entries(answers)) {
+      if ((q.includes("CABANG") || q.includes("LOKASI") || q.includes("BRANCH")) && val) {
+        application.branch = val;
+        break;
+      }
+    }
   }
 
   // Normalize branch to standard branchId
@@ -226,11 +324,24 @@ function onFormSubmit(e) {
   }
 }
 
-// Run this manually (▶ button, select this function) to test the whole
-// pipeline without writing mock records into production collections.
+// Run this manually (▶ button, select this function) to test your Firebase
+// service account connection without writing mock records into production.
 function testConnection() {
   const token = getAccessToken_();
   const projectId = getFirebaseProjectId_();
   Logger.log("Authentication successful with Firebase Project: " + projectId);
   Logger.log("Token acquired (length " + token.length + "). Dry-run complete. No production records written.");
+}
+
+// Optional manual test: submits a sample student to verify the full Firestore intake pipeline.
+function testSubmit() {
+  onFormSubmit({
+    namedValues: {
+      "PILIHAN CABANG": ["Kota Gorontalo"],
+      "PROGRAM": ["English for Adults (Regular)"],
+      "NAMA LENGKAP": ["Test Applicant"],
+      "NOMOR HP PENDAFTAR": ["081234567890"],
+    },
+  });
+  Logger.log("Test submission sent to Firestore successfully.");
 }

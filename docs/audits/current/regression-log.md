@@ -31,7 +31,29 @@
 | 2026-10-13 | Bundle Code Splitting Step 1: Eliminated barrel import traps for ParentPortalPage and StandaloneKioskPage in App.jsx | Routing · Performance · Bundle Splitting | **PASS** | No | Parent portal chunk isolated to 11.99 kB (down from 467 kB); StandaloneKioskPage chunk isolated to 136 kB; 1,381 tests passed; lint, typecheck, build clean |
 | 2026-10-13 | Code Splitting: Modularized 902-line approvalGates.js by extracting constants into approvalGates.constants.js | Architecture · Dual-Control Approvals | **PASS** | No | approvalGates.js reduced from 903 to 533 lines; constants file 394 lines; 100% backward compatible; 1,381 tests passed; lint, typecheck, build clean |
 | 2026-10-14 | Test Suite Modularization: Split 3,993-line monolith firestoreRules.emulator.test.js into src/features/shared/firestoreRulesEmulator/ (7 domain suites + setup.js) | Test Architecture · Firestore Rules Emulator | **PASS** | No | 139/139 emulator tests passed (duration reduced 37% from 24.20s to 15.07s via per-suite project isolation); 1,381 unit tests passed; lint, typecheck, build clean |
+| 2026-10-15 | BLRCA Slice 1: System Admin Technical-Only Boundary Audit — cataloged verified findings DOM11-GOV-02, DOM01-GOV-03, DOM01-REP-01, DOM01-PERF-01 across UI, repository, and rules layers | Auth · System Admin · Security Rules · Dashboard · Reports | **AUDIT COMPLETE** | Yes (4 Findings Logged) | Proven business data exposure (financial reports, payment list, application listener, approvals stream) under isExecutive rules helper; worker endpoints pass; 1,433 unit tests pass |
 
+
+---
+
+## Evidence Record — 2026-10-15 (BLRCA Slice 1)
+
+```text
+Change: Role & Business Logic Conformance Audit (BLRCA) — Slice 1: System Admin Technical-Only Boundary Audit
+Date: 2026-10-15
+Section: Authentication / System Administration / Firestore Rules / Reports / Navigation
+Workflow: System Admin role boundary verification against Blueprint §7, §8, OD-2, and INV-02/03
+Tester / Agent: Primary Coding Agent, authorized by Kifry
+Risk classification: HIGH-RISK (Security boundary, role segregation, financial isolation)
+
+Verification Evidence:
+  - Admin UI Navigation: AdminDashboard.jsx mounts StaffDirectory, InvitesPanel, TasksPanel, KioskProvisioningPanel, and ReportsDashboard (with isAdminView={true}).
+  - Financial Report Exposure: In ReportsDashboard.jsx (lines 24-27, 266), isAdminView={true} enables isActualAdmin, granting full province-wide Financial & Tuition report access. Logged as DOM11-GOV-02.
+  - Rules Bundling: In firestore.rules (line 43), helper isExecutive() bundles isAdmin(), exposing list/read on /payments, /applications, /approvals, /progressReports, /deskInquiries. Logged as DOM01-GOV-03.
+  - Helper Collapse: In src/features/shared/roles.js (line 77), isExecutiveRole() treats admin as executive, lacking an isOrgExecutiveRole() counterpart. Logged as DOM01-REP-01.
+  - Performance Leak: useDashboardData.js (lines 315-325) sets up an unscoped onSnapshot listener on /applications for admin even though AdminDashboard never displays student applications. Logged as DOM01-PERF-01.
+  - Findings Logged: DOM11-GOV-02, DOM01-GOV-03, DOM01-REP-01, DOM01-PERF-01 in bug-ledger.md.
+```
 
 ---
 

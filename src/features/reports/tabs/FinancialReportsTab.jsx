@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useImperativeHandle, forwardRef } from "react";
+import { auth } from "../../../firebase";
 import { fetchPaymentsForWindow } from "../../finance/paymentsRepository";
 import { formatIDR } from "../../finance/receiptMessages";
 import { summarizePaymentsByMethod } from "../../finance/financeUtils";
@@ -30,15 +31,18 @@ const FinancialReportsTab = forwardRef(
   function FinancialReportsTab({ branchFilter = "all", rangeDays = 30, division = "all" }, ref) {
     const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [isCapped, setIsCapped] = useState(false);
     const [search, setSearch] = useState("");
     const [methodFilter, setMethodFilter] = useState("all");
 
     const fetchFinancialData = useCallback(async (force = false) => {
       setLoading(true);
+      setError(null);
       try {
+        const currentUserUid = auth?.currentUser?.uid || "unauth";
         const canonicalBranchId = branchFilter !== "all" ? branchToId(branchFilter) : "all";
-        const cacheKey = `${canonicalBranchId}_${division}_${rangeDays}`;
+        const cacheKey = `${currentUserUid}_${canonicalBranchId}_${division}_${rangeDays}`;
         const cached = financialCache.get(cacheKey);
         if (!force && cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
           setPayments(cached.payments);
@@ -55,6 +59,7 @@ const FinancialReportsTab = forwardRef(
         setIsCapped(result.isCapped);
       } catch (err) {
         console.error("Failed to load financial report data:", err);
+        setError("Unable to load financial records. Access may be restricted or a network error occurred.");
       } finally {
         setLoading(false);
       }
@@ -117,6 +122,22 @@ const FinancialReportsTab = forwardRef(
 
     return (
       <div className="space-y-6">
+        {error && (
+          <div className="rounded-xl border border-rose-300 bg-rose-50 p-4 text-xs text-rose-900 flex items-center justify-between gap-2" role="alert">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+              <span>{error}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => fetchFinancialData(true)}
+              className="px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold rounded-lg text-xs transition cursor-pointer"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {isCapped && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 flex items-center gap-2" role="status">
             <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />

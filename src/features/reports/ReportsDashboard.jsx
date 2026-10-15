@@ -125,8 +125,8 @@ export default function ReportsDashboard({
             <span>{isSupervisor ? "Staff Duty Logs" : "My Duty Log"}</span>
           </button>
 
-          {/* Sub-Tab: Financial & Tuition Revenue (Admin, Executive, Manager) */}
-          {(isActualAdmin || isExecutiveView || isManager) && (
+          {/* Sub-Tab: Financial & Tuition Revenue (Executive, Manager only per OD-2) */}
+          {(isExecutiveView || isManager) && (
             <button
               onClick={() => handleSubTabClick("finance")}
               className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
@@ -263,7 +263,7 @@ export default function ReportsDashboard({
         />
       )}
 
-      {subTab === "finance" && (isActualAdmin || isExecutiveView || isManager) && (
+      {subTab === "finance" && (isExecutiveView || isManager) && (
         <FinancialReportsTab
           ref={activeTabRef}
           branchFilter={branchFilter}

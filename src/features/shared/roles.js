@@ -78,7 +78,22 @@ export function isViceDirectorRole(role) {
 }
 
 /**
- * Checks whether a role belongs to executive leadership (Director, Vice Director, or Admin).
+ * Checks whether a role belongs to organizational executive leadership (Director or Vice Director only).
+ * Excludes technical System Admin per Blueprint §7 and Principle 15.
+ *
+ * @param {string | any} role
+ * @returns {boolean}
+ */
+export function isOrgExecutiveRole(role) {
+  const normalized = normalizeRole(role);
+  return (
+    normalized === CANONICAL_ROLES.DIRECTOR ||
+    normalized === CANONICAL_ROLES.VICE_DIRECTOR
+  );
+}
+
+/**
+ * Checks whether a role belongs to executive leadership or administrative technical access (Director, Vice Director, or Admin).
  *
  * @param {string | any} role
  * @returns {boolean}

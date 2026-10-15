@@ -134,7 +134,7 @@ service cloud.firestore {
     }
 
     function isSameBranch(data) {
-      return isExecutive() || isDocSameBranch(data);
+      return isOrgExecutive() || isDocSameBranch(data);
     }
 
     // For `list` only: isSameBranch's no-branch-fields -> kota_gorontalo fallback
@@ -756,9 +756,9 @@ service cloud.firestore {
     }
 
     match /applications/{applicationId} {
-      allow get: if isExecutive() || ((isFrontOffice() || isManager() || hasRole('marketing')) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
-      allow list: if isExecutive() || ((isFrontOffice() || isManager() || hasRole('marketing')) && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data));
-      allow update: if isExecutive() || (isFrontOffice() && isSameBranch(resource.data) && isSameBranch(request.resource.data) && isDivisionAllowedForBranchStaff(resource.data) && isDivisionAllowedForBranchStaff(request.resource.data) && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId));
+      allow get: if isOrgExecutive() || ((isFrontOffice() || isManager() || hasRole('marketing')) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
+      allow list: if isOrgExecutive() || ((isFrontOffice() || isManager() || hasRole('marketing')) && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data));
+      allow update: if isOrgExecutive() || (isFrontOffice() && isSameBranch(resource.data) && isSameBranch(request.resource.data) && isDivisionAllowedForBranchStaff(resource.data) && isDivisionAllowedForBranchStaff(request.resource.data) && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId));
       allow delete: if isViceDirector() || isDirector();
       allow create: if false;
     }
@@ -790,7 +790,7 @@ service cloud.firestore {
     }
 
     match /classes/{classId} {
-      allow get: if isExecutive()
+      allow get: if isOrgExecutive()
         || (isStaff() && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data))
         || (isStaff() && (
             resource.data.instructorId == request.auth.uid
@@ -798,7 +798,7 @@ service cloud.firestore {
           ))
         || (signedIn() && ('studentIds' in resource.data) && resource.data.studentIds.hasAny([request.auth.uid]))
         || (isParent() && isSameBranch(resource.data) && ('childStudentIds' in userProfile()) && ('studentIds' in resource.data) && resource.data.studentIds.hasAny(userProfile().childStudentIds));
-      allow list: if isExecutive()
+      allow list: if isOrgExecutive()
         || (isStaff() && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data))
         || (isStaff() && (
             resource.data.instructorId == request.auth.uid
@@ -841,9 +841,9 @@ service cloud.firestore {
 
     match /attendance/{attendanceId} {
       // Branch-lock attendance by default. Executives have province-wide access.
-      allow get: if isExecutive()
+      allow get: if isOrgExecutive()
         || (isStaff() && isSameBranch(resource.data) && isDivisionAllowedForBranchStaff(resource.data));
-      allow list: if isExecutive()
+      allow list: if isOrgExecutive()
         || (isStaff() && isSameBranchStrict(resource.data) && isDivisionAllowedForBranchStaff(resource.data));
       // Student scans: Executives, Front Office, Instructor, and Instructor Leader; scanned person must be a student
       allow create: if (isOrgExecutive() || isFrontOffice() || hasRole('instructor') || hasRole('instructorleader') || hasRole('instructor_leader'))
@@ -869,7 +869,7 @@ service cloud.firestore {
       // Company-wide events (audienceType == 'all') are readable by staff across all branches.
       // Branch events (audienceType == 'branch') are branch-isolated and strictly scoped to same-branch staff.
       // Students and parents cannot read corporate events.
-      allow read: if isExecutive()
+      allow read: if isOrgExecutive()
         || (isStaff() && (
               resource.data.audienceType == 'all'
               || isSameBranchStrict(resource.data)
@@ -919,7 +919,7 @@ service cloud.firestore {
     function canReadClassAttendance() {
       let p = userProfile();
       let r = signedIn() && p != null && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated')) && ('role' in p) ? p.role : '';
-      let isExec = r in ['director', 'vice_director', 'admin'];
+      let isExec = r in ['director', 'vice_director'];
       let res = resource != null ? resource.data : null;
       let sId = res != null && ('studentId' in res) ? res.studentId : '';
       let cId = res != null && ('classId' in res) ? res.classId : '';
@@ -987,7 +987,7 @@ service cloud.firestore {
     function canGetPayment() {
       let p = userProfile();
       let r = signedIn() && p != null && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated')) && ('role' in p) ? p.role : '';
-      let isExec = r in ['director', 'vice_director', 'admin'];
+      let isExec = r in ['director', 'vice_director'];
       let res = resource != null ? resource.data : null;
       let sId = res != null && ('studentId' in res) ? res.studentId : '';
       let isPar = r == 'parent' && (!('status' in p) || p.status == 'active');
@@ -1003,7 +1003,7 @@ service cloud.firestore {
 
     match /payments/{paymentId} {
       allow get: if canGetPayment();
-      allow list: if isExecutive()
+      allow list: if isOrgExecutive()
         || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data) && isDivisionAllowedForBranchStaff(resource.data))
         || (signedIn() && resource.data.studentId == request.auth.uid)
         || (isParent() && isSameBranchStrict(resource.data) && ('childStudentIds' in userProfile()) && userProfile().childStudentIds.hasAny([resource.data.studentId]));
@@ -1027,12 +1027,12 @@ service cloud.firestore {
     }
 
     match /deskInquiries/{inquiryId} {
-      allow get: if isExecutive() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
-      allow list: if isExecutive() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data));
+      allow get: if isOrgExecutive() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
+      allow list: if isOrgExecutive() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data));
       // Placement level authority (FO-03 / OD-IL-ENF2): A course inquiry cannot be created
       // with a graded academic level; placement levels must be assigned via an assessment score
       // rubric or an approved PLACEMENT_LEVEL_OVERRIDE envelope.
-      allow create: if (isExecutive() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(request.resource.data) && isDivisionAllowedForManager(request.resource.data)))
+      allow create: if (isOrgExecutive() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(request.resource.data) && isDivisionAllowedForManager(request.resource.data)))
         && (!('currentLevel' in request.resource.data) || request.resource.data.currentLevel in ['', 'unassessed'] || (('division' in request.resource.data) && request.resource.data.division == 'kindergarten'));
       // Placement level authority (OD-IL-ENF2) needs headroom under the engine's
       // 1000-expression ceiling, and `isExecutive() || isManager() || isFrontOffice() ||
@@ -1050,7 +1050,7 @@ service cloud.firestore {
     }
 
     match /approvals/{approvalId} {
-      allow read: if isExecutive()
+      allow read: if isOrgExecutive()
         || isApproverForDoc(resource.data)
         || (signedIn() && resource.data.requestedByUid == request.auth.uid);
       allow create: if signedIn()
@@ -1106,7 +1106,7 @@ service cloud.firestore {
     }
 
     match /progressReports/{reportId} {
-      allow get: if isExecutive()
+      allow get: if isOrgExecutive()
         || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data))
         || (signedIn() && resource.data.instructorId == request.auth.uid)
         || (isParentOf(resource.data.studentId))
@@ -1116,7 +1116,7 @@ service cloud.firestore {
         // /classes and /users (isDivisionAllowedForBranchStaff's role list omits
         // instructor-family roles, so a division gate would be a no-op here anyway).
         || (isInstructorLeader() && isSameBranch(resource.data));
-      allow list: if isExecutive()
+      allow list: if isOrgExecutive()
         || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data))
         || (signedIn() && resource.data.instructorId == request.auth.uid)
         || (isParent() && isSameBranchStrict(resource.data) && ('childStudentIds' in userProfile()) && userProfile().childStudentIds.hasAny([resource.data.studentId]))
@@ -1129,7 +1129,7 @@ service cloud.firestore {
           || (('substituteInstructorId' in get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data)
             && get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.substituteInstructorId == request.auth.uid))
         && get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.studentIds.hasAny([request.resource.data.studentId]);
-      allow update, delete: if isExecutive() || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
+      allow update, delete: if isOrgExecutive() || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
     }
 
     function canUpdateShift(shiftId) {
@@ -1183,10 +1183,10 @@ service cloud.firestore {
     }
 
     match /shifts/{shiftId} {
-      allow get: if isExecutive()
+      allow get: if isOrgExecutive()
         || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isDivisionAllowedForBranchStaff(resource.data))
         || (signedIn() && resource.data.userId == request.auth.uid);
-      allow list: if isExecutive()
+      allow list: if isOrgExecutive()
         || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data) && isDivisionAllowedForBranchStaff(resource.data))
         || (signedIn() && resource.data.userId == request.auth.uid);
       // Staff scans: Front Office (reception kiosk station), for tracked roles only, new shifts start open
@@ -1216,10 +1216,10 @@ service cloud.firestore {
     }
 
     match /staffLeave/{leaveId} {
-      allow get: if isExecutive()
+      allow get: if isOrgExecutive()
         || (isManager() && isSameBranch(resource.data))
         || (signedIn() && resource.data.userId == request.auth.uid);
-      allow list: if isExecutive()
+      allow list: if isOrgExecutive()
         || (isManager() && isSameBranchStrict(resource.data))
         || (signedIn() && resource.data.userId == request.auth.uid);
       allow create: if (isOrgExecutive()
@@ -1254,20 +1254,20 @@ service cloud.firestore {
       // Read access is restricted to roles that have an operational need:
       // Executive (full access), Manager (oversight/reporting), Marketing (field work).
       // Instructor, Front Office, and Office Boy have no outreach business and are excluded.
-      allow get: if isExecutive() || ((isManager() || hasRole('marketing')) && isSameBranch(resource.data));
-      allow list: if isExecutive() || ((isManager() || hasRole('marketing')) && isSameBranchStrict(resource.data));
-      allow create: if (isExecutive() || ((isManager() || hasRole('marketing')) && isSameBranch(request.resource.data)))
+      allow get: if isOrgExecutive() || ((isManager() || hasRole('marketing')) && isSameBranch(resource.data));
+      allow list: if isOrgExecutive() || ((isManager() || hasRole('marketing')) && isSameBranchStrict(resource.data));
+      allow create: if (isOrgExecutive() || ((isManager() || hasRole('marketing')) && isSameBranch(request.resource.data)))
         && request.resource.data.name is string
         && request.resource.data.lat is number
         && request.resource.data.lng is number;
-      allow update: if (isExecutive() || ((isManager() || hasRole('marketing')) && isSameBranch(resource.data) && isSameBranch(request.resource.data)))
+      allow update: if (isOrgExecutive() || ((isManager() || hasRole('marketing')) && isSameBranch(resource.data) && isSameBranch(request.resource.data)))
         && (!('createdBy' in resource.data) || request.resource.data.createdBy == resource.data.createdBy)
         && (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt);
       match /visits/{visitId} {
         // Enforce strict branch check so visits are consistently isolated per branch across direct and collectionGroup queries
-        allow read: if isExecutive()
+        allow read: if isOrgExecutive()
           || ((isManager() || hasRole('marketing')) && isSameBranchStrict(resource.data));
-        allow create: if (isExecutive() || ((isManager() || hasRole('marketing'))
+        allow create: if (isOrgExecutive() || ((isManager() || hasRole('marketing'))
             && isSameBranchStrict(request.resource.data)
             && isSameBranch(get(/databases/$(database)/documents/schoolOutreach/$(schoolId)).data)))
           && request.resource.data.visitDate is string
@@ -1276,7 +1276,7 @@ service cloud.firestore {
           && request.resource.data.branchId is string
           && request.resource.data.branch is string
           && request.resource.data.source == 'schoolOutreach';
-        allow update: if isExecutive()
+        allow update: if isOrgExecutive()
           || ((isManager() || hasRole('marketing'))
             && isSameBranchStrict(resource.data)
             && isSameBranchStrict(request.resource.data));
@@ -1285,9 +1285,9 @@ service cloud.firestore {
 
     match /{path=**}/visits/{visitId} {
       // Collection-group query matcher for outreach visits across schools
-      allow read: if isExecutive()
+      allow read: if isOrgExecutive()
         || ((isManager() || hasRole('marketing')) && isSameBranchStrict(resource.data));
-      allow create: if (isExecutive()
+      allow create: if (isOrgExecutive()
           || ((isManager() || hasRole('marketing')) && isSameBranchStrict(request.resource.data)))
         && request.resource.data.visitDate is string
         && request.resource.data.contactName is string
@@ -1295,7 +1295,7 @@ service cloud.firestore {
         && request.resource.data.branchId is string
         && request.resource.data.branch is string
         && request.resource.data.source == 'schoolOutreach';
-      allow update: if isExecutive()
+      allow update: if isOrgExecutive()
         || ((isManager() || hasRole('marketing'))
           && isSameBranchStrict(resource.data)
           && isSameBranchStrict(request.resource.data));

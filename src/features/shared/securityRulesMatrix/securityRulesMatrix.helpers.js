@@ -130,7 +130,7 @@ export function isParentOf(studentId, user) {
 }
 
 export function isSameBranch(data, user) {
-  if (isExecutive(user)) return true;
+  if (isOrgExecutive(user)) return true;
   if (!user) return false;
 
   let docBranch = "kota_gorontalo";
@@ -245,7 +245,7 @@ export function canDeleteUser(existing, user) {
 
 export function canGetClass(doc, user) {
   if (!user) return false;
-  if (isExecutive(user)) return true;
+  if (isOrgExecutive(user)) return true;
   if (isStaff(user) && isSameBranch(doc, user) && isDivisionAllowedForManager(doc, user)) return true;
   if (
     isStaff(user) &&
@@ -267,7 +267,7 @@ export function canGetClass(doc, user) {
 
 export function canListClasses(queryData, user) {
   if (!user) return false;
-  if (isExecutive(user)) return true;
+  if (isOrgExecutive(user)) return true;
   if (isStaff(user) && isSameBranchStrict(queryData, user) && isDivisionAllowedForManager(queryData, user))
     return true;
   if (
@@ -290,7 +290,7 @@ export function canListClasses(queryData, user) {
 
 export function canGetApplication(doc, user) {
   if (!user) return false;
-  if (isExecutive(user)) return true;
+  if (isOrgExecutive(user)) return true;
   if (
     (isFrontOffice(user) || isManager(user) || user.role === "marketing") &&
     isSameBranch(doc, user) &&
@@ -302,7 +302,7 @@ export function canGetApplication(doc, user) {
 
 export function canListApplications(queryData, user) {
   if (!user) return false;
-  if (isExecutive(user)) return true;
+  if (isOrgExecutive(user)) return true;
   if (
     (isFrontOffice(user) || isManager(user) || user.role === "marketing") &&
     isSameBranchStrict(queryData, user) &&
@@ -314,7 +314,7 @@ export function canListApplications(queryData, user) {
 
 export function canGetProgressReport(doc, user) {
   if (!user) return false;
-  if (isExecutive(user)) return true;
+  if (isOrgExecutive(user)) return true;
   if (
     (isManager(user) || isFrontOffice(user)) &&
     isSameBranch(doc, user) &&
@@ -330,7 +330,7 @@ export function canGetProgressReport(doc, user) {
 
 export function canListProgressReports(queryData, user) {
   if (!user) return false;
-  if (isExecutive(user)) return true;
+  if (isOrgExecutive(user)) return true;
   if (
     (isManager(user) || isFrontOffice(user)) &&
     isSameBranchStrict(queryData, user) &&

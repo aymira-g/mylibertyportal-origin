@@ -11,7 +11,7 @@ import {
 } from "firebase/firestore";
 import { APPROVAL_STATUS, APPROVAL_ROLES } from "./approvalGates";
 import { branchToId, DEFAULT_BRANCH_ID } from "../../constants/branches";
-import { normalizeRole, isExecutiveRole } from "./roles";
+import { normalizeRole, isOrgExecutiveRole } from "./roles";
 
 const COLLECTION_NAME = "approvals";
 
@@ -39,8 +39,9 @@ export async function submitApprovalRequest(envelope) {
 
 /**
  * Subscribes to pending approval requests matching the approver's role and branch.
- * Executives (Director, Vice Director, Admin) receive all pending approvals province-wide;
- * Branch Managers receive approvals scoped to their branch.
+ * Organizational executives (Director, Vice Director) receive all pending approvals province-wide;
+ * Division Managers and branch leads receive approvals scoped to their role and branch.
+ * System Admin possesses no approval authority and receives an empty queue.
  *
  * @param {string} userRole
  * @param {string} branchId
@@ -51,12 +52,16 @@ export async function submitApprovalRequest(envelope) {
  */
 export function listenToPendingApprovals(userRole, branchId, onData, onError, options = {}) {
   const normalizedRole = normalizeRole(userRole);
+  if (normalizedRole === "admin") {
+    onData([]);
+    return () => {};
+  }
   const normalizedBranch = branchId ? branchToId(branchId) : DEFAULT_BRANCH_ID;
   const targetDivision = options?.division || null;
 
   const constraints = [where("status", "==", APPROVAL_STATUS.PENDING)];
 
-  if (!isExecutiveRole(normalizedRole)) {
+  if (!isOrgExecutiveRole(normalizedRole)) {
     if (normalizedRole === "manager") {
       constraints.push(where("approverRole", "==", APPROVAL_ROLES.DIVISION_MANAGER));
       constraints.push(where("approverBranchId", "==", normalizedBranch));
@@ -117,12 +122,16 @@ export function listenToPendingApprovals(userRole, branchId, onData, onError, op
  */
 export function listenToUnappliedApprovals(userRole, branchId, onData, onError, options = {}) {
   const normalizedRole = normalizeRole(userRole);
+  if (normalizedRole === "admin") {
+    onData([]);
+    return () => {};
+  }
   const normalizedBranch = branchId ? branchToId(branchId) : DEFAULT_BRANCH_ID;
   const targetDivision = options?.division || null;
 
   const constraints = [where("status", "==", APPROVAL_STATUS.APPROVED)];
 
-  if (!isExecutiveRole(normalizedRole)) {
+  if (!isOrgExecutiveRole(normalizedRole)) {
     if (normalizedRole === "manager") {
       constraints.push(where("approverRole", "==", APPROVAL_ROLES.DIVISION_MANAGER));
       constraints.push(where("approverBranchId", "==", normalizedBranch));

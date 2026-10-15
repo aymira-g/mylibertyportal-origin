@@ -5,6 +5,7 @@ import {
   normalizeRole,
   normalizeRoleAlias,
   isExecutiveRole,
+  isOrgExecutiveRole,
   isDirectorRole,
   isViceDirectorRole,
   isFrontOfficeRole,
@@ -150,6 +151,15 @@ describe("roles.js - Centralized Role Normalization", () => {
       expect(isViceDirectorRole("vice-director")).toBe(true);
       expect(isViceDirectorRole("director")).toBe(false);
       expect(isViceDirectorRole("admin")).toBe(false);
+
+      expect(isOrgExecutiveRole("director")).toBe(true);
+      expect(isOrgExecutiveRole("DIRECTOR")).toBe(true);
+      expect(isOrgExecutiveRole("vice_director")).toBe(true);
+      expect(isOrgExecutiveRole("vicedirector")).toBe(true);
+      expect(isOrgExecutiveRole("vice-director")).toBe(true);
+      expect(isOrgExecutiveRole("admin")).toBe(false);
+      expect(isOrgExecutiveRole("manager")).toBe(false);
+      expect(isOrgExecutiveRole(null)).toBe(false);
 
       expect(isExecutiveRole("director")).toBe(true);
       expect(isExecutiveRole("vice_director")).toBe(true);

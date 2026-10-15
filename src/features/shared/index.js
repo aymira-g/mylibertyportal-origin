@@ -78,6 +78,7 @@ export {
   LEGACY_ROLE_ALIASES,
   normalizeRole,
   isExecutiveRole,
+  isOrgExecutiveRole,
   isDirectorRole,
   isViceDirectorRole,
   isFrontOfficeRole,

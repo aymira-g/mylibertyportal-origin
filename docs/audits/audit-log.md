@@ -797,3 +797,15 @@ Executed Level 2 Cross-Feature Lifecycle & Attack Audit per `docs/audits/Compreh
 
 
 
+
+
+## 2026-10-15 — Role & Business Logic Conformance Audit (BLRCA): Slice 1 — System Admin Boundary Verification
+Source: Level 2 Role & Business Logic Conformance Audit methodology (`MyLiberty-Role-Business-Logic-Conformance-Audit-Design.md`).
+Scope: System Admin (`admin`) role technical boundary audit against Blueprint §7, §8, OD-2, and invariants INV-02/INV-03.
+Status: ACCEPTED (4 findings logged to `bug-ledger.md`: DOM11-GOV-02, DOM01-GOV-03, DOM01-REP-01, DOM01-PERF-01).
+
+Findings Summary:
+1. DOM11-GOV-02 (High): ReportsDashboard mounts with isAdminView={true}, granting System Admin province-wide Financial & Tuition report access.
+2. DOM01-GOV-03 (High): `firestore.rules:43` helper `isExecutive()` bundles `isAdmin()`, granting System Admin read/list access across business collections (`/payments`, `/applications`, `/approvals`, `/progressReports`, `/deskInquiries`).
+3. DOM01-REP-01 (High): `src/features/shared/roles.js:77` `isExecutiveRole()` treats `admin` as executive without an organizational counterpart `isOrgExecutiveRole()`.
+4. DOM01-PERF-01 (Low): `useDashboardData.js:315-325` runs an unscoped realtime listener on `/applications` for `admin` despite AdminDashboard not rendering student applications.

@@ -296,23 +296,28 @@ export function useDashboardData({
       handleListenerError("classes")
     );
 
-    const appConstraints = [];
-    if (targetBranchId) {
-      appConstraints.push(where("branchId", "==", targetBranchId));
-    }
-    if (isKindergarten) {
-      appConstraints.push(where("division", "==", "kindergarten"));
-    }
-    // Courses Front Office: do not add server filter until backfill (R5) is done
-    const applicationsQuery = appConstraints.length
-      ? query(collection(db, "applications"), ...appConstraints)
-      : collection(db, "applications");
+    let unsubApplications = () => {};
+    // System Admin does not manage admissions or view student applications;
+    // skip real-time listener to preserve Spark free-tier reads (DOM01-PERF-01).
+    if (normalizeRole(profileRole) !== "admin") {
+      const appConstraints = [];
+      if (targetBranchId) {
+        appConstraints.push(where("branchId", "==", targetBranchId));
+      }
+      if (isKindergarten) {
+        appConstraints.push(where("division", "==", "kindergarten"));
+      }
+      // Courses Front Office: do not add server filter until backfill (R5) is done
+      const applicationsQuery = appConstraints.length
+        ? query(collection(db, "applications"), ...appConstraints)
+        : collection(db, "applications");
 
-    const unsubApplications = onSnapshot(
-      applicationsQuery,
-      (snap) => setApplications(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
-      handleListenerError("applications")
-    );
+      unsubApplications = onSnapshot(
+        applicationsQuery,
+        (snap) => setApplications(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+        handleListenerError("applications")
+      );
+    }
 
     const todoConstraints = [];
     if (targetBranchId) {

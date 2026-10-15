@@ -17,7 +17,7 @@ import { todayWita, getWitaDayRangeIso } from "../../utils/dateWita.js";
 import { studentIdSchema, paymentRecordSchema } from "../../schemas";
 import { branchToId, idToBranch, DEFAULT_BRANCH_ID } from "../../constants/branches";
 import { normalizeDivision, divisionOfProgram } from "../../constants/divisions";
-import { normalizeRole, isExecutiveRole } from "../shared/roles.js";
+import { normalizeRole, isOrgExecutiveRole } from "../shared/roles.js";
 
 /**
  * Resolves the caller's authorized branch ID for payments queries (DOM04-SEC-01).
@@ -38,7 +38,11 @@ export async function resolveCallerBranchId(explicitBranchId = null) {
     if (snap.exists()) {
       const data = snap.data();
       const normRole = normalizeRole(data.role);
-      if (normRole === "admin" || isExecutiveRole(normRole)) {
+      // System Admin strictly forbidden from financial data per OD-2
+      if (normRole === "admin") {
+        return null;
+      }
+      if (isOrgExecutiveRole(normRole)) {
         return explicitBranchId === "all" ? "all" : (explicitBranchId ? branchToId(explicitBranchId) : "all");
       }
       return data.branchId || (data.branch ? branchToId(data.branch) : null);

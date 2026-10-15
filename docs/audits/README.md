@@ -42,7 +42,7 @@ docs/audits/
    Detailed conformance layer and operational functional QA. Systematically traces 5 passes through business workflows, failure matrices, and boundary triggers.  
    **Verification Scope:** Role authority, workflow correctness, permission boundaries, state transitions, physical branch/division isolation, cross-feature interactions, failure paths, data scope, separation of duties, dashboard behavior, and business-rule implementation.  
    *Note: This is the **primary audit level** for the active role-by-role and dashboard-by-dashboard refinement effort.*  
-   * **Ratified Campaign Procedure:** [`Role & Business Logic Conformance Audit/MyLiberty-Role-Business-Logic-Conformance-Audit-Design.md`](./Role%20&%20Business%20Logic%20Conformance%20Audit/MyLiberty-Role-Business-Logic-Conformance-Audit-Design.md) — Ratified Level 2 campaign procedure (Approved by Owner Kifry, 2026-10-15).
+   * **Ratified Campaign Procedure:** [`Role & Business Logic Conformance Audit/00-README.md`](./Role%20&%20Business%20Logic%20Conformance%20Audit/00-README.md) — Modular Level 2 campaign framework (Approved by Owner Kifry, 2026-10-15; refactored to modular procedure architecture).
 
 3. **[`Full System Architecture & Scalability Audit Procedure/`](./Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md) (Level 3 — System Architecture & Scalability Audit)**  
    Highest technical and system-wide verification level.  

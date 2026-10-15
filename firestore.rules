@@ -869,7 +869,7 @@ service cloud.firestore {
       // Company-wide events (audienceType == 'all') are readable by staff across all branches.
       // Branch events (audienceType == 'branch') are branch-isolated and strictly scoped to same-branch staff.
       // Students and parents cannot read corporate events.
-      allow read: if isOrgExecutive()
+      allow read: if isExecutive()
         || (isStaff() && (
               resource.data.audienceType == 'all'
               || isSameBranchStrict(resource.data)

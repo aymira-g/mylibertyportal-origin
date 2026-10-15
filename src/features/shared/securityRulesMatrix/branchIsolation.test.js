@@ -9,6 +9,8 @@ import {
   userBranch,
 } from "./securityRulesMatrix.helpers.js";
 import {
+  directorUser,
+  viceDirectorUser,
   adminUser,
   managerGorontalo,
   managerBoneBolango,
@@ -53,10 +55,16 @@ describe("Branch Isolation & Boundary Protection Security Matrix", () => {
       expect(isSameBranch(null, foBoneBolango)).toBe(false);
     });
 
-    it("grants Admin global branch access everywhere", () => {
-      expect(isSameBranch({ branchId: "bone_bolango" }, adminUser)).toBe(true);
-      expect(isSameBranch({ branchId: "pohuwato" }, adminUser)).toBe(true);
-      expect(isSameBranch({ branchId: "limboto" }, adminUser)).toBe(true);
+    it("grants Organizational Executives global branch access everywhere while isolating Admin by branch", () => {
+      expect(isSameBranch({ branchId: "bone_bolango" }, directorUser)).toBe(true);
+      expect(isSameBranch({ branchId: "pohuwato" }, directorUser)).toBe(true);
+      expect(isSameBranch({ branchId: "limboto" }, directorUser)).toBe(true);
+      expect(isSameBranch({ branchId: "bone_bolango" }, viceDirectorUser)).toBe(true);
+
+      // System Admin is technical authority and does not possess organizational executive cross-branch bypass
+      expect(isSameBranch({ branchId: "bone_bolango" }, adminUser)).toBe(false);
+      expect(isSameBranch({ branchId: "pohuwato" }, adminUser)).toBe(false);
+      expect(isSameBranch({ branchId: "limboto" }, adminUser)).toBe(false);
     });
   });
 

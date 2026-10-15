@@ -48,6 +48,12 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
       branchId: "kota_gorontalo",
     };
 
+    const director = {
+      uid: "director_super",
+      role: "director",
+      branchId: "kota_gorontalo",
+    };
+
     const foStaff = {
       uid: "fo_gtlo",
       role: "frontoffice",
@@ -105,15 +111,28 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
       expect(canListProgressReports({ branchId: "kota_gorontalo", division: "courses" }, kidsManagerGorontalo)).toBe(false);
     });
 
-    it("Admin -> all branches and divisions: ALLOW", () => {
+    it("Admin -> own branch classes/apps allowed, foreign branch classes/apps denied; Director has full access", () => {
+      // Director retains full province-wide visibility across all branches and divisions
+      expect(canGetClass(classKidsGtlo, director)).toBe(true);
+      expect(canGetClass(classCoursesGtlo, director)).toBe(true);
+      expect(canGetClass(classKidsBoba, director)).toBe(true);
+      expect(canListClasses({ branchId: "bone_bolango" }, director)).toBe(true);
+      expect(canGetApplication(appKidsGtlo, director)).toBe(true);
+      expect(canGetApplication(appCoursesGtlo, director)).toBe(true);
+      expect(canGetProgressReport(progKidsGtlo, director)).toBe(true);
+      expect(canGetProgressReport(progCoursesGtlo, director)).toBe(true);
+      expect(canGetUser(studentKidsGtlo, director)).toBe(true);
+      expect(canGetUser(studentCoursesGtlo, director)).toBe(true);
+
+      // System Admin (BLRCA Slice 1 / OD-2 / Blueprint §7) is isolated by branch for classes, forbidden from student applications/progress reports, and retains user accounts access
       expect(canGetClass(classKidsGtlo, admin)).toBe(true);
       expect(canGetClass(classCoursesGtlo, admin)).toBe(true);
-      expect(canGetClass(classKidsBoba, admin)).toBe(true);
-      expect(canListClasses({ branchId: "bone_bolango" }, admin)).toBe(true);
-      expect(canGetApplication(appKidsGtlo, admin)).toBe(true);
-      expect(canGetApplication(appCoursesGtlo, admin)).toBe(true);
-      expect(canGetProgressReport(progKidsGtlo, admin)).toBe(true);
-      expect(canGetProgressReport(progCoursesGtlo, admin)).toBe(true);
+      expect(canGetClass(classKidsBoba, admin)).toBe(false);
+      expect(canListClasses({ branchId: "bone_bolango" }, admin)).toBe(false);
+      expect(canGetApplication(appKidsGtlo, admin)).toBe(false);
+      expect(canGetApplication(appCoursesGtlo, admin)).toBe(false);
+      expect(canGetProgressReport(progKidsGtlo, admin)).toBe(false);
+      expect(canGetProgressReport(progCoursesGtlo, admin)).toBe(false);
       expect(canGetUser(studentKidsGtlo, admin)).toBe(true);
       expect(canGetUser(studentCoursesGtlo, admin)).toBe(true);
     });
@@ -676,6 +695,12 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
       branchId: "kota_gorontalo",
     };
 
+    const director = {
+      uid: "director_super",
+      role: "director",
+      branchId: "kota_gorontalo",
+    };
+
     const allManagerGorontalo = {
       uid: "all_mgr_gtlo",
       role: "manager",
@@ -801,11 +826,20 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
       expect(canGetUser(studentCoursesGtlo, kidsManagerGorontalo)).toBe(false);
     });
 
-    it("5. Admin behavior remains completely unrestricted across branches and divisions", () => {
+    it("5. Organizational Executive (Director) has province-wide access across branches and divisions, while Admin is branch-isolated", () => {
+      // Director has province-wide organizational executive access across branches and divisions
+      expect(canGetClass(classKidsGtlo, director)).toBe(true);
+      expect(canGetClass(classCoursesGtlo, director)).toBe(true);
+      expect(canGetClass(classKidsBoba, director)).toBe(true);
+      expect(canGetClass(classCoursesBoba, director)).toBe(true);
+      expect(canGetUser(studentKidsBoba, director)).toBe(true);
+      expect(canGetUser(studentCoursesBoba, director)).toBe(true);
+
+      // System Admin (BLRCA Slice 1 / OD-2 / Blueprint §7) is confined to their branch for classes, but retains technical user maintenance
       expect(canGetClass(classKidsGtlo, admin)).toBe(true);
       expect(canGetClass(classCoursesGtlo, admin)).toBe(true);
-      expect(canGetClass(classKidsBoba, admin)).toBe(true);
-      expect(canGetClass(classCoursesBoba, admin)).toBe(true);
+      expect(canGetClass(classKidsBoba, admin)).toBe(false);
+      expect(canGetClass(classCoursesBoba, admin)).toBe(false);
       expect(canGetUser(studentKidsBoba, admin)).toBe(true);
       expect(canGetUser(studentCoursesBoba, admin)).toBe(true);
     });

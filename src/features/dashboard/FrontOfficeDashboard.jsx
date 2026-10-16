@@ -360,6 +360,7 @@ export default function FrontOfficeDashboard({ role = "frontoffice", branch = nu
           canEditStatus={false}
           userRole={role || "frontoffice"}
           branchId={myBranch}
+          division="courses"
           canViewParents={true}
         />
       ),
@@ -380,7 +381,7 @@ export default function FrontOfficeDashboard({ role = "frontoffice", branch = nu
     {
       id: "events",
       label: "Events",
-      component: <CorporateEventsPanel />,
+      component: <CorporateEventsPanel canCreate={false} canCancel={false} />,
     },
     {
       id: "reports",
@@ -388,6 +389,7 @@ export default function FrontOfficeDashboard({ role = "frontoffice", branch = nu
       component: (
         <FrontOfficeReportsTab
           myBranch={myBranch}
+          division="courses"
           students={students}
         />
       ),

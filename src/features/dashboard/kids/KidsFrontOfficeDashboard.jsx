@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { auth } from "../../../firebase";
 import { useDashboardData } from "../useDashboardData";
 import { AIAssistant, DashboardShell, WelcomeBanner, useToast } from "../../shared";
-import { ReportsDashboard } from "../../reports";
 import {
   StudentApplications,
   StudentRoster,
@@ -19,6 +18,7 @@ import {
   TuitionDueWidget,
   PaymentCashierTab,
   WalkInInquiryTab,
+  FrontOfficeReportsTab,
   mapInquiryToEnrollment,
 } from "../frontoffice";
 import {
@@ -309,6 +309,7 @@ export default function KidsFrontOfficeDashboard({ branch = null }) {
           canEditStatus={false}
           userRole="frontoffice"
           branchId={myBranch}
+          division="kindergarten"
           canViewParents={true}
         />
       ),
@@ -330,7 +331,11 @@ export default function KidsFrontOfficeDashboard({ branch = null }) {
       id: "reports",
       label: "Reports",
       component: (
-        <ReportsDashboard isAdminView={false} isFrontOffice={true} division="kindergarten" userBranch={myBranch} />
+        <FrontOfficeReportsTab
+          myBranch={myBranch}
+          division="kindergarten"
+          students={students}
+        />
       ),
     },
     {

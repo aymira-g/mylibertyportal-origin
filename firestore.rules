@@ -203,6 +203,45 @@ service cloud.firestore {
       return isDivisionAllowedForBranchStaff(data);
     }
 
+    // Progress reports list rule requires explicit division constraint to prevent cross-division leakage.
+    // Explicit 'courses' caller can only list courses reports (data.division == 'courses').
+    // Explicit 'kindergarten' caller can only list kindergarten reports (data.division == 'kindergarten').
+    // Accounts with division: 'all', missing division, or invalid division are strictly denied until an owner decision establishes their scope.
+    function isDivisionAllowedForProgressReportsList(data) {
+      let uDiv = userDivision();
+      return data != null && ('division' in data) && (
+        (uDiv == 'kindergarten' && data.division == 'kindergarten')
+        || (uDiv == 'courses' && data.division == 'courses')
+      );
+    }
+
+    // Progress reports get rule enforces strict division isolation on direct document access:
+    // - Explicit 'kindergarten' caller can only read kindergarten reports (data.division == 'kindergarten').
+    // - Explicit 'courses' caller can read courses reports (data.division == 'courses') and legacy unstamped reports (!('division' in data)).
+    // - Accounts with division: 'all', missing division, or invalid division are strictly denied.
+    // - Cross-division reads are strictly denied.
+    function isDivisionAllowedForProgressReportsGet(data) {
+      let uDiv = userDivision();
+      return data != null && (
+        (uDiv == 'kindergarten' && ('division' in data) && data.division == 'kindergarten')
+        || (uDiv == 'courses' && (!('division' in data) || data.division == 'courses'))
+      );
+    }
+
+    // Progress reports write rule enforces strict division matching on mutations (update, delete):
+    // - Requires an explicit matching division on the document ('division' in data && data.division == uDiv).
+    // - Explicit 'courses' caller can only mutate courses reports (data.division == 'courses').
+    // - Explicit 'kindergarten' caller can only mutate kindergarten reports (data.division == 'kindergarten').
+    // - Unstamped legacy reports lacking 'division' cannot be modified or deleted by branch staff pending an owner decision.
+    // - Accounts with division: 'all', missing division, or invalid division are strictly denied.
+    function isDivisionAllowedForProgressReportsWrite(data) {
+      let uDiv = userDivision();
+      return data != null && ('division' in data) && (
+        (uDiv == 'kindergarten' && data.division == 'kindergarten')
+        || (uDiv == 'courses' && data.division == 'courses')
+      );
+    }
+
     function isDeskInquiryStaff() {
       let p = userProfile();
       return signedIn()
@@ -1017,7 +1056,7 @@ service cloud.firestore {
           || (request.resource.data.audienceValue == 'Limboto' && userBranch() == 'limboto')
         ))
         || (
-          (isManager() || isOpsLead() || isFrontOffice())
+          (isManager() || isOpsLead())
           && request.resource.data.audienceType == 'branch'
           && (
             request.resource.data.audienceValue == userBranch()
@@ -1032,7 +1071,7 @@ service cloud.firestore {
       && request.resource.data.eventDate is string
       && request.resource.data.audienceType in ['all', 'branch', 'role', 'division'];
       allow update: if (isDirector() || isViceDirector())
-        || ((isManager() || isOpsLead() || isFrontOffice())
+        || ((isManager() || isOpsLead())
           && resource.data.audienceType == 'branch'
           && request.resource.data.audienceType == 'branch'
           && isSameBranch(resource.data)
@@ -1044,7 +1083,7 @@ service cloud.firestore {
             || (request.resource.data.audienceValue == 'Limboto' && userBranch() == 'limboto')
           ));
       allow delete: if (isDirector() || isViceDirector())
-        || ((isManager() || isOpsLead() || isFrontOffice())
+        || ((isManager() || isOpsLead())
           && resource.data.audienceType == 'branch'
           && isSameBranch(resource.data));
     }
@@ -1257,17 +1296,31 @@ service cloud.firestore {
       allow delete: if false; // Approvals form an immutable audit trail of operational & role decisions
     }
 
+    function isBatchStudentAdvancement(studentId) {
+      let sPath = /databases/$(database)/documents/users/$(studentId);
+      let sBefore = get(sPath).data;
+      let sAfter = getAfter(sPath).data;
+      let curBefore = ('currentLevel' in sBefore && sBefore.currentLevel != null && sBefore.currentLevel != '') ? sBefore.currentLevel : 'unassessed';
+      let curAfter = ('currentLevel' in sAfter && sAfter.currentLevel != null && sAfter.currentLevel != '') ? sAfter.currentLevel : '';
+      return exists(sPath)
+        && curAfter != ''
+        && curAfter != curBefore
+        && ('promotedFromReport' in sAfter)
+        && sAfter.promotedFromReport is string
+        && sAfter.promotedFromReport != '';
+    }
+
     match /progressReports/{reportId} {
       allow get: if isOrgExecutive()
-        || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data))
-        || (signedIn() && resource.data.instructorId == request.auth.uid)
-        || (isParentOf(resource.data.studentId))
+        || ((isManager() || isFrontDeskStaff()) && isSameBranch(resource.data) && isDivisionAllowedForProgressReportsGet(resource.data))
+        || (signedIn() && ('instructorId' in resource.data) && resource.data.instructorId == request.auth.uid)
+        || (('studentId' in resource.data) && isParentOf(resource.data.studentId))
         // Instructor Leader province-wide academic monitoring (read-only per Blueprint v3.4 §4, §5, G-012).
         || isInstructorLeader();
       allow list: if isOrgExecutive()
-        || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data))
-        || (signedIn() && resource.data.instructorId == request.auth.uid)
-        || (isParent() && isSameBranchStrict(resource.data) && ('childStudentIds' in userProfile()) && userProfile().childStudentIds.hasAny([resource.data.studentId]))
+        || ((isManager() || isFrontDeskStaff()) && isSameBranchStrict(resource.data) && isDivisionAllowedForProgressReportsList(resource.data))
+        || (signedIn() && ('instructorId' in resource.data) && resource.data.instructorId == request.auth.uid)
+        || (isParent() && isSameBranchStrict(resource.data) && ('childStudentIds' in userProfile()) && ('studentId' in resource.data) && userProfile().childStudentIds.hasAny([resource.data.studentId]))
         || isInstructorLeader();
       allow create: if signedIn()
         && request.resource.data.instructorId == request.auth.uid
@@ -1277,7 +1330,20 @@ service cloud.firestore {
           || (('substituteInstructorId' in get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data)
             && get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.substituteInstructorId == request.auth.uid))
         && get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.studentIds.hasAny([request.resource.data.studentId]);
-      allow update, delete: if isOrgExecutive() || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
+      allow delete: if isOrgExecutive()
+        || (isManager() && isSameBranch(resource.data) && isDivisionAllowedForProgressReportsWrite(resource.data));
+      allow update: if isOrgExecutive()
+        || (isManager() && isSameBranch(resource.data) && isDivisionAllowedForProgressReportsWrite(resource.data) && isDivisionAllowedForProgressReportsWrite(request.resource.data))
+        || (
+          isFrontDeskStaff()
+          && isSameBranch(resource.data)
+          && isDivisionAllowedForProgressReportsWrite(resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['eligibleForPromotion', 'promotedAt', 'updatedAt'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasAny(['eligibleForPromotion'])
+          && resource.data.eligibleForPromotion == true
+          && request.resource.data.eligibleForPromotion == false
+          && isBatchStudentAdvancement(resource.data.studentId)
+        );
     }
 
     function canUpdateShift(shiftId) {

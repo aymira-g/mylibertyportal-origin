@@ -14,6 +14,10 @@ import {
   canListAttendance,
   canCreateCorporateEvent,
   canUpdateCorporateEvent,
+  canDeleteCorporateEvent,
+  canGetProgressReport,
+  canUpdateProgressReport,
+  canDeleteProgressReport,
 } from "./securityRulesMatrix.helpers.js";
 import {
   adminUser,
@@ -656,6 +660,203 @@ describe("Operational Resources Security Rules Matrix", () => {
       const updatedBranchEvent = { ...branchEventKota, name: "Gorontalo Emergency Briefing" };
       expect(canUpdateCorporateEvent(branchEventKota, updatedBranchEvent, managerGorontalo)).toBe(true);
       expect(canUpdateCorporateEvent(branchEventKota, updatedBranchEvent, managerBoneBolango)).toBe(false);
+    });
+
+    it("denies Front Office from creating, updating, or deleting corporate events (OD-FO-01)", () => {
+      expect(canCreateCorporateEvent(companyWideEvent, foGorontalo)).toBe(false);
+      expect(canCreateCorporateEvent(branchEventKota, foGorontalo)).toBe(false);
+
+      const updatedBranchEvent = { ...branchEventKota, name: "Tampered Briefing" };
+      expect(canUpdateCorporateEvent(branchEventKota, updatedBranchEvent, foGorontalo)).toBe(false);
+
+      expect(canDeleteCorporateEvent(branchEventKota, foGorontalo)).toBe(false);
+      expect(canDeleteCorporateEvent(companyWideEvent, foGorontalo)).toBe(false);
+
+      // Verify legitimate manager and executive deletion
+      expect(canDeleteCorporateEvent(branchEventKota, managerGorontalo)).toBe(true);
+      expect(canDeleteCorporateEvent(branchEventKota, managerBoneBolango)).toBe(false);
+      expect(canDeleteCorporateEvent(companyWideEvent, directorUser)).toBe(true);
+    });
+  });
+
+  describe("Progress Reports Write & Delete Gates (OD-FO-02 / FP-FO-13)", () => {
+    const reportKotaCourses = {
+      id: "rep_1",
+      branchId: "kota_gorontalo",
+      division: "courses",
+      studentId: "stu_1",
+      overallScore: 85,
+      eligibleForPromotion: true,
+    };
+    const foGorontaloCourses = { ...foGorontalo, division: "courses" };
+    const managerGorontaloCourses = { ...managerGorontalo, division: "courses" };
+
+    it("allows Courses Front Office to clear eligibleForPromotion during active student advancement batch (OD-FO-02 Option 1)", () => {
+      const updatedReport = {
+        ...reportKotaCourses,
+        eligibleForPromotion: false,
+        promotedAt: "2026-10-17T00:00:00Z",
+        updatedAt: "2026-10-17T00:00:00Z",
+      };
+      expect(
+        canUpdateProgressReport(reportKotaCourses, updatedReport, foGorontaloCourses, {
+          student: { id: "stu_1" },
+          isStudentAdvancing: true,
+        })
+      ).toBe(true);
+
+      // Unstamped FO without explicit division fails closed
+      expect(
+        canUpdateProgressReport(reportKotaCourses, updatedReport, foGorontalo, {
+          student: { id: "stu_1" },
+          isStudentAdvancing: true,
+        })
+      ).toBe(false);
+    });
+
+    it("denies Front Office standalone suppression when no student advancement occurs", () => {
+      const updatedReport = {
+        ...reportKotaCourses,
+        eligibleForPromotion: false,
+        promotedAt: "2026-10-17T00:00:00Z",
+        updatedAt: "2026-10-17T00:00:00Z",
+      };
+      // Standalone call without active student advancement
+      expect(canUpdateProgressReport(reportKotaCourses, updatedReport, foGorontalo)).toBe(false);
+      expect(
+        canUpdateProgressReport(reportKotaCourses, updatedReport, foGorontalo, {
+          student: { id: "stu_1" },
+          isStudentAdvancing: false,
+        })
+      ).toBe(false);
+    });
+
+    it("denies Front Office from clearing an unrelated student's report during another student's advancement", () => {
+      const updatedReport = {
+        ...reportKotaCourses,
+        eligibleForPromotion: false,
+        promotedAt: "2026-10-17T00:00:00Z",
+        updatedAt: "2026-10-17T00:00:00Z",
+      };
+      // Advancing stu_2, but trying to clear report of stu_1
+      expect(
+        canUpdateProgressReport(reportKotaCourses, updatedReport, foGorontalo, {
+          student: { id: "stu_2" },
+          isStudentAdvancing: true,
+        })
+      ).toBe(false);
+    });
+
+    it("denies Front Office timestamp-only updates on already ineligible reports", () => {
+      const alreadyIneligible = {
+        ...reportKotaCourses,
+        eligibleForPromotion: false,
+      };
+      const updatedTimestampOnly = {
+        ...alreadyIneligible,
+        promotedAt: "2026-10-17T01:00:00Z",
+      };
+      expect(
+        canUpdateProgressReport(alreadyIneligible, updatedTimestampOnly, foGorontalo, {
+          student: { id: "stu_1" },
+          isStudentAdvancing: true,
+        })
+      ).toBe(false);
+    });
+
+    it("denies Front Office from setting eligibleForPromotion to true", () => {
+      const updatedReport = {
+        ...reportKotaCourses,
+        eligibleForPromotion: true,
+      };
+      expect(
+        canUpdateProgressReport(reportKotaCourses, updatedReport, foGorontalo, {
+          student: { id: "stu_1" },
+          isStudentAdvancing: true,
+        })
+      ).toBe(false);
+    });
+
+    it("denies Front Office from modifying academic scores or evaluator fields", () => {
+      const updatedReport = {
+        ...reportKotaCourses,
+        eligibleForPromotion: false,
+        overallScore: 99,
+      };
+      expect(
+        canUpdateProgressReport(reportKotaCourses, updatedReport, foGorontalo, {
+          student: { id: "stu_1" },
+          isStudentAdvancing: true,
+        })
+      ).toBe(false);
+    });
+
+    it("denies foreign-branch Front Office from modifying progress reports", () => {
+      const updatedReport = {
+        ...reportKotaCourses,
+        eligibleForPromotion: false,
+      };
+      expect(
+        canUpdateProgressReport(reportKotaCourses, updatedReport, foBoneBolango, {
+          student: { id: "stu_1" },
+          isStudentAdvancing: true,
+        })
+      ).toBe(false);
+    });
+
+    it("permanently denies Front Office from deleting progress reports while allowing Courses Manager and Executive", () => {
+      expect(canDeleteProgressReport(reportKotaCourses, foGorontaloCourses)).toBe(false);
+      expect(canDeleteProgressReport(reportKotaCourses, foBoneBolango)).toBe(false);
+      expect(canDeleteProgressReport(reportKotaCourses, managerGorontaloCourses)).toBe(true);
+      expect(canDeleteProgressReport(reportKotaCourses, managerGorontalo)).toBe(false); // Unstamped manager fails closed
+      expect(canDeleteProgressReport(reportKotaCourses, managerBoneBolango)).toBe(false);
+      expect(canDeleteProgressReport(reportKotaCourses, directorUser)).toBe(true);
+    });
+
+    it("preserves approved Courses direct-get exception on unstamped legacy reports while strictly denying mutations", () => {
+      const foGorontaloKids = { ...foGorontalo, division: "kindergarten" };
+      const managerGorontaloKids = { ...managerGorontalo, division: "kindergarten" };
+      const reportKotaUnstamped = {
+        id: "rep_legacy",
+        branchId: "kota_gorontalo",
+        studentId: "stu_1",
+        overallScore: 85,
+        eligibleForPromotion: true,
+      };
+      const updatedReport = {
+        ...reportKotaUnstamped,
+        eligibleForPromotion: false,
+        promotedAt: "2026-10-17T00:00:00Z",
+        updatedAt: "2026-10-17T00:00:00Z",
+      };
+
+      // 1. Direct get on legacy unstamped report remains allowed for Courses staff (approved legacy exception)
+      expect(canGetProgressReport(reportKotaUnstamped, foGorontaloCourses)).toBe(true);
+      expect(canGetProgressReport(reportKotaUnstamped, managerGorontaloCourses)).toBe(true);
+      // Kindergarten staff cannot read legacy unstamped records
+      expect(canGetProgressReport(reportKotaUnstamped, foGorontaloKids)).toBe(false);
+      expect(canGetProgressReport(reportKotaUnstamped, managerGorontaloKids)).toBe(false);
+
+      // 2. Front Office promotion update on unstamped report -> strictly DENIED (requires explicit matching division)
+      expect(
+        canUpdateProgressReport(reportKotaUnstamped, updatedReport, foGorontaloCourses, {
+          student: { id: "stu_1" },
+          isStudentAdvancing: true,
+        })
+      ).toBe(false);
+
+      // 3. Manager update on unstamped report -> strictly DENIED pending owner decision
+      expect(canUpdateProgressReport(reportKotaUnstamped, updatedReport, managerGorontaloCourses)).toBe(false);
+
+      // 4. Manager delete on unstamped report -> strictly DENIED pending owner decision
+      expect(canDeleteProgressReport(reportKotaUnstamped, managerGorontaloCourses)).toBe(false);
+
+      // 5. Front Office delete on unstamped report -> strictly DENIED (FO holds zero delete authority)
+      expect(canDeleteProgressReport(reportKotaUnstamped, foGorontaloCourses)).toBe(false);
+
+      // 6. Executive update and delete on unstamped report -> ALLOWED
+      expect(canUpdateProgressReport(reportKotaUnstamped, updatedReport, directorUser)).toBe(true);
+      expect(canDeleteProgressReport(reportKotaUnstamped, directorUser)).toBe(true);
     });
   });
 });

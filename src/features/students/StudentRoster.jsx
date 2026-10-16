@@ -300,7 +300,13 @@ export default function StudentRoster({
     if (!confirmed) return;
 
     try {
-      await promoteStudentLevel(student.id, nextLevel, report?.id);
+      const scopedBranchId =
+        student.branchId || student.branch || report?.branchId || report?.branch || branchId;
+      const scopedDivision = student.division || report?.division || effectiveDivision;
+      await promoteStudentLevel(student.id, nextLevel, report?.id, {
+        branchId: scopedBranchId,
+        division: scopedDivision,
+      });
       toast(
         `Successfully promoted ${student.displayName} to ${nextLevel.toUpperCase()}!`,
         "success"

@@ -202,6 +202,42 @@ export function isDivisionAllowedForManager(data, user) {
   return isDivisionAllowedForBranchStaff(data, user);
 }
 
+export function isDivisionAllowedForProgressReportsList(data, user) {
+  if (!data || !("division" in data)) return false;
+  const uDiv = userDivision(user);
+  if (uDiv === "kindergarten") {
+    return data.division === "kindergarten";
+  }
+  if (uDiv === "courses") {
+    return data.division === "courses";
+  }
+  return false;
+}
+
+export function isDivisionAllowedForProgressReportsGet(data, user) {
+  if (!data) return false;
+  const uDiv = userDivision(user);
+  if (uDiv === "kindergarten") {
+    return Boolean(data && "division" in data && data.division === "kindergarten");
+  }
+  if (uDiv === "courses") {
+    return Boolean(!data || !("division" in data) || data.division === "courses");
+  }
+  return false;
+}
+
+export function isDivisionAllowedForProgressReportsWrite(data, user) {
+  if (!data || !("division" in data)) return false;
+  const uDiv = userDivision(user);
+  if (uDiv === "kindergarten") {
+    return data.division === "kindergarten";
+  }
+  if (uDiv === "courses") {
+    return data.division === "courses";
+  }
+  return false;
+}
+
 export function canCreateUser(data, user) {
   if (!user) return false;
   if (isOrgExecutive(user)) return true;
@@ -406,9 +442,9 @@ export function canGetProgressReport(doc, user) {
   if (!user) return false;
   if (isOrgExecutive(user)) return true;
   if (
-    (isManager(user) || isFrontOffice(user)) &&
+    (isManager(user) || isFrontDeskStaff(user)) &&
     isSameBranch(doc, user) &&
-    isDivisionAllowedForManager(doc, user)
+    isDivisionAllowedForProgressReportsGet(doc, user)
   )
     return true;
   if (doc.instructorId === user.uid) return true;
@@ -422,9 +458,9 @@ export function canListProgressReports(queryData, user) {
   if (!user) return false;
   if (isOrgExecutive(user)) return true;
   if (
-    (isManager(user) || isFrontOffice(user)) &&
+    (isManager(user) || isFrontDeskStaff(user)) &&
     isSameBranchStrict(queryData, user) &&
-    isDivisionAllowedForManager(queryData, user)
+    isDivisionAllowedForProgressReportsList(queryData, user)
   )
     return true;
   if (queryData.instructorId === user.uid) return true;
@@ -436,6 +472,44 @@ export function canListProgressReports(queryData, user) {
     return true;
   // Instructor Leader province-wide academic monitoring (read-only per Blueprint v3.4 §4, §5, G-012).
   if (isInstructorLeader(user)) return true;
+  return false;
+}
+
+export function canDeleteProgressReport(doc, user) {
+  if (!user) return false;
+  if (isOrgExecutive(user)) return true;
+  if (isManager(user) && isSameBranch(doc, user) && isDivisionAllowedForProgressReportsWrite(doc, user)) return true;
+  return false;
+}
+
+export function canUpdateProgressReport(beforeDoc, afterDoc, user, options = {}) {
+  if (!user) return false;
+  if (isOrgExecutive(user)) return true;
+  if (
+    isManager(user) &&
+    isSameBranch(beforeDoc, user) &&
+    isDivisionAllowedForProgressReportsWrite(beforeDoc, user) &&
+    isDivisionAllowedForProgressReportsWrite(afterDoc, user)
+  ) return true;
+  if (
+    isFrontDeskStaff(user) &&
+    isSameBranch(beforeDoc, user) &&
+    isDivisionAllowedForProgressReportsWrite(beforeDoc, user)
+  ) {
+    const keys = Object.keys(afterDoc).filter((k) => beforeDoc[k] !== afterDoc[k]);
+    const allowedKeys = ["eligibleForPromotion", "promotedAt", "updatedAt"];
+    const hasOnlyAllowed = keys.length > 0 && keys.every((k) => allowedKeys.includes(k));
+    const modifiesEligibility = keys.includes("eligibleForPromotion");
+    const transitionsFromTrueToFalse = beforeDoc.eligibleForPromotion === true && afterDoc.eligibleForPromotion === false;
+
+    // Front Office updates must be part of an active student advancement batch (OD-FO-02 Option 1)
+    const student = options.student || null;
+    const isAdvancing = student &&
+      student.id === beforeDoc.studentId &&
+      options.isStudentAdvancing === true;
+
+    return hasOnlyAllowed && modifiesEligibility && transitionsFromTrueToFalse && Boolean(isAdvancing);
+  }
   return false;
 }
 
@@ -774,7 +848,7 @@ export function canGetClassAttendance(doc, user, classDoc = null) {
 export function canCreateCorporateEvent(event, user) {
   if (!user) return false;
   if (isExecutive(user)) return true;
-  if (isManager(user) || isFrontOffice(user)) {
+  if (isManager(user) || isOpsLead(user)) {
     if (event.audienceType !== "branch") return true;
     return (
       event.audienceValue === userBranch(user) ||
@@ -793,10 +867,17 @@ export function canUpdateCorporateEvent(existing, incoming, user) {
   if (isManager(user) && existing.audienceType === "all" && incoming.audienceType === "all") {
     return true;
   }
-  if ((isManager(user) || isFrontOffice(user)) && isSameBranch(existing, user)) {
+  if ((isManager(user) || isOpsLead(user)) && isSameBranch(existing, user)) {
     if (incoming.audienceType !== "branch") return true;
     return incoming.audienceValue === userBranch(user);
   }
+  return false;
+}
+
+export function canDeleteCorporateEvent(doc, user) {
+  if (!user) return false;
+  if (isExecutive(user)) return true;
+  if ((isManager(user) || isOpsLead(user)) && doc.audienceType === "branch" && isSameBranch(doc, user)) return true;
   return false;
 }
 

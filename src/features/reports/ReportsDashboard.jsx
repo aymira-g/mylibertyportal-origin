@@ -27,8 +27,8 @@ export default function ReportsDashboard({
   const canPerformAdminActions = isActualAdmin && canEdit && !isExecutiveView;
   // DOM11-GOV-05: Strip isActualAdmin from province scope. System Admin is technical maintenance only (Blueprint §7, OD-2).
   const canAccessProvinceScope = isExecutiveView || isInstructorLeader;
-  // DOM11-PRIV-01: Only leadership / operational roles may bulk-export institutional reports; hidden from teaching instructors.
-  const canExportReports = isExecutiveView || isManager || isFrontOffice || isInstructorLeader;
+  // DOM11-PRIV-01 / OD-FO-03: Only leadership roles may bulk-export institutional reports; hidden from teaching instructors and front office.
+  const canExportReports = isExecutiveView || isManager || isInstructorLeader;
 
   const [userSelectedSubTab, setUserSelectedSubTab] = useState(null);
   const [prevInitialSubTab, setPrevInitialSubTab] = useState(initialSubTab);

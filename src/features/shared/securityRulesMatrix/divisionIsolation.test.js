@@ -108,11 +108,27 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
     it("Kids Manager -> Kindergarten progress in own branch: ALLOW", () => {
       expect(canGetProgressReport(progKidsGtlo, kidsManagerGorontalo)).toBe(true);
       expect(canListProgressReports({ branchId: "kota_gorontalo", division: "kindergarten" }, kidsManagerGorontalo)).toBe(true);
+      expect(canListProgressReports({ branchId: "kota_gorontalo" }, kidsManagerGorontalo)).toBe(false);
     });
 
     it("Kids Manager -> Courses progress in own branch: DENY", () => {
       expect(canGetProgressReport(progCoursesGtlo, kidsManagerGorontalo)).toBe(false);
       expect(canListProgressReports({ branchId: "kota_gorontalo", division: "courses" }, kidsManagerGorontalo)).toBe(false);
+    });
+
+    it("Courses & Legacy Manager -> progress reports division isolation", () => {
+      expect(canGetProgressReport(progCoursesGtlo, coursesManagerGorontalo)).toBe(true);
+      expect(canListProgressReports({ branchId: "kota_gorontalo", division: "courses" }, coursesManagerGorontalo)).toBe(true);
+      expect(canGetProgressReport(progKidsGtlo, coursesManagerGorontalo)).toBe(false);
+      expect(canListProgressReports({ branchId: "kota_gorontalo", division: "kindergarten" }, coursesManagerGorontalo)).toBe(false);
+      expect(canListProgressReports({ branchId: "kota_gorontalo" }, coursesManagerGorontalo)).toBe(false);
+
+      // Legacy Manager without explicit division is denied progress reports list and get until division assigned
+      expect(canGetProgressReport(progCoursesGtlo, legacyManagerGorontalo)).toBe(false);
+      expect(canListProgressReports({ branchId: "kota_gorontalo", division: "courses" }, legacyManagerGorontalo)).toBe(false);
+      expect(canGetProgressReport(progKidsGtlo, legacyManagerGorontalo)).toBe(false);
+      expect(canListProgressReports({ branchId: "kota_gorontalo", division: "kindergarten" }, legacyManagerGorontalo)).toBe(false);
+      expect(canListProgressReports({ branchId: "kota_gorontalo" }, legacyManagerGorontalo)).toBe(false);
     });
 
     it("Admin -> own branch classes/apps allowed, foreign branch classes/apps denied; Director has full access", () => {
@@ -181,8 +197,12 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
       expect(canGetClass(classCoursesGtlo, foStaff)).toBe(true);
       expect(canGetApplication(appKidsGtlo, foStaff)).toBe(false);
       expect(canGetApplication(appCoursesGtlo, foStaff)).toBe(true);
+      // FO Staff without explicit division is denied progress reports list and get
       expect(canGetProgressReport(progKidsGtlo, foStaff)).toBe(false);
-      expect(canGetProgressReport(progCoursesGtlo, foStaff)).toBe(true);
+      expect(canGetProgressReport(progCoursesGtlo, foStaff)).toBe(false);
+      expect(canListProgressReports({ branchId: "kota_gorontalo", division: "courses" }, foStaff)).toBe(false);
+      expect(canListProgressReports({ branchId: "kota_gorontalo", division: "kindergarten" }, foStaff)).toBe(false);
+      expect(canListProgressReports({ branchId: "kota_gorontalo" }, foStaff)).toBe(false);
       expect(canGetUser(studentKidsGtlo, foStaff)).toBe(false);
       expect(canGetUser(studentCoursesGtlo, foStaff)).toBe(true);
       expect(canGetUser(studentLegacyGtlo, foStaff)).toBe(true);
@@ -220,6 +240,7 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
 
     const progKidsGtlo = { id: "p_k_gtlo", branchId: "kota_gorontalo", division: "kindergarten", studentId: "std_k" };
     const progCoursesGtlo = { id: "p_c_gtlo", branchId: "kota_gorontalo", division: "courses", studentId: "std_c" };
+    const progLegacyGtlo = { id: "p_leg_gtlo", branchId: "kota_gorontalo", studentId: "std_leg" };
 
     it("Kids Front Office, Kota Gorontalo -> Kindergarten class in own branch: ALLOW", () => {
       expect(canGetClass(classKidsGtlo, kidsFOGorontalo)).toBe(true);
@@ -273,6 +294,7 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
     it("Kids Front Office -> progress reports division isolation", () => {
       expect(canGetProgressReport(progKidsGtlo, kidsFOGorontalo)).toBe(true);
       expect(canListProgressReports({ branchId: "kota_gorontalo", division: "kindergarten" }, kidsFOGorontalo)).toBe(true);
+      expect(canListProgressReports({ branchId: "kota_gorontalo" }, kidsFOGorontalo)).toBe(false);
       expect(canGetProgressReport(progCoursesGtlo, kidsFOGorontalo)).toBe(false);
       expect(canListProgressReports({ branchId: "kota_gorontalo", division: "courses" }, kidsFOGorontalo)).toBe(false);
     });
@@ -359,6 +381,155 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
       expect(canGetUser(studentCoursesGtlo, coursesFOGorontalo)).toBe(true);
       expect(canGetUser(studentLegacyGtlo, coursesFOGorontalo)).toBe(true);
       expect(canGetUser(studentKidsGtlo, coursesFOGorontalo)).toBe(false);
+    });
+
+    it("Courses Front Office -> progress reports division isolation and legacy get access", () => {
+      // Valid Courses scoped list query: ALLOW
+      expect(canListProgressReports({ branchId: "kota_gorontalo", division: "courses" }, coursesFOGorontalo)).toBe(true);
+      // Mismatched Kindergarten query: DENY
+      expect(canListProgressReports({ branchId: "kota_gorontalo", division: "kindergarten" }, coursesFOGorontalo)).toBe(false);
+      // Unfiltered list query without division: DENY (closing query-level cross-division leak)
+      expect(canListProgressReports({ branchId: "kota_gorontalo" }, coursesFOGorontalo)).toBe(false);
+
+      // Direct document get: Courses report ALLOW
+      expect(canGetProgressReport(progCoursesGtlo, coursesFOGorontalo)).toBe(true);
+      // Direct document get: Legacy report without division ALLOW per legacy data policy
+      expect(canGetProgressReport(progLegacyGtlo, coursesFOGorontalo)).toBe(true);
+      // Direct document get: Kindergarten report DENY (cross-division read blocked)
+      expect(canGetProgressReport(progKidsGtlo, coursesFOGorontalo)).toBe(false);
+    });
+
+    it("Kids Front Office -> progress reports division isolation and legacy get denial", () => {
+      // Valid Kindergarten scoped list query: ALLOW
+      expect(canListProgressReports({ branchId: "kota_gorontalo", division: "kindergarten" }, kidsFOGorontalo)).toBe(true);
+      // Mismatched Courses query: DENY
+      expect(canListProgressReports({ branchId: "kota_gorontalo", division: "courses" }, kidsFOGorontalo)).toBe(false);
+      // Unfiltered list query without division: DENY
+      expect(canListProgressReports({ branchId: "kota_gorontalo" }, kidsFOGorontalo)).toBe(false);
+
+      // Direct document get: Kindergarten report ALLOW
+      expect(canGetProgressReport(progKidsGtlo, kidsFOGorontalo)).toBe(true);
+      // Direct document get: Courses report DENY
+      expect(canGetProgressReport(progCoursesGtlo, kidsFOGorontalo)).toBe(false);
+      // Direct document get: Legacy report without division DENY
+      expect(canGetProgressReport(progLegacyGtlo, kidsFOGorontalo)).toBe(false);
+    });
+  });
+
+  describe("Section 17.1: Front Office & Ops Lead Progress Reports Division Matrix (Fail-Closed)", () => {
+    const progKidsGtlo = { id: "p_k_gtlo", branchId: "kota_gorontalo", division: "kindergarten", studentId: "std_k" };
+    const progCoursesGtlo = { id: "p_c_gtlo", branchId: "kota_gorontalo", division: "courses", studentId: "std_c" };
+    const progLegacyGtlo = { id: "p_leg_gtlo", branchId: "kota_gorontalo", studentId: "std_leg" }; // Legacy record without division
+
+    const divisionTestCases = [
+      {
+        divisionLabel: "courses",
+        division: "courses",
+        expectedListCourses: true,
+        expectedListKg: false,
+        expectedListUnfiltered: false,
+        expectedGetCourses: true,
+        expectedGetKg: false,
+        expectedGetLegacy: true, // Specifically approved Courses legacy-record behavior for Courses staff
+      },
+      {
+        divisionLabel: "kindergarten",
+        division: "kindergarten",
+        expectedListCourses: false,
+        expectedListKg: true,
+        expectedListUnfiltered: false,
+        expectedGetCourses: false,
+        expectedGetKg: true,
+        expectedGetLegacy: false, // Kindergarten cannot read legacy records lacking division
+      },
+      {
+        divisionLabel: "all",
+        division: "all",
+        expectedListCourses: false,
+        expectedListKg: false,
+        expectedListUnfiltered: false,
+        expectedGetCourses: false,
+        expectedGetKg: false,
+        expectedGetLegacy: false, // Denied until owner decision establishes scope
+      },
+      {
+        divisionLabel: "missing (undefined)",
+        division: undefined,
+        expectedListCourses: false,
+        expectedListKg: false,
+        expectedListUnfiltered: false,
+        expectedGetCourses: false,
+        expectedGetKg: false,
+        expectedGetLegacy: false,
+      },
+      {
+        divisionLabel: "invalid ('operations')",
+        division: "operations",
+        expectedListCourses: false,
+        expectedListKg: false,
+        expectedListUnfiltered: false,
+        expectedGetCourses: false,
+        expectedGetKg: false,
+        expectedGetLegacy: false,
+      },
+    ];
+
+    describe("Front Office staff across division values", () => {
+      divisionTestCases.forEach((tc) => {
+        it(`Front Office with division=${tc.divisionLabel} -> list & direct-get behavior`, () => {
+          const user = {
+            uid: `fo_${tc.divisionLabel.replace(/\s+/g, "_")}`,
+            role: "frontoffice",
+            branchId: "kota_gorontalo",
+            ...(tc.division !== undefined ? { division: tc.division } : {}),
+          };
+
+          // List queries
+          expect(canListProgressReports({ branchId: "kota_gorontalo", division: "courses" }, user)).toBe(tc.expectedListCourses);
+          expect(canListProgressReports({ branchId: "kota_gorontalo", division: "kindergarten" }, user)).toBe(tc.expectedListKg);
+          expect(canListProgressReports({ branchId: "kota_gorontalo" }, user)).toBe(tc.expectedListUnfiltered);
+
+          // Direct get
+          expect(canGetProgressReport(progCoursesGtlo, user)).toBe(tc.expectedGetCourses);
+          expect(canGetProgressReport(progKidsGtlo, user)).toBe(tc.expectedGetKg);
+          expect(canGetProgressReport(progLegacyGtlo, user)).toBe(tc.expectedGetLegacy);
+        });
+      });
+    });
+
+    describe("Ops Lead staff across division values ([Owner Decision Required])", () => {
+      const opsLeadAliases = [
+        "opslead",
+        "ops_lead",
+        "operational_leader",
+        "operationalleader",
+        "frontofficelead",
+      ];
+
+      opsLeadAliases.forEach((aliasRole) => {
+        describe(`Ops Lead alias '${aliasRole}'`, () => {
+          divisionTestCases.forEach((tc) => {
+            it(`Ops Lead '${aliasRole}' with division=${tc.divisionLabel} -> strictly DENIED on list & direct-get while decision is open ([Owner Decision Required])`, () => {
+              const user = {
+                uid: `ops_${aliasRole}_${tc.divisionLabel.replace(/\s+/g, "_")}`,
+                role: aliasRole,
+                branchId: "kota_gorontalo",
+                ...(tc.division !== undefined ? { division: tc.division } : {}),
+              };
+
+              // All list queries are strictly denied for Ops Lead across all division values
+              expect(canListProgressReports({ branchId: "kota_gorontalo", division: "courses" }, user)).toBe(false);
+              expect(canListProgressReports({ branchId: "kota_gorontalo", division: "kindergarten" }, user)).toBe(false);
+              expect(canListProgressReports({ branchId: "kota_gorontalo" }, user)).toBe(false);
+
+              // All direct gets are strictly denied for Ops Lead across all division values
+              expect(canGetProgressReport(progCoursesGtlo, user)).toBe(false);
+              expect(canGetProgressReport(progKidsGtlo, user)).toBe(false);
+              expect(canGetProgressReport(progLegacyGtlo, user)).toBe(false);
+            });
+          });
+        });
+      });
     });
   });
 
@@ -767,9 +938,9 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
       expect(canGetApplication(appKidsGtlo, allManagerGorontalo)).toBe(false);
       expect(canGetApplication(appCoursesGtlo, allManagerGorontalo)).toBe(true);
 
-      // Progress Reports
+      // Progress Reports (division='all' manager is denied direct-get until an owner decision establishes scope)
       expect(canGetProgressReport({ id: "pr_k", branchId: "kota_gorontalo", division: "kindergarten" }, allManagerGorontalo)).toBe(false);
-      expect(canGetProgressReport({ id: "pr_c", branchId: "kota_gorontalo", division: "courses" }, allManagerGorontalo)).toBe(true);
+      expect(canGetProgressReport({ id: "pr_c", branchId: "kota_gorontalo", division: "courses" }, allManagerGorontalo)).toBe(false);
 
       // Students
       expect(canGetUser(studentKidsGtlo, allManagerGorontalo)).toBe(false);

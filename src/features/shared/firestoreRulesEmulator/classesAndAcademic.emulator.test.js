@@ -14,6 +14,7 @@ import {
   query,
   where,
   getDocs,
+  writeBatch,
 } from "firebase/firestore";
 import { todayWita, witaDayStart } from "../../../utils/dateWita.js";
 import { setupEmulatorHarness, HAS_EMULATOR, SHIFT_KOTA } from "./setup.js";
@@ -383,6 +384,571 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Classes and Academic Progres
           branchId: "kota_gorontalo",
         })
       );
+    });
+
+    describe("Front Office promotion workflows & progressReports rules (OD-FO-02 / FP-FO-13)", () => {
+      beforeEach(async () => {
+        // Seed student1 as active unassessed student
+        await seedDoc(["users", "student1"], {
+          displayName: "Student One",
+          role: "student",
+          branchId: "kota_gorontalo",
+          division: "courses",
+          currentLevel: "unassessed",
+        });
+
+        // Seed primary progress report for promotion
+        await seedDoc(["progressReports", "prPromoMain"], {
+          instructorId: "insOther",
+          studentId: "student1",
+          classId: "classKota",
+          branchId: "kota_gorontalo",
+          division: "courses",
+          examDate: "2026-09-20",
+          eligibleForPromotion: true,
+          recommendedLevel: "warrior",
+        });
+
+        // Seed secondary pending progress report for cleanup
+        await seedDoc(["progressReports", "prPromoOther"], {
+          instructorId: "insOther",
+          studentId: "student1",
+          classId: "classKota",
+          branchId: "kota_gorontalo",
+          division: "courses",
+          examDate: "2026-09-18",
+          eligibleForPromotion: true,
+        });
+
+        // Seed an already-promoted report with eligibleForPromotion: false
+        await seedDoc(["progressReports", "prAlreadyPromoted"], {
+          instructorId: "insOther",
+          studentId: "student1",
+          classId: "classKota",
+          branchId: "kota_gorontalo",
+          division: "courses",
+          eligibleForPromotion: false,
+        });
+
+        // Seed a progress report for a different student (student2)
+        await seedDoc(["progressReports", "prPromoStudent2"], {
+          instructorId: "insOther",
+          studentId: "student2",
+          classId: "classKota",
+          branchId: "kota_gorontalo",
+          division: "courses",
+          examDate: "2026-09-20",
+          eligibleForPromotion: true,
+          recommendedLevel: "warrior",
+        });
+        // Seed a legacy report with missing division field (must not be silently omitted)
+        await seedDoc(["progressReports", "prPromoLegacy"], {
+          instructorId: "insOther",
+          studentId: "student1",
+          classId: "classKota",
+          branchId: "kota_gorontalo",
+          eligibleForPromotion: true,
+        });
+
+        // Seed a same-branch kindergarten report for the SAME student (student1)
+        await seedDoc(["progressReports", "prPromoKgSameStudent"], {
+          instructorId: "insOther",
+          studentId: "student1",
+          classId: "classKota",
+          branchId: "kota_gorontalo",
+          division: "kindergarten",
+          eligibleForPromotion: true,
+        });
+
+        // Seed a kindergarten student and kindergarten progress report
+        await seedDoc(["users", "studentKg"], {
+          displayName: "Student KG",
+          role: "student",
+          branchId: "kota_gorontalo",
+          division: "kindergarten",
+          currentLevel: "unassessed",
+        });
+        await seedDoc(["progressReports", "prPromoKg"], {
+          instructorId: "insOther",
+          studentId: "studentKg",
+          classId: "classKota",
+          branchId: "kota_gorontalo",
+          division: "kindergarten",
+          eligibleForPromotion: true,
+          recommendedLevel: "star_1",
+        });
+      });
+
+      it("strictly denies unconstrained progressReports list queries lacking branchId for Front Office", async () => {
+        // Querying without branchId filter violates isSameBranchStrict and must fail
+        const unconstrainedQ = query(
+          collection(authed("foGto"), "progressReports"),
+          where("studentId", "==", "student1"),
+          where("eligibleForPromotion", "==", true)
+        );
+        await assertFails(getDocs(unconstrainedQ));
+      });
+
+      it("executes the exact pending-report query as Front Office with division: courses, strictly excluding same-branch kindergarten reports for the same student", async () => {
+        const foDb = authed("foGto");
+        // Scoped query matching promoteStudentLevel's runtime behavior for Courses desk
+        const scopedQ = query(
+          collection(foDb, "progressReports"),
+          where("studentId", "==", "student1"),
+          where("eligibleForPromotion", "==", true),
+          where("branchId", "==", "kota_gorontalo"),
+          where("division", "==", "courses")
+        );
+        const snap = await assertSucceeds(getDocs(scopedQ));
+        const returnedIds = snap.docs.map((d) => d.id);
+
+        // Confirms courses reports are matched, while the same student's kindergarten report is strictly excluded
+        expect(returnedIds).toContain("prPromoMain");
+        expect(returnedIds).toContain("prPromoOther");
+        expect(returnedIds).not.toContain("prPromoKgSameStudent");
+        expect(returnedIds).toHaveLength(2);
+
+        // Execute consolidated batch with exact query results
+        const batch = writeBatch(foDb);
+        batch.update(doc(foDb, "users", "student1"), {
+          currentLevel: "warrior",
+          rating: "1",
+          updatedAt: "2026-10-17T00:00:00Z",
+          promotedFromReport: "prPromoMain",
+        });
+        for (const docSnap of snap.docs) {
+          batch.update(doc(foDb, "progressReports", docSnap.id), {
+            eligibleForPromotion: false,
+            promotedAt: "2026-10-17T00:00:00Z",
+          });
+        }
+        await assertSucceeds(batch.commit());
+
+        // Verify courses reports are now ineligible while kindergarten report is untouched
+        const r1 = await getDoc(doc(foDb, "progressReports", "prPromoMain"));
+        const r2 = await getDoc(doc(foDb, "progressReports", "prPromoOther"));
+        const rKg = await getDoc(doc(authed("foKgGto"), "progressReports", "prPromoKgSameStudent"));
+        expect(r1.data().eligibleForPromotion).toBe(false);
+        expect(r2.data().eligibleForPromotion).toBe(false);
+        expect(rKg.data().eligibleForPromotion).toBe(true);
+      });
+
+      it("executes the exact pending-report query and promotion batch as Division Manager (mgrGto) with division: courses", async () => {
+        const mgrDb = authed("mgrGto");
+        const scopedQ = query(
+          collection(mgrDb, "progressReports"),
+          where("studentId", "==", "student1"),
+          where("eligibleForPromotion", "==", true),
+          where("branchId", "==", "kota_gorontalo"),
+          where("division", "==", "courses")
+        );
+        const snap = await assertSucceeds(getDocs(scopedQ));
+        const returnedIds = snap.docs.map((d) => d.id);
+
+        expect(returnedIds).toContain("prPromoMain");
+        expect(returnedIds).toContain("prPromoOther");
+        expect(returnedIds).not.toContain("prPromoKgSameStudent");
+        expect(returnedIds).toHaveLength(2);
+
+        const batch = writeBatch(mgrDb);
+        batch.update(doc(mgrDb, "users", "student1"), {
+          currentLevel: "warrior",
+          rating: "1",
+          updatedAt: "2026-10-17T00:00:00Z",
+          promotedFromReport: "prPromoMain",
+        });
+        for (const docSnap of snap.docs) {
+          batch.update(doc(mgrDb, "progressReports", docSnap.id), {
+            eligibleForPromotion: false,
+            promotedAt: "2026-10-17T00:00:00Z",
+          });
+        }
+        await assertSucceeds(batch.commit());
+      });
+
+      it("strictly denies unfiltered progressReports queries that omit the division filter (preventing cross-division read exposure)", async () => {
+        const foDb = authed("foGto");
+        const mgrDb = authed("mgrGto");
+
+        // Unfiltered query omitting division filter for Courses Front Office -> DENIED
+        const unconstrainedFoQ = query(
+          collection(foDb, "progressReports"),
+          where("studentId", "==", "student1"),
+          where("eligibleForPromotion", "==", true),
+          where("branchId", "==", "kota_gorontalo")
+        );
+        await assertFails(getDocs(unconstrainedFoQ));
+
+        // Unfiltered query omitting division filter for Courses Division Manager -> DENIED
+        const unconstrainedMgrQ = query(
+          collection(mgrDb, "progressReports"),
+          where("studentId", "==", "student1"),
+          where("eligibleForPromotion", "==", true),
+          where("branchId", "==", "kota_gorontalo")
+        );
+        await assertFails(getDocs(unconstrainedMgrQ));
+
+        // Mismatched division query (Courses Front Office querying kindergarten reports) -> DENIED
+        const mismatchedDivQ = query(
+          collection(foDb, "progressReports"),
+          where("studentId", "==", "student1"),
+          where("eligibleForPromotion", "==", true),
+          where("branchId", "==", "kota_gorontalo"),
+          where("division", "==", "kindergarten")
+        );
+        await assertFails(getDocs(mismatchedDivQ));
+
+        // Correctly division-scoped Courses query -> SUCCEEDS and excludes Kindergarten report
+        const scopedCoursesQ = query(
+          collection(foDb, "progressReports"),
+          where("studentId", "==", "student1"),
+          where("eligibleForPromotion", "==", true),
+          where("branchId", "==", "kota_gorontalo"),
+          where("division", "==", "courses")
+        );
+        const snap = await assertSucceeds(getDocs(scopedCoursesQ));
+        const returnedIds = snap.docs.map((d) => d.id);
+        expect(returnedIds).toContain("prPromoMain");
+        expect(returnedIds).toContain("prPromoOther");
+        expect(returnedIds).not.toContain("prPromoKgSameStudent");
+      });
+
+      it("requires division constraint for Kindergarten Front Office (foKgGto) pending-report query and succeeds with it", async () => {
+        const kgDb = authed("foKgGto");
+        // Without division constraint, Kindergarten staff list query is denied by rules
+        const unconstrainedQ = query(
+          collection(kgDb, "progressReports"),
+          where("studentId", "==", "studentKg"),
+          where("eligibleForPromotion", "==", true),
+          where("branchId", "==", "kota_gorontalo")
+        );
+        await assertFails(getDocs(unconstrainedQ));
+
+        // With division: kindergarten constraint, query succeeds
+        const scopedKgQ = query(
+          collection(kgDb, "progressReports"),
+          where("studentId", "==", "studentKg"),
+          where("eligibleForPromotion", "==", true),
+          where("branchId", "==", "kota_gorontalo"),
+          where("division", "==", "kindergarten")
+        );
+        const snap = await assertSucceeds(getDocs(scopedKgQ));
+        expect(snap.docs).toHaveLength(1);
+        expect(snap.docs[0].id).toBe("prPromoKg");
+      });
+
+      it("verifies direct document get: Courses FO can get legacy reports without division but is denied Kindergarten; Kids FO can get Kindergarten; all/missing/invalid fail closed", async () => {
+        const foDb = authed("foCoursesGto");
+        const kgDb = authed("foKgGto");
+        const allFoDb = authed("allFOGto");
+        const missingFoDb = authed("foMissingGto");
+        const invalidFoDb = authed("foInvalidGto");
+
+        // 1. Courses Front Office (foCoursesGto):
+        // Direct get on Courses report -> SUCCEEDS
+        await assertSucceeds(getDoc(doc(foDb, "progressReports", "prPromoMain")));
+        // Direct get on Legacy report without division -> SUCCEEDS (specifically approved Courses legacy-record behavior for Courses staff)
+        await assertSucceeds(getDoc(doc(foDb, "progressReports", "prPromoLegacy")));
+        // Direct get on Kindergarten report -> DENIED (cross-division read blocked)
+        await assertFails(getDoc(doc(foDb, "progressReports", "prPromoKgSameStudent")));
+
+        // 2. Kindergarten Front Office (foKgGto):
+        // Direct get on Kindergarten report -> SUCCEEDS
+        await assertSucceeds(getDoc(doc(kgDb, "progressReports", "prPromoKgSameStudent")));
+        // Direct get on Courses report -> DENIED
+        await assertFails(getDoc(doc(kgDb, "progressReports", "prPromoMain")));
+        // Direct get on Legacy report without division -> DENIED (kindergarten cannot read legacy records lacking division)
+        await assertFails(getDoc(doc(kgDb, "progressReports", "prPromoLegacy")));
+
+        // 3. Front Office with division: "all" (allFOGto) -> fails closed on all direct gets until owner decision
+        await assertFails(getDoc(doc(allFoDb, "progressReports", "prPromoMain")));
+        await assertFails(getDoc(doc(allFoDb, "progressReports", "prPromoKgSameStudent")));
+        await assertFails(getDoc(doc(allFoDb, "progressReports", "prPromoLegacy")));
+
+        // 4. Front Office with missing division (foMissingGto) -> fails closed on all direct gets
+        await assertFails(getDoc(doc(missingFoDb, "progressReports", "prPromoMain")));
+        await assertFails(getDoc(doc(missingFoDb, "progressReports", "prPromoKgSameStudent")));
+        await assertFails(getDoc(doc(missingFoDb, "progressReports", "prPromoLegacy")));
+
+        // 5. Front Office with invalid division (foInvalidGto) -> fails closed on all direct gets
+        await assertFails(getDoc(doc(invalidFoDb, "progressReports", "prPromoMain")));
+        await assertFails(getDoc(doc(invalidFoDb, "progressReports", "prPromoKgSameStudent")));
+        await assertFails(getDoc(doc(invalidFoDb, "progressReports", "prPromoLegacy")));
+      });
+
+      it("verifies direct document get for Ops Lead is strictly denied across all 5 division values while decision is open ([Owner Decision Required])", async () => {
+        const opsAllDb = authed("opsGto");
+        const opsMissingDb = authed("opsMissingGto");
+        const opsInvalidDb = authed("opsInvalidGto");
+        const opsKgDb = authed("opsKgGto");
+        const opsCoursesDb = authed("opsCoursesGto");
+
+        // 1. Ops Lead with division: "all" (opsGto) -> strictly DENIED on all direct gets (fail-closed)
+        await assertFails(getDoc(doc(opsAllDb, "progressReports", "prPromoMain")));
+        await assertFails(getDoc(doc(opsAllDb, "progressReports", "prPromoKgSameStudent")));
+        await assertFails(getDoc(doc(opsAllDb, "progressReports", "prPromoLegacy")));
+
+        // 2. Ops Lead with missing division (opsMissingGto) -> strictly DENIED on all direct gets
+        await assertFails(getDoc(doc(opsMissingDb, "progressReports", "prPromoMain")));
+        await assertFails(getDoc(doc(opsMissingDb, "progressReports", "prPromoKgSameStudent")));
+        await assertFails(getDoc(doc(opsMissingDb, "progressReports", "prPromoLegacy")));
+
+        // 3. Ops Lead with invalid division (opsInvalidGto) -> strictly DENIED on all direct gets
+        await assertFails(getDoc(doc(opsInvalidDb, "progressReports", "prPromoMain")));
+        await assertFails(getDoc(doc(opsInvalidDb, "progressReports", "prPromoKgSameStudent")));
+        await assertFails(getDoc(doc(opsInvalidDb, "progressReports", "prPromoLegacy")));
+
+        // 4. Ops Lead with explicit division: "kindergarten" (opsKgGto) -> strictly DENIED while decision is open
+        await assertFails(getDoc(doc(opsKgDb, "progressReports", "prPromoMain")));
+        await assertFails(getDoc(doc(opsKgDb, "progressReports", "prPromoKgSameStudent")));
+        await assertFails(getDoc(doc(opsKgDb, "progressReports", "prPromoLegacy")));
+
+        // 5. Ops Lead with explicit division: "courses" (opsCoursesGto) -> strictly DENIED while decision is open
+        await assertFails(getDoc(doc(opsCoursesDb, "progressReports", "prPromoMain")));
+        await assertFails(getDoc(doc(opsCoursesDb, "progressReports", "prPromoLegacy")));
+        await assertFails(getDoc(doc(opsCoursesDb, "progressReports", "prPromoKgSameStudent")));
+      });
+
+      it("enforces strict division isolation on progress reports list queries for Front Office across all 5 division values", async () => {
+        // 1. Explicit Courses FO (foCoursesGto)
+        const foDb = authed("foCoursesGto");
+        const foCoursesQ = query(
+          collection(foDb, "progressReports"),
+          where("branchId", "==", "kota_gorontalo"),
+          where("division", "==", "courses")
+        );
+        const coursesSnap = await assertSucceeds(getDocs(foCoursesQ));
+        expect(coursesSnap.docs.map((d) => d.id)).toContain("prPromoMain");
+        expect(coursesSnap.docs.map((d) => d.id)).not.toContain("prPromoKgSameStudent");
+
+        const foKgQ = query(
+          collection(foDb, "progressReports"),
+          where("branchId", "==", "kota_gorontalo"),
+          where("division", "==", "kindergarten")
+        );
+        await assertFails(getDocs(foKgQ));
+
+        const foUnfilteredQ = query(
+          collection(foDb, "progressReports"),
+          where("branchId", "==", "kota_gorontalo")
+        );
+        await assertFails(getDocs(foUnfilteredQ));
+
+        // 2. Explicit Kindergarten FO (foKgGto)
+        const kgDb = authed("foKgGto");
+        const kgScopedQ = query(
+          collection(kgDb, "progressReports"),
+          where("branchId", "==", "kota_gorontalo"),
+          where("division", "==", "kindergarten")
+        );
+        const kgSnap = await assertSucceeds(getDocs(kgScopedQ));
+        expect(kgSnap.docs.map((d) => d.id)).toContain("prPromoKgSameStudent");
+        expect(kgSnap.docs.map((d) => d.id)).not.toContain("prPromoMain");
+
+        const kgCoursesQ = query(
+          collection(kgDb, "progressReports"),
+          where("branchId", "==", "kota_gorontalo"),
+          where("division", "==", "courses")
+        );
+        await assertFails(getDocs(kgCoursesQ));
+
+        // 3. FO with division: "all" (allFOGto) -> fails closed on all list queries until owner decision
+        const allFoDb = authed("allFOGto");
+        await assertFails(getDocs(query(collection(allFoDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "courses"))));
+        await assertFails(getDocs(query(collection(allFoDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "kindergarten"))));
+        await assertFails(getDocs(query(collection(allFoDb, "progressReports"), where("branchId", "==", "kota_gorontalo"))));
+
+        // 4. FO with missing division (foMissingGto) -> fails closed
+        const missingFoDb = authed("foMissingGto");
+        await assertFails(getDocs(query(collection(missingFoDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "courses"))));
+        await assertFails(getDocs(query(collection(missingFoDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "kindergarten"))));
+        await assertFails(getDocs(query(collection(missingFoDb, "progressReports"), where("branchId", "==", "kota_gorontalo"))));
+
+        // 5. FO with invalid division (foInvalidGto) -> fails closed
+        const invalidFoDb = authed("foInvalidGto");
+        await assertFails(getDocs(query(collection(invalidFoDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "courses"))));
+        await assertFails(getDocs(query(collection(invalidFoDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "kindergarten"))));
+        await assertFails(getDocs(query(collection(invalidFoDb, "progressReports"), where("branchId", "==", "kota_gorontalo"))));
+      });
+
+      it("enforces progress reports list behavior for Ops Lead is strictly denied across all 5 division values while decision is open ([Owner Decision Required])", async () => {
+        // 1. Ops Lead with division: "all" (opsGto) -> DENIED on all list queries (fail-closed)
+        const opsAllDb = authed("opsGto");
+        await assertFails(getDocs(query(collection(opsAllDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "courses"))));
+        await assertFails(getDocs(query(collection(opsAllDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "kindergarten"))));
+        await assertFails(getDocs(query(collection(opsAllDb, "progressReports"), where("branchId", "==", "kota_gorontalo"))));
+
+        // Test all supported aliases for Ops Lead across all division configurations
+        const aliases = [
+          { uid: "opsAlias1", role: "ops_lead" },
+          { uid: "opsAlias2", role: "operational_leader" },
+          { uid: "opsAlias3", role: "operationalleader" },
+          { uid: "opsAlias4", role: "frontofficelead" },
+        ];
+        for (const { uid, role } of aliases) {
+          await seedDoc(["users", uid], {
+            displayName: uid,
+            role,
+            branchId: "kota_gorontalo",
+            division: "courses",
+          });
+          const aliasDb = authed(uid);
+          await assertFails(getDocs(query(collection(aliasDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "courses"))));
+          await assertFails(getDocs(query(collection(aliasDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "kindergarten"))));
+          await assertFails(getDocs(query(collection(aliasDb, "progressReports"), where("branchId", "==", "kota_gorontalo"))));
+        }
+
+        // 2. Ops Lead with missing division (opsMissingGto) -> DENIED on all list queries
+        const opsMissingDb = authed("opsMissingGto");
+        await assertFails(getDocs(query(collection(opsMissingDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "courses"))));
+        await assertFails(getDocs(query(collection(opsMissingDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "kindergarten"))));
+        await assertFails(getDocs(query(collection(opsMissingDb, "progressReports"), where("branchId", "==", "kota_gorontalo"))));
+
+        // 3. Ops Lead with invalid division (opsInvalidGto) -> DENIED on all list queries
+        const opsInvalidDb = authed("opsInvalidGto");
+        await assertFails(getDocs(query(collection(opsInvalidDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "courses"))));
+        await assertFails(getDocs(query(collection(opsInvalidDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "kindergarten"))));
+        await assertFails(getDocs(query(collection(opsInvalidDb, "progressReports"), where("branchId", "==", "kota_gorontalo"))));
+
+        // 4. Ops Lead with explicit division: "kindergarten" (opsKgGto) -> DENIED on all list queries
+        const opsKgDb = authed("opsKgGto");
+        await assertFails(getDocs(query(collection(opsKgDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "kindergarten"))));
+        await assertFails(getDocs(query(collection(opsKgDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "courses"))));
+        await assertFails(getDocs(query(collection(opsKgDb, "progressReports"), where("branchId", "==", "kota_gorontalo"))));
+
+        // 5. Ops Lead with explicit division: "courses" (opsCoursesGto) -> DENIED on all list queries
+        const opsCoursesDb = authed("opsCoursesGto");
+        await assertFails(getDocs(query(collection(opsCoursesDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "courses"))));
+        await assertFails(getDocs(query(collection(opsCoursesDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "kindergarten"))));
+        await assertFails(getDocs(query(collection(opsCoursesDb, "progressReports"), where("branchId", "==", "kota_gorontalo"))));
+      });
+
+      it("strictly denies standalone suppression attempts when no student advancement occurs in the write", async () => {
+        // Attempting to clear eligibleForPromotion standalone without student level change fails
+        await assertFails(
+          updateDoc(doc(authed("foGto"), "progressReports", "prPromoMain"), {
+            eligibleForPromotion: false,
+            promotedAt: "2026-10-17T00:00:00Z",
+          })
+        );
+      });
+
+      it("strictly denies standalone updates even when student doc has a stale promotedFromReport", async () => {
+        // Seed student1 with existing currentLevel and stale promotedFromReport
+        await seedDoc(["users", "student1"], {
+          displayName: "Student One",
+          role: "student",
+          branchId: "kota_gorontalo",
+          division: "courses",
+          currentLevel: "warrior",
+          promotedFromReport: "historicalReportId",
+        });
+
+        // Standalone update on prPromoMain must still fail because student level is not actively advancing
+        await assertFails(
+          updateDoc(doc(authed("foGto"), "progressReports", "prPromoMain"), {
+            eligibleForPromotion: false,
+            promotedAt: "2026-10-17T00:00:00Z",
+          })
+        );
+      });
+
+      it("strictly denies timestamp-only updates on already ineligible reports", async () => {
+        // Report already has eligibleForPromotion: false; FO updates only promotedAt -> fails
+        await assertFails(
+          updateDoc(doc(authed("foGto"), "progressReports", "prAlreadyPromoted"), {
+            promotedAt: "2026-10-17T01:00:00Z",
+          })
+        );
+      });
+
+      it("strictly denies sneaking in an unrelated student's report into a valid promotion batch", async () => {
+        const db = authed("foGto");
+        const batch = writeBatch(db);
+        // Valid advancement for student1
+        batch.update(doc(db, "users", "student1"), {
+          currentLevel: "warrior",
+          rating: "1",
+          updatedAt: "2026-10-17T00:00:00Z",
+          promotedFromReport: "prPromoMain",
+        });
+        batch.update(doc(db, "progressReports", "prPromoMain"), {
+          eligibleForPromotion: false,
+          promotedAt: "2026-10-17T00:00:00Z",
+        });
+        // Unauthorized addition: trying to clear student2's report in student1's batch
+        batch.update(doc(db, "progressReports", "prPromoStudent2"), {
+          eligibleForPromotion: false,
+          promotedAt: "2026-10-17T00:00:00Z",
+        });
+
+        // The entire batch must fail
+        await assertFails(batch.commit());
+      });
+
+      it("strictly denies Front Office from modifying academic scores, remarks, or deleting progress reports", async () => {
+        await assertFails(
+          updateDoc(doc(authed("foGto"), "progressReports", "prPromoMain"), {
+            overallScore: 99,
+          })
+        );
+        await assertFails(
+          updateDoc(doc(authed("foGto"), "progressReports", "prPromoMain"), {
+            eligibleForPromotion: true,
+          })
+        );
+        await assertFails(deleteDoc(doc(authed("foGto"), "progressReports", "prPromoMain")));
+        await assertSucceeds(deleteDoc(doc(authed("mgrGto"), "progressReports", "prPromoMain")));
+      });
+
+      it("preserves approved direct-get on unstamped legacy reports while strictly denying Front Office and Manager mutations", async () => {
+        const foDb = authed("foCoursesGto");
+        const mgrDb = authed("mgrGto");
+        const dirDb = authed("dirGto");
+
+        // 1. Direct get on unstamped legacy report remains allowed for Courses staff (approved legacy exception)
+        await assertSucceeds(getDoc(doc(foDb, "progressReports", "prPromoLegacy")));
+        await assertSucceeds(getDoc(doc(mgrDb, "progressReports", "prPromoLegacy")));
+
+        // 2. Front Office promotion update on unstamped report -> DENIED (requires explicit matching division)
+        const batch = writeBatch(foDb);
+        batch.update(doc(foDb, "users", "student1"), {
+          currentLevel: "warrior",
+          rating: "1",
+          updatedAt: "2026-10-17T00:00:00Z",
+          promotedFromReport: "prPromoLegacy",
+        });
+        batch.update(doc(foDb, "progressReports", "prPromoLegacy"), {
+          eligibleForPromotion: false,
+          promotedAt: "2026-10-17T00:00:00Z",
+        });
+        await assertFails(batch.commit());
+
+        // 3. Manager update on unstamped legacy report -> DENIED pending owner decision
+        await assertFails(
+          updateDoc(doc(mgrDb, "progressReports", "prPromoLegacy"), {
+            remarks: "Manager note on legacy report",
+          })
+        );
+
+        // 4. Manager delete on unstamped legacy report -> DENIED pending owner decision
+        await assertFails(deleteDoc(doc(mgrDb, "progressReports", "prPromoLegacy")));
+
+        // 5. Manager update and delete on stamped courses report -> ALLOWED
+        await assertSucceeds(
+          updateDoc(doc(mgrDb, "progressReports", "prPromoOther"), {
+            remarks: "Manager updated remarks on valid courses report",
+          })
+        );
+
+        // 6. Executive update and delete on unstamped legacy report -> ALLOWED
+        await assertSucceeds(
+          updateDoc(doc(dirDb, "progressReports", "prPromoLegacy"), {
+            remarks: "Executive update on legacy report",
+          })
+        );
+        await assertSucceeds(deleteDoc(doc(dirDb, "progressReports", "prPromoLegacy")));
+      });
     });
 
     it("does not grant attendance write authority for classes the leader does not teach", async () => {

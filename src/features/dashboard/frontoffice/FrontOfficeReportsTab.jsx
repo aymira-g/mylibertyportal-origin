@@ -27,6 +27,7 @@ import {
  */
 export default function FrontOfficeReportsTab({
   myBranch = "Kota Gorontalo",
+  division = "courses",
   students = [],
   activeShift: propActiveShift = null,
   onShiftClosed = null,
@@ -56,14 +57,15 @@ export default function FrontOfficeReportsTab({
     }
 
     if (myBranch) {
-      fetchRecentDeskInquiries(100, myBranch)
+      fetchRecentDeskInquiries(100, myBranch, division)
         .then((allInquiries) => {
           if (!isMounted) return;
           const filtered = allInquiries.filter((inq) => {
             const dateStr = (inq.createdAt || inq.timestamp || "").substring(0, 10);
             const isToday = dateStr === todayStr;
             const matchesBranch = matchesBranchFilter(inq.branchId || inq.branch, myBranch);
-            return isToday && matchesBranch;
+            const matchesDivision = !division || division === "all" || inq.division === division;
+            return isToday && matchesBranch && matchesDivision;
           });
           setTodayInquiries(filtered);
           setInquiriesLoading(false);
@@ -94,7 +96,7 @@ export default function FrontOfficeReportsTab({
     return () => {
       isMounted = false;
     };
-  }, [myBranch, todayStr, currentUser?.uid, propActiveShift]);
+  }, [myBranch, division, todayStr, currentUser?.uid, propActiveShift]);
 
   const handleShiftClosed = () => {
     setInternalActiveShift(null);
@@ -191,6 +193,7 @@ export default function FrontOfficeReportsTab({
             students={students}
             activeShift={activeShift}
             currentUser={currentUser || {}}
+            division={division}
             onShiftClosed={handleShiftClosed}
           />
         </div>

@@ -5,7 +5,7 @@ import {
   isSameBranchStrict,
   isAdmin,
   isManager,
-  isFrontOffice,
+  isOpsLead,
   userBranch,
 } from "./securityRulesMatrix.helpers.js";
 import {
@@ -183,7 +183,7 @@ describe("Branch Isolation & Boundary Protection Security Matrix", () => {
 
     function canCreateCorporateEvent(incoming, user) {
       if (!user) return false;
-      const roleAllowed = isAdmin(user) || isManager(user) || isFrontOffice(user);
+      const roleAllowed = isAdmin(user) || isManager(user) || isOpsLead(user);
       if (!roleAllowed) return false;
       if (typeof incoming?.name !== "string" || typeof incoming?.eventDate !== "string") return false;
       if (!["all", "branch", "role", "division"].includes(incoming?.audienceType)) return false;
@@ -228,14 +228,16 @@ describe("Branch Isolation & Boundary Protection Security Matrix", () => {
       expect(canReadCorporateEvent(allEvt, null)).toBe(false);
     });
 
-    it("allows Manager and Front Office to create events only for their branch or academy-wide", () => {
+    it("allows Manager to create events only for their branch, while blocking Front Office (OD-FO-01)", () => {
       const gtoPayload = { name: "Briefing", eventDate: "2026-09-27", audienceType: "branch", audienceValue: "kota_gorontalo" };
       const bobaPayload = { name: "Briefing", eventDate: "2026-09-27", audienceType: "branch", audienceValue: "bone_bolango" };
 
-      expect(canCreateCorporateEvent(gtoPayload, foGorontalo)).toBe(true);
+      expect(canCreateCorporateEvent(gtoPayload, foGorontalo)).toBe(false);
       expect(canCreateCorporateEvent(bobaPayload, foGorontalo)).toBe(false);
-      expect(canCreateCorporateEvent(bobaPayload, foBoneBolango)).toBe(true);
+      expect(canCreateCorporateEvent(bobaPayload, foBoneBolango)).toBe(false);
       expect(canCreateCorporateEvent(bobaPayload, adminUser)).toBe(true);
+      expect(canCreateCorporateEvent(gtoPayload, managerGorontalo)).toBe(true);
+      expect(canCreateCorporateEvent(bobaPayload, managerBoneBolango)).toBe(true);
     });
   });
 });

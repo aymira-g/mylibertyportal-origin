@@ -61,7 +61,7 @@ describe("ReportsDashboard Scope & Export Gating (DOM11-PRIV-01 & DOM11-GOV-05)"
     expect(html).not.toContain("Export CSV Dataset");
   });
 
-  it("renders top-level 'Export CSV Dataset' button for Executive, Manager, Front Office, and Academic Lead", () => {
+  it("renders top-level 'Export CSV Dataset' button for Executive, Manager, and Academic Lead, but excludes Front Office (OD-FO-03)", () => {
     const execHtml = renderToStaticMarkup(React.createElement(ReportsDashboard, { isExecutiveView: true }));
     expect(execHtml).toContain("Export CSV Dataset");
 
@@ -69,7 +69,7 @@ describe("ReportsDashboard Scope & Export Gating (DOM11-PRIV-01 & DOM11-GOV-05)"
     expect(mgrHtml).toContain("Export CSV Dataset");
 
     const foHtml = renderToStaticMarkup(React.createElement(ReportsDashboard, { isFrontOffice: true }));
-    expect(foHtml).toContain("Export CSV Dataset");
+    expect(foHtml).not.toContain("Export CSV Dataset");
 
     const ilHtml = renderToStaticMarkup(React.createElement(ReportsDashboard, { isInstructorLeader: true }));
     expect(ilHtml).toContain("Export CSV Dataset");

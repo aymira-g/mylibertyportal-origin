@@ -1051,6 +1051,29 @@ describe.skipIf(!HAS_EMULATOR)(
           await assertSucceeds(
             deleteDoc(doc(authed("mgrGto"), "corporateEvents", "gtoBranchEvent"))
           );
+
+          // Front Office CANNOT create corporate events (OD-FO-01)
+          await assertFails(
+            setDoc(doc(authed("foGto"), "corporateEvents", "foCreatedEvent"), {
+              name: "Front Office Unauthorized Event",
+              eventDate: "2026-11-05",
+              audienceType: "branch",
+              audienceValue: "kota_gorontalo",
+              branchId: "kota_gorontalo",
+            })
+          );
+
+          // Front Office CANNOT update corporate events
+          await assertFails(
+            updateDoc(doc(authed("foGto"), "corporateEvents", "allCompanyEvent"), {
+              name: "Front Office Tampered Event",
+            })
+          );
+
+          // Front Office CANNOT delete corporate events
+          await assertFails(
+            deleteDoc(doc(authed("foGto"), "corporateEvents", "allCompanyEvent"))
+          );
         });
       });
 

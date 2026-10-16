@@ -38,6 +38,7 @@ A decision document defines:
 | [`2026-10-13-student-class-transfer-dual-control-workflow.md`](./2026-10-13-student-class-transfer-dual-control-workflow.md) | Dual-Control Student Class Transfer Blocking Workflow & Satellite Checker Authority | 2026-10-13 | Active *(Ratified by Owner / Director Kifry)* |
 | [`2026-10-16-student-portal-scope-and-account-routing.md`](./2026-10-16-student-portal-scope-and-account-routing.md) | Student Portal Scope & Student Account Card Routing (Option A: Informational boundary; dead link removed) | 2026-10-16 | Active *(Ratified by Owner / Director Kifry)* |
 | [`2026-10-17-exclusion-of-academic-and-operational-reports-from-system-admin.md`](./2026-10-17-exclusion-of-academic-and-operational-reports-from-system-admin.md) | Exclusion of Academic & Operational Report Views from System Administrator (OD-ADM-01) | 2026-10-17 | Active *(Ratified by Owner / Director Kifry)* |
+| [`2026-10-17-front-office-workspace-placement-and-access-boundaries.md`](./2026-10-17-front-office-workspace-placement-and-access-boundaries.md) | Front Office Placement: Corporate Events Read-Only Boundary, Progress Reports Gating & Reporting Parity (OD-FO-01, OD-FO-02, OD-FO-03) | 2026-10-17 | Active *(Ratified by Owner / Director Kifry)* |
 
 
 ## Lifecycle Rule

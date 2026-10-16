@@ -28,6 +28,7 @@ import { CorporateEventModal } from "./CorporateEventModal";
 
 export default function CorporateEventsPanel({
   canCreate = true,
+  canCancel = true,
   title = "Corporate Events",
   subtitle = "Schedule workshops, training sessions, company meetings, and academy events. Eligible staff, managers, and students will automatically record attendance at the kiosk.",
 }) {
@@ -355,7 +356,7 @@ export default function CorporateEventsPanel({
                         )}
                       </td>
                       <td className="px-5 py-4 text-right whitespace-nowrap">
-                        {evt.status === "active" ? (
+                        {canCancel && evt.status === "active" ? (
                           <button
                             onClick={() => handleCancelEvent(evt)}
                             className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg transition cursor-pointer"
@@ -363,7 +364,9 @@ export default function CorporateEventsPanel({
                             Cancel Event
                           </button>
                         ) : (
-                          <span className="text-[11px] text-slate-400 italic">No actions</span>
+                          <span className="text-[11px] text-slate-400 italic">
+                            {evt.status === "active" ? "Read-only" : "No actions"}
+                          </span>
                         )}
                       </td>
                     </tr>

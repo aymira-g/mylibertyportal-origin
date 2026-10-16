@@ -13,6 +13,7 @@ Proposals do **not** represent approved system policy or binding design until fo
 ## Active Proposals
 
 - [`2026-10-17-admin-dashboard-reports-tab-replacement.md`](./2026-10-17-admin-dashboard-reports-tab-replacement.md): Dashboard Implementation Proposal: Admin Dashboard Tab Composition & Reports Tab Disposition (Option A vs Option B)
+- [`2026-10-17-legacy-progress-reports-division-backfill.md`](./2026-10-17-legacy-progress-reports-division-backfill.md): Data Migration Proposal: Legacy Progress Reports Division Attribute Backfill (Cost & Spark Safety Scoping)
 
 ## Archived Proposals (`proposals/archive/`)
 

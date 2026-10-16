@@ -138,9 +138,9 @@ SLICE 5+: Individual Role Deep-Dives (Division Managers, Ops Lead, Instructors, 
 
 ### Slice 1 State & Next Action
 
-- **Status:** Audited on 2026-10-15 against baseline `99163ca`. Four findings cataloged (`DOM11-GOV-02`, `DOM01-GOV-03`, `DOM01-REP-01`, `DOM01-PERF-01`).
-- **Remediation State:** Remediation plan `docs/plans/active/2026-10-15-blrca-slice1-system-admin-remediation.md` is active and marked `IN PROGRESS`.
-- **Immediate Next Action:** When remediation is reported ready by an implementation agent, execute **Phase 6 Independent Post-Fix Verification**. Do not repeat Slice 1 as a first-time audit.
+- **Status:** **COMPLETED** (Audited 2026-10-15; remediated in `220c10a` and `131f1b2`; Phase 6 verified and all 4 findings closed on 2026-10-16).
+- **Remediation State:** Remediation plan `docs/plans/active/2026-10-15-blrca-slice1-system-admin-remediation.md` is **COMPLETED**. Findings `DOM11-GOV-02`, `DOM01-GOV-03`, `DOM01-REP-01`, and `DOM01-PERF-01` are `CLOSED` in `bug-ledger.md`.
+- **Next Operational Action:** Execute **Slice 2: Financial Surfaces Across Roles** (Payments, Tuition, Discounts, Cash Balancing, and `DOM04-GOV-03`).
 
 ---
 

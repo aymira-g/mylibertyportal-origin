@@ -809,3 +809,16 @@ Findings Summary:
 2. DOM01-GOV-03 (High): `firestore.rules:43` helper `isExecutive()` bundles `isAdmin()`, granting System Admin read/list access across business collections (`/payments`, `/applications`, `/approvals`, `/progressReports`, `/deskInquiries`).
 3. DOM01-REP-01 (High): `src/features/shared/roles.js:77` `isExecutiveRole()` treats `admin` as executive without an organizational counterpart `isOrgExecutiveRole()`.
 4. DOM01-PERF-01 (Low): `useDashboardData.js:315-325` runs an unscoped realtime listener on `/applications` for `admin` despite AdminDashboard not rendering student applications.
+
+## 2026-10-16 — Role & Business Logic Conformance Audit (BLRCA): Slice 1 — Phase 6 Post-Fix Verification & Ledger Closure
+Source: Level 2 Role & Business Logic Conformance Audit methodology (`05-campaign-execution-and-coverage.md`, `06-findings-and-closure.md`).
+Scope: Post-fix verification of Slice 1 remediations shipped in commits `220c10a` and `131f1b2`.
+Status: COMPLETED (All 4 Slice 1 findings CLOSED in `bug-ledger.md`).
+
+Verification & Closure Summary:
+1. DOM11-GOV-02 (CLOSED): Financial & Tuition reports tab stripped from Admin view in `ReportsDashboard.jsx`. `financialCache` keyed by `currentUserUid` in `FinancialReportsTab.jsx:45`. Fail-closed error alert with retry button rendered on query error. Verified in `FinancialReportsTab.test.js` (3/3 passed).
+2. DOM01-GOV-03 (CLOSED): `isOrgExecutive()` decoupled from `admin` in `firestore.rules` for business collections (`/payments`, `/applications`, `/approvals`, `/progressReports`, `/deskInquiries`). Remaining 16 occurrences of `isExecutive()` verified strictly restricted to technical IT device/user/audit operations or calendar reads.
+3. DOM01-REP-01 (CLOSED): `isOrgExecutiveRole` introduced in `roles.js`; `paymentsRepository.js` and `approvalsRepository.js` bound to organizational executive scope. Verified in `roles.test.js` (16/16 passed).
+4. DOM01-PERF-01 (CLOSED): Unscoped real-time `/applications` snapshot listener eliminated for `admin` in `useDashboardData.js`.
+5. Automated Verification: 7 test suites, 194 passed (`roles.test.js`, `FinancialReportsTab.test.js`, 5 `securityRulesMatrix` suites); `npm run typecheck` passed (0 errors); `npm run lint` passed (0 errors).
+6. Next Campaign Action: Proceed to **Slice 2: Financial Surfaces Across Roles**.

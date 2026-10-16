@@ -57,6 +57,10 @@ So audit **section by section**, trace each section as a **complete business wor
 | `05-bug-tracking.md` | Bug ledger, audit record, bug lifecycle, remediation phases, severity |
 | `06-checklists-and-agent-instructions.md` | Definition of done, coding-agent instructions |
 
+### Specialized Campaign Procedures
+
+- [`Role & Business Logic Conformance Audit (BLRCA)`](../Role%20&%20Business%20Logic%20Conformance%20Audit/00-README.md): Structured slice-by-slice campaign procedure for role-by-role and dashboard-by-dashboard governance conformance.
+
 ## Goal
 
 Move from *"I think the Portal works"* to:

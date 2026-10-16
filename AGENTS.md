@@ -9,6 +9,7 @@
 > The audit procedures, failure strategies, and regression playbooks are documented separately under `docs/audits/`:
 > - [`docs/audits/Light Regression Check Playbook/`](./docs/audits/Light%20Regression%20Check%20Playbook/00-README.md) (Level 1: Targeted post-change regression)
 > - [`docs/audits/Comprehensive Hidden-Bug Audit Strategy/`](./docs/audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md) (Level 2: Section deep dives & failure matrix)
+>   - [`docs/audits/Role & Business Logic Conformance Audit/`](./docs/audits/Role%20&%20Business%20Logic%20Conformance%20Audit/00-README.md) (Level 2 Campaign: Role & business logic conformance — BLRCA)
 > - [`docs/audits/Full System Architecture & Scalability Audit Procedure/`](./docs/audits/Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md) (Level 3: Architecture drift & scalability)
 
 ## About the person you are helping
@@ -220,6 +221,7 @@ The verification system operates across three modular levels and one cross-cutti
   Targeted post-change verification. Answers: Did this change break the affected workflow, regress permissions, compromise data integrity, break nearby dependencies, or violate established invariants? Fast, repeatable, and run after every code change.
 - **Level 2 — Deep Functional / Workflow Audit Strategy** ([`docs/audits/Comprehensive Hidden-Bug Audit Strategy/00-README.md`](./docs/audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md)):
   Detailed conformance layer. Systematically verifies role authority, workflow correctness, permission boundaries, state transitions, branch/division isolation, cross-feature interactions, failure paths, data scope, separation of duties, dashboard behavior, and business rules. This is the **primary audit level for role-by-role and dashboard-by-dashboard refinement**.
+  - **BLRCA Campaign Framework** ([`docs/audits/Role & Business Logic Conformance Audit/00-README.md`](./docs/audits/Role%20&%20Business%20Logic%20Conformance%20Audit/00-README.md)): Structured slice-by-slice campaign procedure for governance conformance across roles and workflows.
 - **Level 3 — Full System Architecture & Scalability Audit Procedure** ([`docs/audits/Full System Architecture & Scalability Audit Procedure/00-README.md`](./docs/audits/Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md)):
   Highest technical/system verification level. Verifies the entire implemented system against the Authoritative Blueprint, accepted owner decisions, Technical Architecture, security rules, data architecture, scalability (10 to 10k users), resilience, performance, zero-budget Spark retention, and deployment integrity. Detects both **technical architecture drift** and **governance/implementation divergence**.
 - **Cross-Cutting Blueprint Conformance Matrix** ([`docs/audits/blueprint-conformance-matrix.md`](./docs/audits/blueprint-conformance-matrix.md)):

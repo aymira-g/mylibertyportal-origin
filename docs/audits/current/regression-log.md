@@ -33,7 +33,34 @@
 | 2026-10-14 | Test Suite Modularization: Split 3,993-line monolith firestoreRules.emulator.test.js into src/features/shared/firestoreRulesEmulator/ (7 domain suites + setup.js) | Test Architecture · Firestore Rules Emulator | **PASS** | No | 139/139 emulator tests passed (duration reduced 37% from 24.20s to 15.07s via per-suite project isolation); 1,381 unit tests passed; lint, typecheck, build clean |
 | 2026-10-15 | BLRCA Slice 1: System Admin Technical-Only Boundary Audit — cataloged verified findings DOM11-GOV-02, DOM01-GOV-03, DOM01-REP-01, DOM01-PERF-01 across UI, repository, and rules layers | Auth · System Admin · Security Rules · Dashboard · Reports | **AUDIT COMPLETE** | Yes (4 Findings Logged) | Proven business data exposure (financial reports, payment list, application listener, approvals stream) under isExecutive rules helper; worker endpoints pass; 1,433 unit tests pass |
 | 2026-10-16 | Post-Slice 1 CI Remediation: Synchronized security rules matrix unit assertions to match Admin branch/division isolation and restored isExecutive() on corporateEvents calendar read | Security Rules · Test Matrix · Firestore Emulator | **PASS** | No | 1,433/1,433 unit tests pass; 139/139 emulator tests pass; 0 lint, 0 typecheck, build clean |
+| 2026-10-16 | BLRCA Slice 1: Phase 6 Post-Fix Verification & Ledger Closure (DOM11-GOV-02, DOM01-GOV-03, DOM01-REP-01, DOM01-PERF-01 verified resolved; commits `220c10a`, `131f1b2`) | Auth · System Admin · Security Rules · Dashboard · Reports | **PASS** | No | 7/7 targeted test files passed (194 tests); 0 lint, 0 typecheck; all 4 findings CLOSED in bug-ledger.md |
 
+
+---
+
+## Evidence Record — 2026-10-16 (BLRCA Slice 1 Post-Fix Verification & Ledger Closure)
+
+```text
+Change: Role & Business Logic Conformance Audit (BLRCA) — Slice 1 Phase 6 Post-Fix Verification & Ledger Closure
+Date: 2026-10-16
+Section: Authentication / System Administration / Firestore Rules / Reports / Dashboard
+Workflow: Verification of System Admin technical-only boundary fixes shipped in commits 220c10a and 131f1b2
+Tester / Agent: Primary Coding Agent, authorized by Kifry
+Risk classification: HIGH-RISK (Security boundary, role segregation, financial isolation)
+
+Verification Evidence:
+  - Reports Tab Hardening: Verified isActualAdmin removed from Financial & Tuition tab in ReportsDashboard.jsx (lines 129, 266).
+  - Financial Cache Keying: Verified financialCache in FinancialReportsTab.jsx:45 is keyed by `${currentUserUid}_${canonicalBranchId}_${division}_${rangeDays}` (remediated in 220c10a).
+  - Fail-Closed UI: Verified catch block at lines 60-63 in FinancialReportsTab.jsx sets component error state and renders an explicit error alert banner with Retry button at lines 125-139 (remediated in 220c10a).
+  - Rules Boundary Audit: Verified 16 remaining isExecutive() occurrences in firestore.rules are strictly confined to technical IT/users/audit operations and calendar reads; all business collections (/payments, /applications, /approvals, /progressReports, /deskInquiries) use isOrgExecutive().
+  - Frontend Helper: Verified isOrgExecutiveRole exported in src/features/shared/roles.js and consumed in paymentsRepository.js and approvalsRepository.js.
+  - Listener Cleanup: Verified useDashboardData.js removed unscoped /applications snapshot listener for admin.
+  - Test Suite Execution:
+    - npx vitest run src/features/shared/roles.test.js src/features/reports/tabs/FinancialReportsTab.test.js src/features/shared/securityRulesMatrix/ -> 7 files passed, 194 passed.
+    - npm run typecheck (tsc --noEmit) -> 0 errors.
+    - npm run lint (eslint .) -> 0 errors.
+  - Ledger Closure: DOM11-GOV-02, DOM01-GOV-03, DOM01-REP-01, DOM01-PERF-01 marked CLOSED in docs/audits/current/bug-ledger.md.
+```
 
 ---
 

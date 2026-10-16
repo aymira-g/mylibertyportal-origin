@@ -117,18 +117,18 @@ Per the repository's documentation governance, consolidated campaign files are c
 
 ### Verified Slice 1 Evidence
 
-Slice 1 (System Admin boundary) was audited on 2026-10-15 against baseline `99163ca`. Existing verified evidence and remediation tracking are maintained in:
+Slice 1 (System Admin boundary) was audited on 2026-10-15 against baseline `99163ca`, remediated in commits `220c10a` and `131f1b2`, and verified closed on 2026-10-16 via Phase 6 Post-Fix Verification. Existing verified evidence and remediation tracking are maintained in:
 
 - **Audit Findings:** [`docs/audits/current/bug-ledger.md`](../current/bug-ledger.md)
-  - `DOM11-GOV-02` (High, Open): UI Financial Reports exposure & All-Campuses scope filter in `AdminDashboard` / `ReportsDashboard`.
-  - `DOM01-GOV-03` (High, Open): Rules helper `isExecutive()` bundles `isAdmin()` across business collections.
-  - `DOM01-REP-01` (High, Open): Frontend helper `isExecutiveRole()` treats Admin as executive without `isOrgExecutiveRole` separation.
-  - `DOM01-PERF-01` (Low, Open): Unscoped real-time `/applications` snapshot listener active for Admin in `useDashboardData.js`.
-- **Regression Log:** [`docs/audits/current/regression-log.md`](../current/regression-log.md) (Entry: 2026-10-15, Section: Evidence Record — 2026-10-15 BLRCA Slice 1).
-- **Active Remediation Plan:** [`docs/plans/active/2026-10-15-blrca-slice1-system-admin-remediation.md`](../../plans/active/2026-10-15-blrca-slice1-system-admin-remediation.md) (Status: IN PROGRESS).
-- **Audit Log:** [`docs/audits/audit-log.md`](../audit-log.md) (Entry: 2026-10-15 BLRCA Slice 1 cataloged).
+  - `DOM11-GOV-02` (High, CLOSED): UI Financial Reports exposure & All-Campuses scope filter removed from Admin; `financialCache` keyed by `currentUserUid`; fail-closed error UI with retry banner added.
+  - `DOM01-GOV-03` (High, CLOSED): Rules helper `isOrgExecutive()` decoupled from `admin` across business collections (`/payments`, `/applications`, `/approvals`, `/progressReports`, `/deskInquiries`); remaining 16 `isExecutive()` occurrences verified strictly technical IT/user/audit or calendar reads.
+  - `DOM01-REP-01` (High, CLOSED): Frontend helper `isOrgExecutiveRole()` introduced; `paymentsRepository.js` and `approvalsRepository.js` bound to organizational executive scope.
+  - `DOM01-PERF-01` (Low, CLOSED): Unscoped real-time `/applications` snapshot listener eliminated for Admin in `useDashboardData.js`.
+- **Regression Log:** [`docs/audits/current/regression-log.md`](../current/regression-log.md) (Entries: 2026-10-15 Slice 1 Audit; 2026-10-16 Post-Fix Verification & Ledger Closure).
+- **Remediation Plan:** [`docs/plans/active/2026-10-15-blrca-slice1-system-admin-remediation.md`](../../plans/active/2026-10-15-blrca-slice1-system-admin-remediation.md) (Status: COMPLETED).
+- **Audit Log:** [`docs/audits/audit-log.md`](../audit-log.md) (Entries: 2026-10-15 BLRCA Slice 1 cataloged; 2026-10-16 Slice 1 closed).
 
-*Next Step for Slice 1:* Once the active remediation plan is executed by an authorized implementation agent, an independent auditor will execute **Phase 6 post-fix verification**, re-test the positive, negative, boundary, and alternate-path assertions, confirm technical Admin retaining legitimate maintenance rights, and close the ledger entries.
+*Next Step for Campaign:* Proceed to **Slice 2: Financial Surfaces Across Roles** (Payments, Tuition, Discounts, Cash Balancing, and `DOM04-GOV-03`).
 
 ---
 

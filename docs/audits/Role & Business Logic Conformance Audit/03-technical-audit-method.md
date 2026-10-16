@@ -56,7 +56,7 @@ Every discovered role-feature combination must be systematically evaluated again
 - **Session & Cache Leakage on Shared Workstations:**
   - Check in-memory maps, browser `localStorage`, `sessionStorage`, and service worker caches for sensitive data surviving sign-out or a user switch.
   - Front-desk PCs and kiosk terminals are shared across staff shifts. Any cache keyed without the authenticated user's UID or role risks leaking confidential business data across shifts.
-  - *Concrete Example:* `src/features/reports/tabs/FinancialReportsTab.jsx` line 19 defines `financialCache` as an in-memory module-level `Map` keyed solely by `branchId_division_rangeDays` with a 5-minute TTL—leaving loaded financial figures in memory across user sessions on shared hardware.
+  - *Concrete Example (Historical Baseline):* In `src/features/reports/tabs/FinancialReportsTab.jsx`, `financialCache` was historically defined as an in-memory module-level `Map` keyed solely by `branchId_division_rangeDays` with a 5-minute TTL—leaving loaded financial figures in memory across user sessions on shared hardware. (Remediated in `220c10a`: cache key now prefixes `currentUserUid`).
 
 ### Dimension 3: Action & Decision Authority
 
@@ -79,7 +79,7 @@ Every discovered role-feature combination must be systematically evaluated again
 - **Fail-Closed Presentation ("Denial-Looks-Like-Zero"):**
   - A permission-denied or failed query must **never** be presented to the user as a legitimate empty result or zero business figure (such as "Rp 0" revenue, 0 active students, or 100% attendance).
   - Silencing catch blocks with `console.error` causes the UI to render default empty state variables as though the branch has zero revenue.
-  - *Concrete Example:* In `FinancialReportsTab.jsx:61`, query failures caught with `console.error` allow the UI to render empty/zero totals instead of displaying an explicit error state (`LeaderErrorNote` or `InlineErrorRetry`).
+  - *Concrete Example (Historical Baseline):* In `FinancialReportsTab.jsx:61`, query failures were historically caught with `console.error` only, allowing the UI to render empty/zero totals instead of displaying an explicit error state. (Remediated in `220c10a`: sets error state and renders an explicit error alert banner with Retry button).
 
 ---
 
@@ -131,10 +131,12 @@ An independent code inspection performed against the active target checkout (com
    - In `ReportsDashboard.jsx:129` and line 266, `isActualAdmin` has been removed from the Financial & Tuition tab button and render condition:
      `{subTab === "finance" && (isExecutiveView || isManager) && (`
      The Financial tab is no longer directly clickable by System Admin in the UI.
-5. **Code Line Displacements:**
-   - In `FinancialReportsTab.jsx`: `financialCache` declaration is at line 19 (was line ~18); `fetchPaymentsForWindow` call is at line 56 (was line 52); error logging catch block is at line 61 (was line 52).
+5. **Code Line Displacements & In-Component Remediation (Shipped in `220c10a`):**
+   - In `FinancialReportsTab.jsx`: `financialCache` declaration is at line 19; `fetchPaymentsForWindow` call is at line 56; error logging catch block is at lines 60–63.
    - In `src/features/finance/paymentsRepository.js`: `fetchPaymentsForWindow` definition is at line 118 (was line 114).
-6. **Remaining Open Leads & Risks to Test:**
-   - *Cache Keying:* In `FinancialReportsTab.jsx:19, 42-45`, `financialCache` remains keyed solely by `canonicalBranchId_division_rangeDays`, unkeyed by user UID.
-   - *Fail-Closed Presentation:* In `FinancialReportsTab.jsx:61`, query catch block continues to log `console.error` without updating component state to an error display.
-   - *Active Remediation Plan:* Formally tracked under `docs/plans/active/2026-10-15-blrca-slice1-system-admin-remediation.md` (Status: IN PROGRESS). Post-fix emulator verification is scheduled as the next verification step.
+   - *User-Scoped Cache Keying:* Commit `220c10a` updated line 45 to key `financialCache` by `currentUserUid` (`const cacheKey = `${currentUserUid}_${canonicalBranchId}_${division}_${rangeDays}`;`), preventing cache leakage across sessions on shared workstations.
+   - *Fail-Closed Error Handling:* Commit `220c10a` added `setError(...)` in the catch block at lines 60–63 and an explicit error alert banner with a Retry button at lines 125–139, eliminating the denial-looks-like-zero failure mode.
+6. **Remediation & Verification Status (Shipped in `220c10a` & `131f1b2`):**
+   - Both cache keying and fail-closed error handling were fully remediated in commit `220c10a` and verified in commit `131f1b2` / BLRCA Slice 1 Phase 6.
+   - In `131f1b2`, `corporateEvents` calendar read was synchronized with `isExecutive()` to resolve emulator query issues, and security rules matrix assertions were aligned with Admin branch/division isolation.
+   - *Active Remediation Plan:* Tracked under `docs/plans/active/2026-10-15-blrca-slice1-system-admin-remediation.md` (marked COMPLETED). All Slice 1 findings closed in `bug-ledger.md`.

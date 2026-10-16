@@ -81,12 +81,6 @@ export default function DigitalReceiptTab({ activeReceipt, onSendWhatsApp, onPri
               })}
             </span>
           </div>
-          {activeReceipt.notes && (
-            <div className="flex justify-between py-1">
-              <span className="text-slate-400 font-medium">Reference:</span>
-              <span className="font-medium text-slate-700">{activeReceipt.notes}</span>
-            </div>
-          )}
           <div className="flex justify-between items-center pt-3 border-t border-slate-200">
             <span className="font-bold text-slate-700 uppercase tracking-wider text-xs">
               Total Paid:

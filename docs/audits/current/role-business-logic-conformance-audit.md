@@ -613,3 +613,310 @@ The audit discovered 12 distinct feature components, collection routes, and back
 - **Spark Zero-Budget Retention:** 100% maintained; no paid services, no extra dependencies.
 
 
+---
+
+## 7. Slice 4: Data Exports, Downloads & Print Operations (Phases 0–4 Report)
+
+**Audit Execution Date:** 2026-10-16  
+**Auditor / Agent:** Independent Advisor & Auditor (Strict Read-Only Mode)  
+**Methodology:** BLRCA Phases 0–4 per `docs/audits/Role & Business Logic Conformance Audit/`  
+**Working Tree State:** Clean, Commit `b19034e2fc0d4b012d28fe14b1c696b6aadcaf0a` on `main`  
+**Governance Authority:** Authoritative Blueprint v3.4 (`2026-10-13`), Ratified Owner Decisions in `docs/decisions/` (`OD-1`, `OD-2`, `OD-3`, `OD-4`, `OD-STU-1`, `OD-STU-2`, `OD-STU-3`)
+
+### 7.1 Scope & Governing Authorities
+
+This audit comprehensively traces all data extraction, bulk export, download, browser print, clipboard copy, and external messaging surfaces across every canonical role in the MyLiberty Portal.
+
+#### Surfaces Audited:
+1. **CSV Export Generation:**
+   - Central reporting exports: `ReportsDashboard.jsx:91-97` (`handleExport` via `exportTableCSV`).
+   - Sub-tab CSV datasets: `TodayTab.jsx`, `AdmissionsTab.jsx`, `FrontOfficeReportsTab.jsx`, `ClassOperationsTab.jsx`, `LearnerProgressTab.jsx`, `AttendanceLogTab.jsx`, `StaffDutyTab.jsx`, `OperationsReportTab.jsx`.
+   - Dedicated financial CSV export: `FinancialReportsTab.jsx:103-126` (`exportFinancialCSV` via `exportTableCSV`).
+   - Student roster CSV export: `StudentRoster.jsx:533-541` via `studentRosterExport.js`.
+2. **Browser Print Operations:**
+   - Digital cashier receipt print: `DigitalReceiptTab.jsx:42-45` via `window.print()`.
+   - Student & staff ID credential badges: `BadgeModal.jsx:136-155` via `window.print()`.
+   - Cohort roster print: `CohortRosterTable.jsx:110` / `StudentRosterTable.jsx:453`.
+   - Shared print utilities: `src/features/shared/printTable.js`.
+3. **Clipboard & External Share Triggers:**
+   - WhatsApp digital receipt dispatch: `receiptMessages.js:15-84` via `wa.me` links (`PaymentModal.jsx`, `DigitalReceiptTab.jsx`).
+   - Parent Portal linkage code / magic link copy: `StudentParentLinkage.jsx:189-214` via `navigator.clipboard.writeText` and `wa.me`.
+   - Staff invite link copy: `InvitesPanel.jsx:98-112` via `navigator.clipboard.writeText`.
+   - Bulk parent outreach phone numbers copy: `BatchOutreachPanel.jsx:77-84` via `navigator.clipboard.writeText`.
+
+#### Governing Principles & Invariants:
+- **Blueprint v3.4 §7 & OD-2:** System Admin is a technical maintenance identity; zero business authority, zero business reporting, and zero business export privileges.
+- **Blueprint v3.4 §5.4 (Principles 15 & 16):** Executive dual-control model. Broad cross-branch visibility for strategic and operational oversight; operational data access must not be accidentally severed by UI edit locks (`readOnly`).
+- **Blueprint v3.4 §6.8 & §19 (Parent and Child Data Privacy):** Bulk student personal data, parent phone numbers, and official credential printing belong strictly to administrative Front Office and managerial leadership. Teaching instructors must never export bulk contact info or print official credentials.
+- **Financial Ledger & Netting Integrity (OD-1, OD-3, Blueprint §26 G-009):** Exported financial datasets must reflect true ledger balances; voided transactions and reversals must not artificially double or triple gross revenue totals in spreadsheet aggregations (`=SUM()`).
+- **Formula Injection Defense:** All generated CSVs must neutralize formula execution triggers (`=`, `+`, `-`, `@`, `\t`, `\r`) in untrusted strings.
+
+---
+
+### 7.2 Role-to-Function Export Contracts
+
+| Canonical Role | CSV Bulk Export Authority | Browser Print Authority | Clipboard & External Share Authority | Governing Basis | Status |
+|---|---|---|---|---|---|
+| `admin` (System Admin) | ❌ FORBIDDEN across all business domains (Finance, Students, Leads, Attendance). IT audit logs only. | ❌ FORBIDDEN on student badges and receipts. | 📝 System Invites (`InvitesPanel`) only. | Blueprint §7, OD-2 | **Established** |
+| `director` (Executive) | ✅ FULL PROVINCE SCOPE: Strategic reports, financial analytics, cohort summaries. | ✅ FULL PROVINCE SCOPE: Any receipt, report, or official document. | ✅ FULL PROVINCE SCOPE: Management notices and linkage codes. | Blueprint §0, §5.4 | **Established** |
+| `vice_director` (Executive) | ✅ FULL PROVINCE SCOPE: Operational reports, attendance logs, rosters, and financial audit. | ✅ FULL PROVINCE SCOPE: Operational receipts and reports. | ✅ FULL PROVINCE SCOPE: Operational communications. | Blueprint §0, §5.4 | **Established** |
+| `manager` (`courses`) | 🔒 BRANCH+DIVISION SCOPE: Course attendance, student rosters, academic progress, revenue reports. | 🔒 BRANCH+DIVISION SCOPE: Course receipts and rosters. | 🔒 BRANCH+DIVISION SCOPE: Local parents and staff. | Blueprint §5.1, §6.8 | **Established** |
+| `manager` (`kindergarten`) | 🔒 BRANCH+DIVISION SCOPE: Kids attendance, child dossiers, inquiry logs, tuition reports. | 🔒 BRANCH+DIVISION SCOPE: Kids receipts and rosters. | 🔒 BRANCH+DIVISION SCOPE: Kids parents. | Blueprint §5.1, §6.8 | **Established** |
+| `opslead` (Ops Leader) | 🔒 BRANCH SCOPE: Daily check-ins, staff duty logs, operational facility tasks, desk velocity. | 🔒 BRANCH SCOPE: Operational rosters and emergency lists. | 🔒 BRANCH SCOPE: Facility dispatch and staff contacts. | Blueprint §6.8, §6.10 | **Established** |
+| `frontoffice` (Front Desk) | 🔒 BRANCH-LOCAL: Desk inquiry logs, daily cash drawer reconciliation, class check-ins. | 🔒 BRANCH-LOCAL: Customer digital receipts, student ID badges, class attendance sheets. | 🔒 BRANCH-LOCAL: Parent linkage PINs, receipt WhatsApp links, outreach batches. | Blueprint §6.8, §18 | **Established** |
+| `instructorleader` (Academic) | 🔒 ACADEMIC ONLY: Province-wide placement assessments, student progress, punctuality logs. | 🔒 ACADEMIC ONLY: Assessment rubrics and class sheets. | 🔒 ACADEMIC ONLY: Academic communications. | Blueprint v3.4 §4, §5 | **Established** |
+| `instructor` (Teaching) | ❌ FORBIDDEN: Bulk CSV export of student rosters, attendance logs, and financial records. | 🔒 TEACHING ONLY: Class roster attendance sheet for assigned cohorts. Badge print FORBIDDEN. | ❌ FORBIDDEN: Bulk parent contact clipboard dumping. | Blueprint §6.8, §19 | **Established** |
+| `marketing` | 🔒 LEADS ONLY: Desk inquiry and school outreach contact logs. | 🔒 LEADS ONLY: Outreach flyers and inquiry summaries. | 🔒 LEADS ONLY: Public promotional messages. | Blueprint §6.8 | **Established** |
+| `officeboy` (Facilities) | ❌ FORBIDDEN across all export, print, and clipboard surfaces. | ❌ FORBIDDEN. | ❌ FORBIDDEN. | Blueprint §6.10 | **Established** |
+| `parent` / `student` | ❌ FORBIDDEN across bulk exports. | 🔒 PERSONAL ONLY: View/print own payment receipt and personal student badge. | 🔒 PERSONAL ONLY: Share own referral / link. | Blueprint §19, INV-08 | **Established** |
+
+---
+
+### 7.3 Feature Surface Inventory & 5-Checkpoint Tracing
+
+```text
+SURFACE 1: ReportsDashboard.jsx Top-Level Export & Print (exportTableCSV)
+SURFACE 2: FinancialReportsTab.jsx Dedicated Export (exportFinancialCSV)
+SURFACE 3: StudentRoster.jsx & studentRosterExport.js Bulk CSV
+SURFACE 4: DigitalReceiptTab.jsx (window.print & WhatsApp Receipt Sharing)
+SURFACE 5: BadgeModal.jsx (Student & Staff ID Badge Print & PNG Download)
+SURFACE 6: BatchOutreachPanel.jsx (Bulk Parent Phone Clipboard Copy)
+SURFACE 7: StudentParentLinkage.jsx & InvitesPanel.jsx (PIN & Token Clipboard Copy)
+SURFACE 8: printTable.js (Orphaned Table Print Utility)
+```
+
+#### 5-Checkpoint Evaluation Summary:
+1. **Checkpoint 1 (Role Visibility & Trigger Gating):**
+   - In `ReportsDashboard.jsx:91-97`, the top-level `Export CSV Dataset` button renders unconditionally for any user who can view the dashboard. Teaching instructors navigating to `Reports & Analytics` in `InstructorDashboard.jsx:124` see and can click `Export CSV Dataset` to download full institutional check-ins and learner progress (`DOM11-PRIV-01`).
+   - In `StudentRoster.jsx:533-541`, CSV export is gated behind `!readOnly && userRole !== 'instructor'`. While this correctly fixed `DOM05-PRIV-01` for instructors, it inadvertently stripped CSV export from the Vice Director in `ViceDirectorDashboard.jsx:446`, where `readOnly={true}` is passed to prevent student editing (`DOM05-UX-03`).
+   - In `BadgeModal.jsx:136-155` and `InstructorClasses.jsx:286`, teaching instructors have access to "View / Print ID Badge", allowing teachers to print official student badges and export QR codes (`DOM05-PRIV-03`).
+2. **Checkpoint 2 (Filter & Boundary Scope Enforcement):**
+   - In `ReportsDashboard.jsx:27, 196-208`, `canAccessProvinceScope` derives `isActualAdmin`, permitting System Admin to toggle "All Campuses" scope. An Admin selecting "All Campuses" issues un-scoped queries that crash with `permission-denied` (`DOM11-GOV-05`).
+   - In `FinancialReportsTab.jsx:103-126`, `exportFinancialCSV` exports raw array rows where voided payments and reversal payments retain positive `p.amount`, failing to subtract reversals or net voided amounts (`DOM04-CSV-01` / `DOM11-CSV-01`).
+3. **Checkpoint 3 (CSV Formula Injection Sanitization):**
+   - Audited `src/features/shared/csvExport.js:14-25` (`csvEscape`). Confirmed **CLEAN & PROTECTED**. Formula-trigger characters (`=`, `+`, `-`, `@`, `\t`, `\r`) are automatically escaped by prefixing `'` when present on non-numeric strings. Verified in `csvExport.test.js`.
+4. **Checkpoint 4 (Sensitive Data & PII Masking):**
+   - In `BatchOutreachPanel.jsx:77-84`, clicking "Copy Phone Numbers" writes an unformatted list of raw parent phone numbers to the system clipboard without authorization gating or audit logging (`DOM06-PRIV-01`).
+   - In `DigitalReceiptTab.jsx:85-89` and `receiptMessages.js:70`, internal cashier remarks (`rcp.notes`) are included in public receipts and WhatsApp customer messages (`DOM04-PRIV-01`).
+5. **Checkpoint 5 (Dead Code & Asset Integrity):**
+   - `src/features/shared/printTable.js` is an orphaned utility with 0 callers across `src/` (`DOM11-TECH-02`).
+
+---
+
+### 7.4 Detailed Findings (Phases 3 & 4)
+
+#### Finding 1: Ungated Institutional CSV Export Button in `ReportsDashboard.jsx` (`DOM11-PRIV-01`)
+- **Classification:** Security Vulnerability / Privilege Leakage
+- **Severity:** HIGH / DATA EXFILTRATION RISK
+- **Evidence:**
+  - `src/features/reports/ReportsDashboard.jsx:91-97`:
+    ```jsx
+    <button
+      onClick={handleExport}
+      disabled={exporting || loading}
+      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold ..."
+    >
+      <Download className="w-4 h-4" />
+      <span>{exporting ? 'Exporting...' : 'Export CSV Dataset'}</span>
+    </button>
+    ```
+  - `src/features/dashboard/instructor/InstructorDashboard.jsx:124`: mounts `<ReportsDashboard userRole="instructor" ... />`.
+  - `src/features/dashboard/instructor/KidsInstructorDashboard.jsx:135`: mounts `<ReportsDashboard userRole="instructor" division="kindergarten" ... />`.
+- **Why It Matters:** Any teaching instructor can export full student attendance records (`TodayTab`), comprehensive learner evaluation records (`LearnerProgressTab`), and peer instructor punctuality logs (`InstructorPunctualityTab`) to their personal device. This directly violates Blueprint §6.8 & §19.
+- **Recommended Direction:**
+  - Gate the `Export CSV Dataset` button behind role capability: `const canExportReports = isExecutive || isManager || isOpsLead;` (and Front Office for daily logs). Hide from `instructor`.
+- **Owner Decision Required:** No (Direct realization of Blueprint §19).
+- **Blocking Status:** Before completion of Slice 4 remediation.
+
+#### Finding 2: System Admin Retains Multi-Campus Province Scope in `ReportsDashboard.jsx` (`DOM11-GOV-05`)
+- **Classification:** Governance Conflict / Admin Boundary Drift
+- **Severity:** MEDIUM
+- **Evidence:**
+  - `src/features/reports/ReportsDashboard.jsx:27`:
+    ```javascript
+    const canAccessProvinceScope = isExecutive || isActualAdmin;
+    ```
+  - `src/features/reports/ReportsDashboard.jsx:196-208`: renders "All Campuses" dropdown option if `canAccessProvinceScope` is true.
+- **Why It Matters:** Under Blueprint §7 and OD-2, System Admin has no province-wide business reporting role. Selecting "All Campuses" causes repository queries to request multi-campus data that the security rules reject with `permission-denied`.
+- **Recommended Direction:**
+  - Update `canAccessProvinceScope = isExecutive;` (excluding `isActualAdmin`).
+- **Owner Decision Required:** No (Strict conformance to ratified OD-2 and Blueprint §7).
+- **Blocking Status:** Before completion of Slice 4 remediation.
+
+#### Finding 3: Financial Reports CSV Export Doubles Reversals & Voids (`DOM04-CSV-01` / `DOM11-CSV-01`)
+- **Classification:** Data Integrity / Financial Ledger Inaccuracy
+- **Severity:** HIGH / FINANCIAL INTEGRITY
+- **Evidence:**
+  - `src/features/reports/FinancialReportsTab.jsx:103-126`:
+    ```javascript
+    const exportFinancialCSV = () => {
+      ...
+      const rows = payments.map((p) => [
+        p.id || '',
+        p.studentName || p.studentId || '',
+        p.amount || 0,
+        p.status || 'completed',
+        p.method || '',
+        p.planName || p.planType || '',
+        ...
+      ]);
+      exportTableCSV('financial-payments-report', headers, rows);
+    };
+    ```
+- **Why It Matters:** In Slice 2, `financeUtils.js` was remediated so UI totals cleanly net voided payments and subtract reversals. However, `exportFinancialCSV` outputs raw positive `p.amount` for all records, including `status: 'voided'` and `status: 'reversal'`. If management opens the exported CSV and uses `=SUM(Amount)`, voided and reversed transactions are added to revenue, severely inflating financial records.
+- **Recommended Direction:**
+  - Update `exportFinancialCSV` to output `-p.amount` for reversals, and either exclude voided transactions or output `0` amount with explicit `VOIDED` status.
+- **Owner Decision Required:** No (Mathematical consistency with ratified OD-1 and OD-3).
+- **Blocking Status:** Before completion of Slice 4 remediation.
+
+#### Finding 4: Vice Director Denied Student Roster CSV Export Due to `readOnly={true}` Coupling (`DOM05-UX-03`)
+- **Classification:** Functional Defect / Executive Capability Loss
+- **Severity:** MEDIUM / OPERATIONAL IMPACT
+- **Evidence:**
+  - `src/features/dashboard/vicedirector/ViceDirectorDashboard.jsx:446`:
+    ```jsx
+    <StudentRoster readOnly={true} branchId={...} />
+    ```
+  - `src/features/students/StudentRoster.jsx:533-541`:
+    ```jsx
+    {!readOnly && userRole !== 'instructor' && (
+      <button onClick={() => exportStudentRosterCSV(sortedStudents)}>
+        Export CSV
+      </button>
+    )}
+    ```
+- **Why It Matters:** `readOnly={true}` was supplied to prevent inline student profile modifications by the Vice Director. However, coupling CSV export gating to `!readOnly` completely hides and disables student roster exports for the Vice Director, violating Blueprint §5.4 (Principle 15 & 16: Vice Director holds operational control and province-wide reporting oversight).
+- **Recommended Direction:**
+  - Decouple export gating: `const canExport = userRole !== 'instructor';`. Roster CSV export should be available to `isExecutive`, `manager`, and `frontoffice`, independent of `readOnly` editing state.
+- **Owner Decision Required:** No (Blueprint §5.4).
+- **Blocking Status:** Before completion of Slice 4 remediation.
+
+#### Finding 5: Teaching Instructors Authorized to View & Print Official Student ID Badges (`DOM05-PRIV-03`)
+- **Classification:** Security Vulnerability / Credential Issuance Scope
+- **Severity:** MEDIUM / CREDENTIAL INTEGRITY
+- **Evidence:**
+  - `src/features/dashboard/instructor/InstructorClasses.jsx:286`: mounts `<StudentRoster readOnly={true} userRole="instructor" ... />`.
+  - `src/features/students/StudentRosterTable.jsx:453`: renders the "View / Print ID Badge" action button for every student row.
+  - Clicking launches `BadgeModal.jsx`, displaying the student's date of birth, education track, student ID QR code, and triggers `window.print()` or PNG download.
+- **Why It Matters:** Under Blueprint §6.8 & §19, physical badge generation and credential issuance is an administrative Front Office function. Teaching instructors do not issue credentials or print student ID cards.
+- **Recommended Direction:**
+  - Pass `canPrintBadge={!isInstructor}` or gate the badge action in `StudentRosterTable.jsx` to `userRole !== 'instructor'`.
+- **Owner Decision Required:** No (Blueprint §6.8).
+- **Blocking Status:** Before completion of Slice 4 remediation.
+
+#### Finding 6: Unaudited Bulk Parent Phone Number Clipboard Copy in `BatchOutreachPanel.jsx` (`DOM06-PRIV-01`)
+- **Classification:** Privacy Risk / Bulk PII Exfiltration
+- **Severity:** MEDIUM / PRIVACY CONFORMANCE
+- **Evidence:**
+  - `src/features/classes/BatchOutreachPanel.jsx:77-84`:
+    ```javascript
+    const handleCopyPhones = () => {
+      const phones = recipients.map(r => r.parentPhone).filter(Boolean).join('\n');
+      navigator.clipboard.writeText(phones);
+      toast.success('Parent phone numbers copied to clipboard');
+    };
+    ```
+- **Why It Matters:** Allows copying dozens of unencrypted parent phone numbers to the operating system clipboard in a single click with no role restriction or audit trail. On shared reception desks, clipboard data persists and can be pasted into unauthorized applications.
+- **Recommended Direction:**
+  - Restrict `BatchOutreachPanel` actions to authorized roles (`isOrgExecutive`, `manager`, `frontoffice`, `marketing`). Ensure clear user warnings.
+- **Owner Decision Required:** No (Policy alignment with Blueprint §19).
+- **Blocking Status:** Before completion of Slice 4 remediation.
+
+#### Finding 7: Internal Cashier Operational Notes Leaked on Digital Receipts & WhatsApp Messages (`DOM04-PRIV-01`)
+- **Classification:** Privacy Conformance / Information Disclosure
+- **Severity:** LOW
+- **Evidence:**
+  - `src/features/finance/receiptMessages.js:70`:
+    ```javascript
+    rcp.notes ? `*Notes:* ${rcp.notes}\n` : ''
+    ```
+  - `src/features/finance/DigitalReceiptTab.jsx:85-89`: renders `rcp.notes` under public customer payment details.
+- **Why It Matters:** Cashiers frequently use `notes` to record internal operational remarks (e.g., "Cash discrepancy reconciled with Ops Lead", "Special discount granted per manager WhatsApp conversation"). Printing this directly on customer-facing digital receipts and WhatsApp messages exposes internal administrative notes to customers.
+- **Recommended Direction:**
+  - Distinguish between internal operational notes and customer-facing remarks, or exclude `notes` from public WhatsApp receipts unless explicitly flagged as customer notes.
+- **Owner Decision Required:** Yes (`OD-EXP-1`: Should cashier payment notes appear on customer receipts or remain internal-only?).
+- **Blocking Status:** Owner decision required.
+
+#### Finding 8: Orphaned / Dead `printTable.js` Utility (`DOM11-TECH-02`)
+- **Classification:** Technical Debt / Maintenance
+- **Severity:** INFO
+- **Evidence:**
+  - `src/features/shared/printTable.js`: exports `printTable(...)`.
+  - `src/features/shared/index.js:44`: re-exports `printTable`.
+  - Codebase search reveals 0 active callers in `src/`.
+- **Why It Matters:** Dead code creates confusion during maintenance and audits.
+- **Recommended Direction:**
+  - Either wire `printTable` into table views desiring clean window print stylesheets, or deprecate/remove the file.
+- **Owner Decision Required:** No (Routine engineering hygiene).
+- **Blocking Status:** Defer / Non-blocking.
+
+---
+
+### 7.5 Segregation of Owner Policy Decisions vs Implementation Defects
+
+#### Implementation Defects (Fix directly via approved code/rule remediation):
+1. **`DOM11-PRIV-01`:** Gate `Export CSV Dataset` in `ReportsDashboard.jsx:91` to leadership roles (`isExecutive`, `manager`, `opslead`, `frontoffice`), hiding it from `instructor`.
+2. **`DOM11-GOV-05`:** Strip `isActualAdmin` from `canAccessProvinceScope` in `ReportsDashboard.jsx:27`.
+3. **`DOM04-CSV-01` / `DOM11-CSV-01`:** Fix `exportFinancialCSV` in `FinancialReportsTab.jsx:103` to negate reversal amounts (`-p.amount`) and exclude/zero voided rows.
+4. **`DOM05-UX-03`:** Decouple CSV export button in `StudentRoster.jsx:533` from `readOnly`, allowing Vice Director to download rosters.
+5. **`DOM05-PRIV-03`:** Hide "View / Print ID Badge" in `StudentRosterTable.jsx` and `InstructorClasses.jsx` for teaching `instructor` role.
+6. **`DOM06-PRIV-01`:** Restrict `BatchOutreachPanel.jsx` clipboard export to authorized operational roles.
+7. **`DOM11-TECH-02`:** Deprecate or remove unused `printTable.js`.
+
+#### Owner Policy Decisions Required:
+1. **Owner Decision OD-EXP-1 (Cashier Notes Disclosure on Customer Receipts):**
+   - *Question:* Should internal cashier notes (`payment.notes`) be printed on customer digital receipts and sent via WhatsApp, or kept strictly internal?
+   - *Option A (Ratified by Owner Kifry 2026-10-16):* Internal Only: Suppress `payment.notes` from customer digital receipts and WhatsApp messages. Notes remain visible to managers and executives in payment history.
+   - *Option B:* Dual Field: Introduce `customerNote` for receipt display, keeping `notes` strictly for internal cashier/audit remarks.
+   - *Option C:* Unchanged: Retain current behavior where `payment.notes` is printed on customer receipts.
+
+---
+
+### 7.6 Phase 5 Remediation Execution & Post-Fix Evidence (2026-10-16)
+
+Following Owner Kifry's ratification of `OD-EXP-1` Option A and authorization to execute Phase 5 Remediation under `docs/plans/active/2026-10-16-blrca-slice4-exports-and-prints-remediation.md`, all bounded fixes were implemented and verified:
+
+1. **`DOM04-CSV-01` / `DOM11-CSV-01` (Financial CSV Netting & Void Integrity):**
+   - Implemented `computeFinancialExportRows(payments)` in `src/features/reports/reportsUtils.js`.
+   - Adheres to the exact `summarizePaymentsByMethod` netting logic from `financeUtils.js`: pre-collects `voidedIds`, outputs `netAmount = 0` for voided rows and matching in-window reversals so spreadsheet `=SUM(Amount)` strictly matches the on-screen grand total without double subtraction.
+   - Preserves `Original / Gross Amount (IDR)` column for audit trail.
+   - Tested in `src/features/reports/tabs/FinancialReportsTab.test.js` (5 unit tests pass).
+   - Status: `PENDING_INDEPENDENT_VERIFICATION` (Tier 1 per AGENTS.md).
+
+2. **`DOM11-PRIV-01` & `DOM11-GOV-05` (Institutional Reports CSV Gating & Admin Scope Decoupling):**
+   - In `InstructorLeaderDashboard.jsx:264`, passed `isInstructorLeader={true}` to `<ReportsDashboard />`.
+   - In `ReportsDashboard.jsx:27`, decoupled `canAccessProvinceScope` to `isExecutiveView || isInstructorLeader`, stripping `isActualAdmin`.
+   - In `ReportsDashboard.jsx:29, 93-99`, gated `handleExportCSV` and `Export CSV Dataset` button behind `canExportReports = isExecutiveView || isManager || isFrontOffice || isInstructorLeader;`, blocking teaching instructors.
+   - Tested in `src/features/reports/ReportsDashboard.test.js` (5 unit tests pass).
+   - Status: `DOM11-PRIV-01`: `PENDING_INDEPENDENT_VERIFICATION` (Tier 1); `DOM11-GOV-05`: `CLOSED`.
+
+3. **`DOM05-UX-03` & `DOM05-PRIV-03` (Executive Roster Export & ID Badge Printing Gating):**
+   - In `StudentRoster.jsx:533-541`, decoupled CSV export from `!readOnly` to `canExportRoster = userRole !== "instructor" && userRole !== "admin" && !isAdmin;`, restoring Vice Director roster export capability while preserving teaching instructor block.
+   - In `InstructorClasses.jsx:286`, removed `BadgeModal` and `selectedStudent` state.
+   - In `StudentRoster.jsx`, passed `onBadgeClick={userRole === 'instructor' ? null : setSelectedStudent}`.
+   - In `StudentRosterTable.jsx:453` and mobile list, suppressed "View / Print ID Badge" button when `onBadgeClick` is null.
+   - Tested in `src/features/students/StudentRosterTable.test.js` (2 unit tests pass; 11 total pass).
+   - Status: `DOM05-UX-03`: `CLOSED`; `DOM05-PRIV-03`: `CLOSED`.
+
+4. **`DOM06-PRIV-01` (Bulk Parent Phone Number Clipboard Copy):**
+   - In `ClassManager.jsx`, gated `onOutreach` behind `canPerformOutreach = isExecutive || isManager || isOpsLead || isFrontOffice || isMarketing;` and passed `role={role}` to `<BatchOutreachPanel />`.
+   - In `BatchOutreachPanel.jsx:77-84`, disabled `handleCopyAll` and conditionally hid "Copy All Numbers" button for non-operational roles `instructor` and `admin`.
+   - Status: `CLOSED`.
+
+5. **`DOM04-PRIV-01` (Cashier Notes Disclosure on Customer Receipts — OD-EXP-1 Option A):**
+   - In `DigitalReceiptTab.jsx:85-89`, removed customer-facing cashier `notes` display block.
+   - In `receiptMessages.js:70`, removed `notes` line from `buildWhatsAppReceiptMessage`.
+   - Tested in `src/features/finance/receiptMessages.test.js` (27 unit tests pass).
+   - Status: `CLOSED`.
+
+6. **`DOM11-TECH-02` (Retain Shared `printTable.js`):**
+   - Retained `src/features/shared/printTable.js` intact per `AGENTS.md` Line 300 and `src/features/shared/index.js:44`.
+   - Status: `INFO / CLOSED (Retained per AGENTS.md shared utility reference)`.
+
+7. **Verification Gate Results:**
+   - Vitest suite: 107 test files passed, 0 failed (1,458 tests passed, 139 emulator tests skipped).
+   - Firestore security rules matrix: 5 test files passed (174 tests passed).
+   - TypeScript check (`npm run typecheck`): 0 errors.
+   - ESLint (`npm run lint`): 0 errors.
+   - Vite build (`npm run build`): Clean production bundle generated in 677ms.
+

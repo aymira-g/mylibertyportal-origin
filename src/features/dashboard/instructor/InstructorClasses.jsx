@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { auth } from "../../../firebase";
 import { LevelBadge } from "../../shared";
 import { AvailableBatches } from "../../classes";
-import { StudentRoster, BadgeModal } from "../../students";
+import { StudentRoster } from "../../students";
 import { uniqueClasses } from "./instructorUtils";
 import { Info, ExternalLink, FileText } from "lucide-react";
 
@@ -22,7 +22,6 @@ export default function InstructorClasses({
     () => propClasses || uniqueClasses(rawClasses),
     [propClasses, rawClasses]
   );
-  const [selectedStudent, setSelectedStudent] = useState(null);
 
   const enrolledIds = useMemo(
     () => new Set(classes.flatMap((cls) => cls.studentIds || [])),
@@ -277,13 +276,11 @@ export default function InstructorClasses({
         readOnly
         students={displayedStudents}
         getStudentClasses={getStudentClasses}
-        setSelectedStudent={setSelectedStudent}
+        setSelectedStudent={null}
         userRole="instructor"
         branchId={classes[0]?.branchId || null}
         canViewParents={false}
       />
-
-      <BadgeModal person={selectedStudent} onClose={() => setSelectedStudent(null)} />
     </div>
   );
 }

@@ -100,8 +100,8 @@ To ensure thoroughness without overwhelming the zero-budget environment, BLRCA e
 
 1. **Slice 1 — System Admin Boundary:** Technical-only boundary verification across all business and data surfaces. (Status: Audited 2026-10-15; remediated in `220c10a`/`131f1b2`; verified CLOSED on 2026-10-16).
 2. **Slice 2 — Financial Surfaces Across Roles:** Comprehensive financial audit across all roles (payments, tuition, receipts, discounts/refunds, cash reconciliation, payment corrections/voids, and financial reports). (Status: Audited 2026-10-16; remediated and verified CLOSED on 2026-10-16; findings `DOM04-GOV-03`..`07` resolved).
-3. **Slice 3 — Student, Child & Parent Personal Data:** Personal data exposure, profile access, and family privacy across all roles and linkage paths.
-4. **Slice 4 — Data Exports, Downloads & Print Operations:** CSV exports, clipboard operations, printed receipts, and reports across all roles.
+3. **Slice 3 — Student, Child & Parent Personal Data:** Personal data exposure, profile access, and family privacy across all roles and linkage paths. (Status: Audited 2026-10-16; remediated and verified CLOSED on 2026-10-16; findings `DOM04-SEC-03`, `DOM05-SEC-02`..`04`, `DOM05-GOV-02`..`03`, `DOM05-PRIV-01`, `DOM05-UX-02`, `DOM11-SEC-01`, `DOM11-GOV-04` resolved; `DOM05-PRIV-02` accepted risk under OD-STU-3 Option A).
+4. **Slice 4 — Data Exports, Downloads & Print Operations:** CSV exports, clipboard operations, printed receipts, and reports across all roles. (Status: Audited 2026-10-16; remediated and verified CLOSED on 2026-10-16; findings `DOM04-CSV-01`, `DOM11-PRIV-01`, `DOM11-GOV-05`, `DOM05-UX-03`, `DOM05-PRIV-03`, `DOM06-PRIV-01`, `DOM04-PRIV-01`, `DOM11-TECH-02` resolved under ratified OD-EXP-1 Option A).
 5. **Slice 5+ — Remaining Individual Organizational Roles:** Course Division Manager, Kindergarten Division Manager, Operational Leader, Central Instructor Leader, Front Office, Instructors, and Facilities/Staff evaluated one at a time.
 
 ---
@@ -112,7 +112,7 @@ To ensure thoroughness without overwhelming the zero-budget environment, BLRCA e
 
 The consolidated BLRCA campaign artifacts are established and actively maintained:
 
-- **Master Campaign Audit Report:** [`docs/audits/current/role-business-logic-conformance-audit.md`](../current/role-business-logic-conformance-audit.md) (Contains Slice 1 verified summary and full Slice 2 Financial Surfaces audit report).
+- **Master Campaign Audit Report:** [`docs/audits/current/role-business-logic-conformance-audit.md`](../current/role-business-logic-conformance-audit.md) (Contains Slice 1 verified summary, Slice 2 Financial Surfaces, Slice 3 Personal Data, and Slice 4 Exports & Prints reports).
 - **Master Role-Function Ledger:** [`docs/audits/current/role-function-conformance-ledger.md`](../current/role-function-conformance-ledger.md) (Granular testable matrix rows across all roles and evaluated capabilities).
 
 ### Verified Campaign Evidence
@@ -124,10 +124,19 @@ The consolidated BLRCA campaign artifacts are established and actively maintaine
   - Findings: `DOM04-GOV-03`, `DOM04-SEC-02`, `DOM04-GOV-04`, `DOM04-GOV-05`, `DOM04-GOV-06`, `DOM04-GOV-07` in [`docs/audits/current/bug-ledger.md`](../current/bug-ledger.md) (All CLOSED).
   - Remediation Plan: [`docs/plans/active/2026-10-16-blrca-slice2-financial-surfaces-remediation.md`](../../plans/active/2026-10-16-blrca-slice2-financial-surfaces-remediation.md) (Completed).
   - Master Report & Ledger: [`role-business-logic-conformance-audit.md`](../current/role-business-logic-conformance-audit.md) §3 and [`role-function-conformance-ledger.md`](../current/role-function-conformance-ledger.md) §3.
+- **Slice 3 Evidence (Student, Child & Parent Personal Data — CLOSED):**
+  - Findings: `DOM04-SEC-03`, `DOM05-SEC-02`, `DOM05-SEC-03`, `DOM05-SEC-04`, `DOM05-GOV-02`, `DOM05-GOV-03`, `DOM05-PRIV-01`, `DOM05-UX-02`, `DOM11-SEC-01`, `DOM11-GOV-04` (CLOSED), `DOM05-PRIV-02` (ACCEPTED RISK) in [`docs/audits/current/bug-ledger.md`](../current/bug-ledger.md).
+  - Remediation Plan: [`docs/plans/active/2026-10-16-blrca-slice3-personal-data-remediation.md`](../../plans/active/2026-10-16-blrca-slice3-personal-data-remediation.md) (Completed).
+  - Master Report & Ledger: [`role-business-logic-conformance-audit.md`](../current/role-business-logic-conformance-audit.md) §5 and [`role-function-conformance-ledger.md`](../current/role-function-conformance-ledger.md) §4.
+- **Slice 4 Evidence (Data Exports, Downloads & Print Operations — CLOSED):**
+  - Findings: `DOM04-CSV-01`, `DOM11-PRIV-01`, `DOM11-GOV-05`, `DOM05-UX-03`, `DOM05-PRIV-03`, `DOM06-PRIV-01`, `DOM04-PRIV-01`, `DOM11-TECH-02` in [`docs/audits/current/bug-ledger.md`](../current/bug-ledger.md) (All CLOSED).
+  - Remediation Plan: [`docs/plans/active/2026-10-16-blrca-slice4-exports-and-prints-remediation.md`](../../plans/active/2026-10-16-blrca-slice4-exports-and-prints-remediation.md) (Completed).
+  - Master Report & Ledger: [`role-business-logic-conformance-audit.md`](../current/role-business-logic-conformance-audit.md) §7 and [`role-function-conformance-ledger.md`](../current/role-function-conformance-ledger.md) §5.
 - **Audit Log:** [`docs/audits/audit-log.md`](../audit-log.md).
 - **Regression Log:** [`docs/audits/current/regression-log.md`](../current/regression-log.md).
 
-*Next Step for Campaign:* Proceed to **Slice 3: Student, Child & Parent Personal Data Across Roles**.
+*Next Step for Campaign:* Proceed to **Slice 5: Division Managers & Functional Leadership Across Campuses**.
+
 
 ---
 

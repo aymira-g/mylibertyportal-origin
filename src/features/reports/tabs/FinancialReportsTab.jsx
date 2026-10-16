@@ -5,7 +5,7 @@ import { formatIDR } from "../../finance/receiptMessages";
 import { summarizePaymentsByMethod } from "../../finance/financeUtils";
 import { exportTableCSV } from "../../shared";
 import { branchToId } from "../../../constants/branches";
-import { filterPayments, rangeToSince } from "../reportsUtils";
+import { filterPayments, rangeToSince, computeFinancialExportRows } from "../reportsUtils";
 import {
   DollarSign,
   Wallet,
@@ -98,32 +98,10 @@ const FinancialReportsTab = forwardRef(
           "Period",
           "Method",
           "Amount (IDR)",
+          "Original / Gross Amount (IDR)",
           "Status",
         ];
-        const rows = filteredPayments.map((p) => {
-          let statusText = "Completed";
-          if (p.status === "voided") {
-            statusText = "VOIDED";
-          } else if (p.isReversal || p.status === "reversal" || p.type === "reversal") {
-            statusText = "REVERSAL";
-          } else if (p.approvalStatus === "pending") {
-            statusText = "Pending Approval";
-          } else if (p.approvalStatus === "rejected") {
-            statusText = "Rejected";
-          }
-          return [
-            p.recordedAt || "",
-            p.id || "",
-            p.studentName || p.studentId || "Student",
-            p.branch || p.branchId || "",
-            p.division || "courses",
-            p.planName || "Standard",
-            p.period || "",
-            p.method || "Cash",
-            p.amount || 0,
-            statusText,
-          ];
-        });
+        const rows = computeFinancialExportRows(filteredPayments);
         exportTableCSV(
           `Financial_Tuition_Audit_${branchFilter}_${new Date().toISOString().slice(0, 10)}.csv`,
           headers,
@@ -342,3 +320,4 @@ const FinancialReportsTab = forwardRef(
 FinancialReportsTab.displayName = "FinancialReportsTab";
 
 export default FinancialReportsTab;
+

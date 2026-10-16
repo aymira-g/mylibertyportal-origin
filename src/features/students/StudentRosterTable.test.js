@@ -227,5 +227,36 @@ describe("StudentRosterTable Academic Promotion Guard (DOM05-GOV-01)", () => {
 
     expect(html).not.toContain("Promote");
   });
+
+  describe("ID Badge Action Gating (DOM05-PRIV-03)", () => {
+    const mockStudent = {
+      id: "stu-badge-1",
+      displayName: "Alex Pratama",
+      currentLevel: "warrior",
+      status: "active",
+    };
+
+    it("renders Badge button when onBadgeClick is provided for authorized roles", () => {
+      const html = renderToStaticMarkup(
+        React.createElement(StudentRosterTable, {
+          pageItems: [mockStudent],
+          onBadgeClick: () => {},
+        })
+      );
+      expect(html).toContain("Badge");
+      expect(html).toContain("View / Print ID Badge");
+    });
+
+    it("suppresses Badge button when onBadgeClick is null (teaching instructors)", () => {
+      const html = renderToStaticMarkup(
+        React.createElement(StudentRosterTable, {
+          pageItems: [mockStudent],
+          onBadgeClick: null,
+        })
+      );
+      expect(html).not.toContain("Badge");
+      expect(html).not.toContain("View / Print ID Badge");
+    });
+  });
 });
 

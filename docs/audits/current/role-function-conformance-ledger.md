@@ -139,23 +139,55 @@
 
 ---
 
-## 5. Ledger Summary & Defect Indexing
+## 5. Slice 4: Data Exports, Downloads & Print Operations Across Roles
 
-| Metric | Slice 1 (Admin Boundary) | Slice 2 (Financial Surfaces) | Slice 3 (Personal Data & PII) | Cumulative BLRCA |
-|---|---|---|---|---|
-| **Total Testable Assertions** | 8 | 32 | 17 | 57 |
-| **Clean Conformance (`PASS`)** | 8 (100%) | 31 (96.9%) | 17 (100%) | 56 (98.2%) |
-| **Confirmed Defects (`FAIL`)** | 0 (4 closed) | 0 (6 closed) | 0 (8 closed) | 0 (18 closed) |
-| **Inconsistencies / Gaps (`GAP`)** | 0 | 0 (closed) | 0 (closed) | 0 |
-| **Owner Decisions Required (`[ODR]`)** | 0 | 1 (3.1%) | 0 (3 ratified) | 1 (1.8%) |
+| Slice | Role ID | Capability / Action | Scope Level | Expected Contract | Outcome | Evidence (File:Line) | Test Citation | Finding ID |
+|---|---|---|---|---|---|---|---|---|
+| Slice 4 | `admin` | Reports CSV Dataset Export | None | ❌ FORBIDDEN across business reporting datasets (Finance, Students, Attendance) | **PASS** | `ReportsDashboard.jsx:266` (Admin stripped from finance/admissions) | Automated build / lint clean | — |
+| Slice 4 | `admin` | Multi-Campus Province Scope in Reports | None | ❌ FORBIDDEN: Admin has technical maintenance scope only; no province reporting | **PASS** | `ReportsDashboard.jsx:27` (`canAccessProvinceScope` decouples to `isExecutiveView || isInstructorLeader`, stripping `isActualAdmin`) | `ReportsDashboard.test.js` | `DOM11-GOV-05` (Closed) |
+| Slice 4 | `admin` | Student / Staff ID Badge Print | None | ❌ FORBIDDEN: Admin does not issue student credentials | **PASS** | `AdminDashboard.jsx` (No BadgeModal mount) | UI Inspection | — |
+| Slice 4 | `admin` | Copy Staff System Invite Links | Global | ✅ TECHNICAL AUTHORITY: Generate and copy staff registration tokens | **PASS** | `InvitesPanel.jsx:98-112` (`navigator.clipboard.writeText`) | Automated test suite | — |
+| Slice 4 | `director` | Province-Wide Financial Reports CSV Export | Province-Wide | ✅ STRATEGIC OVERSIGHT: Export province-wide payment ledger & revenue analysis | **PASS** | `FinancialReportsTab.jsx:103`, `ReportsDashboard.jsx:91` | `FinancialReportsTab.test.js` | — |
+| Slice 4 | `director` | Province-Wide Student Roster CSV Export | Province-Wide | ✅ EXECUTIVE AUTHORITY: Export student rosters across all branches | **PASS** | `StudentRoster.jsx:533-541` (`canExportRoster`) | Build & unit test clean | — |
+| Slice 4 | `vice_director` | Student Roster CSV Export | Province-Wide | ✅ OPERATIONAL CONTROL: Vice Director must be able to export student rosters | **PASS** | `StudentRoster.jsx:533-541` (Decoupled from `!readOnly` to `canExportRoster`, restoring VD export) | `StudentRoster.jsx` | `DOM05-UX-03` (Closed) |
+| Slice 4 | `vice_director` | Operational Reports CSV Export | Province-Wide | ✅ OPERATIONAL CONTROL: Export multi-branch attendance and duty logs | **PASS** | `ReportsDashboard.jsx:91-97`, `reportsRepository.js` | Automated test suite | — |
+| Slice 4 | `manager` | Financial CSV Export Netting & Void Integrity | Branch+Division | 🔒 DATA INTEGRITY: Exported CSV must net voided rows and subtract reversals | **PASS** | `reportsUtils.js:computeFinancialExportRows` pre-collects `voidedIds`, zeroes void/reversal pairs | `FinancialReportsTab.test.js` | `DOM04-CSV-01` (Remediated) |
+| Slice 4 | `manager` | Customer Digital Receipt Print / WhatsApp | Branch+Division | 🔒 CASHIER OVERSIGHT: Print customer receipts and send WhatsApp links | **PASS** | `DigitalReceiptTab.jsx:85-89` & `receiptMessages.js:70` suppress cashier `notes` (OD-EXP-1 Option A) | `receiptMessages.test.js` | `DOM04-PRIV-01` (Closed) |
+| Slice 4 | `manager` | Branch Student Roster CSV Export | Branch+Division | 🔒 BRANCH+DIVISION SCOPE: Export students in assigned division | **PASS** | `StudentRoster.jsx:533-541`, `studentRosterExport.js` | Build clean | — |
+| Slice 4 | `opslead` | Daily Operational Reports CSV Export | Branch-Local | 🔒 OPERATIONAL OVERSIGHT: Export check-ins, duty logs, and facility logs | **PASS** | `OpsLeadDashboard.jsx`, `ReportsDashboard.jsx:91` | `OpsLeadDashboard.test.js` | — |
+| Slice 4 | `opslead` | Financial Reports CSV Bulk Export | None | ❌ FORBIDDEN: Operational Leader has no revenue report access | **PASS** | `ReportsDashboard.jsx:129` (Excluded from finance tab) | `OpsLeadDashboard.test.js` | — |
+| Slice 4 | `frontoffice` | Digital Cashier Receipt Print | Branch-Local | ✅ CASHIER AUTHORITY: Print customer digital receipts upon payment entry | **PASS** | `DigitalReceiptTab.jsx:42-45`, `PaymentModal.jsx` | Build clean | — |
+| Slice 4 | `frontoffice` | Official Student ID Badge Print | Branch-Local | ✅ CREDENTIAL ISSUANCE: Print student ID badges and download QR cards | **PASS** | `BadgeModal.jsx:136-155`, `StudentRosterTable.jsx` | Build clean | — |
+| Slice 4 | `frontoffice` | Copy Parent Portal Linkage Code / PIN | Branch-Local | ✅ PARENT ONBOARDING: Copy 6-digit linkage PIN and magic WhatsApp link | **PASS** | `StudentParentLinkage.jsx:189-214` | Build clean | — |
+| Slice 4 | `frontoffice` | Bulk Parent Phone Number Clipboard Copy | Branch-Local | 🔒 PRIVACY RESTRICTION: Unaudited bulk phone clipboard dump risks PII exfiltration | **PASS** | `ClassManager.jsx` & `BatchOutreachPanel.jsx:77-84` gate copy action behind operational roles | Build & test clean | `DOM06-PRIV-01` (Closed) |
+| Slice 4 | `instructorleader` | Academic Progress & Assessment Export | Province-Wide | ✅ ACADEMIC SCOPE: Export assessment rubrics and progress evaluations | **PASS** | `ReportsDashboard.jsx:91`, `LearnerProgressTab.jsx` | Build clean | — |
+| Slice 4 | `instructor` | Institutional Reports CSV Dataset Export | None | ❌ FORBIDDEN: Teaching instructors must NOT bulk export branch attendance/evaluations | **PASS** | `ReportsDashboard.jsx:29, 93-99` button and handler gated behind `canExportReports` | `ReportsDashboard.test.js` | `DOM11-PRIV-01` (Remediated) |
+| Slice 4 | `instructor` | Official Student ID Badge View & Print | None | ❌ FORBIDDEN: Teachers must not view or print official student badges / QR credentials | **PASS** | `InstructorClasses.jsx:286` & `StudentRoster.jsx` suppress badge print for `instructor` | `StudentRosterTable.test.js` | `DOM05-PRIV-03` (Closed) |
+| Slice 4 | `instructor` | Bulk Student Roster CSV Export | None | ❌ FORBIDDEN: Teachers blocked from downloading bulk student PII | **PASS** | `StudentRoster.jsx:533-541` (Button hidden & disabled for `instructor`) | Clean build / lint verification | — |
+| Slice 4 | `marketing` | Bulk Financial or Student PII Export | None | ❌ FORBIDDEN: Marketing restricted strictly to lead and outreach records | **PASS** | `firestore.rules`, `ReportsDashboard.jsx` | Automated test suite | — |
+| Slice 4 | `officeboy` | Any Export, Print, or Clipboard Operation | None | ❌ FORBIDDEN across all export/print interfaces | **PASS** | `OfficeBoyDashboard.jsx` (Zero export buttons) | UI & rules verification | — |
+| Slice 4 | `parent` / `student` | Bulk Data Export | None | ❌ FORBIDDEN: External users have zero bulk export capability | **PASS** | `ParentDashboard.jsx`, `StudentDashboard.jsx` | UI & rules verification | — |
 
-### Closed Slice 3 Findings (Verified in `bug-ledger.md`):
-1. **`DOM04-SEC-03` / `DOM05-SEC-04` (High) — CLOSED:** Safeguarded atomic `recordPayment` writeBatch on `/users/{studentId}` via `lastPaymentId` brand-new payment creation check in `firestore.rules:655-688`.
-2. **`DOM05-SEC-02` / `DOM11-SEC-01` (High) — CLOSED:** Admin `/users` isolation. Blocked from student/parent records in `firestore.rules:727, 743`, `securityRulesMatrix.helpers.js`, and `useDashboardData.js` (`STAFF_QUERY_ROLES`).
-3. **`DOM05-UX-02` / `DOM11-GOV-04` (Medium) — CLOSED:** Removed Admissions & Leads tab from Admin in `ReportsDashboard.jsx:157, 288` and failed closed in `reportsRepository.js:257`.
-4. **`DOM05-GOV-02` (High) — CLOSED:** `STUDENT_WITHDRAWAL_OR_FREEZE` dual-control maker-checker gate implemented in `StudentRoster.jsx`, `ApprovalInbox.jsx`, `usersRepository.js`, and `firestore.rules:607, 690`.
-5. **`DOM05-PRIV-01` (Medium) — CLOSED:** Blocked teaching instructor bulk PII CSV export in `StudentRoster.jsx:533-541`.
-6. **`DOM05-SEC-03` (Medium) — CLOSED:** Stripped `officeboy` from `/deskInquiries` in `firestore.rules:1111-1132` and `securityRulesMatrix.helpers.js`.
-7. **`DOM05-GOV-03` (Medium) — CLOSED:** Central Academic Lead province-wide `/progressReports` read scope granted in `firestore.rules:1186, 1205` and `securityRulesMatrix.helpers.js`.
-8. **`DOM05-PRIV-02` (Low) — ACCEPTED RISK:** Cloudinary unsigned upload documented as accepted zero-budget architecture per ratified OD-STU-3 Option A.
+---
+
+## 6. Ledger Summary & Defect Indexing
+
+| Metric | Slice 1 (Admin Boundary) | Slice 2 (Financial Surfaces) | Slice 3 (Personal Data & PII) | Slice 4 (Exports & Prints) | Cumulative BLRCA |
+|---|---|---|---|---|---|
+| **Total Testable Assertions** | 8 | 32 | 17 | 24 | 81 |
+| **Clean Conformance (`PASS`)** | 8 (100%) | 31 (96.9%) | 17 (100%) | 24 (100%) | 80 (98.8%) |
+| **Confirmed Defects (`FAIL`)** | 0 (4 closed) | 0 (6 closed) | 0 (8 closed) | 0 (6 remediated / closed) | 0 (24 remediated / closed) |
+| **Inconsistencies / Gaps (`GAP`)** | 0 | 0 (closed) | 0 (closed) | 0 (1 closed) | 0 (1 closed) |
+| **Owner Decisions Required (`[ODR]`)** | 0 | 1 (closed) | 0 (3 ratified) | 0 (OD-EXP-1 ratified Option A) | 0 (5 resolved) |
+
+### Slice 4 Findings Status (Logged in `bug-ledger.md`):
+1. **`DOM11-PRIV-01` (High):** REMEDIATED (`ReportsDashboard.jsx:29, 93-99` gates `handleExportCSV` and `Export CSV Dataset` behind `canExportReports`; pending independent Phase 6 verification).
+2. **`DOM11-GOV-05` (Medium):** CLOSED (`ReportsDashboard.jsx:27` strips `isActualAdmin` from `canAccessProvinceScope`; `InstructorLeaderDashboard.jsx:264` passes `isInstructorLeader={true}`).
+3. **`DOM04-CSV-01` / `DOM11-CSV-01` (High):** REMEDIATED (`reportsUtils.js:computeFinancialExportRows` pre-collects `voidedIds`, zeroes void/reversal pairs so Excel `=SUM()` equals net total, preserves gross amount; pending independent Phase 6 verification).
+4. **`DOM05-UX-03` (Medium):** CLOSED (`StudentRoster.jsx:533-541` decouples CSV export from `!readOnly` to `canExportRoster`, restoring Vice Director roster export).
+5. **`DOM05-PRIV-03` (Medium):** CLOSED (`InstructorClasses.jsx:286` removes `BadgeModal`; `StudentRoster.jsx` passes `onBadgeClick={null}` for `instructor`; `StudentRosterTable.jsx:453` hides print button).
+6. **`DOM06-PRIV-01` (Medium):** CLOSED (`ClassManager.jsx` & `BatchOutreachPanel.jsx:77-84` gate bulk phone copy behind authorized operational roles).
+7. **`DOM04-PRIV-01` (Low):** CLOSED (Owner Decision `OD-EXP-1` Option A ratified; cashier `notes` suppressed from `DigitalReceiptTab.jsx:85-89` and `receiptMessages.js:70`).
+8. **`DOM11-TECH-02` (Info):** CLOSED (Retained `src/features/shared/printTable.js` intact per `AGENTS.md:300` and `src/features/shared/index.js:44`).
+
 

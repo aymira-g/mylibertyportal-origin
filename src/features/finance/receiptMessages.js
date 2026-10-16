@@ -67,7 +67,6 @@ export function buildWhatsAppReceiptMessage(rcp) {
     `*Payment Method:* ${rcp.method}`,
     `*Amount Paid:* ${formatIDR(rcp.amount)}`,
     `*Date:* ${dateStr}`,
-    rcp.notes ? `*Notes:* ${rcp.notes}` : null,
     `---------------------------------------`,
     `Thank you for your payment! This is an official electronic receipt issued by MY LIBERTY.`,
   ].filter(Boolean);

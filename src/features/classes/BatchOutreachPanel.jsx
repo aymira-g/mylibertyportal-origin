@@ -35,10 +35,21 @@ const TEMPLATES = [
  *   users    — full users array to resolve student → parent data
  *   onClose  — closes the panel
  */
-export default function BatchOutreachPanel({ batch, users = [], onClose }) {
+export default function BatchOutreachPanel({ batch, users = [], onClose, role = null }) {
   const [selectedTemplate, setSelectedTemplate] = useState("reminder");
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(true);
+
+  // DOM06-PRIV-01: Restrict bulk phone clipboard copy to authorized operational roles
+  const canCopyAll =
+    role === "director" ||
+    role === "vice_director" ||
+    role === "manager" ||
+    role === "opslead" ||
+    role === "ops_lead" ||
+    role === "frontoffice" ||
+    role === "frontofficelead" ||
+    role === "marketing";
 
   // Resolve students in this batch
   const students = useMemo(() => {
@@ -75,6 +86,7 @@ export default function BatchOutreachPanel({ batch, users = [], onClose }) {
   }, [students]);
 
   const handleCopyAll = async () => {
+    if (!canCopyAll) return;
     const numbers = parentContacts.map((c) => `+${c.normalized}`).join("\n");
     const res = await copyText(numbers);
     if (res.ok) {
@@ -167,10 +179,10 @@ export default function BatchOutreachPanel({ batch, users = [], onClose }) {
               <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
                 Parents ({parentContacts.length})
               </span>
-              {parentContacts.length > 0 && (
+              {canCopyAll && parentContacts.length > 0 && (
                 <button
                   onClick={handleCopyAll}
-                  className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] rounded-lg transition"
+                  className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] rounded-lg transition cursor-pointer"
                 >
                   {copied ? (
                     <Check className="w-3 h-3 text-emerald-600" />

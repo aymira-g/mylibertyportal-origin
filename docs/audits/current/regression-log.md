@@ -37,12 +37,56 @@
 | 2026-10-16 | BLRCA Slice 2 Remediation: Financial Surfaces Across Roles (DOM04-GOV-03, DOM04-SEC-02, DOM04-GOV-04, DOM04-GOV-05, DOM04-GOV-06, DOM04-GOV-07) | Finance · Payments · Security Rules · Approvals · Shifts | **PASS** | No | 1,437 vitest unit tests pass; 0 lint, 0 typecheck, build clean; all 6 findings CLOSED in bug-ledger.md |
 | 2026-10-16 | BLRCA Slice 3 Audit: Student, Child & Parent Personal Data Across Roles (Phases 0–4 strictly audit-only; 8 findings cataloged; 0 production code changes) | Students · Parent Portal · Security Rules · Reports | **AUDIT COMPLETE** | Yes (8 Findings Logged) | System Admin /users list exposure, Admissions tab leak, student withdrawal gate unhooked, instructor roster CSV export, office boy deskInquiries access, progressReports branch lock, direct tuition field update |
 | 2026-10-16 | BLRCA Slice 3 Remediation: Student, Child & Parent Personal Data Across Roles (DOM04-SEC-03, DOM05-SEC-02, DOM05-SEC-03, DOM05-SEC-04, DOM05-GOV-02, DOM05-GOV-03, DOM05-PRIV-01, DOM05-UX-02, DOM11-SEC-01, DOM11-GOV-04) | Students · Security Rules · Users · Dashboard · Reports | **PASS** | No | 1,448 vitest unit tests pass; 0 lint, 0 typecheck, build clean; all findings CLOSED in bug-ledger.md |
+| 2026-10-16 | BLRCA Slice 4 Audit: Data Exports, Downloads & Print Operations (Phases 0–4 strictly audit-only; 8 findings cataloged; 0 production code changes) | Reports · Finance · Students · Classes | **AUDIT COMPLETE** | Yes (8 Findings Logged) | Reports CSV ungated, Admin province scope, financial CSV netting, VD roster export, instructor ID badge print, outreach phone copy, cashier notes on receipt, dead printTable |
+| 2026-10-16 | BLRCA Slice 4 Remediation: Data Exports, Downloads & Print Operations Across Roles (DOM04-CSV-01, DOM11-PRIV-01, DOM11-GOV-05, DOM05-UX-03, DOM05-PRIV-03, DOM06-PRIV-01, DOM04-PRIV-01, DOM11-TECH-02; OD-EXP-1 Option A) | Reports · Finance · Students · Classes · Shared | **PASS** | No | 1,458 vitest unit tests pass; 0 lint, 0 typecheck, build clean; all 8 findings CLOSED in bug-ledger.md following independent Phase 6 verification |
+
+---
+
+## Evidence Record — 2026-10-16 (BLRCA Slice 4 Exports & Prints Remediation & Verification)
+
+```text
+Change: Role & Business Logic Conformance Audit (BLRCA) — Slice 4 Exports, Downloads & Prints Remediation
+Date: 2026-10-16
+Section: Reports / Finance / Students / Classes / Shared
+Workflow: Implementation and verification of approved remediation plan for Slice 4 findings under OD-EXP-1 Option A
+Tester / Agent: Primary Coding Agent & Independent Phase 6 Auditor, authorized by Kifry
+Risk classification: MEDIUM-TO-HIGH RISK (Data export privilege boundaries, financial aggregation formula integrity, student PII privacy)
+
+Verification Evidence:
+  - Safeguard 1 (Financial CSV Netting & Void Integrity - DOM04-CSV-01 / DOM11-CSV-01):
+    - reportsUtils.js: computeFinancialExportRows pre-collects voidedIds, outputs netAmount = 0 for voided rows and matching in-window reversals, preserving gross amount in Original / Gross Amount column.
+    - Verified in FinancialReportsTab.test.js: 5/5 tests passed.
+  - Safeguard 2 (Reports CSV Export Gating & Admin Province Scope - DOM11-PRIV-01 & DOM11-GOV-05):
+    - ReportsDashboard.jsx: Stripped isActualAdmin from canAccessProvinceScope; gated handleExportCSV and button behind canExportReports, blocking teaching instructors.
+    - InstructorLeaderDashboard.jsx: Passed isInstructorLeader={true} to ReportsDashboard.
+    - Verified in ReportsDashboard.test.js: 5/5 tests passed.
+  - Safeguard 3 (Vice Director Roster Export & ID Badge Print Restriction - DOM05-UX-03 & DOM05-PRIV-03):
+    - StudentRoster.jsx: Decoupled CSV export from !readOnly to canExportRoster, restoring Vice Director export. Suppressed onBadgeClick for instructors.
+    - InstructorClasses.jsx: Removed BadgeModal and selectedStudent state.
+    - StudentRosterTable.jsx: Suppressed View / Print ID Badge button when onBadgeClick is null.
+    - Verified in StudentRosterTable.test.js: 11/11 tests passed.
+  - Safeguard 4 (Bulk Parent Phone Clipboard Copy Gating - DOM06-PRIV-01):
+    - ClassManager.jsx: Gated onOutreach behind canPerformOutreach and passed role={role}.
+    - BatchOutreachPanel.jsx: canCopyAll fails-closed on missing role; hides Copy All Numbers button and guards handler for non-operational roles.
+  - Safeguard 5 (Cashier Notes Suppression from Customer Receipts - DOM04-PRIV-01):
+    - DigitalReceiptTab.jsx: Removed cashier notes display block.
+    - receiptMessages.js: Removed notes line from buildWhatsAppReceiptMessage.
+    - Verified in receiptMessages.test.js: 27/27 tests passed.
+  - Safeguard 6 (Retained Shared printTable.js - DOM11-TECH-02):
+    - Retained intact as approved shared printing utility per AGENTS.md:300.
+  - Quality Gates:
+    - 107/114 test files passed (1,458 passed, 139 skipped emulator tests, 0 failed).
+    - npm run typecheck: 0 errors.
+    - npm run lint: 0 errors.
+    - npm run build: Clean Vite PWA production bundle (677ms).
+```
 
 ---
 
 ## Evidence Record — 2026-10-16 (BLRCA Slice 3 Personal Data Remediation & Verification)
 
 ```text
+
 Change: Role & Business Logic Conformance Audit (BLRCA) — Slice 3 Personal Data Remediation & Level 1 Regression
 Date: 2026-10-16
 Section: Students / Users / Security Rules / Approvals / Reports

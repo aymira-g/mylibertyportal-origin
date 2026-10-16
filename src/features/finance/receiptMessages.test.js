@@ -67,8 +67,16 @@ describe("buildWhatsAppReceiptMessage", () => {
       "997.500",
       "Sep 21, 2026",
       "Dec 21, 2026",
-      "Paid by mother",
     ].forEach((part) => expect(msg).toContain(part));
+  });
+
+  it("suppresses internal cashier notes from WhatsApp receipt (OD-EXP-1 Option A)", () => {
+    const msg = buildWhatsAppReceiptMessage({
+      ...rcp,
+      notes: "Internal cashier discrepancy note - approved by manager",
+    });
+    expect(msg).not.toContain("Internal cashier discrepancy note");
+    expect(msg).not.toContain("Notes:");
   });
 
   it("leaves out optional lines that have no value", () => {

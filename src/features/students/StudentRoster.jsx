@@ -72,6 +72,9 @@ export default function StudentRoster({
     isAdmin ||
     isOrgExecutive ||
     ["manager", "frontoffice", "opslead", "frontofficelead"].includes(userRole);
+  // DOM05-UX-03: Decouple CSV export from !readOnly so Vice Director (readOnly=true) retains roster export.
+  // Teaching instructors and admin remain blocked from bulk student PII export (DOM05-PRIV-01).
+  const canExportRoster = userRole !== "instructor" && userRole !== "admin" && !isAdmin;
   const [rosterView, setRosterView] = useState("students"); // "students" | "parents"
 
   const linkedParentsMap = useMemo(() => {
@@ -530,7 +533,7 @@ export default function StudentRoster({
                 <span>Add Student</span>
               </button>
             )}
-            {!readOnly && userRole !== "instructor" && (
+            {canExportRoster && (
               <button
                 onClick={() => exportStudentRosterCSV(sortedStudents)}
                 className="inline-flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 px-3.5 py-2 rounded-xl font-bold text-xs transition shadow-2xs cursor-pointer"
@@ -590,7 +593,7 @@ export default function StudentRoster({
             onPromote={readOnly ? null : handlePromote}
             onAssignBatch={readOnly ? null : (s) => setSelectedTransferStudent({ student: s, sourceClass: null })}
             onTransferBatch={readOnly ? null : (s, c) => setSelectedTransferStudent({ student: s, sourceClass: c })}
-            onBadgeClick={setSelectedStudent}
+            onBadgeClick={userRole === "instructor" ? null : setSelectedStudent}
             onEdit={readOnly ? null : handleEdit}
             onDeleteStudent={readOnly || !handleDelete ? null : handleDeleteStudent}
             onOpenParentProfile={readOnly ? null : (parent) => handleEdit && handleEdit(parent)}
@@ -614,7 +617,7 @@ export default function StudentRoster({
             onPromote={readOnly ? null : handlePromote}
             onAssignBatch={readOnly ? null : (s) => setSelectedTransferStudent({ student: s, sourceClass: null })}
             onTransferBatch={readOnly ? null : (s, c) => setSelectedTransferStudent({ student: s, sourceClass: c })}
-            onBadgeClick={setSelectedStudent}
+            onBadgeClick={userRole === "instructor" ? null : setSelectedStudent}
             onEdit={readOnly ? null : handleEdit}
             onDeleteStudent={readOnly || !handleDelete ? null : handleDeleteStudent}
             onOpenParentProfile={readOnly ? null : (parent) => handleEdit && handleEdit(parent)}

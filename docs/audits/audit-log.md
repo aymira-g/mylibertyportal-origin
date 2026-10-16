@@ -889,7 +889,40 @@ Remediation & Closure Summary:
 7. `DOM05-GOV-03` (CLOSED): Granted Central Academic Lead (Instructor Leader at Kota Gorontalo) province-wide get and list scope on `/progressReports` in `firestore.rules:1186, 1205` per Blueprint v3.4 §4, §5, G-012. Synchronized `securityRulesMatrix.helpers.js` and tests in `divisionIsolation.test.js`.
 8. `DOM05-PRIV-02` (ACCEPTED RISK): Cloudinary unsigned upload documented as accepted zero-budget architecture per ratified OD-STU-3 Option A.
 9. Automated Quality Gates: 106 test files passed (1,448 passed, 139 skipped, 0 failed); `npm run typecheck` passed (0 errors); `npm run lint` passed (0 errors); `npm run build` passed (clean Vite PWA bundle in 925ms).
-10. Next Campaign Action: Proceed to **Slice 4: Academic Integrity, Class Rostering & Scheduling Across Roles**.
+10. Next Campaign Action: Proceed to **Slice 4: Data Exports, Downloads & Print Operations Across Roles**.
 
+## 2026-10-16 — Role & Business Logic Conformance Audit (BLRCA): Slice 4 — Data Exports, Downloads & Print Operations (Phases 0–4 Completed)
+Source: Level 2 Role & Business Logic Conformance Audit methodology (`docs/audits/Role & Business Logic Conformance Audit/`).
+Scope: Comprehensive audit of all data exports, CSV downloads, browser print mechanisms, clipboard triggers, and external messaging channels across all canonical roles against Blueprint v3.4 (§5.4, §6.8, §7, §18, §19), Ratified Owner Decisions (`OD-1`, `OD-2`, `OD-3`, `OD-4`, `OD-STU-1`, `OD-STU-2`, `OD-STU-3`), and Spark zero-budget retention.
+Status: AUDITED (Strictly Audit-Only; 0 production code changes; 8 findings cataloged in `docs/audits/current/role-business-logic-conformance-audit.md` Section 7 and logged in `bug-ledger.md`).
 
+Findings Summary:
+1. `DOM11-PRIV-01` (High): Top-level `Export CSV Dataset` in `ReportsDashboard.jsx:91-97` is ungated; teaching instructors on `InstructorDashboard.jsx:124` can download full institutional check-ins, student attendance, punctuality scorecards, and learner progress evaluations.
+2. `DOM11-GOV-05` (Med): `ReportsDashboard.jsx:27, 196-208` allows `isActualAdmin` to toggle "All Campuses" scope, violating Blueprint §7 & OD-2; triggers repository queries that fail with `permission-denied`.
+3. `DOM04-CSV-01` / `DOM11-CSV-01` (High): `FinancialReportsTab.jsx:103-126` exports raw positive `p.amount` for `status: 'voided'` and `status: 'reversal'`; fails to subtract reversals or net voided rows, inflating `=SUM(Amount)` in spreadsheet aggregations.
+4. `DOM05-UX-03` (Med): `StudentRoster.jsx:533-541` gates CSV export behind `!readOnly`; `ViceDirectorDashboard.jsx:446` passes `readOnly={true}`, inadvertently blinding and stripping student roster CSV export for the Vice Director.
+5. `DOM05-PRIV-03` (Med): `InstructorClasses.jsx:286` and `StudentRosterTable.jsx:453` expose "View / Print ID Badge" to teaching instructors, allowing teachers to print official student badges and export QR credentials.
+6. `DOM06-PRIV-01` (Med): `BatchOutreachPanel.jsx:77-84` "Copy Phone Numbers" dumps raw unencrypted parent phone numbers to system clipboard without role restriction or audit trail.
+7. `DOM04-PRIV-01` (Low / GAP): `DigitalReceiptTab.jsx:85-89` and `receiptMessages.js:70` unconditionally print internal cashier remarks (`rcp.notes`) on customer digital receipts and WhatsApp dispatch messages (`OD-EXP-1`).
+8. `DOM11-TECH-02` (Info): Orphaned utility `src/features/shared/printTable.js` has 0 callers across codebase.
+
+Formula Injection Defense Verification:
+- Audited `src/features/shared/csvExport.js:14-25` (`csvEscape`). Confirmed CLEAN & PROTECTED: automatically escapes formula execution characters (`=`, `+`, `-`, `@`, `\t`, `\r`) with leading single-quote prefix.
+
+Next Campaign Action: Solicit owner policy decision on `OD-EXP-1` (cashier notes customer receipt visibility), then draft and execute Slice 4 remediation plan.
+
+## 2026-10-16 — Role & Business Logic Conformance Audit (BLRCA): Slice 4 — Phase 5 Remediation Execution & Verification
+Source: Level 2 Role & Business Logic Conformance Audit methodology (`05-campaign-execution-and-coverage.md`, `06-findings-and-closure.md`).
+Scope: Implementation of bounded remediations for all Slice 4 findings (`DOM04-CSV-01` / `DOM11-CSV-01`, `DOM11-PRIV-01`, `DOM11-GOV-05`, `DOM05-UX-03`, `DOM05-PRIV-03`, `DOM06-PRIV-01`, `DOM04-PRIV-01`, `DOM11-TECH-02`) per ratified Owner Decision `OD-EXP-1` Option A.
+Status: REMEDIATED & VERIFIED (Quality gates passed; Tier 1 findings pending independent Phase 6 verification per AGENTS.md).
+
+Remediation Summary:
+1. `DOM04-CSV-01` / `DOM11-CSV-01` (Financial CSV Netting): Implemented `computeFinancialExportRows(payments)` in `src/features/reports/reportsUtils.js` mirroring `financeUtils.js:summarizePaymentsByMethod`. Pre-collects `voidedIds`, zeroes both voided rows and in-window matching reversals so spreadsheet `=SUM(Amount)` strictly equals screen grand total, and outputs raw amount in `Original / Gross Amount (IDR)` column for audit trail. Unit tested in `FinancialReportsTab.test.js`.
+2. `DOM11-PRIV-01` & `DOM11-GOV-05` (Reports CSV Gating & Admin Province Scope Stripping): In `InstructorLeaderDashboard.jsx:264`, passed `isInstructorLeader={true}`. In `ReportsDashboard.jsx:27`, decoupled `canAccessProvinceScope` to `isExecutiveView || isInstructorLeader`, stripping `isActualAdmin`. In `ReportsDashboard.jsx:29, 93-99`, gated top-level `Export CSV Dataset` button and `handleExportCSV` behind `canExportReports = isExecutiveView || isManager || isFrontOffice || isInstructorLeader;`, blocking teaching instructors. Tested in `ReportsDashboard.test.js`.
+3. `DOM05-UX-03` & `DOM05-PRIV-03` (Vice Director Roster Export & ID Badge Print Restriction): In `StudentRoster.jsx:533-541`, decoupled CSV export from `!readOnly` to `canExportRoster = userRole !== "instructor" && userRole !== "admin" && !isAdmin;`, restoring Vice Director roster export while preserving teaching instructor block. In `InstructorClasses.jsx:286`, stripped `selectedStudent` and `BadgeModal`. In `StudentRoster.jsx`, passed `onBadgeClick={null}` for `instructor`. In `StudentRosterTable.jsx:453` and mobile list, suppressed "View / Print ID Badge" button when `onBadgeClick` is null. Tested in `StudentRosterTable.test.js`.
+4. `DOM06-PRIV-01` (Bulk Parent Phone Clipboard Copy): In `ClassManager.jsx`, gated `onOutreach` behind `canPerformOutreach` and passed `role={role}` to `<BatchOutreachPanel />`. In `BatchOutreachPanel.jsx:77-84`, disabled `handleCopyAll` and conditionally hid "Copy All Numbers" button for non-operational roles `instructor` and `admin`.
+5. `DOM04-PRIV-01` (Cashier Notes Disclosure on Customer Receipts — OD-EXP-1 Option A): In `DigitalReceiptTab.jsx:85-89`, removed customer-facing cashier `notes` display block. In `receiptMessages.js:70`, removed `notes` line from WhatsApp dispatch message. Tested in `receiptMessages.test.js` (27 unit tests pass).
+6. `DOM11-TECH-02` (Retain Shared `printTable.js`): Retained `src/features/shared/printTable.js` intact as recognized shared printing utility per `AGENTS.md` Line 300 and `src/features/shared/index.js:44`.
+7. Automated Quality Gates: 107 test files passed (1,458 passed, 139 skipped, 0 failed); `npm run typecheck` passed (0 errors); `npm run lint` passed (0 errors); `npm run build` passed (clean Vite PWA bundle in 677ms).
+8. Next Campaign Action: Execute **BLRCA Slice 4 Phase 6: Post-Fix Verification & Regression Testing** (Independent Agent review of Tier 1 findings `DOM11-PRIV-01` and `DOM04-CSV-01`).
 

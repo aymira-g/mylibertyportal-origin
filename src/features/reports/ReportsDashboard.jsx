@@ -15,6 +15,7 @@ export default function ReportsDashboard({
   isFrontOffice = false,
   isManager = false,
   isExecutiveView = false,
+  isInstructorLeader = false,
   canEdit = true,
   division = "all",
   userBranch = null,
@@ -24,7 +25,10 @@ export default function ReportsDashboard({
   const isActualAdmin = isAdminView && !isFrontOffice && !isExecutiveView;
   const isSupervisor = isActualAdmin || isManager || isExecutiveView;
   const canPerformAdminActions = isActualAdmin && canEdit && !isExecutiveView;
-  const canAccessProvinceScope = isActualAdmin || isExecutiveView;
+  // DOM11-GOV-05: Strip isActualAdmin from province scope. System Admin is technical maintenance only (Blueprint §7, OD-2).
+  const canAccessProvinceScope = isExecutiveView || isInstructorLeader;
+  // DOM11-PRIV-01: Only leadership / operational roles may bulk-export institutional reports; hidden from teaching instructors.
+  const canExportReports = isExecutiveView || isManager || isFrontOffice || isInstructorLeader;
 
   const [userSelectedSubTab, setUserSelectedSubTab] = useState(null);
   const [prevInitialSubTab, setPrevInitialSubTab] = useState(initialSubTab);
@@ -63,6 +67,7 @@ export default function ReportsDashboard({
   const activeTabRef = useRef(null);
 
   const handleExportCSV = () => {
+    if (!canExportReports) return;
     if (activeTabRef.current?.exportCSV) {
       activeTabRef.current.exportCSV();
     }
@@ -88,13 +93,15 @@ export default function ReportsDashboard({
             </p>
           </div>
 
-          <button
-            onClick={handleExportCSV}
-            className="inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-xs transition shrink-0 active:scale-95 cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export CSV Dataset</span>
-          </button>
+          {canExportReports && (
+            <button
+              onClick={handleExportCSV}
+              className="inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-xs transition shrink-0 active:scale-95 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export CSV Dataset</span>
+            </button>
+          )}
         </div>
 
         {/* Navigation Pills */}

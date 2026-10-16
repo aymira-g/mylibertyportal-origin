@@ -261,7 +261,7 @@ export default function InstructorLeaderDashboard({ role = "", branch = "" }) {
       ),
     },
     { id: "materials", label: "Lesson Materials", component: <TeachingMaterial /> },
-    { id: "reports", label: "Reports", component: <ReportsDashboard userBranch={effectiveBranch} /> },
+    { id: "reports", label: "Reports", component: <ReportsDashboard userBranch={effectiveBranch} isInstructorLeader={true} /> },
     {
       id: "approvals",
       label: "Academic Approvals",

@@ -54,6 +54,14 @@ export default function ClassManager({
         (role === "manager" && !hasBranchOpsLead);
 
   const canEnroll = canSchedule || isFrontOfficeRole(role);
+  // DOM06-PRIV-01: Restrict bulk parent WhatsApp/phone outreach to operational roles
+  const canPerformOutreach =
+    isExecutive ||
+    role === "manager" ||
+    role === "opslead" ||
+    role === "ops_lead" ||
+    isFrontOfficeRole(role) ||
+    role === "marketing";
 
   // ── Global Conflict Detection ──────────────────────────────────────────
   const { teacherConflicts, roomConflicts } = useMemo(() => {
@@ -347,7 +355,7 @@ export default function ClassManager({
           unenrolledStudents={unenrolledStudents}
           isAdmin={canSchedule}
           canEnroll={canEnroll}
-          onOutreach={(cls) => setOutreachBatch(cls)}
+          onOutreach={canPerformOutreach ? ((cls) => setOutreachBatch(cls)) : undefined}
           onEditBatch={(cls) => setEditingBatchFromCard(cls)}
           onDeleteClass={isExecutive ? handleDeleteClass : undefined}
           onTransferStudent={(data) => setTransferringStudent(data)}
@@ -385,6 +393,7 @@ export default function ClassManager({
           batch={outreachBatch}
           users={users}
           onClose={() => setOutreachBatch(null)}
+          role={role}
         />
       )}
 

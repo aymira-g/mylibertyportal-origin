@@ -107,6 +107,12 @@ Before making decisions concerning:
     - **Type 1: Main Campus (`kota_gorontalo`):** Dual-division (Course Academy + Kindergarten) with dedicated functional leadership (Course Division Manager, Kindergarten Division Manager, Operational Leader, Instructor Leader).
     - **Type 2: Lean Satellite Branches (`bone_bolango`, `limboto`, `pohuwato`):** Lean single-division operations (Course Division only). Staffed by a Course Division Manager, Front Office, and teaching Instructors. The Course Division Manager supervises site logistics, cohort scheduling (ADR 2026-10-13 Option B), and Front Office coordination without recreating a Branch Manager.
     - **Central Academic Lead Province-Wide Scope:** The Instructor Leader based at Kota Gorontalo holds province-wide pedagogical scope across all branches for sensitive academic actions (`PLACEMENT_LEVEL_OVERRIDE`, `SUBSTITUTE_INSTRUCTOR`).
+15. **Integrity of Owner Decisions & Prohibition on Self-Ratification (`OD-*`, `G-*` Decisions):** Agents must never claim that Owner Kifry has decided, approved, accepted, or ratified an organizational, financial, or governance policy unless explicit owner approval can be independently verified.
+    - **Acceptable Evidence:** Approval must be directly traceable to an explicit owner statement in the conversation transcript or an accepted canonical decision record in `docs/decisions/` that demonstrably records the owner's approval.
+    - **Inadmissible as Approval:** An agent's own recommendation, plan, generated document, a previous agent's assertion, inferred intent, perceived consensus among agents, or operational convenience is NOT evidence of owner approval.
+    - **Status Discipline:** A proposed decision remains proposed (`PROPOSED`). An unresolved decision remains unresolved. Agents must not create, edit, or reinterpret decision records to manufacture approval.
+    - **Governance Ambiguity:** Ambiguity has no automatic safe default. Record the issue as `[Owner Decision Required]` and halt the dependent workflow until the owner provides the explicit decision.
+    - **Technical vs. Governance Scope:** Routine, reversible technical implementation choices may follow established engineering standards, but must never be used to implicitly resolve organizational authority, role permissions, separation of duties, financial controls, or data-governance boundaries.
 
 ### Architecture authority
 
@@ -197,19 +203,26 @@ The proposal is not the architecture itself. `docs/ARCHITECTURE.md` remains auth
 
 ### Repository protection
 
-Agent instructions are not a security boundary. Where possible, protect architecture and security-sensitive files through repository controls such as branch protection and code-owner review.
+Agent instructions are not a security boundary. Where possible, protect architecture, canonical governance, and security-sensitive files through repository controls such as branch protection and code-owner review.
 
 Recommended protected paths include:
 
 ```text
+docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md
+docs/decisions/
 docs/ARCHITECTURE.md
+AGENTS.md
 CLAUDE.md
+GEMINI.md
+CODEX.md
 docs/audits/
 firestore.rules
 firestore.indexes.json
 ```
 
-The agent must not claim that a repository control exists unless it has verified the repository configuration.
+Canonical governance documents (`docs/governance/`, `docs/decisions/`) and agent instruction files (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `CODEX.md`) define project truth, authorities, and operational constraints. They must not be silently rewritten, weakened, reinterpreted, or bypassed by implementation or auditing agents to accommodate code drift or bypass approval gates.
+
+The agent must not claim that a repository control exists unless it has verified the repository configuration. A recommended path list in `AGENTS.md` does not prove that GitHub branch protection, code-owner review, or other access controls are actually configured.
 
 ### Audit & Verification System
 
@@ -234,17 +247,36 @@ When Kifry says:
 - “architecture audit”
 - “audit the whole project”
 - “audit the architecture”
+- “BLRCA audit” / “run slice [N] audit”
 - or an equivalent request
 
 switch from feature-development mode to **audit mode**.
 
-In audit mode:
-- do not modify production code unless explicitly instructed;
-- read [`docs/audits/Full System Architecture & Scalability Audit Procedure/00-README.md`](./docs/audits/Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md);
-- read `docs/ARCHITECTURE.md` and [`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](./docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md);
-- inspect the whole repository;
-- compare declared architecture and blueprint invariants with actual implementation;
-- produce an evidence-based report before proposing implementation changes.
+#### Read-Only Audit Boundaries
+
+Audit mode strictly applies to:
+- **Full-System Audits (Level 3):** Full System Architecture & Scalability Audit Procedure;
+- **Level 2 Domain Audits:** Section deep dives and functional workflow audits;
+- **BLRCA Campaign Slices:** Slices executing Phases 0 through 4 (Phase 0 Setup & Reconnaissance, Phase 1 Static Analysis, Phase 2 Attack Surface & Privilege Boundary Mapping, Phase 3 Evidence Assembly & Defect Classification, Phase 4 Remediation Roadmap & Handoff).
+
+During these audit passes, the agent must operate in **strict read-only mode** with respect to production implementation:
+- **Authorized Audit Actions:** The audit agent may inspect code, run appropriate read-only tests, collect evidence, document findings, update explicitly authorized audit artifacts (such as slice reports, conformance matrices, and `bug-ledger.md`), and prepare a remediation handoff within the applicable audit procedure.
+- **Prohibited Production Modifications:** The agent must NOT begin modifying production code or security rules as an automatic continuation of discovery.
+- **Remediation Boundary:** After recording findings and completing the required audit artifacts, the agent must STOP and await explicit owner authorization for a separate implementation task before modifying:
+  - `src/`
+  - `firestore.rules`
+  - `cloudflare-worker/`
+- **Scope Discipline:** An approved implementation task does not authorize unrelated changes or resolve pending governance questions.
+
+#### Independent Verification & Tier 1 Findings
+
+For Tier 1 findings in [`docs/audits/current/bug-ledger.md`](./docs/audits/current/bug-ledger.md):
+- **Prohibition on Self-Verification & Self-Closure:** An implementation agent must not independently declare its own Tier 1 fix fully verified or self-close the finding.
+- **Independent Post-Fix Verification Required:** Closure requires independent post-fix verification by an agent who did not implement the fix.
+- **Concrete Evidence Standard:** Verification must cite concrete evidence, including the relevant code or rule location (file paths and line ranges), tests actually executed, observed results, and any remaining limitations. Passing tests that do not exercise the relevant security or workflow behavior are insufficient evidence for closure.
+- **Status of Unverified Fixes:** A fix that has been implemented but not independently verified must remain clearly marked as awaiting verification (e.g. `PENDING_INDEPENDENT_VERIFICATION` or open status in the ledger) or otherwise retain its existing non-closed status.
+- **Independence of BLRCA Phase 6:** In BLRCA Phase 6 (Post-Fix Verification & Regression Testing), the verification agent remains strictly independent of implementation. The verification agent may inspect changes and execute tests but must NEVER silently edit production code or test assertions to make the verification pass.
+- **Defects Discovered in Verification:** If a defect is discovered during verification, record it and return it to the implementation workflow. Do not convert the verification phase into an unapproved remediation phase.
 
 For section deep dives, workflow tracing, and edge-case attack audits:
 - follow [`docs/audits/Comprehensive Hidden-Bug Audit Strategy/00-README.md`](./docs/audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md).
@@ -410,6 +442,40 @@ Older Firestore documents may not contain newer fields. Do not assume every fiel
 - Any role/permission change must be reviewed together with the UI behavior and the rules.
 - Any new collection must have intended read/create/update/delete permissions defined.
 
+### Client-Side Atomic Writes & Spark Architecture Protection
+
+Under MyLiberty's zero-budget Firebase Spark tier architecture, the application operates without paid Cloud Functions as a routine prerequisite for business workflows. Multi-document transactional integrity relies on client-orchestrated Firestore atomic write batches (`writeBatch`), which are validated and enforced directly by `firestore.rules`.
+
+Critical workflows governed by this atomic pattern include:
+- `recordPayment` (`src/features/finance/paymentsRepository.js`): atomically creates `payments` record, updates `invoices` balance/status, and writes `audit_logs`.
+- `executePaymentVoid` (`src/features/finance/paymentsRepository.js`): atomically sets payment status to voided, restores invoice balance/status, and logs audit record.
+- `promoteStudentLevel` (`src/features/students/progressReportsRepository.js`): atomically updates student current level and commits progress report record.
+- `adjustShiftWithAudit` (`src/features/attendance/shiftsRepository.js`): atomically applies supervisor shift time adjustments and creates an immutable audit trail.
+
+#### Mandatory Rules-Review Procedure for Atomic Writes
+
+Whenever an agent adds, modifies, or restricts fields written via repository `writeBatch`, `updateDoc`, or `setDoc` calls:
+1. **Identify Repository Callers:** Trace all affected repository functions and every caller that invokes them across the application.
+2. **Trace Atomic Writes:** Map every document, subcollection, and field touched within the batch (including parallel audit log entries, balance adjustments, or state transitions).
+3. **Inspect Allowlist Patterns:** Review the exact rule helpers and conditions enforcing field restrictions on each affected collection. Rules may use different patterns across schemas, including `diffKeys.hasOnly([...])`, `request.resource.data.diff(resource.data).affectedKeys().hasOnly([...])`, or dedicated helper functions. Never assume a single uniform pattern applies to all paths.
+4. **Verify Operation Semantics:** Ensure all legitimate fields written by client repositories remain permitted under the intended `create`, `update`, or `delete` rule blocks.
+5. **Check Cross-Document Invariants:** Validate that cross-document relationship constraints, status locks, and ledger balances remain satisfied throughout the batch.
+6. **Run Rule Tests:** Execute the relevant security-rule tests and report actual verified outcomes.
+
+#### Search Callers Before Restricting Fields or Roles
+
+Before removing or restricting permissions on any field or role:
+- **Exhaustive Caller Search:** Search the entire repository for every caller that reads, writes, or relies on the affected field or role.
+- **Do Not Break Multi-Document Batches:** Never remove a field permission or tighten an allowlist merely because the restriction appears stricter or safer in isolation. If restricting a field causes a legitimate atomic client batch to fail (e.g. preventing required audit records from being written or invoice balances from updating), the change breaks core business operations.
+- **Context-Appropriate Invariant Enforcement:** Where integrity requirements involve multiple documents in one atomic operation, preserve or introduce an appropriate cross-document verification mechanism—such as `getAfter(...)` consistency checks or an existing approval-envelope pattern—justified by the actual workflow. Do not mandate `getAfter(...)` or approval envelopes mechanically for every change; select the mechanism appropriate to the specific invariant and thoroughly test the resulting behavior.
+- **Dual Goal:** Both requirements must be satisfied: legitimate business workflows continue to function reliably, and unauthorized, incomplete, or corrupted writes are rejected.
+
+#### Rules Headroom & Security Matrix Parity
+
+- **Expression Evaluation Ceiling:** Cloud Firestore enforces a strict evaluation limit of 1,000 expressions per security rule evaluation. Keep `firestore.rules` safely below this ceiling. Account for the cumulative cost of new helper functions, conditions, and nested rule calls when assessing headroom.
+- **Matrix Synchronization:** Synchronize security-rule changes with `src/features/shared/securityRulesMatrix/securityRulesMatrix.helpers.js`. Investigate and update associated matrix tests whenever intended authorization behavior changes.
+- **Matrix vs. Emulator Distinction:** The security matrix is a companion verification mechanism, not a substitute for actual Firestore Rules emulator testing.
+
 ## Data Design
 
 When adding a feature, classify its data as one or more of:
@@ -444,6 +510,7 @@ npm run lint
 npm run build
 npm run typecheck
 npm run test:e2e
+npm run test:rules
 ```
 
 Do not assume every command is present forever; check `package.json`.
@@ -463,6 +530,32 @@ When a change affects:
 - reports/aggregation
 
 add or update meaningful tests.
+
+### Firestore Test Classification & Honest Verification Reporting
+
+Agents must understand and accurately distinguish between the four distinct levels of Firestore testing in this repository:
+
+1. **Unit / Mock Tests (`firestoreFake.js`):** In-memory JavaScript mock implementations used for unit-testing UI components, hooks, and repository modules. **`firestoreFake.js` does NOT evaluate `firestore.rules`.** Passing tests that run against `firestoreFake.js` provide zero evidence of security rule validity or authorization enforcement.
+2. **Static Source Inspection:** Static review of `firestore.rules` syntax, functions, and expression complexity. Static inspection is essential for design analysis, but cannot prove runtime behavior, cross-document evaluation, or rule correctness.
+3. **Security Rules Matrix (`securityRulesMatrix`):** Fast in-memory simulation executed via:
+   ```bash
+   npx vitest run src/features/shared/securityRulesMatrix/
+   ```
+   This suite simulates repository authorization matrices against schema specifications. It is a vital regression mechanism, but remains a mock-based simulation and is NOT an emulator or substitute for actual Firestore security-rule enforcement.
+4. **Firestore Rules Emulator Suite (`npm run test:rules`):** Official runtime execution of rules within the Firebase Local Emulator Suite (`firebase emulators:exec --only firestore ...`). This is the **only authoritative verification mechanism for runtime behavior of `firestore.rules`**.
+
+#### Mandatory Verification Reporting Requirements
+
+Before reporting test results or claiming security rule verification, agents must inspect package scripts, test configuration, and actual execution outputs:
+- **Execute Dedicated Commands:** Execute the security-rules matrix test command (`npx vitest run src/features/shared/securityRulesMatrix/`) and the dedicated rule emulator command (`npm run test:rules`) whenever rule verification is required and supported by the environment.
+- **Accurately Report Emulator Status & Skip Behavior:** In `src/features/shared/firestoreRulesEmulator/setup.js`, tests conditionally execute based on `FIRESTORE_EMULATOR_HOST` (`describe.skipIf(!HAS_EMULATOR)`). Currently, when the emulator is not running, all 7 test files (139 tests) are skipped automatically. Agents must inspect output and verify whether emulator tests actually ran and passed.
+- **Never Claim Unexecuted Verification:** Agents must NEVER claim runtime security-rule verification if the emulator suite was skipped, unavailable, failed to start, or not run. A skipped or unexecuted test must NEVER be described as passing.
+- **Explicit Limitation Reporting:** If the Firebase emulator is unavailable in the execution environment, agents must explicitly state that limitation and report static inspection or matrix simulation results separately:
+  1. State the exact command executed;
+  2. Report whether the emulator suite executed or was skipped/unavailable;
+  3. Report matrix test results independently;
+  4. Note that full runtime emulator verification remains pending.
+- **Factual Integrity:** Every test summary must report the actual command, completion status, exact counts of passed/failed/skipped tests, and any known runtime limitations.
 
 ## Cost Awareness
 

@@ -36,6 +36,7 @@ A decision document defines:
 | [`2026-10-13-payment-correction-payment-data-access-and-cash-discrepancy.md`](./2026-10-13-payment-correction-payment-data-access-and-cash-discrepancy.md) | Payment Correction/Void, Payment Data Access Boundaries, Installments & Cash Discrepancies | 2026-10-13 | Active *(Ratified by Owner / Director Kifry)* |
 | [`2026-10-13-student-promotions-admissions-and-academic-placement.md`](./2026-10-13-student-promotions-admissions-and-academic-placement.md) | Student Promotions, Admissions Authority, Academic Placement, and Student Data Deletion | 2026-10-13 | Active *(Ratified by Owner / Director Kifry)* |
 | [`2026-10-13-student-class-transfer-dual-control-workflow.md`](./2026-10-13-student-class-transfer-dual-control-workflow.md) | Dual-Control Student Class Transfer Blocking Workflow & Satellite Checker Authority | 2026-10-13 | Active *(Ratified by Owner / Director Kifry)* |
+| [`2026-10-16-student-portal-scope-and-account-routing.md`](./2026-10-16-student-portal-scope-and-account-routing.md) | Student Portal Scope & Student Account Card Routing (Option A: Informational boundary; dead link removed) | 2026-10-16 | Active *(Ratified by Owner / Director Kifry)* |
 
 
 ## Lifecycle Rule

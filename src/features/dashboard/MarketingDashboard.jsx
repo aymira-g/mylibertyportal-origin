@@ -164,7 +164,7 @@ function MarketingOverview({
   );
 }
 
-export default function MarketingDashboard({ branch = null, division = null }) {
+export default function MarketingDashboard({ branch = null }) {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -187,17 +187,8 @@ export default function MarketingDashboard({ branch = null, division = null }) {
     return marketingBranchId ? idToBranch(marketingBranchId) : null;
   }, [marketingBranchId]);
 
-  const profileDivision = useMemo(() => {
-    return division || userProfile?.division || "courses";
-  }, [division, userProfile]);
-
-  const [divisionOverride, setDivisionOverride] = useState(null);
-  const activeDivision = useMemo(() => {
-    if (profileDivision === "all") {
-      return divisionOverride || "courses";
-    }
-    return profileDivision;
-  }, [profileDivision, divisionOverride]);
+  // Marketing belongs strictly and exclusively to the Course Division (Blueprint v3.4 §5.0.1).
+  const activeDivision = "courses";
 
   const [inquiryCount, setInquiryCount] = useState(0);
   const [onlineAppCount, setOnlineAppCount] = useState(0);
@@ -224,7 +215,9 @@ export default function MarketingDashboard({ branch = null, division = null }) {
         where("branchId", "==", marketingBranchId)
       ),
       (snap) => {
-        const apps = snap.docs.map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }));
+        const apps = snap.docs
+          .map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }))
+          .filter((d) => !d.division || d.division !== "kindergarten");
         setApplications(apps);
         const pending = apps.filter(
           (d) => (d.status || "pending") === "pending"
@@ -244,7 +237,9 @@ export default function MarketingDashboard({ branch = null, division = null }) {
         where("branchId", "==", marketingBranchId)
       ),
       (snap) => {
-        const inqs = snap.docs.map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }));
+        const inqs = snap.docs
+          .map((d) => /** @type {any} */ ({ id: d.id, ...d.data() }))
+          .filter((d) => !d.division || d.division !== "kindergarten");
         const pending = inqs.filter(
           (d) => (d.status || "inquired") === "inquired"
         ).length;
@@ -419,29 +414,6 @@ export default function MarketingDashboard({ branch = null, division = null }) {
 
   return (
     <div className="p-5 bg-[#f0f2f5] rounded-2xl min-h-[500px]">
-      {profileDivision === "all" && (
-        <div className="flex items-center gap-2 mb-3 bg-white px-3 py-1.5 rounded-xl border border-slate-200 w-fit text-xs font-bold text-slate-700">
-          <span className="text-slate-400">Division:</span>
-          <button
-            type="button"
-            onClick={() => setDivisionOverride("courses")}
-            className={`px-2.5 py-1 rounded-lg transition ${
-              activeDivision === "courses" ? "bg-[#1a3a8f] text-white" : "text-slate-600 hover:bg-slate-100"
-            }`}
-          >
-            Courses
-          </button>
-          <button
-            type="button"
-            onClick={() => setDivisionOverride("kindergarten")}
-            className={`px-2.5 py-1 rounded-lg transition ${
-              activeDivision === "kindergarten" ? "bg-amber-600 text-white" : "text-slate-600 hover:bg-slate-100"
-            }`}
-          >
-            Kindergarten
-          </button>
-        </div>
-      )}
       <DashboardShell
         tabs={tabs}
         activeTab={activeTab}

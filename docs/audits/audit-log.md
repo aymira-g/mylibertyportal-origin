@@ -969,7 +969,43 @@ Remediation Summary:
 7. `DOM06-GOV-02` (Batch Scheduling Operational Alignment): Normalized `opslead` in `ClassesAndCoverageTab.jsx` and passed `hasBranchOpsLead`; updated `AvailableBatches.jsx:49-56` to disallow manager batch creation when `hasBranchOpsLead` is true; passed `hasBranchOpsLead={true}` in `KidsManagerDashboard.jsx` at Kota Gorontalo.
 8. Architectural Guardrails: Main Campus Front Office reception and Ops Lead preserve `uDiv == 'all'`; `useInstructorLeaderWorkspace.js` strictly preserves same-branch queries without cross-branch raw attendance reads.
 9. Automated Quality Gates: 35 test files / 497 vitest tests passed; `npm run typecheck` passed (0 errors); `npm run lint` passed (0 errors); `npm run build` passed (clean bundle in 695ms).
-10. Next Campaign Action: Handoff to Independent Advisor for **BLRCA Slice 5 Phase 6: Post-Fix Verification & Regression Testing** (Verification of Tier 1 findings `DOM09-GOV-03`, `DOM04-SEC-05`, `DOM01-GOV-05`, `DOM05-GOV-04`).
+10. Next Campaign Action: Slice 5 Phase 6 independent verification completed & closed; committed via `7536651`.
 
+## 2026-10-16 — Role & Business Logic Conformance Audit (BLRCA): Slice 6 — Front-Line Operational, Teaching, Field, Executive Non-Financial & External Portal Roles (Phases 0–4 Completed)
+Source: Level 2 Role & Business Logic Conformance Audit methodology (`docs/audits/Role & Business Logic Conformance Audit/`).
+Scope: Remaining front-line operational, teaching, field, executive non-financial, and external portal roles: Executive Dual-Control Non-Financial (`director` vs `vice_director`), Front Office (`frontoffice` — Courses, Kindergarten & Main Campus Cross-Div), Teaching Instructors (`instructor` — Courses & Kindergarten), Marketing (`marketing`), Campus Support / Facilities (`officeboy` / `cleaner`), and External Portals (`student` & `parent`). Evaluated against Blueprint v3.4 (§0, §4, §5, §5.0.1, §5.4, §6.8, §6.10, §6.11, §7, §26).
+Status: AUDITED (Strictly Audit-Only; 0 production code changes; halted at Phase 4 boundary).
 
+Findings Summary:
+1. `DOM05-PRIV-04` / `SL6-FAC-01` (High): Facilities Over-Privilege Leak: `firestore.rules:63` helper `isStaff()` bundles `'officeboy'`. Because read rules on `/users` (lines 735, 745), `/classes` (lines 848, 856), and `/attendance` (lines 898-901) permit `isStaff()`, an `officeboy` account can query and inspect student, parent, and teacher profiles, course class rosters, and daily student attendance records in their branch, violating Blueprint §6.10 ("Office Boy / Facilities provides physical branch maintenance and operational support; does not receive management, financial, academic, or system-administration authority").
+2. `DOM14-GOV-01` / `SL6-MKT-01` (Medium): Marketing Kindergarten Access / Commercialization: `MarketingDashboard.jsx:422-443` renders a division toggle permitting Marketing Representatives with `profileDivision === "all"` to switch to `"kindergarten"`, mounting `<WalkInInquiryTab division="kindergarten" />` and exposing Kindergarten prospective leads, violating Blueprint v3.4 §5.0.1 shielding Kindergarten PAUD from commercial marketing and outreach.
+3. `SL6-STU-01` (Info / Gap): Student Portal Dead Link: `App.jsx:659` renders a link to `/portal` ("Go to Parent & Student Portal") on the Student Account card, but `ParentPortalPage.jsx:260` restricts `/portal` to `role === "parent"`, displaying an "Access Restricted" screen to authenticated students.
 
+Next Campaign Action: Presented Slice 6 Read-Only Audit Report to Owner Kifry; ratified Option A for `SL6-STU-01` (`OD-STU-4`); authorized Phase 5 Remediation.
+
+## 2026-10-16 — Role & Business Logic Conformance Audit (BLRCA): Slice 6 — Phase 5 Remediation Execution & Verification
+Source: Level 2 Role & Business Logic Conformance Audit methodology (`docs/audits/Role & Business Logic Conformance Audit/`).
+Scope: Implementation of architecturally guarded remediations for Slice 6 findings (`DOM05-PRIV-04` / `SL6-FAC-01`, `DOM14-GOV-01` / `SL6-MKT-01`, `SL6-STU-01` / `OD-STU-4`) per authorized plan `docs/plans/active/2026-10-16-blrca-slice6-frontline-field-and-portals-remediation.md`.
+Status: REMEDIATED & VERIFIED (Quality gates passed; Tier 1 finding pending independent Phase 6 verification per AGENTS.md).
+
+Remediation Summary:
+1. `DOM05-PRIV-04` / `SL6-FAC-01` (Facilities Privacy Isolation — Tier 1 High):
+   - Defined `isNonFacilityStaff()` helper in `firestore.rules:64` (`isStaff() && !(userProfile().role in ['officeboy', 'cleaner'])`).
+   - Replaced `isStaff()` with `isNonFacilityStaff()` on `/users/{userId}` (lines 735, 745), `/classes/{classId}` (lines 848, 856), and `/attendance/{attendanceId}` (lines 907, 910).
+   - Mirrored changes in `src/features/shared/securityRulesMatrix/securityRulesMatrix.helpers.js` (`isNonFacilityStaff`, `canGetUser`, `canListUsers`, `canGetClass`, `canListClasses`, `canGetAttendance`, `canListAttendance`).
+   - Architectural Guardrail Adhered To: Maintained `marketing` and `admin` `/classes` reads intact (`MarketingDashboard.jsx:414` `<AvailableBatches />`, `divisionIsolation.test.js:842`). Facilities staff (`officeboy` / `cleaner`) retain access to own `/users/{uid}`, own `/shifts`, and `/todos`.
+   - Verified via new Section 3.3 in `divisionIsolation.test.js` (181 passed tests). Marked `PENDING_INDEPENDENT_VERIFICATION` in `bug-ledger.md`.
+2. `DOM14-GOV-01` / `SL6-MKT-01` (Marketing Kindergarten Shielding — Tier 2 Medium):
+   - In `firestore.rules:171-181` and `securityRulesMatrix.helpers.js:174-182`, updated `isDivisionAllowedForBranchStaff` so `role == 'marketing'` strictly evaluates `(!('division' in data) || data.division != 'kindergarten')`, ignoring `uDiv == 'all'` and `uDiv == 'kindergarten'`.
+   - In `MarketingDashboard.jsx`, removed `profileDivision === "all"` switcher, locked `activeDivision = "courses"`, and filtered out `d.division === "kindergarten"` from `unsubApplications` and `unsubDeskInquiries`.
+   - In `inviteSchema.js`, added `.refine()` requiring `role === "marketing"` to have `division === "courses"`. In `InvitesPanel.jsx` and `ApprovalInbox.jsx`, locked marketing to Course Academy.
+   - Verified via `divisionIsolation.test.js:Section 3.1` and 42/42 tests in `schemas.test.js`. Marked `CLOSED`.
+3. `SL6-STU-01` / `OD-STU-4` (Student Account Card Cleanup — Tier 3 Info / UX):
+   - Recorded ratified Owner Decision `OD-STU-4` Option A in `docs/decisions/2026-10-16-student-portal-scope-and-account-routing.md` and indexed in `docs/decisions/README.md`.
+   - In `src/App.jsx:657-663`, removed dead `<a href="/portal">Go to Parent & Student Portal</a>` button from student account card, preserving kiosk advice notice and Sign Out button. Marked `CLOSED`.
+4. Automated Quality Gates:
+   - Full Vitest suite: 107 test files passed (1,467 passed, 139 skipped, 0 failed).
+   - TypeScript Typecheck: `npm run typecheck` passed cleanly (0 errors).
+   - ESLint: `npm run lint` passed cleanly (0 errors, 0 warnings).
+   - Vite Production Build: `npm run build` passed cleanly in 3.83s.
+5. Next Campaign Action: Handoff to Independent Advisor for **BLRCA Slice 6 Phase 6: Post-Fix Verification & Regression Testing** (Independent review of Tier 1 finding `DOM05-PRIV-04`).

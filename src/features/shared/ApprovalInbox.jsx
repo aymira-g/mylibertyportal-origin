@@ -69,6 +69,13 @@ export function ApprovalInbox({
         }
         return prev;
       });
+    } else if (newRole === "marketing") {
+      setStaffDivisionAssignments((prev) => {
+        if (prev[id] !== "courses") {
+          return { ...prev, [id]: "courses" };
+        }
+        return prev;
+      });
     }
   };
 
@@ -203,6 +210,8 @@ export function ApprovalInbox({
           assignedRole = "instructor";
         }
       } else if (assignedRole === "manager" && assignedDivision === "all") {
+        assignedDivision = "courses";
+      } else if (assignedRole === "marketing") {
         assignedDivision = "courses";
       }
 
@@ -727,6 +736,7 @@ export function ApprovalInbox({
                   const curDivision = req.approvedDivision || staffDivisionAssignments[req.id] || "courses";
                   const isSatellite = isLeanSatelliteBranch(curBranchId);
                   const isMgr = curRole === "manager";
+                  const isMkt = curRole === "marketing";
 
                   return (
                     <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 space-y-2 text-xs">
@@ -782,10 +792,10 @@ export function ApprovalInbox({
                           className="bg-white border border-slate-200 rounded-lg px-2 py-1 font-semibold text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1a3a8f] disabled:bg-slate-100"
                         >
                           <option value="courses">Courses</option>
-                          {!isSatellite && (
+                          {!isSatellite && !isMkt && (
                             <option value="kindergarten">Kindergarten</option>
                           )}
-                          {!isSatellite && !isMgr && (
+                          {!isSatellite && !isMgr && !isMkt && (
                             <option value="all">All Divisions</option>
                           )}
                         </select>

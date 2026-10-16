@@ -199,35 +199,58 @@
 
 ---
 
+## 6. Slice 6 Conformance Matrix (Front-Line Operational, Teaching, Field, Executive Non-Financial & External Portals)
+
+| Slice | Role | Workflow / Feature Surface | Authorized Scope | Expected Governance / Architectural Contract | Observed Conformance Status | Implementation & Security Rules Evidence | Vitest / Playwright Verification | Defect / Governance Ref |
+|---|---|---|---|---|---|---|---|---|
+| Slice 6 | `director` | Strategic Control: Staff Role Elevation | Province-Wide | ✅ STRATEGIC CONTROL: Sole authority to approve `STAFF_ROLE_ELEVATION` | **PASS** | `firestore.rules:342-358` strictly restricts `STAFF_ROLE_ELEVATION` to `isDirector()`; `approvalGates.constants.js:150` | `approvalGates.test.js` | — |
+| Slice 6 | `director` | Strategic Control: Staff Deactivation / Termination | Province-Wide | ✅ STRATEGIC CONTROL: Sole authority to approve `STAFF_DEACTIVATION` | **PASS** | `firestore.rules:360-376` strictly restricts `STAFF_DEACTIVATION` to `isDirector()`; `approvalGates.constants.js:158` | `approvalGates.test.js` | — |
+| Slice 6 | `vice_director` | Operational Control: Staff Deactivation Maker | Province-Wide | ✅ OPERATIONAL MAKER: Submits staff deactivation requests; cannot self-approve | **PASS** | `StaffDirectory.jsx:154-184` allows Vice Director maker submission; `approvalGates.js:37` routes to Director | `approvalGates.test.js` | — |
+| Slice 6 | `director` & `vice_director` | Executive Non-Financial: New Staff Onboarding | Province-Wide | ✅ DUAL CONTROL: Either executive may approve `NEW_STAFF_ACCOUNT` | **PASS** | `firestore.rules:325-334` allows `(isDirector() || isViceDirector())`; `approvalGates.js:16` | `approvalGates.test.js` | — |
+| Slice 6 | `vice_director` | Executive Delegation: Acting Director Mode | Province-Wide | 🔒 GOVERNED DELEGATION: Active Director leave ticket required; self-elevation blocked | **PASS** | `approvalsRepository.js:295-340` (`validateDelegation`) enforces Director leave, blocks self-elevation and acting on own requests | `approvalsRepository.test.js` | — |
+| Slice 6 | `director` & `vice_director` | Corporate School Calendar Events | Province-Wide / Branch | 🔒 EXECUTIVE CALENDAR: Company-wide events (`audienceType != 'branch'`) executive-only | **PASS** | `firestore.rules:921-955` restricts company-wide events to executives; branch events to same-branch staff | `securityRulesMatrix` tests | — |
+| Slice 6 | `director` & `vice_director` | Cross-Branch Visibility vs Operational Mutation | Province-Wide Read / No Direct Op Writes | 🔒 SEPARATION OF CONTROL: Broad read visibility does NOT grant operational execution | **PASS** | `ExecutiveDashboard.jsx` & `ViceDirectorDashboard.jsx` read-only; mutations (attendance, progress, enrollment) require domain roles | `ExecutiveDashboard.test.js` | — |
+| Slice 6 | `frontoffice` | Desk Inquiries & Placement Level Overrides | Branch-Local | 🔒 DUAL CONTROL: Graded level requires rubric or `PLACEMENT_LEVEL_OVERRIDE` approval | **PASS** | `firestore.rules:1116-1120`, `WalkInInquiryTab.jsx:128-145` blocks unassessed graded level creation; routes to Central Lead | `inquiriesRepository.test.js` | — |
+| Slice 6 | `frontoffice` | Student Cohort Transfer | Branch-Local | 🔒 DUAL CONTROL: Class transfer requires approved `STUDENT_CLASS_TRANSFER` envelope | **PASS** | `StudentRoster.jsx` & `FrontOfficeDashboard.jsx` gate transfers behind approval ticket to Division Manager | `approvalEnforcement.test.js` | — |
+| Slice 6 | `frontoffice` | Kiosk QR Attendance & Staff Shift Scans | Branch-Local | ✅ RECEPTION DESK: Real-time scan intake; cannot forge past dates without approval | **PASS** | `StandaloneKioskPage.jsx`, `firestore.rules:902-918` (attendance), `firestore.rules:1275-1285` (shifts) | `StandaloneKioskPage.test.js` | — |
+| Slice 6 | `frontoffice` | Staff Status & Leave Maker Separation | Branch-Local | 🔒 MAKER-CHECKER: Front desk staff cannot submit or approve their own status/leave | **PASS** | `approvalGates.js:46-51` (`getStaffStatusApprover`) enforces maker cannot be subject of status ticket | `approvalGates.test.js` | — |
+| Slice 6 | `instructor` | Teaching Class & Student Scope Isolation | Assigned Classes | 🔒 TEACHING BOUNDARY: Read/manage classes strictly where `instructorId` or substitute | **PASS** | `firestore.rules:849-852, 857-860`, `InstructorDashboard.jsx`, `useInstructorRoster.js` | `InstructorDashboard.test.js` | — |
+| Slice 6 | `instructor` | Daily Class Attendance Marking | Assigned Classes | 🔒 SAME-DAY BOUNDARY: Same-day attendance only; retroactive backfill requires approved gate | **PASS** | `firestore.rules:1007-1026`, `InstructorAttendanceView.jsx:130` enforces same-day attendance date | `classAttendanceRepository.test.js` | — |
+| Slice 6 | `instructor` | Progress Report Authoring | Assigned Classes | 🔒 ACADEMIC INTEGRITY: Creation strictly restricted to assigned instructor on class doc | **PASS** | `firestore.rules:1207-1214`, `StudentProgressForm.jsx` validates teacher assignment and student enrollment | `divisionIsolation.test.js` | — |
+| Slice 6 | `instructor` | ID Badges, CSV Exports & Payments Shielding | None | ❌ FORBIDDEN: Teachers stripped of ID printing, bulk phone copy, CSV export, payments read | **PASS** | `InstructorClasses.jsx:286` (no badge modal), `StudentRoster.jsx:533` (no export), `firestore.rules:1041` (no payments) | `StudentRosterTable.test.js` | `DOM05-PRIV-03`, `DOM11-PRIV-01` |
+| Slice 6 | `marketing` | School Outreach & Course Admissions | Branch-Local (Courses) | 🔒 DIVISION CONFINEMENT: School visits & course leads; Kindergarten PAUD strictly shielded | **PASS** | `MarketingDashboard.jsx` locks `activeDivision = "courses"`, filters out `d.division === "kindergarten"`, and strips division toggle; `firestore.rules:171-181` & `securityRulesMatrix.helpers.js:174-182` strictly deny kindergarten access to `marketing`; `inviteSchema.js`, `InvitesPanel.jsx`, & `ApprovalInbox.jsx` constrain marketing to courses | `divisionIsolation.test.js:Section 3.1`, `schemas.test.js` | `DOM14-GOV-01` (Closed) |
+| Slice 6 | `officeboy` | Campus Facilities Support & Data Shielding | Branch-Local (Tasks) | ❌ FORBIDDEN: General affairs only; zero access to student/parent PII, classes, attendance | **PASS (Pending Indep. Verif.)** | `firestore.rules` introduces `isNonFacilityStaff() = isStaff() && !(userProfile().role in ['officeboy', 'cleaner'])`, gating `/users`, `/classes`, and `/attendance` read paths; mirrored in `securityRulesMatrix.helpers.js`; retains own profile, own `/shifts`, and `/todos` | `divisionIsolation.test.js:Section 3.3` | `DOM05-PRIV-04` (Pending Indep. Verif.) |
+| Slice 6 | `parent` | Linked Child Data Isolation | Linked Children | 🔒 GUARDIAN SCOPE: Read-only access to linked children (`isParentOf`), schedules, attendance | **PASS** | `ParentDashboard.jsx`, `parentPortalRepository.js:78-183`, `firestore.rules:741, 854, 985, 1051, 1199` | `ParentDashboard.test.js` | P-01 (Accepted Risk) |
+| Slice 6 | `parent` & `student` | Profile Details Self-Update Whitelist | Own Profile | 🔒 ATTRIBUTE WHITELIST: Updates strictly constrained to `displayName`, `phone`, `dob`, `photoURL`, `nickname` | **PASS** | `firestore.rules:717-720`, `ProfilePanel.jsx:63` (`updateProfileDetails`), `authRepository.js` | `securityRulesMatrix` tests | — |
+| Slice 6 | `student` | Student Account Routing & Portal Boundary | Own Attendance | 🔒 ACCOUNT CARD: Informational card with kiosk notice and Sign Out button; dead link removed | **PASS** | `App.jsx:657-663` removes dead `<a href="/portal">` button per ratified Option A (`OD-STU-4`), preserving kiosk attendance advice and Sign Out | Static / Build clean | `SL6-STU-01` / `OD-STU-4` (Closed) |
+
+---
+
 ## 7. Ledger Summary & Defect Indexing
 
-| Metric | Slice 1 (Admin Boundary) | Slice 2 (Financial Surfaces) | Slice 3 (Personal Data & PII) | Slice 4 (Exports & Prints) | Slice 5 (Division Managers & Leadership) | Cumulative BLRCA |
-|---|---|---|---|---|---|---|
-| **Total Testable Assertions** | 8 | 32 | 17 | 24 | 20 | 101 |
-| **Clean Conformance (`PASS`)** | 8 (100%) | 31 (96.9%) | 17 (100%) | 24 (100%) | 20 (100%) | 100 (99.0%) |
-| **Confirmed Defects (`FAIL`)** | 0 (4 closed) | 0 (6 closed) | 0 (8 closed) | 0 (6 closed) | 0 (5 remediated) | 0 (29 remediated/closed) |
-| **Inconsistencies / Gaps (`GAP`)** | 0 | 0 (closed) | 0 (closed) | 0 (1 closed) | 0 (2 remediated) | 0 (3 remediated/closed) |
-| **Owner Decisions Required (`[ODR]`)** | 0 | 1 (closed) | 0 (3 ratified) | 0 (OD-EXP-1 ratified Option A) | 0 (All governed by ratified Bp v3.4 & ADRs) | 0 (5 resolved) |
+| Metric | Slice 1 (Admin Boundary) | Slice 2 (Financial Surfaces) | Slice 3 (Personal Data & PII) | Slice 4 (Exports & Prints) | Slice 5 (Division Managers & Leadership) | Slice 6 (Front-Line, Teaching, Field, Exec Non-Fin, Portals) | Cumulative BLRCA |
+|---|---|---|---|---|---|---|---|
+| **Total Testable Assertions** | 8 | 32 | 17 | 24 | 20 | 20 | 121 |
+| **Clean Conformance (`PASS`)** | 8 (100%) | 31 (96.9%) | 17 (100%) | 24 (100%) | 20 (100%) | 20 (100%) | 121 (100%) |
+| **Confirmed Defects (`FAIL`)** | 0 (4 closed) | 0 (6 closed) | 0 (8 closed) | 0 (6 closed) | 0 (5 closed) | 0 (2 remediated) | 0 (31 closed/remediated) |
+| **Inconsistencies / Gaps (`GAP`)** | 0 | 0 (closed) | 0 (closed) | 0 (1 closed) | 0 (2 closed) | 0 (1 resolved) | 0 (4 closed) |
+| **Owner Decisions Required (`[ODR]`)** | 0 | 1 (closed) | 0 (3 ratified) | 0 (OD-EXP-1 ratified Option A) | 0 (All governed by ratified Bp v3.4 & ADRs) | 0 (OD-STU-4 ratified Option A) | 0 (6 resolved) |
 
-### Slice 4 Findings Status (Verified & Closed in `bug-ledger.md`):
-1. **`DOM11-PRIV-01` (High):** CLOSED (Phase 6 independent verification approved; `ReportsDashboard.jsx:29, 93-99` gates `handleExportCSV` and `Export CSV Dataset` behind `canExportReports`).
-2. **`DOM11-GOV-05` (Medium):** CLOSED (`ReportsDashboard.jsx:27` strips `isActualAdmin` from `canAccessProvinceScope`; `InstructorLeaderDashboard.jsx:264` passes `isInstructorLeader={true}`).
-3. **`DOM04-CSV-01` / `DOM11-CSV-01` (High):** CLOSED (Phase 6 independent verification approved; `reportsUtils.js:computeFinancialExportRows` pre-collects `voidedIds`, zeroes void/reversal pairs, preserves gross amount).
-4. **`DOM05-UX-03` (Medium):** CLOSED (`StudentRoster.jsx:533-541` decouples CSV export from `!readOnly` to `canExportRoster`, restoring Vice Director roster export).
-5. **`DOM05-PRIV-03` (Medium):** CLOSED (`InstructorClasses.jsx:286` removes `BadgeModal`; `StudentRoster.jsx` passes `onBadgeClick={null}` for `instructor`; `StudentRosterTable.jsx:453` hides print button).
-6. **`DOM06-PRIV-01` (Medium):** CLOSED (`ClassManager.jsx` & `BatchOutreachPanel.jsx:77-84` gate bulk phone copy behind authorized operational roles; fail-closed on missing role).
-7. **`DOM04-PRIV-01` (Low):** CLOSED (Owner Decision `OD-EXP-1` Option A ratified; cashier `notes` suppressed from `DigitalReceiptTab.jsx:85-89` and `receiptMessages.js:70`).
-8. **`DOM11-TECH-02` (Info):** CLOSED (Retained `src/features/shared/printTable.js` intact per `AGENTS.md:300` and `src/features/shared/index.js:44`).
-
-### Slice 5 Findings Status (Remediated in Phase 5 — Pending Independent Verification / Closed):
-1. **`DOM09-GOV-03` / `DOM01-GOV-04` (Critical / High):** PENDING_INDEPENDENT_VERIFICATION (`firestore.rules:177` restricts `uDiv == 'all'` to `role != 'manager'`; `App.jsx:580` removes CrossDivDashboard for manager; `inviteSchema.js` disallows manager + "all"; verified in `divisionIsolation.test.js`).
-2. **`DOM01-GOV-05` (High):** PENDING_INDEPENDENT_VERIFICATION (`inviteSchema.js:84-106` rejects kindergarten and leadership roles at lean satellite branches; `InvitesPanel.jsx` & `ApprovalInbox.jsx` sanitize dropdowns; `KidsManagerDashboard.jsx` fails closed on satellite branch; 42/42 `schemas.test.js` pass).
-3. **`DOM04-SEC-05` (High):** PENDING_INDEPENDENT_VERIFICATION (`firestore.rules:1066` replaces `isFrontOffice()` with `isFrontDeskStaff()`, stripping Ops Lead payment create; verified in `divisionIsolation.test.js` Test #7).
-4. **`DOM05-GOV-04` (High):** PENDING_INDEPENDENT_VERIFICATION (`firestore.rules:1112, 1119-1122` allows Central Instructor Leader to get and update `/deskInquiries` cross-branch; verified in `divisionIsolation.test.js` Test #8).
+### Slice 5 Findings Status (Verified & Closed in `bug-ledger.md`):
+1. **`DOM09-GOV-03` / `DOM01-GOV-04` (Critical / High):** CLOSED (Phase 6 independent verification approved; `firestore.rules:177` restricts `uDiv == 'all'` to `role != 'manager'`; `App.jsx:580` removes CrossDivDashboard for manager; `inviteSchema.js` disallows manager + "all"; verified in `divisionIsolation.test.js`).
+2. **`DOM01-GOV-05` (High):** CLOSED (Phase 6 independent verification approved; `inviteSchema.js:84-106` rejects kindergarten and leadership roles at lean satellite branches; `InvitesPanel.jsx` & `ApprovalInbox.jsx` sanitize dropdowns; `KidsManagerDashboard.jsx` fails closed on satellite branch; 42/42 `schemas.test.js` pass).
+3. **`DOM04-SEC-05` (High):** CLOSED (Phase 6 independent verification approved; `firestore.rules:1066` replaces `isFrontOffice()` with `isFrontDeskStaff()`, stripping Ops Lead payment create; verified in `divisionIsolation.test.js` Test #7).
+4. **`DOM05-GOV-04` (High):** CLOSED (Phase 6 independent verification approved; `firestore.rules:1112, 1119-1122` allows Central Instructor Leader to get and update `/deskInquiries` cross-branch; verified in `divisionIsolation.test.js` Test #8).
 5. **`DOM01-ALIAS-01` (Medium):** CLOSED (`roles.js:34-36` maps `operational_leader` and `operationalleader` to `opslead`; `firestore.rules` and `securityRulesMatrix.helpers.js` recognize aliases).
 6. **`DOM09-GOV-04` (Medium):** CLOSED (`approvalGates.js:53-74` routes non-manager staff shift corrections at satellite branches to `manager`; 34/34 `approvalGates.test.js` pass).
 7. **`DOM09-GOV-06` / `SL5-LEAD-01` (Low):** CLOSED (Resolved via existing `ReportsDashboard.jsx` province-wide view + `DOM05-GOV-04` ticket update rules).
 8. **`DOM06-GOV-02` (Low):** CLOSED (`ClassesAndCoverageTab.jsx` normalizes `opslead` and passes `hasBranchOpsLead`; `AvailableBatches.jsx:49-56` gates `canAdminister` when Ops Lead is active).
+
+### Slice 6 Findings Status (Remediated in Phase 5):
+1. **`DOM05-PRIV-04` / `SL6-FAC-01` (Tier 1 High):** PENDING INDEPENDENT VERIFICATION (`firestore.rules` helper `isNonFacilityStaff()` introduced to decouple `'officeboy'` and `'cleaner'` from `/users`, `/classes`, and `/attendance` read access while preserving own `/shifts`, own `/users/{uid}`, and `/todos`; mirrored in `securityRulesMatrix.helpers.js`; 181/181 security rules matrix tests pass including new Section 3.3 Facilities Isolation suite; awaiting independent Phase 6 sign-off).
+2. **`DOM14-GOV-01` / `SL6-MKT-01` (Tier 2 Medium):** CLOSED (`MarketingDashboard.jsx` locks `activeDivision = "courses"`, filters out `d.division === "kindergarten"` from application and desk inquiry listeners, and strips division toggle; `firestore.rules:171-181` and `securityRulesMatrix.helpers.js:174-182` strictly deny kindergarten access to `marketing` regardless of `uDiv`; `inviteSchema.js`, `InvitesPanel.jsx`, and `ApprovalInbox.jsx` constrain marketing to `courses`; 42/42 `schemas.test.js` and `divisionIsolation.test.js:Section 3.1` tests pass).
+3. **`SL6-STU-01` / `OD-STU-4` (Tier 3 Info / UX):** CLOSED (Owner Decision `OD-STU-4` Option A ratified by Owner Kifry on 2026-10-16; dead `<a href="/portal">` link removed in `src/App.jsx:657-663` while preserving informational kiosk notice and Sign Out button; build and lint clean).
+
 
 
 

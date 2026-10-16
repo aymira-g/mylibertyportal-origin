@@ -20,6 +20,7 @@ import {
   canGetClassAttendance,
   canCreatePayment,
   canGetDeskInquiry,
+  canListDeskInquiries,
   canUpdateDeskInquiry,
 } from "./securityRulesMatrix.helpers.js";
 
@@ -943,22 +944,63 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
       branchId: "kota_gorontalo",
     };
 
+    const marketingAllGorontalo = {
+      uid: "mkt_all_gtlo",
+      role: "marketing",
+      branchId: "kota_gorontalo",
+      division: "all",
+    };
+
+    const marketingKidsGorontalo = {
+      uid: "mkt_kids_gtlo",
+      role: "marketing",
+      branchId: "kota_gorontalo",
+      division: "kindergarten",
+    };
+
     const appKidsGtlo = { id: "a_k_gtlo", branchId: "kota_gorontalo", division: "kindergarten" };
     const appCoursesGtlo = { id: "a_c_gtlo", branchId: "kota_gorontalo", division: "courses" };
+    const inqKidsGtlo = { id: "inq_k_gtlo", branchId: "kota_gorontalo", division: "kindergarten" };
+    const inqCoursesGtlo = { id: "inq_c_gtlo", branchId: "kota_gorontalo", division: "courses" };
 
-    it("allows Course Marketing to access same-branch course applications", () => {
+    it("allows Course Marketing to access same-branch course applications and desk inquiries", () => {
       expect(canGetApplication(appCoursesGtlo, marketingCourseGorontalo)).toBe(true);
       expect(canListApplications(appCoursesGtlo, marketingCourseGorontalo)).toBe(true);
+      expect(canGetDeskInquiry(inqCoursesGtlo, marketingCourseGorontalo)).toBe(true);
+      expect(canListDeskInquiries(inqCoursesGtlo, marketingCourseGorontalo)).toBe(true);
     });
 
-    it("strictly blocks Course Marketing from reading or listing Kindergarten applications", () => {
+    it("strictly blocks Course Marketing from reading or listing Kindergarten applications and desk inquiries", () => {
       expect(canGetApplication(appKidsGtlo, marketingCourseGorontalo)).toBe(false);
       expect(canListApplications(appKidsGtlo, marketingCourseGorontalo)).toBe(false);
+      expect(canGetDeskInquiry(inqKidsGtlo, marketingCourseGorontalo)).toBe(false);
+      expect(canListDeskInquiries(inqKidsGtlo, marketingCourseGorontalo)).toBe(false);
     });
 
-    it("strictly blocks Legacy/Default Marketing from reading or listing Kindergarten applications", () => {
+    it("strictly blocks Legacy/Default Marketing from reading or listing Kindergarten applications and desk inquiries", () => {
       expect(canGetApplication(appKidsGtlo, marketingLegacyGorontalo)).toBe(false);
       expect(canListApplications(appKidsGtlo, marketingLegacyGorontalo)).toBe(false);
+      expect(canGetDeskInquiry(inqKidsGtlo, marketingLegacyGorontalo)).toBe(false);
+      expect(canListDeskInquiries(inqKidsGtlo, marketingLegacyGorontalo)).toBe(false);
+    });
+
+    it("DOM14-GOV-01: strictly blocks Marketing with division='all' or division='kindergarten' from Kindergarten applications and desk inquiries", () => {
+      // Even if assigned division 'all' or 'kindergarten' in legacy records, marketing is strictly course-only
+      expect(canGetApplication(appKidsGtlo, marketingAllGorontalo)).toBe(false);
+      expect(canListApplications(appKidsGtlo, marketingAllGorontalo)).toBe(false);
+      expect(canGetDeskInquiry(inqKidsGtlo, marketingAllGorontalo)).toBe(false);
+      expect(canListDeskInquiries(inqKidsGtlo, marketingAllGorontalo)).toBe(false);
+
+      expect(canGetApplication(appKidsGtlo, marketingKidsGorontalo)).toBe(false);
+      expect(canListApplications(appKidsGtlo, marketingKidsGorontalo)).toBe(false);
+      expect(canGetDeskInquiry(inqKidsGtlo, marketingKidsGorontalo)).toBe(false);
+      expect(canListDeskInquiries(inqKidsGtlo, marketingKidsGorontalo)).toBe(false);
+
+      // But marketing with division='all' retains access to courses
+      expect(canGetApplication(appCoursesGtlo, marketingAllGorontalo)).toBe(true);
+      expect(canListApplications(appCoursesGtlo, marketingAllGorontalo)).toBe(true);
+      expect(canGetDeskInquiry(inqCoursesGtlo, marketingAllGorontalo)).toBe(true);
+      expect(canListDeskInquiries(inqCoursesGtlo, marketingAllGorontalo)).toBe(true);
     });
   });
 
@@ -1078,6 +1120,68 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
       expect(canGetShift({ userId: "ins_other", branchId: "kota_gorontalo" }, leaderGorontalo)).toBe(false);
       expect(canListShifts({ branchId: "kota_gorontalo" }, leaderGorontalo)).toBe(false);
       expect(canGetShift({ userId: "il_gtlo", branchId: "kota_gorontalo" }, leaderGorontalo)).toBe(true);
+    });
+  });
+
+  describe("Section 3.3: Facilities Isolation (DOM05-PRIV-04 / SL6-FAC-01: officeboy & cleaner)", () => {
+    const officeboyGorontalo = {
+      uid: "ob_gtlo",
+      role: "officeboy",
+      branchId: "kota_gorontalo",
+      division: "courses",
+    };
+
+    const cleanerGorontalo = {
+      uid: "cleaner_gtlo",
+      role: "cleaner",
+      branchId: "kota_gorontalo",
+      division: "courses",
+    };
+
+    const studentUser = { id: "std_1", uid: "std_1", role: "student", branchId: "kota_gorontalo", division: "courses" };
+    const parentUser = { id: "par_1", uid: "par_1", role: "parent", branchId: "kota_gorontalo" };
+    const instructorUser = { id: "ins_1", uid: "ins_1", role: "instructor", branchId: "kota_gorontalo", division: "courses" };
+    const classDoc = { id: "cls_1", branchId: "kota_gorontalo", division: "courses" };
+    const attendanceDoc = { id: "att_1", branchId: "kota_gorontalo", division: "courses" };
+
+    it("strictly blocks officeboy and cleaner from reading /users (students, parents, instructors)", () => {
+      expect(canGetUser(studentUser, officeboyGorontalo)).toBe(false);
+      expect(canGetUser(parentUser, officeboyGorontalo)).toBe(false);
+      expect(canGetUser(instructorUser, officeboyGorontalo)).toBe(false);
+      expect(canListUsers({ role: "student", branchId: "kota_gorontalo" }, officeboyGorontalo)).toBe(false);
+      expect(canListUsers({ role: "parent", branchId: "kota_gorontalo" }, officeboyGorontalo)).toBe(false);
+      expect(canListUsers({ role: "instructor", branchId: "kota_gorontalo" }, officeboyGorontalo)).toBe(false);
+
+      expect(canGetUser(studentUser, cleanerGorontalo)).toBe(false);
+      expect(canGetUser(parentUser, cleanerGorontalo)).toBe(false);
+      expect(canGetUser(instructorUser, cleanerGorontalo)).toBe(false);
+      expect(canListUsers({ role: "student", branchId: "kota_gorontalo" }, cleanerGorontalo)).toBe(false);
+    });
+
+    it("strictly blocks officeboy and cleaner from reading /classes", () => {
+      expect(canGetClass(classDoc, officeboyGorontalo)).toBe(false);
+      expect(canListClasses({ branchId: "kota_gorontalo" }, officeboyGorontalo)).toBe(false);
+      expect(canGetClass(classDoc, cleanerGorontalo)).toBe(false);
+      expect(canListClasses({ branchId: "kota_gorontalo" }, cleanerGorontalo)).toBe(false);
+    });
+
+    it("strictly blocks officeboy and cleaner from reading /attendance", () => {
+      expect(canGetAttendance(attendanceDoc, officeboyGorontalo)).toBe(false);
+      expect(canListAttendance({ branchId: "kota_gorontalo" }, officeboyGorontalo)).toBe(false);
+      expect(canGetAttendance(attendanceDoc, cleanerGorontalo)).toBe(false);
+      expect(canListAttendance({ branchId: "kota_gorontalo" }, cleanerGorontalo)).toBe(false);
+    });
+
+    it("allows officeboy to read their own profile, their own shifts, and lists their own shifts", () => {
+      const ownProfile = { id: "ob_gtlo", uid: "ob_gtlo", role: "officeboy", branchId: "kota_gorontalo" };
+      expect(canGetUser(ownProfile, officeboyGorontalo)).toBe(true);
+
+      const ownShift = { id: "sh_1", userId: "ob_gtlo", branchId: "kota_gorontalo" };
+      const otherShift = { id: "sh_2", userId: "other_user", branchId: "kota_gorontalo" };
+      expect(canGetShift(ownShift, officeboyGorontalo)).toBe(true);
+      expect(canGetShift(otherShift, officeboyGorontalo)).toBe(false);
+      expect(canListShifts({ userId: "ob_gtlo" }, officeboyGorontalo)).toBe(true);
+      expect(canListShifts({ branchId: "kota_gorontalo" }, officeboyGorontalo)).toBe(false);
     });
   });
 });

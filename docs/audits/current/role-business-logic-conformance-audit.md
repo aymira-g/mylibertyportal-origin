@@ -1147,16 +1147,206 @@ In accordance with `AGENTS.md` **Read-Only Audit Boundaries**, execution for Sli
 
 #### 4. Audit Register & Ledger Status
 - `docs/audits/current/bug-ledger.md`:
-  - `DOM09-GOV-03` $\rightarrow$ `PENDING_INDEPENDENT_VERIFICATION` (Tier 1)
-  - `DOM01-GOV-05` $\rightarrow$ `PENDING_INDEPENDENT_VERIFICATION` (Tier 1)
-  - `DOM04-SEC-05` $\rightarrow$ `PENDING_INDEPENDENT_VERIFICATION` (Tier 1)
-  - `DOM05-GOV-04` $\rightarrow$ `PENDING_INDEPENDENT_VERIFICATION` (Tier 1)
+  - `DOM09-GOV-03` $\rightarrow$ `CLOSED` (Tier 1 — Independent Phase 6 verification approved)
+  - `DOM01-GOV-05` $\rightarrow$ `CLOSED` (Tier 1 — Independent Phase 6 verification approved)
+  - `DOM04-SEC-05` $\rightarrow$ `CLOSED` (Tier 1 — Independent Phase 6 verification approved)
+  - `DOM05-GOV-04` $\rightarrow$ `CLOSED` (Tier 1 — Independent Phase 6 verification approved)
   - `DOM01-ALIAS-01` $\rightarrow$ `CLOSED` (Tier 2)
   - `DOM09-GOV-04` $\rightarrow$ `CLOSED` (Tier 2)
   - `DOM09-GOV-06` $\rightarrow$ `CLOSED` (Tier 3)
   - `DOM06-GOV-02` $\rightarrow$ `CLOSED` (Tier 3)
 - `docs/audits/current/role-function-conformance-ledger.md`: All 20 Slice 5 testable assertions updated to `PASS` (100% clean conformance).
-- **Next Phase:** Handoff to Independent Advisor for **BLRCA Slice 5 Phase 6: Post-Fix Verification & Regression Testing**.
+- **Next Phase:** Slice 5 finalized and committed (`7536651`); transition to **BLRCA Slice 6 Read-Only Audit**.
 
+---
 
+## 9. Slice 6: Front-Line Operational, Teaching, Field, Executive Non-Financial & External Portal Roles (Phases 0–4 Read-Only Audit)
 
+### 9.1 Phase 0: Setup, Reconnaissance & Baseline Locking
+
+- **Baseline Git Commit:** `7536651` (`fix(leadership): enforce BLRCA Slice 5 division manager, ops lead, and satellite typology boundaries`).
+- **Audit Operating Mode:** **STRICT READ-ONLY AUDIT MODE** (`AGENTS.md` Read-Only Audit Boundaries). No modifications made to `src/`, `firestore.rules`, or `cloudflare-worker/`.
+- **Target Functional Scope:**
+  1. **Executive Dual-Control Non-Financial Workflows (`director` vs. `vice_director`):** Strategic Control vs. Operational Control across staff onboarding (`NEW_STAFF_ACCOUNT`), role elevation (`STAFF_ROLE_ELEVATION`), staff deactivation (`STAFF_DEACTIVATION`), Acting Director delegation (`validateDelegation`), corporate school calendar events (`corporateEvents`), and cross-branch visibility vs. operational execution boundaries.
+  2. **Front Office (`frontoffice` — Courses, Kindergarten & Main Campus Cross-Division Desk):** Walk-in inquiries & placement tests (`PLACEMENT_LEVEL_OVERRIDE`), student registration & cohort enrollment/transfers (`STUDENT_CLASS_TRANSFER`), kiosk QR attendance & staff shift clock-in/out, and staff status/leave maker-checker rules (`getStaffStatusApprover`).
+  3. **Teaching Instructors (`instructor` — Courses & Kindergarten):** Assigned class scope (`instructorId` / `substituteInstructorId`), daily class attendance marking (same-day vs. `RETROACTIVE_STUDENT_ATTENDANCE` gate), academic progress report authoring, and strict isolation from peer classes, financial data, and unscheduled student PII.
+  4. **Marketing (`marketing`) & Facilities / Office Boy (`officeboy` / `cleaner`):** School outreach (`schools`, `outreachVisits`), course admissions/inquiries access, Kindergarten shielding (`division != 'kindergarten'`), facilities checklists, maintenance/cleaning tasks, own shift/directive visibility, and data isolation from student/parent PII and financial records.
+  5. **External Portals (`student` & `parent`):** Own-record / linked-child isolation (`isParentOf`), read-only schedule/attendance/progress/tuition status, self-profile edit whitelist, and zero access to internal staff collections (`todos`, `corporateEvents`, `shifts`, `approvals`, `deskInquiries`).
+
+---
+
+### 9.2 Phase 1: Expected Role Contracts & Authority Boundaries
+
+The governance, authority, and behavioral boundaries for these roles are defined canonically in **Blueprint v3.4 §0, §4, §5, §5.0.1, §5.4, §6.8, §6.10, §6.11, §7, §26 (Principles 15 & 16, G-004, G-006, G-007, G-008, G-012)**:
+
+1. **Executive Dual-Control Model (Blueprint §0, §5.4, Principles 15 & 16, G-004):**
+   - **Director — Strategic Control:** Strategic direction, province-wide strategic performance assessment, major executive decisions. Holds exclusive approval authority over `STAFF_ROLE_ELEVATION` and `STAFF_DEACTIVATION`.
+   - **Vice Director — Operational Control:** Multi-branch operational execution, coordination, exception follow-up. Acts as maker/escalation for `STAFF_DEACTIVATION`, but cannot self-approve. Holds dual authority with Director over `NEW_STAFF_ACCOUNT`. Cannot elevate staff roles.
+   - **Principle 16 (Visibility vs Execution):** Broad cross-branch visibility required for executive oversight does NOT confer operational execution authority. Operational data mutations (class rosters, student scans, progress reports) remain owned by front-line domain actors.
+   - **Governed Acting Director Delegation:** When Director is on active approved leave, Vice Director may act on delegated matters per `validateDelegation`, but self-elevation and authority tampering remain strictly forbidden.
+
+2. **Front Office / Reception Desk (Blueprint §5.1, §6.8, §6.10):**
+   - **Walk-In Inquiries & Placement Overrides:** Front Office intakes prospects. Graded level assignment requires either assessment scoring rubric or an approved `PLACEMENT_LEVEL_OVERRIDE` ticket decided by the Central Academic Lead (`instructorleader`). Front Office cannot self-assign placement levels.
+   - **Cohort Enrollments & Transfers:** Front desk enrols students into open batches. Cohort transfers require an approved `STUDENT_CLASS_TRANSFER` envelope decided by the Division Manager (`manager`).
+   - **Kiosk Scans & Shifts:** Front desk manages reception station kiosk for real-time student check-in and staff shift clock-in/out. Cannot forge retroactive scans.
+   - **Staff Status / Leave Maker Separation:** Front desk staff may submit shift self-corrections or leave requests, but maker can never be the subject or approver of their own status ticket.
+
+3. **Teaching Instructors (Blueprint §5.2, §6.11, OD-IL-ENF3):**
+   - **Assigned Class Scope:** Instructors have read/manage authority strictly for batches where they are assigned as `instructorId` or `substituteInstructorId`. Peer classes and unscheduled students are shielded.
+   - **Daily Attendance Marking:** Instructors may mark attendance on the same day (`same-day`). Retroactive attendance backfill strictly requires an approved `RETROACTIVE_STUDENT_ATTENDANCE` envelope.
+   - **Progress Report Authoring:** Only the assigned instructor (or substitute) on the active class document may author academic evaluations for enrolled students.
+   - **Stripped Surfaces:** Instructors have zero access to student payment records, cannot export student roster CSVs, and cannot print official student ID badges.
+
+4. **Marketing & Campus Support / Facilities (Blueprint §5.0.1, §6.10):**
+   - **Course Division Marketing (§5.0.1):** Under Course Division Manager at Cabang Utama. Conducts school outreach, visits, and course inquiries. Kindergarten PAUD is non-commercial and strictly shielded from marketing campaigns.
+   - **Office Boy / Facilities Support (§6.10):** Provides physical branch maintenance, classroom setups, cleaning, and operational support. Does not receive management, financial, academic, or system-administration authority. Zero access to student/parent PII, class rosters, or attendance collections.
+
+5. **External Portals (Student & Parent) (Blueprint §5.1, Parent+Student Roster Model v2):**
+   - **Parent Portal:** Authenticated parents view their linked children (`isParentOf`), class schedules, attendance history, and denormalized tuition status. Zero access to internal staff collections (`todos`, `corporateEvents`, `shifts`, `approvals`, `deskInquiries`).
+   - **Self-Profile Whitelist:** Profile updates by end-users strictly whitelisted to `displayName`, `phone`, `dob`, `photoURL`, `nickname`.
+   - **Student Account:** Students check in via physical kiosk QR; internal administrative workflows remain inaccessible.
+
+---
+
+### 9.3 Phase 2: Feature Surface Inventory & Testable Scenarios
+
+The audit team systematically traced 20 testable operational scenarios across dashboards, repositories, and security rules:
+
+| ID | Surface / Role | Workflow / Feature | Verification Target |
+|---|---|---|---|
+| `SL6-01` | `director` | Strategic Control: Staff Role Elevation | `firestore.rules:342-358`, `approvalGates.constants.js:150` |
+| `SL6-02` | `director` | Strategic Control: Staff Deactivation / Termination | `firestore.rules:360-376`, `approvalGates.constants.js:158` |
+| `SL6-03` | `vice_director` | Operational Control: Staff Deactivation Maker | `StaffDirectory.jsx:154-184`, `approvalGates.js:37` |
+| `SL6-04` | `director` & `vice_director` | Executive Non-Financial: New Staff Onboarding | `firestore.rules:325-334`, `approvalGates.js:16` |
+| `SL6-05` | `vice_director` | Executive Delegation: Acting Director Mode | `approvalsRepository.js:295-340` (`validateDelegation`) |
+| `SL6-06` | `director` & `vice_director` | Corporate School Calendar Events | `firestore.rules:921-955` (`corporateEvents`) |
+| `SL6-07` | `director` & `vice_director` | Cross-Branch Visibility vs Operational Mutation | `ExecutiveDashboard.jsx`, `ViceDirectorDashboard.jsx` |
+| `SL6-08` | `frontoffice` | Desk Inquiries & Placement Level Overrides | `firestore.rules:1116-1120`, `WalkInInquiryTab.jsx:128-145` |
+| `SL6-09` | `frontoffice` | Student Cohort Transfer | `StudentRoster.jsx`, `FrontOfficeDashboard.jsx` |
+| `SL6-10` | `frontoffice` | Kiosk QR Attendance & Staff Shift Scans | `StandaloneKioskPage.jsx`, `firestore.rules:902-918, 1275-1285` |
+| `SL6-11` | `frontoffice` | Staff Status & Leave Maker Separation | `approvalGates.js:46-51` (`getStaffStatusApprover`) |
+| `SL6-12` | `instructor` | Teaching Class & Student Scope Isolation | `firestore.rules:849-852, 857-860`, `InstructorDashboard.jsx` |
+| `SL6-13` | `instructor` | Daily Class Attendance Marking | `firestore.rules:1007-1026`, `InstructorAttendanceView.jsx:130` |
+| `SL6-14` | `instructor` | Progress Report Authoring | `firestore.rules:1207-1214`, `StudentProgressForm.jsx` |
+| `SL6-15` | `instructor` | ID Badges, CSV Exports & Payments Shielding | `InstructorClasses.jsx:286`, `StudentRoster.jsx:533`, `firestore.rules:1041` |
+| `SL6-16` | `marketing` | School Outreach & Course Admissions | `MarketingDashboard.jsx:422-443`, `firestore.rules:1338-1382` |
+| `SL6-17` | `officeboy` | Campus Facilities Support & Data Shielding | `OfficeBoyDashboard.jsx`, `firestore.rules:63, 735, 745, 848, 856, 898-901` |
+| `SL6-18` | `parent` | Linked Child Data Isolation | `ParentDashboard.jsx`, `parentPortalRepository.js:78-183`, `firestore.rules:741, 854` |
+| `SL6-19` | `parent` & `student` | Profile Details Self-Update Whitelist | `firestore.rules:717-720`, `ProfilePanel.jsx:63`, `authRepository.js` |
+| `SL6-20` | `student` | Student Account Routing & Portal Boundary | `App.jsx:659`, `ParentPortalPage.jsx:260` |
+
+---
+
+### 9.4 Phase 3: Evidence Assembly & Conformance Analysis
+
+#### 1. Executive Dual-Control Non-Financial Workflows (`director` vs `vice_director`)
+- **Staff Onboarding (`NEW_STAFF_ACCOUNT`):** In `firestore.rules:325-334` and `approvalGates.js:16`, both Director and Vice Director hold dual-control approval authority. Either executive may approve a pending onboarding request, satisfying Blueprint G-004 operational agility.
+- **Role Elevation (`STAFF_ROLE_ELEVATION`):** In `firestore.rules:342-358`, the rule strictly restricts decision to `isDirector()`. Vice Director cannot approve role elevations. Conforms 100% with Strategic Control.
+- **Staff Deactivation (`STAFF_DEACTIVATION`):** In `firestore.rules:360-376`, approval is strictly reserved for `isDirector()`. In `StaffDirectory.jsx:154-184`, the Vice Director is wired as a maker who can initiate deactivation proposals, but cannot self-approve. Conforms 100% with Maker-Checker separation.
+- **Acting Director Delegation:** In `src/features/shared/approvalsRepository.js:295-340` (`validateDelegation`), the Vice Director's acting authority is gated behind an active, approved Director leave ticket. Crucially, lines 315-325 explicitly block Acting Director from approving their own requests, elevating roles, or tampering with authority. Conforms 100%.
+- **Corporate Calendar Events (`corporateEvents`):** In `firestore.rules:921-955`, company-wide events (`audienceType != 'branch'`) require executive authority (`isDirector() || isViceDirector()`), while branch events are branch-isolated. Conforms 100%.
+- **Cross-Branch Visibility vs Operational Mutation:** `ExecutiveDashboard.jsx` and `ViceDirectorDashboard.jsx` provide read-only strategic and operational intelligence. Raw mutations (student enrollment, class roster editing, daily attendance marking) are not exposed to executives, enforcing Principle 16.
+
+#### 2. Front Office Operations (`frontoffice` — Courses, Kindergarten & Main Campus Desk)
+- **Walk-In Inquiries & Placement Overrides:** In `firestore.rules:1116-1120`, creating an inquiry with a graded academic level is forbidden unless assessed via rubric or backed by an approved `PLACEMENT_LEVEL_OVERRIDE` envelope. In `WalkInInquiryTab.jsx:128-145`, Front Office staff can log walk-in inquiries and request placement level overrides, which route strictly to the Central Academic Lead (`instructorleader`).
+- **Student Cohort Transfers:** In `StudentRoster.jsx` and `FrontOfficeDashboard.jsx`, cohort transfers route through the `STUDENT_CLASS_TRANSFER` gate decided by the Division Manager. Front desk cannot execute unapproved class switches.
+- **Kiosk Attendance & Staff Shifts:** In `StandaloneKioskPage.jsx`, real-time QR attendance check-in for students and clock-in/out for staff operate smoothly. In `firestore.rules:902-918` and `1275-1285`, creation requires real-time scans; retroactive attendance backfill is blocked without an approved envelope.
+- **Staff Status / Leave Maker Rules:** In `src/features/shared/approvalGates.js:46-51` (`getStaffStatusApprover`), front desk staff submitting shift corrections or leave requests route to operational supervisors. The maker can never be the subject or approver of their own status ticket.
+
+#### 3. Teaching Instructors (`instructor` — Courses & Kindergarten)
+- **Assigned Class Isolation:** In `firestore.rules:849-852, 857-860`, an instructor's read access to `/classes/{classId}` is strictly restricted to classes where `instructorId == request.auth.uid` or `substituteInstructorId == request.auth.uid`. In `InstructorDashboard.jsx` and `useInstructorRoster.js`, teachers only see their own active cohorts.
+- **Daily Class Attendance Marking:** In `firestore.rules:1007-1026`, attendance marks require `attendanceDateTs` matching the current day. Retroactive marks strictly require an approved `RETROACTIVE_STUDENT_ATTENDANCE` ticket naming the exact class, student, and date.
+- **Progress Report Authoring:** In `firestore.rules:1207-1214`, creating a progress report requires the author (`instructorId`) to match `request.auth.uid`, the class document's assigned instructor/substitute, and the student to be in `class.studentIds`.
+- **Privilege & Data Protections:** Teaching instructors are completely stripped of ID badge printing (`DOM05-PRIV-03` / closed), institutional CSV exports (`DOM11-PRIV-01` / closed), student roster exports (`DOM05-PRIV-01` / closed), and payments read (`firestore.rules:1041`).
+
+#### 4. Marketing & Campus Support / Facilities (Findings Identified)
+- **Marketing (`marketing`):**
+  - School outreach (`schools`, `outreachVisits` in `firestore.rules:1338-1382`) operates within branch scope.
+  - ⚠️ **Defect `DOM14-GOV-01` / `SL6-MKT-01` (Medium):** In `MarketingDashboard.jsx:422-443`, when a marketing user has `profileDivision === "all"`, the UI renders a division toggle permitting the Marketing Representative to switch to `"kindergarten"`, mounting `<WalkInInquiryTab division="kindergarten" />`. This violates Blueprint v3.4 §5.0.1, which establishes that marketing is strictly a Course Division function (`Course Division Marketing`) and that Kindergarten PAUD is non-commercial and shielded from marketing campaigns.
+- **Campus Support / Facilities (`officeboy` / `cleaner`):**
+  - In `OfficeBoyDashboard.jsx`, general operations staff only see assigned directives via `useStaffDirectives("officeboy")`.
+  - ⚠️ **Defect `DOM05-PRIV-04` / `SL6-FAC-01` (High):** In `firestore.rules:63`, the helper `isStaff()` bundles `'officeboy'`. Because `isStaff()` is used directly in read rules:
+    - `/users/{userId}` (lines 735, 745): An `officeboy` account can list and get all student, parent, and instructor profiles in their branch.
+    - `/classes/{classId}` (lines 848, 856): An `officeboy` account can list and get all classes in their branch, exposing courses, student enrollment IDs, and teacher assignments.
+    - `/attendance/{attendanceId}` (lines 898-901): An `officeboy` account can list and get all daily student attendance records in their branch.
+    This directly violates Blueprint §6.10 ("Office Boy / Facilities provides physical branch maintenance and operational support; does not receive management, financial, academic, or system-administration authority") and user data protection requirements.
+
+#### 5. External Portals (`student` & `parent`)
+- **Parent Portal Isolation:** In `ParentDashboard.jsx` and `parentPortalRepository.js:78-183`, an authenticated parent only receives data for linked children verified via `childStudentIds` and `isParentOf`. Tuition summary is read directly from denormalized fields on the student document (`buildPaymentSummary`). Parents have zero read access to internal staff collections (`todos`, `corporateEvents`, `shifts`, `approvals`, `deskInquiries`).
+- **Profile Details Self-Update Whitelist:** In `firestore.rules:717-720`, end-user profile updates are strictly whitelisted to `['displayName', 'phone', 'dob', 'photoURL', 'nickname']`. In `ProfilePanel.jsx:63` and `authRepository.js`, `updateProfileDetails` only submits name, phone, and DOB. Security rules reject any attempted mutation of `role`, `status`, `branchId`, `division`, `childStudentIds`, or `paymentStatus`.
+- **Student Account Routing Gap (`SL6-STU-01`):** In `App.jsx:659`, the Student Account card renders a link: `<a href="/portal">Go to Parent & Student Portal</a>`. However, `ParentPortalPage.jsx:260` strictly restricts `/portal` to `role === "parent"`, displaying an "Access Restricted" screen to authenticated students. While student attendance is recorded via physical kiosk QR, students currently have no standalone dashboard to view their own enrolled classes or attendance.
+
+---
+
+### 9.5 Phase 4: Defect Classification, Remediation Roadmap & Strict Stop
+
+#### 1. Classified Findings
+
+1. **`DOM05-PRIV-04` / `SL6-FAC-01` — High (Security & Privacy Vulnerability / Facilities Over-Privilege)**
+   - **Location:** `firestore.rules:63` (`isStaff()`), `firestore.rules:735, 745` (`/users`), `firestore.rules:848, 856` (`/classes`), `firestore.rules:898-901` (`/attendance`).
+   - **Evidence:** `isStaff()` bundles `'officeboy'`. While `officeboy` needs staff status for shift logging and directives (`/todos`), bundling it into `isStaff()` inadvertently exposes all branch `/users` (students, parents, teachers), `/classes` (student IDs, schedules), and `/attendance` (student check-ins) to direct client queries.
+   - **Why It Matters:** Violates Blueprint §6.10 and Principle 14. Facilities staff have no legitimate operational need to inspect student PII, parent contact numbers, class enrollments, or daily attendance records.
+   - **Direction:** In `firestore.rules`, decouple `isStaff()` so that read rules for `/users`, `/classes`, and `/attendance` require operational/academic staff roles (`isFrontOffice() || isManager() || hasRole('instructor') || isInstructorLeader()`), excluding `officeboy` and `cleaner`.
+   - **Owner Decision Required:** No (Directly enforces Blueprint §6.10).
+   - **Blocking Status:** Must fix before completion.
+
+2. **`DOM14-GOV-01` / `SL6-MKT-01` — Medium (Governance Conflict & Privacy / Marketing Kindergarten Access)**
+   - **Location:** `src/features/dashboard/MarketingDashboard.jsx:422-443`.
+   - **Evidence:** When a marketing user has `profileDivision === "all"`, `MarketingDashboard.jsx` renders a division toggle allowing the user to select `"kindergarten"`, rendering `<WalkInInquiryTab branch={branch} role="marketing" division="kindergarten" />`.
+   - **Why It Matters:** Blueprint v3.4 §5.0.1 explicitly specifies that marketing is a Course Division function (`Course Division Marketing`) and that Kindergarten PAUD is non-commercial, community-based, and shielded from marketing campaigns.
+   - **Direction:** In `MarketingDashboard.jsx:422-443`, remove the division switcher (or lock `divisionFilter` strictly to `"courses"`), ensuring marketing staff only view and log Course Division admissions leads.
+   - **Owner Decision Required:** No (Directly enforces Blueprint §5.0.1).
+   - **Blocking Status:** Must fix before completion.
+
+3. **`SL6-STU-01` — Info / Gap (Governance & UX Alignment / Student Portal Dead Link)**
+   - **Location:** `src/App.jsx:658-663`, `src/features/students/ParentPortalPage.jsx:260`.
+   - **Evidence:** `App.jsx:659` provides a button linking to `/portal` ("Go to Parent & Student Portal"). When clicked by a student, `ParentPortalPage.jsx:260` checks `normalizeRole(userRole) !== "parent"` and renders an "Access Restricted" screen.
+   - **Why It Matters:** Confuses student users who are told they can view their portal but are immediately blocked.
+   - **Direction:** Either update `ParentPortalPage.jsx` to render a read-only student view (showing their own enrolled classes and attendance), or update `App.jsx:658-663` to remove the `/portal` link and explain that student progress is monitored via parents.
+   - **Owner Decision Required:** Yes (`[Owner Decision Required: Student Self-Service Portal Scope]`).
+
+---
+
+### 9.6 Phase 4 Boundary Sign-Off & Strict Stop
+
+In accordance with `AGENTS.md` **Read-Only Audit Boundaries**, execution for Slice 6 strictly halted at the Phase 4 boundary prior to owner authorization.
+- **Zero Production Modifications:** No modifications were made prior to owner authorization.
+- **Registers Updated:** All findings were formally indexed in `docs/audits/current/bug-ledger.md` (as `OPEN`) and `docs/audits/current/role-function-conformance-ledger.md`.
+- **Authorization:** Owner Kifry reviewed findings `DOM05-PRIV-04` and `DOM14-GOV-01`, ratified Option A for `SL6-STU-01` (`OD-STU-4`), and formally authorized Phase 5 Remediation on 2026-10-16.
+
+---
+
+### 9.7 Phase 5 Remediation Execution & Verification (Phase 5 Completion)
+
+**Execution Date:** 2026-10-16  
+**Auditor / Agent:** Primary Coding Agent, authorized by Owner Kifry  
+**Approved Strategy Plan:** [`docs/plans/active/2026-10-16-blrca-slice6-frontline-field-and-portals-remediation.md`](../../plans/active/2026-10-16-blrca-slice6-frontline-field-and-portals-remediation.md)  
+**Ratified Owner Decision:** `OD-STU-4` (Option A — Clean informational card for students, dead link removed; ratified 2026-10-16).
+
+#### 1. Executed Remediations & Architecturally Guarded Fixes
+
+1. **Fix 1: Facilities Privacy Isolation (`DOM05-PRIV-04` / `SL6-FAC-01` — Tier 1 HIGH — PENDING INDEPENDENT VERIFICATION)**
+   - **Architectural Guardrail Adhered To:** Preserved `marketing` and `admin` `/classes` reads intact so `MarketingDashboard.jsx:414` can display open batch seats in `<AvailableBatches />` and `admin` can view classes in their branch (`divisionIsolation.test.js:842`).
+   - **Rules & Helper Refactoring:** In `firestore.rules:64`, introduced helper `isNonFacilityStaff()` defined as `isStaff() && !(userProfile().role in ['officeboy', 'cleaner'])`.
+   - Updated read clauses on `/users/{userId}` (lines 735, 745), `/classes/{classId}` (lines 848, 856), and `/attendance/{attendanceId}` (lines 907, 910) to require `isNonFacilityStaff()`.
+   - Mirrored changes in `src/features/shared/securityRulesMatrix/securityRulesMatrix.helpers.js` (`isNonFacilityStaff`, `canGetUser`, `canListUsers`, `canGetClass`, `canListClasses`, `canGetAttendance`, `canListAttendance`).
+   - Facilities staff (`officeboy` / `cleaner`) retain access to their own `/users/{uid}` profile (`userId == request.auth.uid`), their own `/shifts` (`resource.data.userId == request.auth.uid`), and same-branch or academy-wide `/todos` directives for daily cleaning and maintenance.
+   - Verified by new Section 3.3 in `divisionIsolation.test.js` (181 passed tests in `securityRulesMatrix`). Marked `PENDING_INDEPENDENT_VERIFICATION` in `bug-ledger.md` per `AGENTS.md`.
+
+2. **Fix 2: Marketing Kindergarten Shielding (`DOM14-GOV-01` / `SL6-MKT-01` — Tier 2 MEDIUM — CLOSED)**
+   - **Architectural Guardrail Adhered To:** Even if a legacy marketing account has `division: "all"` or `division: "kindergarten"`, marketing belongs exclusively to the Course Division (Blueprint v3.4 §5.0.1) and must NEVER read or write Kindergarten records.
+   - **Rules & Helper Hardening:** In `firestore.rules:171-181` and `securityRulesMatrix.helpers.js:174-182`, updated `isDivisionAllowedForBranchStaff` so that when `role == 'marketing'`, `uDiv == 'all'` and `uDiv == 'kindergarten'` do NOT grant Kindergarten access (evaluating strictly `(!('division' in data) || data.division != 'kindergarten')`).
+   - **Dashboard Hardening:** In `src/features/dashboard/MarketingDashboard.jsx`, removed the `profileDivision === "all"` division switcher, locked `activeDivision` strictly to `"courses"`, and filtered out `d.division === "kindergarten"` from `unsubApplications` and `unsubDeskInquiries` snapshot listeners so Kindergarten records never enter marketing state.
+   - **Schema & Invite Panels:** In `src/schemas/inviteSchema.js`, added `.refine()` validation requiring `role === "marketing"` to have `division === "courses"`. Updated `src/features/staff/InvitesPanel.jsx` and `src/features/shared/ApprovalInbox.jsx` to lock marketing to `courses`.
+   - Verified by Section 3.1 in `divisionIsolation.test.js` and 42/42 tests in `src/schemas/schemas.test.js`.
+
+3. **Fix 3: Student Account Card Cleanup (`SL6-STU-01` / `OD-STU-4` — Tier 3 INFO/UX — CLOSED)**
+   - Per ratified Owner Decision `OD-STU-4` **Option A**, removed the dead `<a href="/portal">Go to Parent & Student Portal</a>` button from `src/App.jsx:657-663` on the `effectiveRole === "student"` account card, preserving the informational kiosk notice and the `Sign Out` button.
+   - Recorded canonical decision record at `docs/decisions/2026-10-16-student-portal-scope-and-account-routing.md`.
+
+#### 2. Verification Summary
+- **Vitest Full Suite:** 107 test files passed (1,467 passed tests, 139 skipped emulator tests, 0 failed).
+- **TypeScript Typecheck:** `npm run typecheck` passed cleanly (0 errors).
+- **ESLint:** `npm run lint` passed cleanly (0 errors, 0 warnings).
+- **Vite Production Build:** `npm run build` passed cleanly in 3.83s.
+- **Handoff:** Ready for independent Phase 6 verification sign-off by the Independent Advisor.

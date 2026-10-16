@@ -115,6 +115,14 @@ export function isStaff(user) {
   );
 }
 
+export function isNonFacilityStaff(user) {
+  return Boolean(
+    isStaff(user) &&
+      user &&
+      !("role" in user && ["officeboy", "cleaner"].includes(user.role))
+  );
+}
+
 export function isParent(user) {
   return Boolean(
     user &&
@@ -174,13 +182,20 @@ export function isSameDivisionStrict(data, user) {
 }
 
 export function isDivisionAllowedForBranchStaff(data, user) {
-  return (
-    !(isManager(user) || isFrontOffice(user) || (user && user.role === "marketing")) ||
-    (userDivision(user) === "all" && !isManager(user)) ||
-    (userDivision(user) === "kindergarten"
-      ? isSameDivisionStrict(data, user)
-      : !("division" in data) || data.division !== "kindergarten")
-  );
+  const role = user && "role" in user ? user.role : "";
+  const isStaffRole = isManager(user) || isFrontOffice(user) || role === "marketing";
+  if (!isStaffRole) return true;
+
+  if (role === "marketing") {
+    return !data || !("division" in data) || data.division !== "kindergarten";
+  }
+
+  const uDiv = userDivision(user);
+  if (uDiv === "all" && !isManager(user)) return true;
+  if (uDiv === "kindergarten") {
+    return isSameDivisionStrict(data, user);
+  }
+  return !data || !("division" in data) || data.division !== "kindergarten";
 }
 
 export function isDivisionAllowedForManager(data, user) {
@@ -277,7 +292,7 @@ export function canDeleteUser(existing, user) {
 export function canGetClass(doc, user) {
   if (!user) return false;
   if (isOrgExecutive(user)) return true;
-  if (isStaff(user) && isSameBranch(doc, user) && isDivisionAllowedForManager(doc, user)) return true;
+  if (isNonFacilityStaff(user) && isSameBranch(doc, user) && isDivisionAllowedForManager(doc, user)) return true;
   if (
     isStaff(user) &&
     (doc.instructorId === user.uid ||
@@ -299,7 +314,7 @@ export function canGetClass(doc, user) {
 export function canListClasses(queryData, user) {
   if (!user) return false;
   if (isOrgExecutive(user)) return true;
-  if (isStaff(user) && isSameBranchStrict(queryData, user) && isDivisionAllowedForManager(queryData, user))
+  if (isNonFacilityStaff(user) && isSameBranchStrict(queryData, user) && isDivisionAllowedForManager(queryData, user))
     return true;
   if (
     isStaff(user) &&
@@ -441,7 +456,7 @@ export function canGetUser(doc, user) {
   )
     return true;
   if (
-    isStaff(user) &&
+    isNonFacilityStaff(user) &&
     ["student", "instructor", "instructorleader", "instructor_leader", "parent"].includes(doc.role) &&
     isSameBranch(doc, user) &&
     (doc.role === "parent" || isDivisionAllowedForBranchStaff(doc, user))
@@ -468,7 +483,7 @@ export function canListUsers(queryData, user) {
   )
     return true;
   if (
-    isStaff(user) &&
+    isNonFacilityStaff(user) &&
     ["student", "instructor", "instructorleader", "instructor_leader", "parent"].includes(queryData.role) &&
     isSameBranchStrict(queryData, user) &&
     (queryData.role === "parent" || isDivisionAllowedForBranchStaff(queryData, user))
@@ -696,14 +711,14 @@ export function canCreatePayment(data, user, approvalDoc = null) {
 export function canGetAttendance(doc, user) {
   if (!user) return false;
   if (isExecutive(user)) return true;
-  if (isStaff(user) && isSameBranch(doc, user) && isDivisionAllowedForBranchStaff(doc, user)) return true;
+  if (isNonFacilityStaff(user) && isSameBranch(doc, user) && isDivisionAllowedForBranchStaff(doc, user)) return true;
   return false;
 }
 
 export function canListAttendance(queryData, user) {
   if (!user) return false;
   if (isExecutive(user)) return true;
-  if (isStaff(user) && isSameBranchStrict(queryData, user) && isDivisionAllowedForBranchStaff(queryData, user)) return true;
+  if (isNonFacilityStaff(user) && isSameBranchStrict(queryData, user) && isDivisionAllowedForBranchStaff(queryData, user)) return true;
   return false;
 }
 

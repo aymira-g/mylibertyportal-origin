@@ -654,17 +654,11 @@ function App() {
                     </p>
                   </div>
 
-                  <div className="pt-2 flex flex-col gap-2">
-                    <a
-                      href="/portal"
-                      className="w-full py-2.5 px-4 bg-[#1a3a8f] hover:bg-[#152e73] text-white font-bold text-xs rounded-xl transition shadow-xs text-center"
-                    >
-                      Go to Parent &amp; Student Portal
-                    </a>
+                  <div className="pt-2">
                     <button
                       type="button"
                       onClick={handleLogout}
-                      className="w-full py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs rounded-xl transition text-center cursor-pointer"
+                      className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition text-center cursor-pointer"
                     >
                       Sign Out
                     </button>

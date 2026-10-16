@@ -111,5 +111,18 @@ export const inviteSchema = z
       message: "Operational Leader and Instructor Leader roles exist only at Main Campus (Kota Gorontalo) per Authoritative Blueprint v3.4 §4, §5, G-012.",
       path: ["role"],
     }
+  )
+  .refine(
+    (data) => {
+      // Marketing belongs strictly to the Course Division (Blueprint v3.4 §5.0.1)
+      if (data.role === "marketing" && data.division !== "courses") {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "Marketing staff must be assigned to courses division per Authoritative Blueprint v3.4 §5.0.1.",
+      path: ["division"],
+    }
   );
 

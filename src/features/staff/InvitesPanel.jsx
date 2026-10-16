@@ -124,6 +124,8 @@ export default function InvitesPanel({ invites = [], users = [], onCreateInvite,
       setInviteDivision("all");
     } else if (newRole === "manager" && inviteDivision === "all") {
       setInviteDivision("courses");
+    } else if (newRole === "marketing") {
+      setInviteDivision("courses");
     }
   };
 
@@ -231,6 +233,11 @@ export default function InvitesPanel({ invites = [], users = [], onCreateInvite,
               <div className="w-full py-2.5 px-3 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-500 flex items-center justify-between">
                 <span>Facility (Division-Independent)</span>
                 <span className="text-[10px] text-slate-400 font-mono">null</span>
+              </div>
+            ) : inviteRole === "marketing" ? (
+              <div className="w-full py-2.5 px-3 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 flex items-center justify-between">
+                <span>Course Academy</span>
+                <span className="text-[10px] text-slate-400 font-mono">courses</span>
               </div>
             ) : (
               <select

@@ -63,6 +63,11 @@ service cloud.firestore {
         && p.role in ['director', 'vice_director', 'admin', 'manager', 'instructor', 'instructorleader', 'instructor_leader', 'marketing', 'frontoffice', 'opslead', 'ops_lead', 'operational_leader', 'operationalleader', 'frontofficelead', 'officeboy'];
     }
 
+    function isNonFacilityStaff() {
+      let p = userProfile();
+      return isStaff() && !(p.role in ['officeboy', 'cleaner']);
+    }
+
     function isFrontOffice() {
       let p = userProfile();
       return signedIn()
@@ -174,10 +179,14 @@ service cloud.firestore {
       let isStaffRole = role in ['manager', 'frontoffice', 'opslead', 'ops_lead', 'operational_leader', 'operationalleader', 'frontofficelead', 'marketing'];
       let uDiv = userDivision();
       return !isStaffRole
-        || (uDiv == 'all' && role != 'manager')
-        || (uDiv == 'kindergarten'
-          ? (data != null && 'division' in data && data.division == 'kindergarten')
-          : (!('division' in data) || data.division != 'kindergarten'));
+        || (role == 'marketing'
+          ? (!('division' in data) || data.division != 'kindergarten')
+          : (
+            (uDiv == 'all' && role != 'manager')
+            || (uDiv == 'kindergarten'
+              ? (data != null && 'division' in data && data.division == 'kindergarten')
+              : (!('division' in data) || data.division != 'kindergarten'))
+          ));
     }
 
     function isDivisionAllowedForManager(data) {
@@ -732,7 +741,7 @@ service cloud.firestore {
         // Keep in sync with `canGetUser` in
         // src/features/shared/securityRulesMatrix/securityRulesMatrix.helpers.js.
         || ((isManager() || isOpsLead()) && isSameBranch(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)))
-        || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranch(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)))
+        || (isNonFacilityStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranch(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)))
         // Front Office requires same-branch visibility of branch-level operational staff
         // (facilities / kiosk clock-in). These roles are branch-level, not division-level, so
         // — like parents — they are exempt from the division filter. This is the only role set
@@ -742,7 +751,7 @@ service cloud.firestore {
       allow list: if isOrgExecutive()
         || (isAdmin() && (!('role' in resource.data) || !(resource.data.role in ['student', 'parent'])))
         || (isManager() && isSameBranchStrict(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)))
-        || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranchStrict(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)));
+        || (isNonFacilityStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranchStrict(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)));
       allow create: if (isOrgExecutive()
           && (
             // Student and parent accounts are ordinary intake, not a staff appointment.
@@ -845,7 +854,7 @@ service cloud.firestore {
 
     match /classes/{classId} {
       allow get: if isOrgExecutive()
-        || (isStaff() && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data))
+        || (isNonFacilityStaff() && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data))
         || (isStaff() && (
             resource.data.instructorId == request.auth.uid
             || ('substituteInstructorId' in resource.data && resource.data.substituteInstructorId == request.auth.uid)
@@ -853,7 +862,7 @@ service cloud.firestore {
         || (signedIn() && ('studentIds' in resource.data) && resource.data.studentIds.hasAny([request.auth.uid]))
         || (isParent() && isSameBranch(resource.data) && ('childStudentIds' in userProfile()) && ('studentIds' in resource.data) && resource.data.studentIds.hasAny(userProfile().childStudentIds));
       allow list: if isOrgExecutive()
-        || (isStaff() && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data))
+        || (isNonFacilityStaff() && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data))
         || (isStaff() && (
             resource.data.instructorId == request.auth.uid
             || ('substituteInstructorId' in resource.data && resource.data.substituteInstructorId == request.auth.uid)
@@ -896,9 +905,9 @@ service cloud.firestore {
     match /attendance/{attendanceId} {
       // Branch-lock attendance by default. Executives have province-wide access.
       allow get: if isOrgExecutive()
-        || (isStaff() && isSameBranch(resource.data) && isDivisionAllowedForBranchStaff(resource.data));
+        || (isNonFacilityStaff() && isSameBranch(resource.data) && isDivisionAllowedForBranchStaff(resource.data));
       allow list: if isOrgExecutive()
-        || (isStaff() && isSameBranchStrict(resource.data) && isDivisionAllowedForBranchStaff(resource.data));
+        || (isNonFacilityStaff() && isSameBranchStrict(resource.data) && isDivisionAllowedForBranchStaff(resource.data));
       // Student scans: Executives, Front Office, Instructor, and Instructor Leader; scanned person must be a student
       allow create: if (isOrgExecutive() || isFrontOffice() || hasRole('instructor') || hasRole('instructorleader') || hasRole('instructor_leader'))
         && isSameBranch(request.resource.data)

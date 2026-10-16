@@ -60,22 +60,6 @@ describe("inviteSchema", () => {
     expect(allDiv.division).toBe("all");
   });
 
-  it("allows marketing role across courses, kindergarten, and all divisions", () => {
-    const mktKids = inviteSchema.parse({
-      email: "market@myliberty.id",
-      role: "marketing",
-      division: "kindergarten",
-    });
-    expect(mktKids.division).toBe("kindergarten");
-
-    const mktAll = inviteSchema.parse({
-      email: "market-all@myliberty.id",
-      role: "marketing",
-      division: "all",
-    });
-    expect(mktAll.division).toBe("all");
-  });
-
   it("normalizes officeboy role to division = null", () => {
     const ob = inviteSchema.parse({
       email: "ob@myliberty.id",
@@ -189,6 +173,46 @@ describe("inviteSchema", () => {
       division: "all",
     });
     expect(mainOps.role).toBe("opslead");
+  });
+
+  it("DOM14-GOV-01: requires marketing invites to be assigned to courses division", () => {
+    // Valid marketing invite with explicit courses
+    const validCourseMarketing = inviteSchema.parse({
+      email: "marketing@gtlo.myliberty.id",
+      role: "marketing",
+      branch: "Kota Gorontalo",
+      division: "courses",
+    });
+    expect(validCourseMarketing.role).toBe("marketing");
+    expect(validCourseMarketing.division).toBe("courses");
+
+    // Marketing invite with omitted division defaults to courses
+    const defaultMarketing = inviteSchema.parse({
+      email: "mkt-default@gtlo.myliberty.id",
+      role: "marketing",
+      branch: "Kota Gorontalo",
+    });
+    expect(defaultMarketing.division).toBe("courses");
+
+    // Rejects marketing with kindergarten division
+    expect(() =>
+      inviteSchema.parse({
+        email: "mkt-kg@gtlo.myliberty.id",
+        role: "marketing",
+        branch: "Kota Gorontalo",
+        division: "kindergarten",
+      })
+    ).toThrow(/Marketing staff must be assigned to courses division/);
+
+    // Rejects marketing with division="all"
+    expect(() =>
+      inviteSchema.parse({
+        email: "mkt-all@gtlo.myliberty.id",
+        role: "marketing",
+        branch: "Kota Gorontalo",
+        division: "all",
+      })
+    ).toThrow(/Marketing staff must be assigned to courses division/);
   });
 });
 

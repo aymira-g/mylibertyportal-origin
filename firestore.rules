@@ -60,7 +60,7 @@ service cloud.firestore {
       return signedIn()
         && p != null
         && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'))
-        && p.role in ['director', 'vice_director', 'admin', 'manager', 'instructor', 'instructorleader', 'instructor_leader', 'marketing', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'officeboy'];
+        && p.role in ['director', 'vice_director', 'admin', 'manager', 'instructor', 'instructorleader', 'instructor_leader', 'marketing', 'frontoffice', 'opslead', 'ops_lead', 'operational_leader', 'operationalleader', 'frontofficelead', 'officeboy'];
     }
 
     function isFrontOffice() {
@@ -68,7 +68,7 @@ service cloud.firestore {
       return signedIn()
         && p != null
         && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'))
-        && p.role in ['frontoffice', 'opslead', 'ops_lead', 'frontofficelead'];
+        && p.role in ['frontoffice', 'opslead', 'ops_lead', 'operational_leader', 'operationalleader', 'frontofficelead'];
     }
 
     function isOpsLead() {
@@ -76,7 +76,7 @@ service cloud.firestore {
       return signedIn()
         && p != null
         && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'))
-        && p.role in ['opslead', 'ops_lead', 'frontofficelead'];
+        && p.role in ['opslead', 'ops_lead', 'operational_leader', 'operationalleader', 'frontofficelead'];
     }
 
     function isFrontDeskStaff() {
@@ -171,10 +171,10 @@ service cloud.firestore {
     function isDivisionAllowedForBranchStaff(data) {
       let p = userProfile();
       let role = p != null && 'role' in p ? p.role : '';
-      let isStaffRole = role in ['manager', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'marketing'];
+      let isStaffRole = role in ['manager', 'frontoffice', 'opslead', 'ops_lead', 'operational_leader', 'operationalleader', 'frontofficelead', 'marketing'];
       let uDiv = userDivision();
       return !isStaffRole
-        || (uDiv == 'all')
+        || (uDiv == 'all' && role != 'manager')
         || (uDiv == 'kindergarten'
           ? (data != null && 'division' in data && data.division == 'kindergarten')
           : (!('division' in data) || data.division != 'kindergarten'));
@@ -203,7 +203,7 @@ service cloud.firestore {
       let r = signedIn() && p != null && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated')) && ('role' in p) ? p.role : '';
       let req = request.resource.data;
       let res = resource.data;
-      let isSupervisor = r in ['director', 'vice_director', 'manager', 'opslead', 'ops_lead'];
+      let isSupervisor = r in ['director', 'vice_director', 'manager', 'opslead', 'ops_lead', 'operational_leader', 'operationalleader'];
       let isCreator = ('createdBy' in res) && res.createdBy == request.auth.uid;
       let pName = p != null && ('displayName' in p) && p.displayName is string ? p.displayName : '';
       let diffKeys = req.diff(res).affectedKeys();
@@ -823,8 +823,8 @@ service cloud.firestore {
       let isExec = r in ['director', 'vice_director'];
       let req = request.resource.data;
       let res = resource.data;
-      let isMgrOrLead = r in ['manager', 'opslead', 'ops_lead', 'frontofficelead'];
-      let isFO = r in ['frontoffice', 'opslead', 'ops_lead', 'frontofficelead'];
+      let isMgrOrLead = r in ['manager', 'opslead', 'ops_lead', 'operational_leader', 'operationalleader', 'frontofficelead'];
+      let isFO = r in ['frontoffice', 'opslead', 'ops_lead', 'operational_leader', 'operationalleader', 'frontofficelead'];
       let diffKeys = req.diff(res).affectedKeys();
 
       return isExec
@@ -978,13 +978,13 @@ service cloud.firestore {
       let sId = res != null && ('studentId' in res) ? res.studentId : '';
       let cId = res != null && ('classId' in res) ? res.classId : '';
       let isPar = r == 'parent' && (!('status' in p) || p.status == 'active');
-      let isStaffOrLeader = r in ['manager', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'instructor', 'instructorleader', 'instructor_leader'];
+      let isStaffOrLeader = r in ['manager', 'frontoffice', 'opslead', 'ops_lead', 'operational_leader', 'operationalleader', 'frontofficelead', 'instructor', 'instructorleader', 'instructor_leader'];
 
       return isExec
         || (signedIn() && sId != '' && sId == request.auth.uid)
         || (isPar && sId != '' && isParentOf(sId))
         || (isStaffOrLeader && res != null && (
-          ((r in ['manager', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead'])
+          ((r in ['manager', 'frontoffice', 'opslead', 'ops_lead', 'operational_leader', 'operationalleader', 'frontofficelead'])
             && isSameBranch(classDoc(cId))
             && isDivisionAllowedForBranchStaff(classDoc(cId)))
           || ((r in ['instructor', 'instructorleader', 'instructor_leader'])
@@ -1050,7 +1050,7 @@ service cloud.firestore {
         || (signedIn() && sId != '' && sId == request.auth.uid)
         || (isPar && sId != '' && isParentOf(sId))
         || (res != null
-          && (r in ['manager', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead'])
+          && (r in ['manager', 'frontoffice', 'opslead', 'ops_lead', 'operational_leader', 'operationalleader', 'frontofficelead'])
           && isSameBranch(res)
           && isDivisionAllowedForBranchStaff(res));
     }
@@ -1063,7 +1063,7 @@ service cloud.firestore {
         || (isParent() && isSameBranchStrict(resource.data) && ('childStudentIds' in userProfile()) && userProfile().childStudentIds.hasAny([resource.data.studentId]));
       allow create: if (
           (
-            isFrontOffice()
+            isFrontDeskStaff()
             && isSameBranch(request.resource.data)
             && isDivisionAllowedForBranchStaff(request.resource.data)
           )
@@ -1109,17 +1109,27 @@ service cloud.firestore {
     }
 
     match /deskInquiries/{inquiryId} {
-      allow get: if isOrgExecutive() || ((isManager() || isFrontOffice() || hasRole('marketing') || isInstructorLeader()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
+      allow get: if isOrgExecutive()
+        || ((isManager() || isFrontOffice() || hasRole('marketing') || isInstructorLeader()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data))
+        || (isInstructorLeader() && userBranch() == 'kota_gorontalo');
       allow list: if isOrgExecutive() || ((isManager() || isFrontOffice() || hasRole('marketing') || isInstructorLeader()) && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data));
       // Placement level authority (FO-03 / OD-IL-ENF2): A course inquiry cannot be created
       // with a graded academic level; placement levels must be assigned via an assessment score
       // rubric or an approved PLACEMENT_LEVEL_OVERRIDE envelope.
       allow create: if (isOrgExecutive() || ((isManager() || isFrontOffice() || hasRole('marketing')) && isSameBranch(request.resource.data) && isDivisionAllowedForManager(request.resource.data)))
         && (!('currentLevel' in request.resource.data) || request.resource.data.currentLevel in ['', 'unassessed'] || (('division' in request.resource.data) && request.resource.data.division == 'kindergarten'));
-      allow update: if ((isOrgExecutive() || isManager() || isFrontOffice() || hasRole('marketing') || isInstructorLeader())
-          && isSameBranch(resource.data) && isSameBranch(request.resource.data)
+      allow update: if (
+          (
+            isOrgExecutive()
+            || (
+              (isManager() || isFrontOffice() || hasRole('marketing') || isInstructorLeader())
+              && isSameBranch(resource.data) && isSameBranch(request.resource.data)
+              && isDivisionAllowedForManager(resource.data) && isDivisionAllowedForManager(request.resource.data)
+            )
+            || (isInstructorLeader() && userBranch() == 'kota_gorontalo')
+          )
           && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId)
-          && isDivisionAllowedForManager(resource.data) && isDivisionAllowedForManager(request.resource.data))
+        )
         // Placement level authority (OD-IL-ENF2). Kept last: it is the only clause here
         // that can read another document, and only when the level actually changes.
         && placementLevelAllowed(inquiryId, request.resource.data, resource.data);
@@ -1222,7 +1232,7 @@ service cloud.firestore {
         )) ||
         (!('branchId' in res) && !('branch' in res) && ub == 'kota_gorontalo')
       );
-      let isFO = r in ['frontoffice', 'opslead', 'ops_lead', 'frontofficelead'];
+      let isFO = r in ['frontoffice', 'opslead', 'ops_lead', 'operational_leader', 'operationalleader', 'frontofficelead'];
       let isMgr = r == 'manager';
       let diffKeys = req.diff(res).affectedKeys();
 

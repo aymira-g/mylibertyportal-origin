@@ -22,7 +22,7 @@ import { transferStudentBetweenClasses } from "../classes/classesRepository";
 import { todayWita } from "../../utils/dateWita";
 import { useToast } from "./useToast";
 import { useConfirm } from "./useConfirm";
-import { idToBranch, BRANCH_MAP } from "../../constants/branches";
+import { idToBranch, BRANCH_MAP, isLeanSatelliteBranch } from "../../constants/branches";
 import { checkNetworkReachability } from "../../utils/networkReachability";
 import { auth } from "../../firebase";
 import {
@@ -62,10 +62,32 @@ export function ApprovalInbox({
 
   const handleRoleChange = (id, newRole) => {
     setStaffRoleAssignments((prev) => ({ ...prev, [id]: newRole }));
+    if (newRole === "manager") {
+      setStaffDivisionAssignments((prev) => {
+        if (prev[id] === "all") {
+          return { ...prev, [id]: "courses" };
+        }
+        return prev;
+      });
+    }
   };
 
   const handleBranchChange = (id, newBranch) => {
     setStaffBranchAssignments((prev) => ({ ...prev, [id]: newBranch }));
+    if (isLeanSatelliteBranch(newBranch)) {
+      setStaffDivisionAssignments((prev) => {
+        if (prev[id] === "kindergarten" || prev[id] === "all") {
+          return { ...prev, [id]: "courses" };
+        }
+        return prev;
+      });
+      setStaffRoleAssignments((prev) => {
+        if (prev[id] === "opslead" || prev[id] === "instructorleader") {
+          return { ...prev, [id]: "instructor" };
+        }
+        return prev;
+      });
+    }
   };
 
   const handleDivisionChange = (id, newDivision) => {
@@ -168,10 +190,21 @@ export function ApprovalInbox({
     }
 
     if (approval.actionId === "NEW_STAFF_ACCOUNT" && approval.payload?.uid) {
-      const assignedRole = approval.approvedRole || staffRoleAssignments[approval.id] || "instructor";
+      let assignedRole = approval.approvedRole || staffRoleAssignments[approval.id] || "instructor";
       const assignedBranchId = approval.approvedBranchId || staffBranchAssignments[approval.id] || "kota_gorontalo";
       const assignedBranchName = idToBranch(assignedBranchId);
-      const assignedDivision = approval.approvedDivision || staffDivisionAssignments[approval.id] || "courses";
+      let assignedDivision = approval.approvedDivision || staffDivisionAssignments[approval.id] || "courses";
+
+      if (isLeanSatelliteBranch(assignedBranchId)) {
+        if (assignedDivision === "kindergarten" || assignedDivision === "all") {
+          assignedDivision = "courses";
+        }
+        if (assignedRole === "opslead" || assignedRole === "instructorleader") {
+          assignedRole = "instructor";
+        }
+      } else if (assignedRole === "manager" && assignedDivision === "all") {
+        assignedDivision = "courses";
+      }
 
       await updateStaffRecord(approval.payload.uid, {
         email: approval.payload.email || "",
@@ -333,9 +366,20 @@ export function ApprovalInbox({
     try {
       const decisionData = {};
       if (approval.actionId === "NEW_STAFF_ACCOUNT") {
-        decisionData.approvedRole = staffRoleAssignments[approval.id] || "instructor";
-        decisionData.approvedBranchId = staffBranchAssignments[approval.id] || "kota_gorontalo";
-        decisionData.approvedDivision = staffDivisionAssignments[approval.id] || "courses";
+        let role = staffRoleAssignments[approval.id] || "instructor";
+        const bId = staffBranchAssignments[approval.id] || "kota_gorontalo";
+        let div = staffDivisionAssignments[approval.id] || "courses";
+
+        if (isLeanSatelliteBranch(bId)) {
+          if (div === "kindergarten" || div === "all") div = "courses";
+          if (role === "opslead" || role === "instructorleader") role = "instructor";
+        } else if (role === "manager" && div === "all") {
+          div = "courses";
+        }
+
+        decisionData.approvedRole = role;
+        decisionData.approvedBranchId = bId;
+        decisionData.approvedDivision = div;
       }
 
       await approveApprovalRequest(approval.id, decisionData);
@@ -677,63 +721,79 @@ export function ApprovalInbox({
                   </div>
                 )}
 
-                {req.actionId === "NEW_STAFF_ACCOUNT" && (
-                  <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 space-y-2 text-xs">
-                    <div className="font-bold text-slate-800">
-                      Applicant: <span className="font-semibold text-indigo-700">{req.payload?.displayName || "Staff Member"}</span>
-                      {req.payload?.email && <span className="text-slate-500 font-normal ml-1">({req.payload.email})</span>}
-                    </div>
-                    <div className="flex flex-wrap gap-3 items-center">
+                {req.actionId === "NEW_STAFF_ACCOUNT" && (() => {
+                  const curBranchId = req.approvedBranchId || staffBranchAssignments[req.id] || "kota_gorontalo";
+                  const curRole = req.approvedRole || staffRoleAssignments[req.id] || "instructor";
+                  const curDivision = req.approvedDivision || staffDivisionAssignments[req.id] || "courses";
+                  const isSatellite = isLeanSatelliteBranch(curBranchId);
+                  const isMgr = curRole === "manager";
+
+                  return (
+                    <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 space-y-2 text-xs">
+                      <div className="font-bold text-slate-800">
+                        Applicant: <span className="font-semibold text-indigo-700">{req.payload?.displayName || "Staff Member"}</span>
+                        {req.payload?.email && <span className="text-slate-500 font-normal ml-1">({req.payload.email})</span>}
+                      </div>
+                      <div className="flex flex-wrap gap-3 items-center">
+                        <div className="flex items-center gap-1.5">
+                        <label className="font-bold text-slate-700">Assign Role:</label>
+                        <select
+                          value={curRole}
+                          disabled={activeTab === "unapplied"}
+                          onChange={(e) => handleRoleChange(req.id, e.target.value)}
+                          className="bg-white border border-slate-200 rounded-lg px-2 py-1 font-semibold text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1a3a8f] disabled:bg-slate-100"
+                        >
+                          <option value="instructor">Instructor</option>
+                          {!isSatellite && (
+                            <option value="instructorleader">Instructor Leader</option>
+                          )}
+                          {!isSatellite && (
+                            <option value="opslead">Operational Leader</option>
+                          )}
+                          <option value="frontoffice">Front Office</option>
+                          <option value="manager">Division Manager</option>
+                          <option value="marketing">Marketing</option>
+                          <option value="officeboy">Office Boy</option>
+                        </select>
+                      </div>
+
                       <div className="flex items-center gap-1.5">
-                      <label className="font-bold text-slate-700">Assign Role:</label>
-                      <select
-                        value={req.approvedRole || staffRoleAssignments[req.id] || "instructor"}
-                        disabled={activeTab === "unapplied"}
-                        onChange={(e) => handleRoleChange(req.id, e.target.value)}
-                        className="bg-white border border-slate-200 rounded-lg px-2 py-1 font-semibold text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1a3a8f] disabled:bg-slate-100"
-                      >
-                        <option value="instructor">Instructor</option>
-                        <option value="instructorleader">Instructor Leader</option>
-                        <option value="opslead">Operational Leader</option>
-                        <option value="frontoffice">Front Office</option>
-                        <option value="manager">Division Manager</option>
-                        <option value="marketing">Marketing</option>
-                        <option value="officeboy">Office Boy</option>
-                      </select>
-                    </div>
+                        <label className="font-bold text-slate-700">Assign Branch:</label>
+                        <select
+                          value={curBranchId}
+                          disabled={activeTab === "unapplied"}
+                          onChange={(e) => handleBranchChange(req.id, e.target.value)}
+                          className="bg-white border border-slate-200 rounded-lg px-2 py-1 font-semibold text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1a3a8f] disabled:bg-slate-100"
+                        >
+                          {Object.entries(BRANCH_MAP).map(([bId, bName]) => (
+                            <option key={bId} value={bId}>
+                              {bName}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
-                    <div className="flex items-center gap-1.5">
-                      <label className="font-bold text-slate-700">Assign Branch:</label>
-                      <select
-                        value={req.approvedBranchId || staffBranchAssignments[req.id] || "kota_gorontalo"}
-                        disabled={activeTab === "unapplied"}
-                        onChange={(e) => handleBranchChange(req.id, e.target.value)}
-                        className="bg-white border border-slate-200 rounded-lg px-2 py-1 font-semibold text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1a3a8f] disabled:bg-slate-100"
-                      >
-                        {Object.entries(BRANCH_MAP).map(([bId, bName]) => (
-                          <option key={bId} value={bId}>
-                            {bName}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="flex items-center gap-1.5">
+                        <label className="font-bold text-slate-700">Assign Division:</label>
+                        <select
+                          value={curDivision}
+                          disabled={activeTab === "unapplied"}
+                          onChange={(e) => handleDivisionChange(req.id, e.target.value)}
+                          className="bg-white border border-slate-200 rounded-lg px-2 py-1 font-semibold text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1a3a8f] disabled:bg-slate-100"
+                        >
+                          <option value="courses">Courses</option>
+                          {!isSatellite && (
+                            <option value="kindergarten">Kindergarten</option>
+                          )}
+                          {!isSatellite && !isMgr && (
+                            <option value="all">All Divisions</option>
+                          )}
+                        </select>
+                      </div>
                     </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <label className="font-bold text-slate-700">Assign Division:</label>
-                      <select
-                        value={req.approvedDivision || staffDivisionAssignments[req.id] || "courses"}
-                        disabled={activeTab === "unapplied"}
-                        onChange={(e) => handleDivisionChange(req.id, e.target.value)}
-                        className="bg-white border border-slate-200 rounded-lg px-2 py-1 font-semibold text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1a3a8f] disabled:bg-slate-100"
-                      >
-                        <option value="courses">Courses</option>
-                        <option value="kindergarten">Kindergarten</option>
-                        <option value="all">All Divisions</option>
-                      </select>
                     </div>
-                  </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
 
               {/* Action Buttons */}

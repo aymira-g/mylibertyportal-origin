@@ -579,9 +579,7 @@ function App() {
               )}
               {effectiveRole === "manager" && (
                 <ErrorBoundary label="Manager dashboard">
-                  {effectiveDivision === "all" ? (
-                    <CrossDivDashboard role="manager" />
-                  ) : effectiveDivision === "kindergarten" ? (
+                  {effectiveDivision === "kindergarten" ? (
                     <KidsManagerDashboard />
                   ) : (
                     <ManagerDashboard />

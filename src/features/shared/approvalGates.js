@@ -48,9 +48,10 @@ export {
  * - System Admin -> null (Admin is technical maintenance without shifts, blocked from business actions)
  *
  * @param {string | any} requesterRole
+ * @param {string | { branchId?: string, branch?: string }} [options={}] - Branch ID or options object
  * @returns {string|null} Approver role key or null if exempt/unsupported
  */
-export function getSelfCorrectionApprover(requesterRole) {
+export function getSelfCorrectionApprover(requesterRole, options = {}) {
   const normalized = normalizeRole(requesterRole);
   if (!normalized || normalized === "admin") {
     return null;
@@ -64,10 +65,18 @@ export function getSelfCorrectionApprover(requesterRole) {
   if (normalized === "manager") {
     return APPROVAL_ROLES.DIRECTOR;
   }
+
+  // Extract branchId from options (supports string branchId or object { branchId })
+  const rawBranch = typeof options === "string" ? options : options?.branchId || options?.branch;
+  if (rawBranch && isLeanSatelliteBranch(rawBranch)) {
+    // Lean Satellite campuses lack an Ops Lead; Course Division Manager supervises on-site staff
+    return APPROVAL_ROLES.DIVISION_MANAGER;
+  }
+
   if (normalized === "opslead" || normalized === "frontoffice") {
     return APPROVAL_ROLES.DIVISION_MANAGER;
   }
-  // All other staff (instructor, marketing, officeboy, instructorleader)
+  // All other staff (instructor, marketing, officeboy, instructorleader) at Main Campus
   return APPROVAL_ROLES.OPS_LEAD;
 }
 
@@ -383,7 +392,7 @@ export function createApprovalEnvelope(actionId, requester = {}, context = {}) {
 
   let resolvedApproverRole = gate.approverRole;
   if (gate.id === "STAFF_SHIFT_SELF_CORRECTION") {
-    resolvedApproverRole = getSelfCorrectionApprover(requester.role);
+    resolvedApproverRole = getSelfCorrectionApprover(requester.role, { branchId: approverBranchId });
     if (!resolvedApproverRole) {
       return null;
     }

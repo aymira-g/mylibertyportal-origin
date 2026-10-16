@@ -27,6 +27,7 @@ export default function AvailableBatches({
   isOverviewWidget = false,
   onNavigateToClasses = null,
   currentUserId = null,
+  hasBranchOpsLead = false,
 }) {
   const toast = useToast();
   const confirm = useConfirm();
@@ -47,11 +48,14 @@ export default function AvailableBatches({
   const enabledPrograms = useMemo(() => getEnabledPrograms(), []);
 
   // Strict role boundaries (ADR 2026-10-13: Ops Lead primary, Division Manager fallback, Executives supervisory)
+  const isManagerAllowed = role === "manager" && !hasBranchOpsLead;
   const canAdminister =
     Boolean(canEdit) &&
     (role === "opslead" ||
       role === "ops_lead" ||
-      role === "manager" ||
+      role === "operational_leader" ||
+      role === "operationalleader" ||
+      isManagerAllowed ||
       role === "director" ||
       role === "vice_director");
   const canEnroll = canAdminister || isFrontOfficeRole(role);

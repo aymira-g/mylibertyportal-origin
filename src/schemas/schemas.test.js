@@ -102,6 +102,94 @@ describe("inviteSchema", () => {
       })
     ).toThrow(/Role must be one of/);
   });
+
+  it("rejects division='all' for manager role (DOM09-GOV-03)", () => {
+    expect(() =>
+      inviteSchema.parse({
+        email: "manager@myliberty.id",
+        role: "manager",
+        division: "all",
+        branch: "Kota Gorontalo",
+      })
+    ).toThrow(/Managers cannot be assigned cross-divisional/);
+
+    // Manager with courses or kindergarten is allowed
+    const coursesMgr = inviteSchema.parse({
+      email: "mgr-courses@myliberty.id",
+      role: "manager",
+      division: "courses",
+      branch: "Kota Gorontalo",
+    });
+    expect(coursesMgr.division).toBe("courses");
+
+    const kidsMgr = inviteSchema.parse({
+      email: "mgr-kids@myliberty.id",
+      role: "manager",
+      division: "kindergarten",
+      branch: "Kota Gorontalo",
+    });
+    expect(kidsMgr.division).toBe("kindergarten");
+  });
+
+  it("enforces Lean Satellite branch constraints (DOM01-GOV-05 / ADR 2026-10-13)", () => {
+    // Lean Satellite cannot have kindergarten division
+    expect(() =>
+      inviteSchema.parse({
+        email: "staff@boba.myliberty.id",
+        role: "frontoffice",
+        branch: "Bone Bolango",
+        division: "kindergarten",
+      })
+    ).toThrow(/Lean Satellite campuses operate single-division/);
+
+    // Lean Satellite cannot have division="all"
+    expect(() =>
+      inviteSchema.parse({
+        email: "fo-all@limboto.myliberty.id",
+        role: "frontoffice",
+        branch: "Limboto",
+        division: "all",
+      })
+    ).toThrow(/Lean Satellite campuses operate single-division/);
+
+    // Lean Satellite cannot have opslead or instructorleader
+    expect(() =>
+      inviteSchema.parse({
+        email: "ops@pohuwato.myliberty.id",
+        role: "opslead",
+        branch: "Pohuwato",
+        division: "courses",
+      })
+    ).toThrow(/Operational Leader and Instructor Leader roles exist only at Main Campus/);
+
+    expect(() =>
+      inviteSchema.parse({
+        email: "il@limboto.myliberty.id",
+        role: "instructorleader",
+        branch: "Limboto",
+        division: "courses",
+      })
+    ).toThrow(/Operational Leader and Instructor Leader roles exist only at Main Campus/);
+
+    // Lean Satellite allows Course Division Manager, Front Office, and Instructors
+    const satMgr = inviteSchema.parse({
+      email: "mgr@boba.myliberty.id",
+      role: "manager",
+      branch: "Bone Bolango",
+      division: "courses",
+    });
+    expect(satMgr.branch).toBe("Bone Bolango");
+    expect(satMgr.division).toBe("courses");
+
+    // Main Campus allows leadership roles and kindergarten
+    const mainOps = inviteSchema.parse({
+      email: "ops@gtlo.myliberty.id",
+      role: "opslead",
+      branch: "Kota Gorontalo",
+      division: "all",
+    });
+    expect(mainOps.role).toBe("opslead");
+  });
 });
 
 describe("paymentRecordSchema & studentIdSchema", () => {

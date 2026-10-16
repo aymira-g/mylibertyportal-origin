@@ -1452,6 +1452,54 @@ Not Run / Limitations:
   - Production deployment: NOT PERFORMED — strictly operator-controlled.
 ```
 
+## Evidence Record — 2026-10-16 (BLRCA Slice 5 Phase 6 Verification)
+
+```text
+Change: BLRCA Slice 5: Division Managers & Functional Leadership Across Campuses Remediations
+        1. DOM09-GOV-03 / DOM01-GOV-04 (Critical / High): Remove Cross-Divisional Manager
+           - firestore.rules:177 & securityRulesMatrix.helpers.js:176: Restricted uDiv == 'all' to role != 'manager'.
+           - App.jsx:580: Routed kindergarten managers to KidsManagerDashboard and all other managers to ManagerDashboard.
+           - CrossDivDashboard.jsx: Stripped legacy manager routing; dedicated to Main Campus front office desk.
+           - inviteSchema.js:77-83 & InvitesPanel.jsx:225-235: Disallowed role === "manager" && division === "all".
+        2. DOM04-SEC-05 (High): Payments Create Boundary
+           - firestore.rules:1066: Replaced isFrontOffice() with isFrontDeskStaff(), removing opslead raw payment write.
+           - securityRulesMatrix.helpers.js:338-348: canCreatePayment mirrors rule requiring isFrontDeskStaff(user).
+        3. DOM01-GOV-05 (High): Lean Satellite Branch Typology Enforced
+           - inviteSchema.js:84-106: Schema refinements reject division: "kindergarten" or "all" and leadership roles (opslead, instructorleader) at Lean Satellite branches.
+           - InvitesPanel.jsx & ApprovalInbox.jsx: Dynamically sanitize dropdowns and execution payloads.
+           - KidsManagerDashboard.jsx:74: Guarded listener hooks and added fail-closed governance early return if managerBranchId is satellite.
+        4. DOM05-GOV-04 (High): Central Academic Lead Cross-Branch Inquiries Access
+           - firestore.rules:1112, 1119-1122 & securityRulesMatrix.helpers.js:296-336: Granted Central Instructor Leader (isInstructorLeader() && userBranch() == 'kota_gorontalo') get and update on /deskInquiries/{inquiryId} for PLACEMENT_LEVEL_OVERRIDE tickets while preserving field immutability.
+        5. DOM01-ALIAS-01 (Medium): Role Identity Normalization
+           - roles.js:34-36: Added operational_leader and operationalleader to LEGACY_ROLE_ALIASES.
+           - firestore.rules & securityRulesMatrix.helpers.js: Updated role helpers to recognize aliases.
+        6. DOM09-GOV-04 (Medium): Satellite Staff Shift Self-Correction Routing
+           - approvalGates.js:53-74: getSelfCorrectionApprover routes non-manager staff shift corrections at satellite branches to APPROVAL_ROLES.DIVISION_MANAGER.
+        7. DOM09-GOV-06 (Low): Central Academic Lead Multi-Branch Monitoring
+           - Resolved via existing ReportsDashboard.jsx:27 province-wide scope selector + DOM05-GOV-04 desk inquiry update rule.
+        8. DOM06-GOV-02 (Low): Batch Scheduling Alignment with ADR Option B
+           - ClassesAndCoverageTab.jsx & AvailableBatches.jsx: Normalized opslead; hid manager batch create when hasBranchOpsLead is true.
+           - KidsManagerDashboard.jsx: Passed hasBranchOpsLead={true} at Kota Gorontalo.
+
+Date: 2026-10-16
+Section: BLRCA Slice 5: Division Managers & Functional Leadership Across Campuses
+Authority: Authoritative Blueprint v3.4 (§4, §5, §6.4, §6.5, §6.8, §6.11, §7, §26), ADR 2026-10-13-branch-typology-and-lean-branch-governance-amendment.md, ADR 2026-10-13-class-scheduling-and-corporate-events-authority.md
+Tester / Agent: Independent Phase 6 Verification approved; Antigravity Agent post-fix audit
+
+Commits / Verification:
+  - Automated test suite: 35 test files passed (497 tests passed, 0 failed).
+  - divisionIsolation.test.js: 72 tests passed (including Test #1, Test #2, Test #7, Test #8).
+  - schemas.test.js: 42 tests passed (satellite and manager constraints).
+  - approvalGates.test.js: 34 tests passed (satellite shift self-correction routing).
+  - ESLint: npm run lint -> 0 errors, 0 warnings.
+  - TypeScript: npm run typecheck (tsc --noEmit) -> 0 errors.
+  - Build: npm run build -> built cleanly in 695ms.
+
+Not Run / Limitations:
+  - Production deployment: NOT PERFORMED — strictly operator-controlled.
+```
+
+
 
 
 

@@ -926,3 +926,50 @@ Remediation Summary:
 7. Automated Quality Gates: 107 test files passed (1,458 passed, 139 skipped, 0 failed); `npm run typecheck` passed (0 errors); `npm run lint` passed (0 errors); `npm run build` passed (clean Vite PWA bundle in 677ms).
 8. Next Campaign Action: Execute **BLRCA Slice 4 Phase 6: Post-Fix Verification & Regression Testing** (Independent Agent review of Tier 1 findings `DOM11-PRIV-01` and `DOM04-CSV-01`).
 
+## 2026-10-16 — Role & Business Logic Conformance Audit (BLRCA): Slice 4 — Phase 6 Independent Verification Sign-Off & Commit
+Source: Independent review per `AGENTS.md` (Independent Verification & Tier 1 Findings) and Level 1 Light Regression Playbook.
+Scope: Verification of Slice 4 remediations: `BatchOutreachPanel.jsx` fail-closed role check (`DOM06-PRIV-01`), `FinancialReportsTab.jsx` CSV netting (`DOM04-CSV-01`), and `ReportsDashboard.jsx` export role gating (`DOM11-PRIV-01`).
+Status: VERIFIED & CLOSED.
+Commit: `a28762d` (`fix(exports): enforce BLRCA Slice 4 export/print role gates, financial CSV netting, and OD-EXP-1`).
+
+Verification Evidence:
+1. `DOM11-PRIV-01`: Independent verification confirmed `ReportsDashboard.jsx` gates `handleExportCSV` and `Export CSV Dataset` behind `canExportReports = isExecutiveView || isManager || isFrontOffice || isInstructorLeader;`. Teaching instructors cannot trigger CSV export. Tests pass.
+2. `DOM04-CSV-01`: Independent verification confirmed `reportsUtils.js:computeFinancialExportRows` pre-collects `voidedIds`, zeroes both voided rows and matching in-window reversals, preserving gross amount in separate column. Excel `=SUM(Amount)` strictly matches screen total. Tests pass.
+3. `DOM06-PRIV-01`: In `BatchOutreachPanel.jsx:44-53`, removed `!role ||` so `canCopyAll` fails closed (`false`) when `role` is omitted.
+4. Registers updated: `DOM11-PRIV-01` and `DOM04-CSV-01` marked CLOSED in `bug-ledger.md`. Slices 3 and 4 marked CLOSED in BLRCA `00-README.md`.
+
+## 2026-10-16 — Role & Business Logic Conformance Audit (BLRCA): Slice 5 — Division Managers & Functional Leadership (Phases 0–4 Completed)
+Source: Level 2 Role & Business Logic Conformance Audit methodology (`docs/audits/Role & Business Logic Conformance Audit/`).
+Scope: Mid-level leadership across campuses: Course Division Manager (Main Campus vs Lean Satellites), Kindergarten Division Manager (Main Campus), Operational Leader (Main Campus), and Central Instructor Leader (Province-wide pedagogical scope). Evaluated against Blueprint v3.4 (§4, §5, §6.4, §6.5, §6.8, §6.11, §7, §26), ADR `2026-10-13-branch-typology-and-lean-branch-governance-amendment.md`, and ADR `2026-10-13-class-scheduling-and-corporate-events-authority.md`.
+Status: AUDITED (Strictly Audit-Only; 0 production code changes; halted at Phase 4 boundary).
+
+Findings Summary:
+1. `DOM09-GOV-03` / `DOM01-GOV-04` (Critical / High): Re-emergence of removed Branch Manager role via `CrossDivDashboard.jsx` ("Operations Manager · All Divisions") mounted in `App.jsx:582-588` for `role === "manager"` and `effectiveDivision === "all"`; `firestore.rules:177` allows `(uDiv == 'all')` to bypass division filtering for managers.
+2. `DOM01-GOV-05` (High): Missing Satellite Campus Typology Invariant on Kindergarten Division and Functional Leads in `inviteSchema.js:26-69` and `InvitesPanel.jsx:219-265`, permitting assignment of Kindergarten division or `opslead`/`instructorleader` to Lean Satellite campuses (`bone_bolango`, `limboto`, `pohuwato`).
+3. `DOM04-SEC-05` (High): `firestore.rules:1066` allows `/payments` create for `isFrontOffice()`. `isFrontOffice()` (line 71) bundles `opslead`, giving the Operational Leader raw write authority to create payment records in Firestore, in direct violation of Blueprint §6.8, §6.10, OD-2, and `OpsLeadDashboard.jsx`.
+4. `DOM01-ALIAS-01` (Medium): Role Normalization: `roles.js:30-40` lacks aliases mapping `operational_leader` / `operationalleader` to `opslead`.
+5. `DOM09-GOV-04` (Medium): Dead Letter Ticket: `approvalGates.js:53-72` `getSelfCorrectionApprover` ignores `branchId`, routing satellite staff shift self-corrections to non-existent Ops Lead.
+6. `DOM09-GOV-06` / `SL5-LEAD-01` (Low): Central Academic Lead Multi-Branch Monitoring UI Limitation: `InstructorLeaderDashboard.jsx` lacks a campus/branch switcher.
+7. `DOM06-GOV-02` (Low): Batch Scheduling Alignment: `AvailableBatches.jsx:49-56` computes `canAdminister` for manager without checking `hasBranchOpsLead`.
+
+Next Campaign Action: Present Slice 5 audit report to Owner Kifry, review governance findings, and prepare Slice 5 Remediation Plan.
+
+## 2026-10-16 — Role & Business Logic Conformance Audit (BLRCA): Slice 5 — Phase 5 Remediation Execution & Verification
+Source: Level 2 Role & Business Logic Conformance Audit methodology (`05-campaign-execution-and-coverage.md`, `06-findings-and-closure.md`).
+Scope: Implementation of bounded remediations for all Slice 5 findings (`DOM09-GOV-03` / `DOM01-GOV-04`, `DOM04-SEC-05`, `DOM01-GOV-05`, `DOM01-ALIAS-01`, `DOM09-GOV-04`, `DOM05-GOV-04` / `DOM09-GOV-06`, `DOM06-GOV-02`) per authorized plan `docs/plans/active/2026-10-16-blrca-slice5-division-managers-and-leadership-remediation.md`.
+Status: REMEDIATED & VERIFIED (Quality gates passed; Tier 1 findings pending independent Phase 6 verification per AGENTS.md).
+
+Remediation Summary:
+1. `DOM09-GOV-03` / `DOM01-GOV-04` (Remove Cross-Divisional Manager): Restricted `uDiv == 'all'` in `firestore.rules:177` and `securityRulesMatrix.helpers.js:176` to `role != 'manager'`; updated `src/App.jsx:580` removing `CrossDivDashboard` for manager; stripped manager routing from `CrossDivDashboard.jsx`; disallowed `role === "manager" && division === "all"` in `inviteSchema.js` and hidden from `InvitesPanel.jsx`. Verified in `divisionIsolation.test.js:755` Test #1 and `schemas.test.js`.
+2. `DOM04-SEC-05` (Payment Creation Boundary): Replaced `isFrontOffice()` with `isFrontDeskStaff()` in `firestore.rules:1066` and mirrored in `securityRulesMatrix.helpers.js`, stripping Ops Lead from `/payments` creation. Verified in `divisionIsolation.test.js` Test #7 (`opslead` denied, `frontoffice` allowed).
+3. `DOM01-GOV-05` (Satellite Campus Typology Enforced): Added schema refinements in `inviteSchema.js` rejecting `division === "kindergarten"` or `"all"` and leadership roles (`opslead`, `instructorleader`) at Lean Satellite branches; sanitized dropdowns in `InvitesPanel.jsx` and `ApprovalInbox.jsx`; added fail-closed governance guard in `KidsManagerDashboard.jsx`. Verified in `schemas.test.js` (42 tests pass).
+4. `DOM01-ALIAS-01` (Role Identity Normalization): Added `operational_leader` and `operationalleader` to `LEGACY_ROLE_ALIASES` in `src/features/shared/roles.js` and updated `firestore.rules` and `securityRulesMatrix.helpers.js` role helpers. Verified in `securityRulesMatrix` test suites.
+5. `DOM09-GOV-04` (Satellite Shift Correction Routing): Updated `getSelfCorrectionApprover` in `approvalGates.js:53-74` to route non-manager staff at Lean Satellite branches to `APPROVAL_ROLES.DIVISION_MANAGER`; updated `createApprovalEnvelope` to pass `branchId`. Verified in `approvalGates.test.js` (34 tests pass).
+6. `DOM05-GOV-04` / `DOM09-GOV-06` (Central Academic Lead Multi-Branch Access): Updated `firestore.rules:1112, 1119-1122` and `securityRulesMatrix.helpers.js` to allow Central Instructor Leader (`isInstructorLeader() && userBranch() == 'kota_gorontalo'`) to `get` and `update` `/deskInquiries/{inquiryId}` across campuses for `PLACEMENT_LEVEL_OVERRIDE` tickets while preserving field immutability. Verified via `divisionIsolation.test.js` Test #8; confirmed multi-branch reporting already present in `ReportsDashboard.jsx:27`.
+7. `DOM06-GOV-02` (Batch Scheduling Operational Alignment): Normalized `opslead` in `ClassesAndCoverageTab.jsx` and passed `hasBranchOpsLead`; updated `AvailableBatches.jsx:49-56` to disallow manager batch creation when `hasBranchOpsLead` is true; passed `hasBranchOpsLead={true}` in `KidsManagerDashboard.jsx` at Kota Gorontalo.
+8. Architectural Guardrails: Main Campus Front Office reception and Ops Lead preserve `uDiv == 'all'`; `useInstructorLeaderWorkspace.js` strictly preserves same-branch queries without cross-branch raw attendance reads.
+9. Automated Quality Gates: 35 test files / 497 vitest tests passed; `npm run typecheck` passed (0 errors); `npm run lint` passed (0 errors); `npm run build` passed (clean bundle in 695ms).
+10. Next Campaign Action: Handoff to Independent Advisor for **BLRCA Slice 5 Phase 6: Post-Fix Verification & Regression Testing** (Verification of Tier 1 findings `DOM09-GOV-03`, `DOM04-SEC-05`, `DOM01-GOV-05`, `DOM05-GOV-04`).
+
+
+

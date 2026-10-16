@@ -22,6 +22,7 @@ import {
   branchToId,
   normalizeBranch,
   matchesBranchFilter,
+  isLeanSatelliteBranch,
 } from "../../../constants/branches";
 import { getPaymentsForRecordedDay } from "../../finance/paymentsRepository";
 import { getUrlAction, clearUrlAction } from "../../../utils/urlAction";
@@ -81,7 +82,7 @@ export default function KidsManagerDashboard() {
 
   // Load today's payments for daily cash drawer summary (WITA) scoped to Kindergarten
   const fetchTodayPayments = useCallback(async () => {
-    if (!managerBranchId) return;
+    if (!managerBranchId || isLeanSatelliteBranch(managerBranchId)) return;
     setDailyPaymentsLoading(true);
     try {
       const list = await getPaymentsForRecordedDay(new Date(), managerBranchId, "kindergarten");
@@ -95,7 +96,7 @@ export default function KidsManagerDashboard() {
   }, [managerBranchId, toast]);
 
   useEffect(() => {
-    if (!managerBranchId) return;
+    if (!managerBranchId || isLeanSatelliteBranch(managerBranchId)) return;
     let active = true;
     (async () => {
       try {
@@ -121,7 +122,7 @@ export default function KidsManagerDashboard() {
   const isDashboardLoading = loading || !managerBranchId;
 
   useEffect(() => {
-    if (!managerBranchId || typeof managerBranchId !== "string" || !managerBranchId.trim()) {
+    if (!managerBranchId || typeof managerBranchId !== "string" || !managerBranchId.trim() || isLeanSatelliteBranch(managerBranchId)) {
       return;
     }
 
@@ -521,6 +522,7 @@ export default function KidsManagerDashboard() {
           classes={classes}
           users={rawUsers}
           currentUserId={auth.currentUser?.uid}
+          hasBranchOpsLead={true}
         />
       ),
     },
@@ -544,6 +546,27 @@ export default function KidsManagerDashboard() {
       component: <AIAssistant />,
     },
   ];
+
+  if (managerBranchId && isLeanSatelliteBranch(managerBranchId)) {
+    return (
+      <div className="max-w-2xl mx-auto my-12 p-8 bg-white border border-rose-200 rounded-3xl shadow-sm text-center space-y-4">
+        <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto text-xl font-bold">
+          🏛️
+        </div>
+        <h2 className="text-lg font-bold text-slate-800">
+          Kindergarten Division Not Available
+        </h2>
+        <p className="text-xs text-slate-600 leading-relaxed">
+          Per <strong>Authoritative Blueprint v3.4 §4, §5, and Ratified Owner Decision G-012 (ADR 2026-10-13)</strong>,
+          Lean Satellite Campuses (Bone Bolango, Limboto, and Pohuwato) operate single-division
+          (Course Academy only). The Kindergarten Division exists exclusively at Main Campus (Kota Gorontalo).
+        </p>
+        <div className="inline-block bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs font-semibold text-slate-600">
+          Campus: <span className="text-slate-800 font-bold">{myBranch}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <DashboardShell

@@ -18,6 +18,9 @@ import {
   canGetAttendance,
   canListAttendance,
   canGetClassAttendance,
+  canCreatePayment,
+  canGetDeskInquiry,
+  canUpdateDeskInquiry,
 } from "./securityRulesMatrix.helpers.js";
 
 describe("Division Isolation Security Matrix (Kindergarten vs Courses vs division='all')", () => {
@@ -752,27 +755,27 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
     const studentKidsBoba = { id: "s_k_boba", role: "student", branchId: "bone_bolango", division: "kindergarten" };
     const studentCoursesBoba = { id: "s_c_boba", role: "student", branchId: "bone_bolango", division: "courses" };
 
-    it("1. division='all' Manager can access BOTH Kindergarten and Courses docs in own branch", () => {
+    it("1. division='all' Manager falls back to courses-only and is DENIED Kindergarten docs in own branch", () => {
       // Classes
-      expect(canGetClass(classKidsGtlo, allManagerGorontalo)).toBe(true);
+      expect(canGetClass(classKidsGtlo, allManagerGorontalo)).toBe(false);
       expect(canGetClass(classCoursesGtlo, allManagerGorontalo)).toBe(true);
       expect(canGetClass(classLegacyGtlo, allManagerGorontalo)).toBe(true);
       expect(canListClasses({ branchId: "kota_gorontalo" }, allManagerGorontalo)).toBe(true);
 
       // Applications
-      expect(canGetApplication(appKidsGtlo, allManagerGorontalo)).toBe(true);
+      expect(canGetApplication(appKidsGtlo, allManagerGorontalo)).toBe(false);
       expect(canGetApplication(appCoursesGtlo, allManagerGorontalo)).toBe(true);
 
       // Progress Reports
-      expect(canGetProgressReport({ id: "pr_k", branchId: "kota_gorontalo", division: "kindergarten" }, allManagerGorontalo)).toBe(true);
+      expect(canGetProgressReport({ id: "pr_k", branchId: "kota_gorontalo", division: "kindergarten" }, allManagerGorontalo)).toBe(false);
       expect(canGetProgressReport({ id: "pr_c", branchId: "kota_gorontalo", division: "courses" }, allManagerGorontalo)).toBe(true);
 
       // Students
-      expect(canGetUser(studentKidsGtlo, allManagerGorontalo)).toBe(true);
+      expect(canGetUser(studentKidsGtlo, allManagerGorontalo)).toBe(false);
       expect(canGetUser(studentCoursesGtlo, allManagerGorontalo)).toBe(true);
 
       // Shifts & Attendance
-      expect(canGetShift({ id: "sh_k", branchId: "kota_gorontalo", division: "kindergarten" }, allManagerGorontalo)).toBe(true);
+      expect(canGetShift({ id: "sh_k", branchId: "kota_gorontalo", division: "kindergarten" }, allManagerGorontalo)).toBe(false);
       expect(canGetShift({ id: "sh_c", branchId: "kota_gorontalo", division: "courses" }, allManagerGorontalo)).toBe(true);
     });
 
@@ -867,6 +870,62 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
           allFOGorontalo
         )
       ).toBe(false);
+    });
+
+    it("7. DOM04-SEC-05: /payments creation is restricted to frontoffice and denied to opslead", () => {
+      const opsLeadUser = {
+        uid: "ops_lead_gtlo",
+        role: "opslead",
+        branchId: "kota_gorontalo",
+        division: "all",
+      };
+      const frontOfficeUser = {
+        uid: "fo_gtlo",
+        role: "frontoffice",
+        branchId: "kota_gorontalo",
+        division: "courses",
+      };
+      const validPaymentData = {
+        amount: 250000,
+        studentId: "student_123",
+        branchId: "kota_gorontalo",
+        division: "courses",
+      };
+
+      expect(canCreatePayment(validPaymentData, opsLeadUser)).toBe(false);
+      expect(canCreatePayment(validPaymentData, frontOfficeUser)).toBe(true);
+    });
+
+    it("8. DOM05-GOV-04: Central Instructor Leader can get and update cross-branch desk inquiries for placement override", () => {
+      const centralInstructorLeader = {
+        uid: "central_il",
+        role: "instructorleader",
+        branchId: "kota_gorontalo",
+      };
+      const satelliteInquiry = {
+        id: "inq_satellite_1",
+        branchId: "bone_bolango",
+        division: "courses",
+        currentLevel: "unassessed",
+      };
+      const updatedSatelliteInquiry = {
+        id: "inq_satellite_1",
+        branchId: "bone_bolango",
+        division: "courses",
+        currentLevel: "Level 2",
+      };
+
+      expect(canGetDeskInquiry(satelliteInquiry, centralInstructorLeader)).toBe(true);
+      expect(canUpdateDeskInquiry(satelliteInquiry, updatedSatelliteInquiry, centralInstructorLeader)).toBe(true);
+
+      // Local satellite instructor cannot access foreign inquiry
+      const localInstructor = {
+        uid: "inst_limboto",
+        role: "instructor",
+        branchId: "limboto",
+      };
+      expect(canGetDeskInquiry(satelliteInquiry, localInstructor)).toBe(false);
+      expect(canUpdateDeskInquiry(satelliteInquiry, updatedSatelliteInquiry, localInstructor)).toBe(false);
     });
   });
 

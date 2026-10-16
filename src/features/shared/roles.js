@@ -32,6 +32,8 @@ export const LEGACY_ROLE_ALIASES = {
   "vice-director": "vice_director",
   vice_dir: "vice_director",
   ops_lead: "opslead",
+  operational_leader: "opslead",
+  operationalleader: "opslead",
   frontofficelead: "opslead",
   front_office_lead: "opslead",
   instructor_leader: "instructorleader",

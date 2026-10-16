@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { normalizeBranch } from "../constants/branches.js";
+import { normalizeBranch, isLeanSatelliteBranch } from "../constants/branches.js";
 import { normalizeStaffDivision, isDivisionIndependentRole } from "../constants/divisions.js";
+import { normalizeRole } from "../features/shared/roles.js";
 
 export const ALLOWED_STAFF_ROLES = [
   "director",
@@ -65,6 +66,50 @@ export const inviteSchema = z
     {
       message: "An academic division (courses, kindergarten, or all) is required for this role.",
       path: ["division"],
+    }
+  )
+  .refine(
+    (data) => {
+      // Manager cannot have division = "all" (must be explicitly courses or kindergarten)
+      if (data.role === "manager" && data.division === "all") {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "Managers cannot be assigned cross-divisional ('all') scope; managers must be assigned to courses or kindergarten.",
+      path: ["division"],
+    }
+  )
+  .refine(
+    (data) => {
+      // Lean satellite campuses are Course-only (no kindergarten or all division)
+      if (data.branch && isLeanSatelliteBranch(data.branch)) {
+        if (data.division === "kindergarten" || data.division === "all") {
+          return false;
+        }
+      }
+      return true;
+    },
+    {
+      message: "Lean Satellite campuses operate single-division (Courses only) per Authoritative Blueprint v3.4 §4, §5, G-012.",
+      path: ["division"],
+    }
+  )
+  .refine(
+    (data) => {
+      // Leadership roles (opslead and instructorleader) exist only at Main Campus (Kota Gorontalo)
+      if (data.branch && isLeanSatelliteBranch(data.branch)) {
+        const canonicalRole = normalizeRole(data.role);
+        if (canonicalRole === "opslead" || canonicalRole === "instructorleader") {
+          return false;
+        }
+      }
+      return true;
+    },
+    {
+      message: "Operational Leader and Instructor Leader roles exist only at Main Campus (Kota Gorontalo) per Authoritative Blueprint v3.4 §4, §5, G-012.",
+      path: ["role"],
     }
   );
 

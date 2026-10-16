@@ -2,11 +2,7 @@ import { useState, Suspense, lazy } from "react";
 import { Layers, GraduationCap, Baby, LayoutDashboard } from "lucide-react";
 import { ErrorBoundary } from "../shared";
 
-// Lazy-load each division's full dashboard to keep chunks separate.
-// These are the same dashboard components used for single-division routing,
-// preserving all existing logic and behaviour unmodified.
-const ManagerDashboard = lazy(() => import("./ManagerDashboard"));
-const KidsManagerDashboard = lazy(() => import("./kids/KidsManagerDashboard"));
+// Lazy-load each division's front office dashboard to keep chunks separate.
 const FrontOfficeDashboard = lazy(() => import("./FrontOfficeDashboard"));
 const KidsFrontOfficeDashboard = lazy(() => import("./kids/KidsFrontOfficeDashboard"));
 
@@ -20,13 +16,10 @@ function SectionLoading() {
 }
 
 // ---------------------------------------------------------------------------
-// Overview — cross-divisional summary. Deliberately NOT a merged operational
-// table. This is a high-level orientation screen only.
+// Overview — cross-divisional summary for Front Office desk staff.
 // ---------------------------------------------------------------------------
 
-function CrossDivOverview({ role }) {
-  const isManager = role === "manager";
-
+function CrossDivOverview() {
   return (
     <div className="w-full space-y-6">
       {/* Identity banner */}
@@ -36,16 +29,16 @@ function CrossDivOverview({ role }) {
             <Layers className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-base font-black tracking-tight">Cross-Divisional Dashboard</h1>
+            <h1 className="text-base font-black tracking-tight">Cross-Divisional Desk</h1>
             <p className="text-indigo-200 text-xs font-medium mt-0.5">
-              {isManager ? "Operations Manager" : "Front Office"} · All Divisions
+              Front Office Reception · All Divisions
             </p>
           </div>
         </div>
         <p className="text-indigo-200/80 text-xs leading-relaxed pl-12">
           You are authorized across <strong className="text-white">Course Academy</strong> and{" "}
           <strong className="text-white">Kids School</strong>. Use the segment tabs below to switch
-          into each division&apos;s full operational dashboard.
+          into each division&apos;s operational front desk.
         </p>
       </div>
 
@@ -63,9 +56,7 @@ function CrossDivOverview({ role }) {
             </div>
           </div>
           <p className="text-xs text-slate-500 leading-relaxed">
-            {isManager
-              ? "Staff roster, class coverage, outreach tracking, and daily cash overview for the Courses division."
-              : "Student registration, cashier, walk-in inquiries, and schedule board for the Courses division."}
+            Student registration, cashier, walk-in inquiries, and schedule board for the Courses division.
           </p>
           <div className="flex items-center gap-1.5 text-[11px] font-semibold text-indigo-600">
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
@@ -85,9 +76,7 @@ function CrossDivOverview({ role }) {
             </div>
           </div>
           <p className="text-xs text-slate-500 leading-relaxed">
-            {isManager
-              ? "Kids class management, kindergarten student roster, and divisional operations for Kids School."
-              : "Kindergarten student registration, cashier, and schedule board for the Kids School division."}
+            Kindergarten student registration, cashier, and schedule board for the Kids School division.
           </p>
           <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -153,17 +142,11 @@ function SegmentBar({ active, onChange }) {
 }
 
 // ---------------------------------------------------------------------------
-// CrossDivDashboard — public export
-//
-// Props:
-//   role: "manager" | "frontoffice" | "opslead" | "frontofficelead" — controls
-//         which existing dashboards are rendered for Courses & Kindergarten tabs.
+// CrossDivDashboard — public export for Main Campus front office desk
 // ---------------------------------------------------------------------------
 
-export default function CrossDivDashboard({ role = "manager" }) {
+export default function CrossDivDashboard({ role = "frontoffice" }) {
   const [activeSegment, setActiveSegment] = useState("overview");
-
-  const isManager = role === "manager";
 
   return (
     <div className="w-full space-y-4">
@@ -179,17 +162,13 @@ export default function CrossDivDashboard({ role = "manager" }) {
       {/* Segment content */}
       <div role="tabpanel" aria-labelledby={`crossdiv-seg-${activeSegment}`}>
         {activeSegment === "overview" && (
-          <CrossDivOverview role={role} />
+          <CrossDivOverview />
         )}
 
         {activeSegment === "courses" && (
           <ErrorBoundary label="Courses dashboard">
             <Suspense fallback={<SectionLoading />}>
-              {isManager ? (
-                <ManagerDashboard />
-              ) : (
-                <FrontOfficeDashboard role={role} />
-              )}
+              <FrontOfficeDashboard role={role} />
             </Suspense>
           </ErrorBoundary>
         )}
@@ -197,11 +176,7 @@ export default function CrossDivDashboard({ role = "manager" }) {
         {activeSegment === "kindergarten" && (
           <ErrorBoundary label="Kindergarten dashboard">
             <Suspense fallback={<SectionLoading />}>
-              {isManager ? (
-                <KidsManagerDashboard />
-              ) : (
-                <KidsFrontOfficeDashboard />
-              )}
+              <KidsFrontOfficeDashboard />
             </Suspense>
           </ErrorBoundary>
         )}

@@ -920,3 +920,243 @@ Following Owner Kifry's ratification of `OD-EXP-1` Option A and authorization to
    - ESLint (`npm run lint`): 0 errors.
    - Vite build (`npm run build`): Clean production bundle generated in 677ms.
 
+---
+
+## 8. Slice 5: Division Managers & Functional Leadership Across Campuses (Audit Report)
+
+> **Execution Mode:** STRICTLY AUDIT-ONLY (Phases 0–4 per AGENTS.md Read-Only Audit Boundaries)  
+> **Audited Baseline Commit:** `a28762d` (`fix(exports): enforce BLRCA Slice 4 export/print role gates, financial CSV netting, and OD-EXP-1`)  
+> **Date:** 2026-10-16  
+
+### 8.1 Phase 0 & Phase 1: Baseline Verification & Canonical Role Contracts
+
+#### Governing Authorities:
+1. **Authoritative Blueprint v3.4 (`2026-10-13`):**
+   - §4 & §5 (Branch Network, Campus Typology & Lean Operating Model).
+   - §5.1 (Physical Branch as Scope, Not Authority).
+   - §5.2 (Prohibition on Silent Transfer of Removed Branch Manager Authority).
+   - §5.4 & §5.5 (Removal of Branch Manager / Branch Head).
+   - §6.4 (Course Division Manager Scope & Responsibilities).
+   - §6.5 (Kindergarten Division Manager Scope & Responsibilities).
+   - §6.8 (Operational Leader Scope & Prohibitions).
+   - §6.11 (Central Academic Lead / Instructor Leader Province-Wide Scope).
+   - §7 (Separation of System Admin from Business Authority).
+   - §26 (Resolved Decisions G-003, G-004, G-008, G-009, G-010, G-011, G-012).
+2. **Accepted Owner Decisions in `docs/decisions/`:**
+   - `2026-10-07-resolution-of-governance-questions-g001-g011.md` (G-008: Peer leaders never cover peer leaders; G-009: Cash discrepancy routing; G-010: Division isolation).
+   - `2026-10-13-branch-typology-and-lean-branch-governance-amendment.md` (Main Campus dual-division vs Lean Satellite single-division; Course Manager local site supervision; Central Instructor Leader province-wide pedagogical scope).
+   - `2026-10-13-class-scheduling-and-corporate-events-authority.md` (Option B: Ops Lead primary, Division Manager fallback).
+
+---
+
+#### Expected Role Contracts:
+
+| Dimension | Course Division Manager (`manager`, `courses`, Main) | Course Division Manager (`manager`, `courses`, Satellite) | Kindergarten Division Manager (`manager`, `kindergarten`, Main) | Operational Leader (`opslead`, Main) | Central Instructor Leader (`instructorleader`, Gorontalo) |
+|---|---|---|---|---|---|
+| **Organizational Scope** | Branch+Division (`kota_gorontalo`, `courses`) `[Established]` | Branch+Division (`satellite_id`, `courses`) + Local Site Ops `[Established]` | Branch+Division (`kota_gorontalo`, `kindergarten` only) `[Established]` | Branch Site Operations (`kota_gorontalo` whole site) `[Established]` | Province-Wide Academic Delivery (All 4 branches) `[Established]` |
+| **Division Isolation** | Strictly `courses`; zero access to `kindergarten` `[Established]` | Strictly `courses`; Kindergarten inactive at satellites `[Established]` | Strictly `kindergarten`; zero access to `courses` `[Established]` | Whole-branch facilities/logistics; NO academic grading `[Established]` | Both divisions for syllabus/evals; NO financial/cash ops `[Established]` |
+| **Class & Batch Scheduling** | Excluded when Ops Lead active; views classes `[Established]` | Primary scheduler (ADR Option B fallback) `[Established]` | Primary scheduler for Kindergarten cohorts `[Established]` | Primary scheduler for Main Campus cohorts `[Established]` | Teaching allocations & substitute instructor approval `[Established]` |
+| **Cash Desk Intake** | ❌ FORBIDDEN `[Established]` | ⚠️ Emergency desk fallback only `[Established]` | ❌ FORBIDDEN `[Established]` | ❌ FORBIDDEN (No personal cashier intake) `[Established]` | ❌ FORBIDDEN `[Established]` |
+| **Cash Discrepancy Gate** | ❌ FORBIDDEN at Main Campus `[Established]` | ✅ Checker for < Rp 20k if drawer handler was FO `[Established]` | ❌ FORBIDDEN at Main Campus `[Established]` | ✅ Checker for < Rp 20k at Main Campus `[Established]` | ❌ FORBIDDEN `[Established]` |
+| **Eligible Approvals** | `TUITION_PLAN_CHANGE`, `STUDENT_WITHDRAWAL_OR_FREEZE` `[Established]` | `TUITION_PLAN_CHANGE`, `STUDENT_WITHDRAWAL`, `STUDENT_CLASS_TRANSFER`, `CASH_DISCREPANCY` (<20k), Shift Review `[Established]` | `TUITION_PLAN_CHANGE`, `STUDENT_WITHDRAWAL_OR_FREEZE` `[Established]` | `CLASS_CANCELLATION`, `RETROACTIVE_ATTENDANCE`, `STUDENT_CLASS_TRANSFER`, `CASH_DISCREPANCY` (<20k), Shift Corrections `[Established]` | `PLACEMENT_LEVEL_OVERRIDE`, `SUBSTITUTE_INSTRUCTOR` (Province-wide) `[Established]` |
+| **Executive Exclusions** | Cannot approve `DISCOUNT_OR_REFUND`, `PAYMENT_CORRECTION_OR_VOID`, `STAFF_ROLE_ELEVATION`, `STAFF_DEACTIVATION`, `CASH_DISCREPANCY >= 20k` `[Established]` | Same strict executive exclusions; does NOT become a "Branch Manager" `[Established]` | Same strict executive exclusions `[Established]` | Same strict executive exclusions `[Established]` | Same strict executive exclusions `[Established]` |
+
+---
+
+### 8.2 Phase 2: Feature Surface Discovery & Inventory
+
+1. **Course Division Manager:**
+   - UI: `src/features/dashboard/ManagerDashboard.jsx` (Command Center, Learners & Parents, Guestbook & Inquiries, Marketing Outreach, Staff Directives, Course Approvals, Classes & Coverage, Reports & Analytics).
+   - Component: `src/features/dashboard/manager/ClassesAndCoverageTab.jsx`, `src/features/classes/AvailableBatches.jsx`.
+   - Gate routing: `src/features/shared/approvalGates.js` (`APPROVAL_ROLES.DIVISION_MANAGER`).
+   - Rules: `firestore.rules:isManager()`, `isDivisionAllowedForManager()`, `isSameBranchStrict()`.
+2. **Kindergarten Division Manager:**
+   - UI: `src/features/dashboard/kids/KidsManagerDashboard.jsx` (Overview, Learners & Parents, Inquiries, Staff Directives, Kindergarten Approvals, Classes & Coverage, Reports & Analytics).
+   - Segregation: `division === "kindergarten"` query filters in `useDashboardData.js` and `KidsManagerDashboard.jsx`.
+   - Rules: `firestore.rules:userDivision() == 'kindergarten'`.
+3. **Cross-Division Manager Surface (Anomaly Surface):**
+   - UI: `src/features/dashboard/CrossDivDashboard.jsx` (Mounted in `App.jsx:582-588` when `role === "manager"` and `effectiveDivision === "all"`).
+   - Claims: Declares "Operations Manager · All Divisions".
+4. **Operational Leader:**
+   - UI: `src/features/dashboard/OpsLeadDashboard.jsx` (Overview, Approvals, Cash Reconciliation, Facilities & Support, Front Desk Intake, Campus Learners, Capacity & Batches, Live Schedule Board, Operational Reports, Events & Logistics).
+   - Rules: `firestore.rules:isOpsLead()`, `isFrontOffice()`, `canUpdateClass()`, `canUpdateTodo()`.
+5. **Central Instructor Leader:**
+   - UI: `src/features/dashboard/InstructorLeaderDashboard.jsx` (Overview, Instructor Team, Classes & Coverage, Academic Progress, Attendance, My Classes, Directives, Lesson Materials, Reports, Academic Approvals).
+   - Data Workspace: `src/features/dashboard/instructor/useInstructorLeaderWorkspace.js`.
+   - Rules: `firestore.rules:isInstructorLeader()`, `progressReports` read, `classAttendance` read, `isApproverForDoc` central lead bypass.
+
+---
+
+### 8.3 Phase 3: Conformance Analysis & Privilege Boundary Mapping
+
+#### Checkpoint 1: UI Dashboard & Presentational Gating
+- `ManagerDashboard.jsx` correctly binds `division: "courses"` to `ApprovalInbox` and `ReportsDashboard`.
+- `KidsManagerDashboard.jsx` correctly binds `division: "kindergarten"` to all listeners and sub-tabs.
+- `OpsLeadDashboard.jsx` mounts read-only cash reconciliation (`dailyPayments`) and dual-control approval inbox.
+- `InstructorLeaderDashboard.jsx` mounts academic approvals for placement level overrides and substitute instructors.
+- 🔴 **Divergence (`DOM09-GOV-03` / `DOM01-GOV-04`):** In `App.jsx:582-588`, if `role === "manager"` and `effectiveDivision === "all"`, the portal mounts `<CrossDivDashboard role="manager" />` with identity banner `"Operations Manager · All Divisions"`, effectively re-creating a multi-division Branch Manager.
+
+#### Checkpoint 2: Component Props & State Isolation
+- `AvailableBatches.jsx:49-56` computes `canAdminister` permitting both `opslead` and `manager` to create and edit class cohorts.
+- ⚠️ **Divergence (`DOM06-GOV-02`):** `AvailableBatches.jsx` does not implement the ratified ADR 2026-10-13 Option B check (`hasBranchOpsLead`) to hide batch creation from Division Managers at Main Campus where an Ops Lead is active.
+- ⚠️ **Divergence (`DOM09-GOV-06`):** `InstructorLeaderDashboard.jsx` lacks a campus/branch switcher, restricting the Central Academic Lead's monitoring views to `effectiveBranch` (`kota_gorontalo`) despite holding province-wide pedagogical responsibility.
+
+#### Checkpoint 3: Repository & Data Access Queries
+- `approvalsRepository.js:68-74` correctly exempts `instructorleader` at `kota_gorontalo` from the `approverBranchId` query filter, allowing province-wide ticket delivery.
+- `approvalGates.js:100-140` (`getCashDiscrepancyApprover`) and lines 152-175 (`getStudentTransferApprover`) correctly implement Lean Satellite branch routing to `manager`.
+- 🔴 **Divergence (`DOM09-GOV-04`):** In `approvalGates.js:53-72`, `getSelfCorrectionApprover` takes only `requesterRole` and lacks `branchId`. At Lean Satellite branches lacking an Ops Lead, instructor/staff shift self-corrections route to `APPROVAL_ROLES.OPS_LEAD` at that branch ID, creating a dead letter ticket.
+
+#### Checkpoint 4: Backend Security Rules (`firestore.rules`)
+- `firestore.rules:1129-1183` enforces strict dual-control approval constraints:
+  - `request.auth.uid != resource.data.requestedByUid` (Blocks self-approval).
+  - `gateAllowsApprover(actionId, approverRole)` (Prevents mis-addressed tickets).
+  - Division managers cannot approve executive gates (`DISCOUNT_OR_REFUND`, `PAYMENT_CORRECTION_OR_VOID`, `STAFF_ROLE_ELEVATION`, `STAFF_DEACTIVATION`).
+- 🔴 **Divergence (`DOM04-SEC-05`):** `firestore.rules:1066` allows `/payments` create for `isFrontOffice()`. `isFrontOffice()` (line 71) includes `opslead`, giving the Operational Leader raw write authority to create payment records in Firestore, in direct violation of Blueprint §6.8, §6.10, and OD-2.
+- 🔴 **Divergence (`DOM09-GOV-03`):** `firestore.rules:177` allows `(uDiv == 'all')` to bypass division scoping for `manager`, permitting cross-division read/write access.
+
+#### Checkpoint 5: Account Onboarding & Invites Schema
+- 🔴 **Divergence (`DOM01-GOV-05`):** `inviteSchema.js:26-69` and `InvitesPanel.jsx:219-265` permit staff to be invited with `division: "kindergarten"` at Lean Satellite branches (`Bone Bolango`, `Limboto`, `Pohuwato`), and allow inviting `opslead` / `instructorleader` to satellite branches, violating Blueprint v3.4 §4, §5, G-012.
+- 🔴 **Divergence (`DOM01-ALIAS-01`):** `roles.js:30-40` lacks aliases for `operational_leader` and `operationalleader`. If a user document or token uses these spellings, `normalizeRole()` fails to map them to `opslead`, breaking dashboard routing in `App.jsx`.
+
+---
+
+### 8.4 Phase 4: Defect Indexing & Classification
+
+#### Confirmed Slice 5 Findings:
+
+1. **`DOM09-GOV-03` / `DOM01-GOV-04` — Critical / High (Governance Conflict): Re-emergence of Removed "Branch Manager" / Catch-All Authority via `CrossDivDashboard.jsx` & `division: "all"`**
+   - **Location:** `src/App.jsx:582-588`, `src/features/dashboard/CrossDivDashboard.jsx:39-49`, `firestore.rules:174-177`, `src/schemas/inviteSchema.js:26-69`, `src/features/staff/InvitesPanel.jsx:219-228`.
+   - **Evidence:** `App.jsx` mounts `<CrossDivDashboard role="manager" />` declaring `"Operations Manager · All Divisions"`; `firestore.rules:177` permits `uDiv == 'all'` to bypass division scoping for managers.
+   - **Why It Matters:** Blueprint v3.1 §5.4, v3.3 §5.5, and Principle 14 explicitly removed Branch Manager and forbid recreating it under other names. The `manager` role represents a Division Manager bound to branch + division (`manager + branchId + division`).
+   - **Direction:** Deprecate `division: "all"` for `manager`. In `App.jsx`, remove `<CrossDivDashboard role="manager" />`. In `firestore.rules:177`, eliminate `uDiv == 'all'` bypass for managers.
+   - **Owner Decision Required:** No (Strictly enforces ratified Blueprint v3.1–v3.4).
+   - **Blocking Status:** Must fix before production sign-off.
+
+2. **`DOM01-GOV-05` — High (Governance Conflict / Schema Boundary): Missing Satellite Campus Typology Invariant on Kindergarten Division and Functional Leads**
+   - **Location:** `src/schemas/inviteSchema.js:26-69`, `src/features/staff/InvitesPanel.jsx:219-265`, `src/features/staff/StaffProfileFields.jsx`, `firestore.rules`, `src/features/dashboard/kids/KidsManagerDashboard.jsx:73-80, 123-205`.
+   - **Evidence:** `inviteSchema.js` allows inviting Kindergarten staff or Ops Leads to `bone_bolango`, `limboto`, and `pohuwato`. `KidsManagerDashboard.jsx` queries any branch passed in profile without validating campus typology.
+   - **Why It Matters:** Blueprint v3.4 §4, §5, G-012, and ADR 2026-10-13 formally partition branches into Type 1 Main Campus (dual-division) and Type 2 Lean Satellites (Courses only, no local Ops Lead or Instructor Leader).
+   - **Direction:** In `inviteSchema.js`, `StaffProfileFields.jsx`, and `InvitesPanel.jsx`, reject `division === "kindergarten"` and roles `opslead` / `instructorleader` for satellite branches. In `KidsManagerDashboard.jsx`, fail closed if `managerBranchId !== "kota_gorontalo"`. In `firestore.rules`, reject creation of Kindergarten entities at satellite branches.
+   - **Owner Decision Required:** No (Strictly enforces ratified ADR 2026-10-13).
+   - **Blocking Status:** Must fix before production sign-off.
+
+3. **`DOM04-SEC-05` — High (Privilege Boundary Leak / Security): `isFrontOffice()` Rule Helper Over-Grants Payment Creation Authority to `opslead`**
+   - **Location:** `firestore.rules:71` (`isFrontOffice`), `firestore.rules:1066` (`match /payments/{paymentId} allow create`).
+   - **Evidence:** `isFrontOffice()` includes `opslead`, and line 1066 uses `isFrontOffice()` for payment create. An Operational Leader can create raw payment documents directly in Firestore.
+   - **Why It Matters:** Blueprint §6.8, §6.10, OD-2, and `OpsLeadDashboard.jsx` state that the Ops Lead has zero cashier intake authority. Allowing Ops Lead to create payments collapses maker-checker separation.
+   - **Direction:** In `firestore.rules:1066`, replace `isFrontOffice()` with `isFrontDeskStaff()` (line 82), restricting payment creation to Front Office desk cashiers (and approved executive reversals).
+   - **Owner Decision Required:** No (Direct security and rule correctness fix).
+   - **Blocking Status:** Must fix before production sign-off.
+
+4. **`DOM01-ALIAS-01` — Medium (Role Normalization / UX): Missing Normalization for `operational_leader` and `operationalleader`**
+   - **Location:** `src/features/shared/roles.js:30-40` (`LEGACY_ROLE_ALIASES`), `src/App.jsx:606-610`, `firestore.rules:63, 71, 79`.
+   - **Evidence:** `roles.js` maps `ops_lead` and `frontofficelead` to `opslead`, but omits `operational_leader` and `operationalleader`. If a user doc or invite contains these strings, `App.jsx` fails to mount the dashboard.
+   - **Why It Matters:** Inconsistent role aliasing causes staff lockouts when canonical blueprint role names are used.
+   - **Direction:** Map `operational_leader: "opslead"` and `operationalleader: "opslead"` in `roles.js` and add them to `firestore.rules` helpers.
+   - **Owner Decision Required:** No (Routine engineering normalization).
+   - **Blocking Status:** Before completion.
+
+5. **`DOM09-GOV-04` — Medium (Workflow Defect / Dead Letter Ticket): Lean Satellite Shift Self-Correction Escalation Gap**
+   - **Location:** `src/features/shared/approvalGates.js:53-72` (`getSelfCorrectionApprover`), `approvalGates.constants.js:372` (`STAFF_SHIFT_SELF_CORRECTION`).
+   - **Evidence:** `getSelfCorrectionApprover` does not inspect `branchId`. For non-manager staff (e.g. `instructor`, `marketing`, `officeboy`) at satellite branches, it returns `APPROVAL_ROLES.OPS_LEAD`. Since satellite branches have no Ops Lead, tickets languish indefinitely.
+   - **Why It Matters:** Under Blueprint v3.4 §4, §5, G-012, and ADR 2026-10-13 Decision 2, satellite Front Office and staff operations route to the Course Division Manager (`manager`).
+   - **Direction:** Pass `{ requesterRole, branchId }` to `getSelfCorrectionApprover`. At satellite branches, route non-manager staff shift corrections to `APPROVAL_ROLES.DIVISION_MANAGER`.
+   - **Owner Decision Required:** No (Directly enforces ratified ADR 2026-10-13 Decision 2).
+   - **Blocking Status:** Before completion.
+
+6. **`DOM09-GOV-06` / `SL5-LEAD-01` — Low / Governance Observation: Central Academic Lead Multi-Branch Monitoring UI Limitation**
+   - **Location:** `src/features/dashboard/InstructorLeaderDashboard.jsx:264-276, 292`, `src/features/dashboard/instructor/useInstructorLeaderWorkspace.js:41-85`.
+   - **Evidence:** The Central Academic Lead's monitoring views (teaching team, class coverage, progress reports) are locked to `effectiveBranch` (`kota_gorontalo`) without a campus switcher.
+   - **Why It Matters:** Blueprint v3.4 §4, §5, G-012 assigns the Central Academic Lead province-wide pedagogical oversight across all four campuses.
+   - **Direction:** Provide a campus selector in `InstructorLeaderDashboard.jsx` allowing the Central Lead to inspect satellite teaching teams and curriculum delivery.
+   - **Owner Decision Required:** No (UI improvement aligning with ratified G-012).
+   - **Blocking Status:** Defer / Post-remediation improvement.
+
+7. **`DOM06-GOV-02` — Low (Workflow Alignment): `AvailableBatches.jsx` Batch Creation Missing `hasBranchOpsLead` Check**
+   - **Location:** `src/features/classes/AvailableBatches.jsx:49-56`, `docs/decisions/2026-10-13-class-scheduling-and-corporate-events-authority.md` §3.2.
+   - **Evidence:** `AvailableBatches.jsx` enables batch creation for `manager` without checking if an Ops Lead is assigned at the branch.
+   - **Why It Matters:** ADR 2026-10-13 Option B reserves batch creation primarily for Ops Lead when present, using Division Manager as fallback only when Ops Lead is absent (e.g. at satellite branches).
+   - **Direction:** Align `AvailableBatches.jsx` capability check with ADR 2026-10-13 Option B.
+   - **Owner Decision Required:** No (Aligns with ratified decision).
+   - **Blocking Status:** Defer / Non-blocking.
+
+---
+
+### 8.5 Phase 4 Boundary Sign-Off & Strict Stop
+
+In accordance with `AGENTS.md` **Read-Only Audit Boundaries**, execution for Slice 5 strictly halts at the Phase 4 boundary. No modifications have been made to `src/`, `firestore.rules`, or `cloudflare-worker/`. All findings are logged in the audit ledger and bug ledger awaiting Owner review and formal implementation authorization.
+
+---
+
+### 8.6 Phase 5: Remediation Execution Summary
+
+**Authorization:** Owner Kifry reviewed the BLRCA Slice 5 Read-Only Audit Report and authorized Phase 5 Remediation on 2026-10-16.  
+**Active Plan:** [`docs/plans/active/2026-10-16-blrca-slice5-division-managers-and-leadership-remediation.md`](../../plans/active/2026-10-16-blrca-slice5-division-managers-and-leadership-remediation.md).  
+**Status:** IMPLEMENTED & TESTED (Handoff to Independent Verification for Phase 6).
+
+#### 1. Architectural Guardrails Conformance
+1. **Guardrail 1 (Main Campus Cross-Division Reception & Ops Lead Protection):**
+   - In `firestore.rules:177` and `src/features/shared/securityRulesMatrix/securityRulesMatrix.helpers.js:176`, `uDiv == 'all'` was preserved for Main Campus reception desk staff (`frontoffice`) and operational leadership (`opslead`), strictly exempting only `role != 'manager'`.
+   - Verified via `divisionIsolation.test.js:755` Test #1 (`allManagerGorontalo` denied Kindergarten records) and Test #2 (`allFOGorontalo` allowed across divisions).
+2. **Guardrail 2 (Preserve Raw Daily Class Attendance Same-Branch Isolation):**
+   - Kept `src/features/dashboard/instructor/useInstructorLeaderWorkspace.js` strictly scoped to same-branch; did NOT introduce cross-branch queries on `/classAttendance` or `/users`.
+   - Verified that province-wide pedagogical monitoring remains cleanly served through `<ReportsDashboard isInstructorLeader={true} />` (which includes the "All Campuses" scope filter) and the `ApprovalInbox`.
+
+#### 2. Summary of Remediated Changes
+- **Fix 1 (`DOM09-GOV-03` / `DOM01-GOV-04` — Critical / High):**
+  - `firestore.rules:177`: Restricted `uDiv == 'all'` in `isDivisionAllowedForBranchStaff` to `|| (uDiv == 'all' && role != 'manager')`.
+  - `securityRulesMatrix.helpers.js:176`: Updated `(userDivision(user) === "all" && !isManager(user))`.
+  - `src/App.jsx:580`: Removed `CrossDivDashboard` for `role === "manager"`; routed `kindergarten` to `<KidsManagerDashboard />` and all other managers to `<ManagerDashboard />`.
+  - `src/features/dashboard/CrossDivDashboard.jsx`: Stripped legacy manager routing; dedicated component to Main Campus Front Office reception desk.
+  - `src/schemas/inviteSchema.js:77-83`: Added refinement disallowing `role === "manager" && division === "all"`.
+  - `src/features/staff/InvitesPanel.jsx:225-235`: Constrained division select so `"all"` is hidden when `inviteRole === "manager"`.
+- **Fix 2 (`DOM04-SEC-05` — High):**
+  - `firestore.rules:1066`: Replaced `isFrontOffice()` with `isFrontDeskStaff()` in `/payments` create rule.
+  - `securityRulesMatrix.helpers.js:338-348`: Added `canCreatePayment(data, user, approvalDoc)` requiring `isFrontDeskStaff(user)`.
+  - `divisionIsolation.test.js:847-862`: Added Test #7 asserting `opslead` is denied `/payments` creation while `frontoffice` is allowed.
+- **Fix 3 (`DOM01-GOV-05` — High):**
+  - `src/schemas/inviteSchema.js:84-106`: Added schema refinements rejecting `division === "kindergarten"` or `"all"` at Lean Satellite branches (`isLeanSatelliteBranch(branch)`), and rejecting functional leadership roles (`opslead`, `instructorleader`) at Lean Satellite branches.
+  - `src/features/staff/InvitesPanel.jsx`: Dynamically filtered role and division dropdowns based on `isLeanSatelliteBranch(inviteBranch)` and selected role.
+  - `src/features/shared/ApprovalInbox.jsx`: Dynamically filtered staff onboarding dropdowns and sanitized `assignedRole`/`assignedDivision` in `handleApprove` and `executeDownstreamAction`.
+  - `src/features/dashboard/kids/KidsManagerDashboard.jsx`: Guarded listener hooks and added early return failing closed with governance notice if `managerBranchId` is a Lean Satellite branch.
+- **Fix 4 (`DOM01-ALIAS-01` — Medium):**
+  - `src/features/shared/roles.js:34-36`: Added `operational_leader: "opslead"` and `operationalleader: "opslead"` to `LEGACY_ROLE_ALIASES`.
+  - `firestore.rules`: Updated role helpers (`isStaff`, `isFrontOffice`, `isOpsLead`, `isDivisionAllowedForBranchStaff`, `canUpdateTodo`, `canUpdateClass`, `canGetClassAttendance`, `canGetPayment`, `canUpdateShift`) to recognize aliases.
+  - `securityRulesMatrix.helpers.js`: Added aliases to `isStaff`, `isFrontOffice`, `isOpsLead`.
+- **Fix 5 (`DOM09-GOV-04` — Medium):**
+  - `src/features/shared/approvalGates.js:53-74`: Updated `getSelfCorrectionApprover(requesterRole, options = {})` to route non-manager staff to `APPROVAL_ROLES.DIVISION_MANAGER` when `branchId && isLeanSatelliteBranch(branchId)`.
+  - `src/features/shared/approvalGates.js:386`: Updated `createApprovalEnvelope` to pass `{ branchId: approverBranchId }`.
+- **Fix 6 (`DOM05-GOV-04` / `DOM09-GOV-06` — High / Low):**
+  - `firestore.rules:1112, 1119-1122`: Allowed Central Instructor Leader (`isInstructorLeader() && userBranch() == 'kota_gorontalo'`) to `get` and `update` cross-branch desk inquiries for ticket resolution, while preserving immutability of `branchId` and `placementLevelAllowed`.
+  - `securityRulesMatrix.helpers.js:296-336`: Updated `canGetDeskInquiry` and added `canUpdateDeskInquiry`.
+  - `divisionIsolation.test.js:864-884`: Added Test #8 verifying Central Academic Lead cross-branch inquiry get/update.
+- **Fix 7 (`DOM06-GOV-02` — Low):**
+  - `src/features/dashboard/manager/ClassesAndCoverageTab.jsx`: Added `normalizeRole(u.role) === "opslead"`, accepted optional `hasBranchOpsLead = undefined` prop, and passed it to `AvailableBatches`.
+  - `src/features/classes/AvailableBatches.jsx`: Added optional `hasBranchOpsLead = false` prop, and updated `canAdminister` so `role === "manager"` is disallowed when `hasBranchOpsLead` is true.
+  - `src/features/dashboard/kids/KidsManagerDashboard.jsx`: Passed `hasBranchOpsLead={true}` to `ClassesAndCoverageTab` at Main Campus (`kota_gorontalo`).
+
+#### 3. Quality Gates & Verification Evidence
+- **Vitest Unit & Integration Suites:** 35 test files passed (497 passed, 0 failed) in 6.08s:
+  - `src/features/shared/securityRulesMatrix/`: 176 tests passed.
+  - `src/schemas/schemas.test.js`: 42 tests passed.
+  - `src/features/shared/approvalGates.test.js`: 34 tests passed.
+  - `src/features/dashboard/`: 245 tests passed.
+- **TypeScript Checking:** `npm run typecheck` passed (0 errors).
+- **ESLint:** `npm run lint` passed (0 errors).
+- **Vite Production Bundle:** `npm run build` passed in 695ms.
+
+#### 4. Audit Register & Ledger Status
+- `docs/audits/current/bug-ledger.md`:
+  - `DOM09-GOV-03` $\rightarrow$ `PENDING_INDEPENDENT_VERIFICATION` (Tier 1)
+  - `DOM01-GOV-05` $\rightarrow$ `PENDING_INDEPENDENT_VERIFICATION` (Tier 1)
+  - `DOM04-SEC-05` $\rightarrow$ `PENDING_INDEPENDENT_VERIFICATION` (Tier 1)
+  - `DOM05-GOV-04` $\rightarrow$ `PENDING_INDEPENDENT_VERIFICATION` (Tier 1)
+  - `DOM01-ALIAS-01` $\rightarrow$ `CLOSED` (Tier 2)
+  - `DOM09-GOV-04` $\rightarrow$ `CLOSED` (Tier 2)
+  - `DOM09-GOV-06` $\rightarrow$ `CLOSED` (Tier 3)
+  - `DOM06-GOV-02` $\rightarrow$ `CLOSED` (Tier 3)
+- `docs/audits/current/role-function-conformance-ledger.md`: All 20 Slice 5 testable assertions updated to `PASS` (100% clean conformance).
+- **Next Phase:** Handoff to Independent Advisor for **BLRCA Slice 5 Phase 6: Post-Fix Verification & Regression Testing**.
+
+
+

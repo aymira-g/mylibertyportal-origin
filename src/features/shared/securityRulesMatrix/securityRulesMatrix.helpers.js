@@ -58,7 +58,7 @@ export function isFrontOffice(user) {
   return Boolean(
     user &&
       isActiveUser(user) &&
-      ["frontoffice", "opslead", "ops_lead", "frontofficelead"].includes(user.role)
+      ["frontoffice", "opslead", "ops_lead", "operational_leader", "operationalleader", "frontofficelead"].includes(user.role)
   );
 }
 
@@ -66,7 +66,7 @@ export function isOpsLead(user) {
   return Boolean(
     user &&
       isActiveUser(user) &&
-      ["opslead", "ops_lead", "frontofficelead"].includes(user.role)
+      ["opslead", "ops_lead", "operational_leader", "operationalleader", "frontofficelead"].includes(user.role)
   );
 }
 
@@ -107,6 +107,8 @@ export function isStaff(user) {
         "frontoffice",
         "opslead",
         "ops_lead",
+        "operational_leader",
+        "operationalleader",
         "frontofficelead",
         "officeboy",
       ].includes(user.role)
@@ -174,7 +176,7 @@ export function isSameDivisionStrict(data, user) {
 export function isDivisionAllowedForBranchStaff(data, user) {
   return (
     !(isManager(user) || isFrontOffice(user) || (user && user.role === "marketing")) ||
-    userDivision(user) === "all" ||
+    (userDivision(user) === "all" && !isManager(user)) ||
     (userDivision(user) === "kindergarten"
       ? isSameDivisionStrict(data, user)
       : !("division" in data) || data.division !== "kindergarten")
@@ -350,6 +352,7 @@ export function canGetDeskInquiry(doc, user) {
     isDivisionAllowedForManager(doc, user)
   )
     return true;
+  if (isInstructorLeader(user) && userBranch(user) === "kota_gorontalo") return true;
   return false;
 }
 
@@ -363,6 +366,25 @@ export function canListDeskInquiries(queryData, user) {
   )
     return true;
   return false;
+}
+
+export function canUpdateDeskInquiry(beforeDoc, afterDoc, user) {
+  if (!user) return false;
+  const isSameBranchCheck =
+    isSameBranch(beforeDoc, user) &&
+    isSameBranch(afterDoc, user) &&
+    isDivisionAllowedForManager(beforeDoc, user) &&
+    isDivisionAllowedForManager(afterDoc, user);
+  const isCentralInstructorLeader = isInstructorLeader(user) && userBranch(user) === "kota_gorontalo";
+
+  const isAllowedActor =
+    isOrgExecutive(user) ||
+    ((isManager(user) || isFrontOffice(user) || user.role === "marketing" || isInstructorLeader(user)) && isSameBranchCheck) ||
+    isCentralInstructorLeader;
+
+  if (!isAllowedActor) return false;
+  if ("branchId" in beforeDoc && afterDoc.branchId !== beforeDoc.branchId) return false;
+  return true;
 }
 
 export function canGetProgressReport(doc, user) {
@@ -642,6 +664,33 @@ export function canListPayments(queryData, user) {
   )
     return true;
   return false;
+}
+
+export function isValidPaymentVoidApproval(approvalDoc) {
+  if (!approvalDoc) return false;
+  return (
+    approvalDoc.status === "approved" &&
+    approvalDoc.actionId === "PAYMENT_CORRECTION_OR_VOID"
+  );
+}
+
+export function canCreatePayment(data, user, approvalDoc = null) {
+  if (!user) return false;
+  if (!data || typeof data.amount !== "number" || data.amount <= 0 || typeof data.studentId !== "string") {
+    return false;
+  }
+  const isFrontOfficeCreate =
+    isFrontDeskStaff(user) &&
+    isSameBranch(data, user) &&
+    isDivisionAllowedForBranchStaff(data, user);
+
+  const isExecutiveReversal =
+    isOrgExecutive(user) &&
+    data.appliedFromApproval &&
+    data.isReversal === true &&
+    (approvalDoc ? isValidPaymentVoidApproval(approvalDoc) : Boolean(data.appliedFromApproval));
+
+  return isFrontOfficeCreate || isExecutiveReversal;
 }
 
 export function canGetAttendance(doc, user) {

@@ -71,8 +71,9 @@ describe("Maker-Checker Approval Gates", () => {
   });
 
   it("evaluates self-correction ladder correctly (Principle 5)", () => {
-    // 1. General staff -> Front Office / Ops Lead
+    // 1. General staff at Main Campus -> Front Office / Ops Lead
     expect(getSelfCorrectionApprover("instructor")).toBe(APPROVAL_ROLES.OPS_LEAD);
+    expect(getSelfCorrectionApprover("instructor", "kota_gorontalo")).toBe(APPROVAL_ROLES.OPS_LEAD);
     expect(getSelfCorrectionApprover("marketing")).toBe(APPROVAL_ROLES.OPS_LEAD);
     expect(getSelfCorrectionApprover("officeboy")).toBe(APPROVAL_ROLES.OPS_LEAD);
     expect(getSelfCorrectionApprover("instructor_leader")).toBe(APPROVAL_ROLES.OPS_LEAD);
@@ -83,10 +84,18 @@ describe("Maker-Checker Approval Gates", () => {
     expect(getSelfCorrectionApprover("ops_lead")).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
     expect(getSelfCorrectionApprover("frontofficelead")).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
 
-    // 3. Branch Manager's own record -> Director (Owner / Director tier)
-    expect(getSelfCorrectionApprover("manager")).toBe(APPROVAL_ROLES.DIRECTOR);
+    // 3. Lean Satellite staff -> Division Manager (Course Manager) because satellite lacks an Ops Lead (DOM09-GOV-04)
+    expect(getSelfCorrectionApprover("instructor", "bone_bolango")).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+    expect(getSelfCorrectionApprover("instructor", { branchId: "limboto" })).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+    expect(getSelfCorrectionApprover("marketing", "pohuwato")).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+    expect(getSelfCorrectionApprover("officeboy", { branchId: "bone_bolango" })).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+    expect(getSelfCorrectionApprover("frontoffice", "limboto")).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
 
-    // 4. Executives -> Cross-review each other (Owner Decision 2026-10-07 §4.5); Admin is technical maintenance (null)
+    // 4. Branch Manager's own record -> Director (Owner / Director tier)
+    expect(getSelfCorrectionApprover("manager")).toBe(APPROVAL_ROLES.DIRECTOR);
+    expect(getSelfCorrectionApprover("manager", "bone_bolango")).toBe(APPROVAL_ROLES.DIRECTOR);
+
+    // 5. Executives -> Cross-review each other (Owner Decision 2026-10-07 §4.5); Admin is technical maintenance (null)
     expect(getSelfCorrectionApprover("admin")).toBeNull();
     expect(getSelfCorrectionApprover("director")).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
     expect(getSelfCorrectionApprover("vice_director")).toBe(APPROVAL_ROLES.DIRECTOR);
@@ -140,6 +149,13 @@ describe("Maker-Checker Approval Gates", () => {
       { name: "Siti Teacher", uid: "u-inst-1", role: "instructor", branchId: "branch_gorontalo_main" }
     );
     expect(instructorSelfCorrection.approverRole).toBe(APPROVAL_ROLES.OPS_LEAD);
+
+    // Self correction for Satellite Instructor -> routes to Division Manager (DOM09-GOV-04)
+    const satelliteInstructorSelfCorrection = createApprovalEnvelope(
+      "STAFF_SHIFT_SELF_CORRECTION",
+      { name: "Andi Teacher", uid: "u-inst-sat", role: "instructor", branchId: "bone_bolango" }
+    );
+    expect(satelliteInstructorSelfCorrection.approverRole).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
 
     // Student lateral class transfer -> routes to Ops Lead (DOM06-GOV-01)
     const transferEnvelope = createApprovalEnvelope(

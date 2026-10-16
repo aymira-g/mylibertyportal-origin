@@ -2,9 +2,14 @@ import { useState, useMemo } from "react";
 import { LevelBadge } from "../../shared";
 import { AvailableBatches } from "../../classes";
 import { MyTeachingCohortsView } from "./MyTeachingCohortsView";
-import { isInstructorRole } from "../../shared/roles";
+import { isInstructorRole, normalizeRole } from "../../shared/roles";
 
-export function ClassesAndCoverageTab({ classes, users, currentUserId }) {
+export function ClassesAndCoverageTab({
+  classes,
+  users,
+  currentUserId,
+  hasBranchOpsLead: hasBranchOpsLeadProp = undefined,
+}) {
   const [viewMode, setViewMode] = useState("batches");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
@@ -24,12 +29,13 @@ export function ClassesAndCoverageTab({ classes, users, currentUserId }) {
 
   // ADR 2026-10-13 Option B: Division Manager schedules batches only if branch lacks an active Ops Lead
   const hasBranchOpsLead = useMemo(() => {
+    if (typeof hasBranchOpsLeadProp === "boolean") return hasBranchOpsLeadProp;
     return (users || []).some(
       (u) =>
-        (u.role === "opslead" || u.role === "ops_lead") &&
+        normalizeRole(u.role) === "opslead" &&
         (!u.status || (u.status !== "resigned" && u.status !== "terminated"))
     );
-  }, [users]);
+  }, [users, hasBranchOpsLeadProp]);
 
   const augmentedClasses = useMemo(() => {
     return classes.map((c) => {
@@ -130,6 +136,7 @@ export function ClassesAndCoverageTab({ classes, users, currentUserId }) {
           canEdit={!hasBranchOpsLead}
           role="manager"
           currentUserId={currentUserId}
+          hasBranchOpsLead={hasBranchOpsLead}
         />
       )}
 

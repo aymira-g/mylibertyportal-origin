@@ -8,7 +8,7 @@
 import { useState, useMemo } from "react";
 import { useToast } from "../shared";
 import { getDistinctStaffBranches } from "./staffUtils";
-import { DEFAULT_BRANCH } from "../../constants/branches.js";
+import { DEFAULT_BRANCH, isLeanSatelliteBranch } from "../../constants/branches.js";
 import {
   DEFAULT_DIVISION,
   DIVISION_BADGES,
@@ -86,6 +86,9 @@ export default function InvitesPanel({ invites = [], users = [], onCreateInvite,
   const [searchQuery, setSearchQuery] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const isSatellite = isLeanSatelliteBranch(inviteBranch);
+  const isMgr = inviteRole === "manager";
+
   // Available branches from staff list
   const branchOptions = useMemo(() => getDistinctStaffBranches(users), [users]);
 
@@ -103,10 +106,24 @@ export default function InvitesPanel({ invites = [], users = [], onCreateInvite,
     );
   }, [cleanEmail, invites]);
 
+  const handleBranchChange = (newBranch) => {
+    setInviteBranch(newBranch);
+    if (isLeanSatelliteBranch(newBranch)) {
+      if (inviteDivision === "kindergarten" || inviteDivision === "all") {
+        setInviteDivision("courses");
+      }
+      if (inviteRole === "opslead" || inviteRole === "instructorleader") {
+        setInviteRole("instructor");
+      }
+    }
+  };
+
   const handleRoleChange = (newRole) => {
     setInviteRole(newRole);
     if (newRole === "officeboy") {
       setInviteDivision("all");
+    } else if (newRole === "manager" && inviteDivision === "all") {
+      setInviteDivision("courses");
     }
   };
 
@@ -222,8 +239,12 @@ export default function InvitesPanel({ invites = [], users = [], onCreateInvite,
                 className="w-full py-2.5 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:border-[#1a3a8f] outline-none cursor-pointer transition"
               >
                 <option value="courses">Course Academy</option>
-                <option value="kindergarten">Kids School (Kindergarten)</option>
-                <option value="all">All Divisions (Cross-Divisional)</option>
+                {!isSatellite && (
+                  <option value="kindergarten">Kids School (Kindergarten)</option>
+                )}
+                {!isSatellite && !isMgr && (
+                  <option value="all">All Divisions (Cross-Divisional)</option>
+                )}
               </select>
             )}
           </div>
@@ -238,10 +259,14 @@ export default function InvitesPanel({ invites = [], users = [], onCreateInvite,
               className="w-full py-2.5 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:border-[#1a3a8f] outline-none cursor-pointer transition"
             >
               <option value="instructor">Instructor / Teacher</option>
-              <option value="instructorleader">Instructor Leader</option>
+              {!isSatellite && (
+                <option value="instructorleader">Instructor Leader</option>
+              )}
               <option value="manager">Division Manager</option>
               <option value="frontoffice">Front Office Staff</option>
-              <option value="opslead">Operational Leader</option>
+              {!isSatellite && (
+                <option value="opslead">Operational Leader</option>
+              )}
               <option value="marketing">Marketing Specialist</option>
               <option value="officeboy">Office Support Staff</option>
             </select>
@@ -253,7 +278,7 @@ export default function InvitesPanel({ invites = [], users = [], onCreateInvite,
             </label>
             <select
               value={inviteBranch}
-              onChange={(e) => setInviteBranch(e.target.value)}
+              onChange={(e) => handleBranchChange(e.target.value)}
               className="w-full py-2.5 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:border-[#1a3a8f] outline-none cursor-pointer transition"
             >
               {branchOptions.map((br) => (

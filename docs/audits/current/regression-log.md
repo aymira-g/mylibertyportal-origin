@@ -35,6 +35,7 @@
 | 2026-10-16 | Post-Slice 1 CI Remediation: Synchronized security rules matrix unit assertions to match Admin branch/division isolation and restored isExecutive() on corporateEvents calendar read | Security Rules · Test Matrix · Firestore Emulator | **PASS** | No | 1,433/1,433 unit tests pass; 139/139 emulator tests pass; 0 lint, 0 typecheck, build clean |
 | 2026-10-16 | BLRCA Slice 1: Phase 6 Post-Fix Verification & Ledger Closure (DOM11-GOV-02, DOM01-GOV-03, DOM01-REP-01, DOM01-PERF-01 verified resolved; commits `220c10a`, `131f1b2`) | Auth · System Admin · Security Rules · Dashboard · Reports | **PASS** | No | 7/7 targeted test files passed (194 tests); 0 lint, 0 typecheck; all 4 findings CLOSED in bug-ledger.md |
 | 2026-10-16 | BLRCA Slice 2 Remediation: Financial Surfaces Across Roles (DOM04-GOV-03, DOM04-SEC-02, DOM04-GOV-04, DOM04-GOV-05, DOM04-GOV-06, DOM04-GOV-07) | Finance · Payments · Security Rules · Approvals · Shifts | **PASS** | No | 1,437 vitest unit tests pass; 0 lint, 0 typecheck, build clean; all 6 findings CLOSED in bug-ledger.md |
+| 2026-10-16 | BLRCA Slice 3 Audit: Student, Child & Parent Personal Data Across Roles (Phases 0–4 strictly audit-only; 8 findings cataloged; 0 production code changes) | Students · Parent Portal · Security Rules · Reports | **AUDIT COMPLETE** | Yes (8 Findings Logged) | System Admin /users list exposure, Admissions tab leak, student withdrawal gate unhooked, instructor roster CSV export, office boy deskInquiries access, progressReports branch lock, direct tuition field update |
 
 ---
 
@@ -49,28 +50,26 @@ Tester / Agent: Primary Coding Agent, authorized by Kifry
 Risk classification: HIGH-RISK (Financial integrity, dual-control maker-checker, Firestore security rules, cash reconciliation)
 
 Verification Evidence:
-  - DOM04-GOV-03 & DOM04-SEC-02 (Payments Rules Hardening):
-    - firestore.rules:1011-1036: Restricts desk cashier payment creation strictly to isFrontOffice(); allows isOrgExecutive() only to create reversal payments when isReversal == true and appliedFromApproval is present.
-    - firestore.rules update: Front Office restricted to non-sensitive desk metadata ['notes', 'referenceNumber', 'updatedAt']; isOrgExecutive() permitted for ['notes', 'approvalStatus', 'updatedAt', 'status', 'voidReason', 'voidedAt', 'voidedByUid', 'reversalOfPaymentId'] with strict enum guards (approvalStatus in ['approved', 'rejected'], status in ['voided', 'active', 'reversal']).
-  - DOM04-GOV-04 (Discount Rejection Coverage Reversion):
-    - ApprovalInbox.jsx:415-422: When executive rejects DISCOUNT_OR_REFUND ticket with payload.studentId, calls markPaymentPending(studentId), resetting student paymentStatus to 'pending' and deleting paidUntil coverage to eliminate revenue leak.
-  - DOM04-GOV-05 (Payment Correction & Void Dual-Control Workflow):
-    - Registered PAYMENT_CORRECTION_OR_VOID (Action #14) in approvalGates.constants.js, securityRulesMatrix.helpers.js, and approvalGates.js (threshold routing > Rp 500.000 to Director, <= Rp 500.000 to Vice Director).
-    - paymentsRepository.js: Added requestPaymentVoid(payment, requester, reason) generating ticket with payload snapshot, and atomic executePaymentVoid(...) batch reverting student coverage and recording audit void metadata.
-    - ApprovalInbox.jsx: Wired action execution and custom payment ticket preview card.
-    - PaymentHistoryTab.jsx & PaymentModal.jsx: Wired Void button triggering dual-control approval modal.
-  - DOM04-GOV-06 (Installment & Partial Payment Schedules):
-    - paymentSchema.js: Added optional fields isInstallment, installmentIndex, totalAgreedAmount, outstandingBalance, nextDueDate.
-    - RecordPaymentTab.jsx & PaymentModal.jsx: Added installment toggle and plan schedule inputs.
-    - paymentsRepository.js: Sets student paymentStatus to 'partially_paid' and updates balance when isInstallment is true.
-  - DOM04-GOV-07 (Cash Discrepancy Escalation Threshold):
-    - shiftsRepository.js:24: Updated DEFAULT_CASH_DISCREPANCY_THRESHOLD_IDR from 25000 to 10000. All discrepancies >= Rp 20.000 strictly escalate to Vice Director per OD-4.
+  - Auditor Item 1 (Revenue Doubling Fix & Voided/Reversal Netting):
+    - financeUtils.js: summarizePaymentsByMethod excludes voided payments and same-window reversals (netting transaction to Rp 0), while correctly subtracting cross-window reversals from drawer and revenue totals.
+    - FinancialReportsTab.jsx & PaymentHistoryTab.jsx: Render visual badges (VOIDED in rose, REVERSAL in amber) in tables and map explicit status strings in CSV exports. Verified in financeUtils.test.js (7/7 tests passed).
+  - Auditor Item 2 (Installment Discount-Bypass & OD-3 Parameters):
+    - PaymentModal.jsx & RecordPaymentTab.jsx: Enforces enteredAmountNum < effectiveTotalAgreed; requires non-empty nextDueDate <= coverageEnd; enforces max 2 installments for monthly plans and max 3 for multi-month plans per OD-3 §1 & §2.2.
+    - Fee discount check enforced: if effectiveTotalAgreed < expectedPlanPrice, effectiveDiscount is set and a DISCOUNT_OR_REFUND envelope is generated per OD-3 §1 & §2.4. Verified in schemas.test.js (40/40 tests passed).
+  - Auditor Item 3 (Approval Envelope Verification in firestore.rules):
+    - firestore.rules: Added helper isValidPaymentVoidApproval(approvalId) ensuring appliedFromApproval ticket exists, status == 'approved', and actionId == 'PAYMENT_CORRECTION_OR_VOID'.
+    - payments create verifies isValidPaymentVoidApproval on executive reversal records.
+    - payments update verifies isValidPaymentVoidApproval when setting status == 'voided', and enforces requestedByUid != request.auth.uid to prevent self-approval on discount decisions.
+  - Auditor Item 4 (Cash Discrepancy Self-Approval Escalation):
+    - approvalGates.js: getCashDiscrepancyApprover accepts drawerHandlerRole. Ops Lead at Main Campus and Course Division Manager at Lean Satellites who handle drawer escalate < Rp 20.000 discrepancies to vice_director. Verified in approvalGates.test.js (34/34 tests passed).
+  - Auditor Item 5 (OD-1 §3 Alignment on PAYMENT_CORRECTION_OR_VOID):
+    - approvalGates.js: Removed unratified 500k threshold split. All payment void/correction tickets route to vice_director queue with director co-approver per OD-1 §3.
   - Quality Gates Executed:
-    - npx vitest run: 106 test files passed, 1,437 passed, 123 skipped, 0 failed.
+    - npx vitest run: 106 test files passed, 1,449 passed, 139 skipped, 0 failed.
     - npm run typecheck: 0 errors.
     - npm run lint: 0 errors.
-    - npm run build: Built successfully in 5.18s.
-  - Ledger Closure: DOM04-GOV-03, DOM04-SEC-02, DOM04-GOV-04, DOM04-GOV-05, DOM04-GOV-06, DOM04-GOV-07 marked CLOSED in docs/audits/current/bug-ledger.md.
+    - npm run build: Built successfully in 670ms with PWA generated.
+  - Ledger Closure: DOM04-GOV-03, DOM04-SEC-02, DOM04-GOV-04, DOM04-GOV-05, DOM04-GOV-06, DOM04-GOV-07 verified CLOSED in docs/audits/current/bug-ledger.md.
 ```
 
 ---

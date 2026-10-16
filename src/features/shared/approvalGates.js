@@ -87,12 +87,13 @@ export function getSelfCorrectionApprover(requesterRole) {
  *   Exception: If Director is on approved leave, Vice Director acts as Acting Director.
  * Shortage and surplus both count by absolute size.
  *
- * @param {{ amount?: number|string, drawerHandlerUid?: string|null, opsLeadUid?: string|null, isDirectorOnLeave?: boolean, branchId?: string|null, managerUid?: string|null }} [params]
+ * @param {{ amount?: number|string, drawerHandlerUid?: string|null, drawerHandlerRole?: string, opsLeadUid?: string|null, isDirectorOnLeave?: boolean, branchId?: string|null, managerUid?: string|null }} [params]
  * @returns {string} Approver role from APPROVAL_ROLES
  */
 export function getCashDiscrepancyApprover({
   amount = 0,
   drawerHandlerUid = null,
+  drawerHandlerRole = "",
   opsLeadUid = null,
   isDirectorOnLeave = false,
   branchId = null,
@@ -111,12 +112,14 @@ export function getCashDiscrepancyApprover({
     return APPROVAL_ROLES.VICE_DIRECTOR;
   }
 
+  const normRole = normalizeRole(drawerHandlerRole);
+
   // < Rp 20.000 tier:
   // Lean satellite branches (Bone Bolango, Limboto, Pohuwato per Blueprint v3.4 G-012 & OD-4):
   // Course Division Manager approves on-site daily operations.
   // If the Course Division Manager is the drawer handler, escalate to Vice Director.
   if (branchId && isLeanSatelliteBranch(branchId)) {
-    if (drawerHandlerUid && managerUid && drawerHandlerUid === managerUid) {
+    if (normRole === "manager" || (drawerHandlerUid && managerUid && drawerHandlerUid === managerUid)) {
       return APPROVAL_ROLES.VICE_DIRECTOR;
     }
     return APPROVAL_ROLES.DIVISION_MANAGER;
@@ -124,7 +127,12 @@ export function getCashDiscrepancyApprover({
 
   // Main Campus (Kota Gorontalo):
   // If Ops Lead handled the drawer themselves, they cannot approve it -> escalate to Vice Director
-  if (drawerHandlerUid && opsLeadUid && drawerHandlerUid === opsLeadUid) {
+  if (
+    normRole === "opslead" ||
+    normRole === "ops_lead" ||
+    normRole === "frontofficelead" ||
+    (drawerHandlerUid && opsLeadUid && drawerHandlerUid === opsLeadUid)
+  ) {
     return APPROVAL_ROLES.VICE_DIRECTOR;
   }
 
@@ -392,6 +400,7 @@ export function createApprovalEnvelope(actionId, requester = {}, context = {}) {
     resolvedApproverRole = getCashDiscrepancyApprover({
       amount: discrepancyAmount,
       drawerHandlerUid: requester.uid,
+      drawerHandlerRole: requester.role,
       opsLeadUid: context.payload?.opsLeadUid,
       branchId: approverBranchId,
       managerUid: context.payload?.managerUid,
@@ -411,8 +420,9 @@ export function createApprovalEnvelope(actionId, requester = {}, context = {}) {
       checkerUid: context.payload?.checkerUid,
     });
   } else if (gate.id === "PAYMENT_CORRECTION_OR_VOID") {
-    const voidAmount = Math.abs(Number(context.payload?.amount ?? context.amount ?? 0));
-    resolvedApproverRole = voidAmount > 500000 ? APPROVAL_ROLES.DIRECTOR : APPROVAL_ROLES.VICE_DIRECTOR;
+    // OD-1 §3: Director or Vice Director approves every payment correction or void regardless of amount.
+    // Default queue routes to Vice Director with Director eligible as co-approver under dual-control rules.
+    resolvedApproverRole = APPROVAL_ROLES.VICE_DIRECTOR;
   }
   const division =
     requester.division ||

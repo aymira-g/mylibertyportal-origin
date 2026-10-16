@@ -527,4 +527,112 @@ describe("Maker-Checker Approval Gates", () => {
       expect(risk.requiresEscalation).toBe(true);
     });
   });
+
+  describe("getCashDiscrepancyApprover & Cash Discrepancy Escalation (OD-4 & Blueprint §26 G-009)", () => {
+    it("routes < Rp 20.000 to Ops Lead at Main Campus when FO handles drawer", () => {
+      const approver = getCashDiscrepancyApprover({
+        amount: 15000,
+        branchId: "kota_gorontalo",
+        drawerHandlerRole: "frontoffice",
+      });
+      expect(approver).toBe(APPROVAL_ROLES.OPS_LEAD);
+    });
+
+    it("escalates < Rp 20.000 to Vice Director at Main Campus when Ops Lead handles drawer", () => {
+      const approver = getCashDiscrepancyApprover({
+        amount: 15000,
+        branchId: "kota_gorontalo",
+        drawerHandlerRole: "opslead",
+      });
+      expect(approver).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+
+      const approverLead = getCashDiscrepancyApprover({
+        amount: 15000,
+        branchId: "kota_gorontalo",
+        drawerHandlerRole: "frontofficelead",
+      });
+      expect(approverLead).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+    });
+
+    it("routes < Rp 20.000 to Division Manager at Lean Satellite when FO handles drawer", () => {
+      const approver = getCashDiscrepancyApprover({
+        amount: 15000,
+        branchId: "bone_bolango",
+        drawerHandlerRole: "frontoffice",
+      });
+      expect(approver).toBe(APPROVAL_ROLES.DIVISION_MANAGER);
+    });
+
+    it("escalates < Rp 20.000 to Vice Director at Lean Satellite when Manager handles drawer", () => {
+      const approver = getCashDiscrepancyApprover({
+        amount: 15000,
+        branchId: "bone_bolango",
+        drawerHandlerRole: "manager",
+      });
+      expect(approver).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+    });
+
+    it("routes >= Rp 20.000 and < Rp 50.000 to Vice Director regardless of role or branch", () => {
+      expect(getCashDiscrepancyApprover({ amount: 20000, branchId: "kota_gorontalo", drawerHandlerRole: "frontoffice" })).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+      expect(getCashDiscrepancyApprover({ amount: 35000, branchId: "limboto", drawerHandlerRole: "frontoffice" })).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+      expect(getCashDiscrepancyApprover({ amount: -49999, branchId: "pohuwato", drawerHandlerRole: "manager" })).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+    });
+
+    it("routes >= Rp 50.000 to Director (or Vice Director when Director on leave)", () => {
+      expect(getCashDiscrepancyApprover({ amount: 50000 })).toBe(APPROVAL_ROLES.DIRECTOR);
+      expect(getCashDiscrepancyApprover({ amount: 150000, isDirectorOnLeave: true })).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+    });
+
+    it("creates CASH_DISCREPANCY envelopes with role-based self-approval escalation", () => {
+      // Main Campus Ops Lead requester escalates to Vice Director
+      const opsEnv = createApprovalEnvelope(
+        "CASH_DISCREPANCY",
+        { uid: "ops-1", role: "opslead", branchId: "kota_gorontalo", name: "Ops Lead" },
+        { payload: { discrepancyAmount: 15000 } }
+      );
+      expect(opsEnv.approverRole).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+
+      // Lean Satellite Manager requester escalates to Vice Director
+      const mgrEnv = createApprovalEnvelope(
+        "CASH_DISCREPANCY",
+        { uid: "mgr-1", role: "manager", branchId: "bone_bolango", name: "Course Manager" },
+        { payload: { discrepancyAmount: 15000 } }
+      );
+      expect(mgrEnv.approverRole).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+
+      // Main Campus FO requester routes to Ops Lead
+      const foEnv = createApprovalEnvelope(
+        "CASH_DISCREPANCY",
+        { uid: "fo-1", role: "frontoffice", branchId: "kota_gorontalo", name: "Desk Cashier" },
+        { payload: { discrepancyAmount: 15000 } }
+      );
+      expect(foEnv.approverRole).toBe(APPROVAL_ROLES.OPS_LEAD);
+    });
+  });
+
+  describe("PAYMENT_CORRECTION_OR_VOID Routing (OD-1 §3)", () => {
+    it("routes payment void tickets to vice_director queue regardless of amount", () => {
+      const env100k = createApprovalEnvelope(
+        "PAYMENT_CORRECTION_OR_VOID",
+        { uid: "fo-1", role: "frontoffice", branchId: "kota_gorontalo", name: "Desk Staff" },
+        { payload: { paymentId: "p-1", amount: 100000, reason: "Miskey" } }
+      );
+      expect(env100k.approverRole).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+
+      const env500k = createApprovalEnvelope(
+        "PAYMENT_CORRECTION_OR_VOID",
+        { uid: "fo-1", role: "frontoffice", branchId: "kota_gorontalo", name: "Desk Staff" },
+        { payload: { paymentId: "p-2", amount: 500000, reason: "Duplicate" } }
+      );
+      expect(env500k.approverRole).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+
+      const env2M = createApprovalEnvelope(
+        "PAYMENT_CORRECTION_OR_VOID",
+        { uid: "fo-1", role: "frontoffice", branchId: "kota_gorontalo", name: "Desk Staff" },
+        { payload: { paymentId: "p-3", amount: 2000000, reason: "Wrong Student" } }
+      );
+      expect(env2M.approverRole).toBe(APPROVAL_ROLES.VICE_DIRECTOR);
+    });
+  });
 });
+

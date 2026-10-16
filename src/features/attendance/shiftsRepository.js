@@ -476,7 +476,12 @@ export async function clockOutShiftWithCashReconciliation(
   };
 
   if (exceedsThreshold) {
-    const envelope = createApprovalEnvelope("CASH_DISCREPANCY", requester, {
+    const reqObj = /** @type {any} */ (requester) || {};
+    const effectiveRequester = {
+      ...reqObj,
+      role: reqObj.role || "frontoffice",
+    };
+    const envelope = createApprovalEnvelope("CASH_DISCREPANCY", effectiveRequester, {
       shiftId,
       reason: notes || `Discrepancy of IDR ${discrepancy.toLocaleString("id-ID")} exceeds IDR ${threshold.toLocaleString("id-ID")} threshold.`,
       payload: reconciliationData,

@@ -58,9 +58,9 @@ export default function PaymentHistoryTab({
                   🚫 Voided
                 </span>
               )}
-              {(h.isReversal || h.status === "reversal") && (
+              {(h.isReversal || h.status === "reversal" || h.type === "reversal") && (
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                  ↩️ Reversal Record
+                  ↩️ REVERSAL Record
                 </span>
               )}
               {h.isInstallment && (

@@ -368,7 +368,9 @@ export default function RecordPaymentTab({
               >
                 <option value={1}>1st Installment (Down Payment)</option>
                 <option value={2}>2nd Installment (Final Settlement)</option>
-                <option value={3}>3rd Installment (Multi-month plan)</option>
+                {pricing.months > 1 && (
+                  <option value={3}>3rd Installment (Multi-month plan)</option>
+                )}
               </select>
             </div>
             <div>
@@ -395,7 +397,7 @@ export default function RecordPaymentTab({
               />
             </div>
             <div className="sm:col-span-3 text-[11px] text-slate-500 font-medium">
-              Outstanding Balance to Settle: <strong className="text-[#1a3a8f]">{formatIDR(Math.max(0, (totalAgreedAmount || pricing.finalPrice || Number(amount || 0)) - Number(amount || 0)))}</strong> (extends active coverage immediately; no discount approval ticket required per OD-3).
+              Outstanding Balance to Settle: <strong className="text-[#1a3a8f]">{formatIDR(Math.max(0, (totalAgreedAmount || pricing.finalPrice || Number(amount || 0)) - Number(amount || 0)))}</strong> (extends active coverage immediately; discount approval ticket required only if agreed total &lt; standard price per OD-3).
             </div>
           </div>
         )}

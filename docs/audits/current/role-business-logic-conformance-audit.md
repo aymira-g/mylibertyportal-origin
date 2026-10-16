@@ -236,8 +236,334 @@ During the Slice 2 inspection, several critical controls were verified to be fun
 
 ---
 
-## 4. Master Action Plan & Next Steps
+## 4. Slice 2 Remediation & Auditor Review Post-Fix Verification
 
-1. **Remediation Plan for Slice 2:** Prepare a dedicated implementation proposal (`docs/plans/active/2026-10-16-blrca-slice2-financial-surfaces-remediation.md`) addressing `DOM04-GOV-03` through `DOM04-GOV-07` for Owner Kifry's authorization.
-2. **Ledger Synchronization:** Maintain `docs/audits/current/role-function-conformance-ledger.md` with granular testable rows for all Slice 1 and Slice 2 checks.
-3. **Campaign Progression:** Upon resolution of Slice 2 remediation, proceed to **Slice 3 — Student, Child & Parent Personal Data Across Roles**.
+### 4.1 Remediations Executed (Commit `a13806f` & Post-Fix Refinement)
+1. **`DOM04-GOV-03` & `DOM04-SEC-02` (CLOSED):**
+   - In `firestore.rules`, cashier desk payment creation strictly restricted to `isFrontOffice()`. `isOrgExecutive()` restricted to reversal payment records (`isReversal == true` and `appliedFromApproval` ticket verified).
+   - `/payments` update rule hardened: Front Office restricted to desk metadata; `isOrgExecutive()` permitted for audit fields with strict enum guards (`approvalStatus in ['approved', 'rejected']`, `status in ['voided', 'active', 'reversal']`).
+   - Reversal creation and void updates bound to `isValidPaymentVoidApproval(appliedFromApproval)` ticket verification; discount review enforces `requestedByUid != request.auth.uid` to prevent self-approval.
+2. **`DOM04-GOV-04` (CLOSED):**
+   - Rejection of unapproved discount in `ApprovalInbox.jsx` calls `markPaymentPending(studentId)`, resetting `paymentStatus` to `"pending"` and clearing unearned `paidUntil` coverage to eliminate revenue leakage.
+3. **`DOM04-GOV-05` (CLOSED):**
+   - Ratified `PAYMENT_CORRECTION_OR_VOID` (Action #14) dual-control workflow fully implemented across `approvalGates.constants.js`, `approvalGates.js`, `paymentsRepository.js` (`requestPaymentVoid` and atomic `executePaymentVoid`), `ApprovalInbox.jsx`, and UI tabs (`PaymentHistoryTab.jsx`, `PaymentModal.jsx`).
+   - Aligned routing strictly with **OD-1 §3**: routes to `vice_director` queue with `director` co-approver without artificial monetary threshold splits.
+4. **`DOM04-GOV-06` (CLOSED):**
+   - Implemented OD-3 installment & partial payment scheduling in `paymentSchema.js`, `RecordPaymentTab.jsx`, `PaymentModal.jsx`, and `paymentsRepository.js`.
+   - Enforces `enteredAmountNum < effectiveTotalAgreed`, non-empty `nextDueDate <= coverageEnd`, max 2 installments for monthly plans, and max 3 installments for multi-month plans.
+   - Enforces OD-3 discount check: if `effectiveTotalAgreed < expectedPlanPrice`, fee discount approval ticket is required.
+5. **`DOM04-GOV-07` (CLOSED):**
+   - Adjusted `DEFAULT_CASH_DISCREPANCY_THRESHOLD_IDR = 10000` in `shiftsRepository.js`. Discrepancies $\ge \text{Rp } 20.000$ strictly escalate to Vice Director per OD-4.
+   - Added self-approval escalation in `getCashDiscrepancyApprover`: Ops Lead at Main Campus and Course Division Manager at Lean Satellites who handle drawer escalate to `vice_director`.
+6. **Revenue Netting & Drawer Integrity (Auditor Item 1):**
+   - Refactored `summarizePaymentsByMethod` in `financeUtils.js` to exclude voided payments and same-window reversals (netting to strictly Rp 0), while subtracting cross-window reversals from drawer and revenue totals.
+   - Rendered distinct visual badges (`VOIDED` / `REVERSAL`) in `FinancialReportsTab.jsx` table and CSV exports, and in `PaymentHistoryTab.jsx`.
+
+### 4.2 Quality Gate Verification
+- **Automated Unit Tests:** 106 test files passed, **1,449 tests passed** (139 skipped, 0 failed).
+- **TypeScript Typecheck (`tsc --noEmit`):** Clean pass (0 errors).
+- **ESLint (`eslint .`):** Clean pass (0 errors).
+- **Production Build (`vite build`):** Built cleanly in 670ms with PWA service worker generated.
+
+### 4.3 Campaign Status & Next Steps
+- **Slice 1 (System Admin Boundary):** CLOSED & VERIFIED.
+- **Slice 2 (Financial Surfaces Across Roles):** CLOSED & VERIFIED.
+- **Slice 3 (Student, Child & Parent Personal Data Across Roles):** PHASES 0–4 AUDIT COMPLETE (Awaiting Owner Review & Remediation).
+
+---
+
+## 5. Slice 3: Student, Child & Parent Personal Data Across Roles (Phases 0–4 Audit-Only)
+
+**Date of Execution:** 2026-10-16  
+**Auditor / Agent:** Independent Auditor & Primary Coding Agent (Audit-Only Mode)  
+**Governing Authorities:**
+- [`docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`](../../governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md) (§6, §7, §11, §12, §19, §20, §26 G-003, G-012)
+- [`docs/decisions/2026-10-13-branch-typology-and-lean-branch-governance-amendment.md`](../../decisions/2026-10-13-branch-typology-and-lean-branch-governance-amendment.md) (G-012, ADR 2026-10-13)
+- [`docs/audits/blueprint-conformance-matrix.md`](../blueprint-conformance-matrix.md) (`INV-02`, `INV-04`, `INV-08`, `INV-09`, `INV-12`)
+- Subsystem Specifications: [`docs/specs/authorization-contract.md`](../../specs/authorization-contract.md)
+
+---
+
+### 5.1 Phase 0: Pre-Flight Baseline & Environment Check
+
+- **Git HEAD SHA:** `a13806f` (plus verified Slice 2 post-fix ledger closures).
+- **Git Branch:** `main`.
+- **Working Tree State:** Clean, verified with zero test failures across 1,449 tests, 0 lint errors, 0 typecheck errors.
+- **Authoritative Blueprint Verification:**
+  - **Version:** v3.4 [Established]
+  - **Status:** RATIFIED AUTHORITATIVE BASELINE — APPROVED BY OWNER (KIFRY) [Established]
+  - **Date:** 2026-10-13 [Established]
+- **Operational Mode:** STRICTLY AUDIT-ONLY (Phases 0 through 4). No production code in `src/`, `firestore.rules`, or `cloudflare-worker/` is modified during this pass.
+
+---
+
+### 5.2 Phase 1: Ratified Role-to-Function Personal Data Contracts
+
+Under Blueprint §19 (*Parent and Child Data Privacy Principle*), personal information must be accessible only to people whose responsibilities genuinely require it. Information concerning children requires additional care and must be restricted to legitimate business or participant need. Unnecessary exposure of child personal data, parent contact details, academic progress, and home address must be minimized.
+
+| Canonical Role ID | Organizational Role Under Blueprint | Authorized Personal Data Scope | Prohibited Personal Data Scope | Governing Citation |
+|---|---|---|---|---|
+| `director` | Director (Strategic Control) | Province-wide macro enrollment statistics, retention figures, escalated student exceptions, and high-level academic progress. | Operational cashier desk intake; direct record deletion without audit trail. | Blueprint §5.4, §6.1, §19 |
+| `vice_director` | Vice Director (Operational Control) | Multi-branch operational enrollment tracking, escalated attendance follow-ups, province-wide student roster oversight, and approved deactivations/exceptions. | Unrestricted arbitrary CRUD over student records outside defined workflows. | Blueprint §5.4, §6.2, §19, Principle 16 |
+| `admin` | System Admin (Technical Infrastructure Only) | Technical user account provisioning, staff email/UID lookup, invite tokens, terminal/kiosk device linking. | **Zero business access:** Prohibited from listing, browsing, exporting, or editing student profiles, child dossiers, parent WhatsApp numbers, home addresses, or applicant leads. | Blueprint §7, §19, INV-02, INV-08 |
+| `manager` | Division Manager | Student dossiers, academic progress, enrollment status, parent contacts, and attendance for their assigned `branchId` and `division` (`courses` or `kindergarten`). | Cross-branch student data; opposite division student data (e.g. Course Mgr browsing Kindergarten toddlers). | Blueprint §6.4, §6.5, §11, §19, INV-04 |
+| `opslead` | Operational Leader (Main Campus) | Main Campus cohort class lists, room allocation logistics, student attendance check-in monitoring, and front office coordination. | Academic placement overrides; cross-branch student PII (lean satellites). | Blueprint §6.8, G-012 |
+| `instructorleader` | Central Academic Lead | Province-wide curriculum standardization, placement test scores, level assessments, and progress reports across all physical branches. | Unrestricted bulk download of parent WhatsApp contacts or child financial ledgers. | Blueprint §6.11, G-003, G-012 |
+| `frontoffice` | Front Office / Customer Service | Walk-in intake, prospective applicant details, student enrollment, parent contact information, ID badge issuance, and tuition status for their assigned `branchId` and `division`. | Cross-branch or cross-division student/parent records; peer staff dossiers. | Blueprint §6.9, §11, §19, INV-04 |
+| `instructor` | Teaching Instructor | Academic roster, attendance records, progress report evaluations, and student learning needs for students enrolled in classes they teach (primary or substitute). | Full student dossiers of students not taught; bulk export of parent phone numbers/home addresses to personal devices; cross-branch student records. | Blueprint §6.12, §19 |
+| `marketing` | Marketing Specialist | Prospective student leads, walk-in inquiries (`deskInquiries`), and campaign outreach tracking for their branch/division. | Enrolled student medical/family personal data; parent account credentials; child PII outside lead acquisition. | Blueprint §6.6, §6.7, §19 |
+| `officeboy` | Facilities & Support Staff | Physical maintenance tasks, facilities logs, and assigned site duties. | **Zero student/parent personal data:** Forbidden from reading child personal information, parent contacts, applicant leads, or academic records. | Blueprint §6.10, §19 |
+| `student` | Enrolled Learner | Self-record only: own attendance logs, assigned classes, and personal level/progress. | All peer student records, classmate grades, and parent account details. | Blueprint §20, INV-08 |
+| `parent` | Parent / Guardian | Linked children only: attendance logs, class schedule, tuition health summary, and progress evaluations for explicitly verified linked children (`childStudentIds`). | Any peer child or unrelated family's personal, academic, or financial records. | Blueprint §19, §20, INV-08 |
+
+---
+
+### 5.3 Phase 2: Feature & Personal Data Surface Discovery
+
+The audit discovered 12 distinct feature components, collection routes, and background execution paths processing student, child, or parent personal data:
+
+| Feature ID | Path / Component | Reachable Roles | Data Exposed / Processed | Actions / Mutations | Intended Scope | Enforcement Path | Applicable Dimensions |
+|---|---|---|---|---|---|---|---|
+| `FEAT-STU-01` | `src/features/students/StudentRoster.jsx:50` | `vice_director`, `manager`, `frontoffice`, `opslead`, `instructor` | Student name, NIS, phone, DOB, parent contact, class enrollment, tuition health | View roster, search/filter, update status, trigger payment, export CSV | Branch & division scoped (Exec: all) | Dashboard tab guard → Firestore rules `/users` | Dim 1, 2, 4, 6 |
+| `FEAT-STU-02` | `src/features/students/StudentRosterTable.jsx:40` | Same as `FEAT-STU-01` | Full tabular student dossiers, linked parents, badge status, action buttons | Change status, promote student, transfer class, open badge modal | Branch & division scoped | Component props → `usersRepository.js` | Dim 1, 3, 4 |
+| `FEAT-STU-03` | `src/features/students/ParentsList.jsx:30` | `vice_director`, `manager`, `frontoffice`, `opslead` | Parent display name, email, WhatsApp phone, linked child count & names | Search parents, copy phone/email, open linkage modal | Branch scoped | `StudentRoster` tab guard → `users` array | Dim 1, 2, 4 |
+| `FEAT-STU-04` | `src/features/students/StudentParentLinkage.jsx:24` | `director`, `vice_director`, `manager`, `frontoffice`, `opslead` | Parent email, phone, name, student linkage association | Create secondary Auth parent account, link/unlink child via Worker | Same branch parent & child | Modal guard → Worker `/api/v1/parent-link` & fallback | Dim 1, 3, 5, 6 |
+| `FEAT-STU-05` | `src/features/dashboard/ParentDashboard.jsx:27` | `parent` | Linked child name, photo, level badge, class timetable, attendance, tuition health | Switch child, view attendance history, view class schedule | Linked children only (`childStudentIds`) | Auth route `/portal` → `parentPortalRepository.js` → rules | Dim 1, 2, 4, 6 |
+| `FEAT-STU-06` | `src/features/auth/RegistrationPage.jsx:8` | Public (Unauthenticated) | Applicant student full name, DOB, place of birth, religion, parent names, phones, jobs | Embeds official Google Form intake; submits to Google Sheets | Public intake | Embedded Google Form → `FormSync.gs` → `/applications` | Dim 2, 5 |
+| `FEAT-STU-07` | `src/features/students/applicationsRepository.js:31` | `director`, `vice_director`, `manager`, `frontoffice` | Full applicant background, parent contact details, education, referral source | Approve applicant into `/users`, update application status, enroll in class | Branch & division scoped | Transaction → `applications` & `/users` rules | Dim 1, 3, 4, 6 |
+| `FEAT-STU-08` | `src/features/reports/tabs/AdmissionsTab.jsx:25` | `director`, `vice_director`, `manager`, `frontoffice`, `admin` [leak] | Prospective applicant funnel, names, programs, application timestamps | Filter by branch/date, view application metrics, search applications | Branch scoped (Exec: all) | `ReportsDashboard` tab guard → `fetchAdmissionsReportData` | Dim 1, 2, 4, 6 |
+| `FEAT-STU-09` | `src/features/students/StudentProgressForm.jsx:36` | `instructor`, `instructorleader` | Student name, enrolled class, CEFR skill scores, teacher remarks, promotion flag | Create progress report in `/progressReports` | Classes taught by caller | Form validation → `progressReportsRepository.js` → rules | Dim 1, 3, 4 |
+| `FEAT-STU-10` | `src/features/students/BadgeModal.jsx:23` | `director`, `vice_director`, `manager`, `frontoffice`, `opslead`, `instructor` | Student/Staff name, role, level, photo, QR code (encoding UID) | Render printable ID pass, download PNG badge | Caller's displayed person | Local canvas / SVG render (no backend mutation) | Dim 2 |
+| `FEAT-STU-11` | `src/features/students/StudentPhotoCapture.jsx:5` | `director`, `vice_director`, `manager`, `frontoffice` | Child facial image capture (webcam or file upload) | Uploads photo to external Cloudinary bucket; saves HTTPS URL | Direct client fetch | Client `uploadToCloudinary` → unsigned preset | Dim 2, 5 |
+| `FEAT-STU-12` | `src/features/staff/StaffDirectory.jsx:42` | `vice_director`, `admin` | Staff name, email, phone, role, branch, division, status, teaching workload | Search staff, copy phone/email, change status, safe delete, print badge | Province-wide staff management | Dashboard tab guard → `usersRepository.js` → rules | Dim 1, 2, 3, 4 |
+
+---
+
+### 5.4 Phase 3: Technical Audit Across Roles & Surfaces
+
+#### 1. System Admin Boundary on Personal Data (Dimension 1 & 2)
+- **Observed Behavior:**
+  - In `firestore.rules:687-705`, `/users/{userId}` allows `allow get: if ... || isExecutive()` and `allow list: if isExecutive()`.
+  - In `firestore.rules:43`, `function isExecutive()` is defined as `isDirector() || isViceDirector() || isAdmin()`.
+  - Because `isAdmin()` is bundled into `isExecutive()`, a technical System Admin possesses database-level read and list permissions over every user document in `/users`.
+  - In `src/features/dashboard/useDashboardData.js:272-278`, when mounted inside `AdminDashboard.jsx`, an unscoped real-time `onSnapshot` listener is established across the entire `collection(db, "users")`. This continuously syncs all students and parents into the administrator's local browser memory.
+  - In `src/features/reports/ReportsDashboard.jsx:157`, the "Admissions & Leads" tab is displayed to `isActualAdmin`, and `reportsRepository.js:263` classifies `callerRole === "admin"` as `isExecutive`, emitting an unscoped `/applications` query that crashes with `permission-denied` because `firestore.rules:767` strictly excludes `admin`.
+- **Governance Conformance:** **FAIL** (Violates Blueprint §7, §19, INV-02, INV-08). Technical administration must never grant access to student, child, or parent personal records.
+
+#### 2. Student Withdrawal & Enrollment Freeze Dual-Control (Dimension 3)
+- **Observed Behavior:**
+  - `STUDENT_WITHDRAWAL_OR_FREEZE` is defined in `approvalGates.constants.js:248-269` with `domain: "students"`, `requiredScope: SCOPE_LEVELS.BRANCH_LOCAL`, and `approverRole: APPROVAL_ROLES.DIVISION_MANAGER`.
+  - However, in `src/features/students/StudentRoster.jsx:122`, when a user selects a status change to `"graduated"`, `"inactive"`, or `"archived"`, the UI invokes `updateStudentStatus(student.id, newStatus)` directly.
+  - In `src/features/dashboard/usersRepository.js:72-82`, `updateStudentStatus` executes a direct `setDoc(doc(db, "users", uid), { status, ... }, { merge: true })`.
+  - In `firestore.rules:653`, `'status'` is included directly in `diffKeys.hasOnly` for `isStaffOrMgr` without requiring an approval ticket or checking `appliedFromApproval`.
+  - Result: No approval envelope is ever generated, logged, or verified when a student is withdrawn or frozen. Front Office staff or Managers can unilaterally withdraw students without dual-control oversight.
+- **Governance Conformance:** **FAIL** (Violates Blueprint §14, §15, §16, §26). Maker-checker dual control is completely unhooked in production code.
+
+#### 3. Teaching Instructor Personal Data Visibility & Bulk Export (Dimension 2 & 4)
+- **Observed Behavior:**
+  - In `src/features/dashboard/instructor/InstructorClasses.jsx:276`, teaching instructors mount `<StudentRoster readOnly={true} userRole="instructor" canViewParents={false} />`.
+  - In `src/features/students/StudentRoster.jsx:486-492`, the `Export CSV` button calling `exportStudentRosterCSV(sortedStudents)` is rendered unconditionally for all users, completely ignoring the `readOnly` prop and `userRole === "instructor"`.
+  - In `src/features/students/studentRosterExport.js:5-41`, `exportStudentRosterCSV` packages full student names, parent names, parent WhatsApp phone numbers, student dates of birth, education levels, and tuition payment health statuses into an unencrypted CSV downloaded directly to the instructor's device.
+  - Furthermore, in `firestore.rules:705`, `isStaff()` allows teaching instructors to `list` all students and parents in their branch and division, exceeding their need-to-know scope which should be restricted to enrolled students in classes they teach.
+- **Governance Conformance:** **FAIL** (Violates Blueprint §6.12, §19, INV-08). Teaching instructors are exposed to bulk PII exports and branch-wide student contact records without pedagogical justification.
+
+#### 4. Facilities / Office Boy Access on Prospect Leads (Dimension 1 & 4)
+- **Observed Behavior:**
+  - In `firestore.rules:1066-1078`, `/deskInquiries/{inquiryId}` permits `allow get, list, create, update` for `isStaff()`.
+  - In `firestore.rules:63`, `isStaff()` explicitly includes `'officeboy'`.
+  - In `firestore.rules:174-176`, `isDivisionAllowedForBranchStaff` returns `true` for non-office staff (`!isStaffRole`), meaning `officeboy` bypasses division checks.
+  - Result: An authenticated Facilities / Office Boy account can read, create, and update prospective student leads, phone numbers, and notes in `/deskInquiries`.
+- **Governance Conformance:** **FAIL** (Violates Blueprint §6.10, §19). Physical branch maintenance staff must not have database access to customer intake and prospect inquiries.
+
+#### 5. Central Academic Lead Province-Wide Scope on Progress Reports (Dimension 4 & 6)
+- **Observed Behavior:**
+  - In `firestore.rules:1154, 1159`, reading `/progressReports/{reportId}` for the Instructor Leader is guarded by:
+    `|| (isInstructorLeader() && isSameBranch(resource.data))`
+    `|| (isInstructorLeader() && isSameBranchStrict(resource.data))`
+  - Under Blueprint v3.4 §4, §5, §6.11, G-012, and ratified ADR 2026-10-13, the Instructor Leader is based at the Main Campus (`kota_gorontalo`) but exercises **province-wide academic coordination scope (`multi-branch`)** across all four branches for curriculum quality, teacher evaluations, placement overrides, and student academic monitoring.
+  - Because `isSameBranchStrict` requires `resource.data.branchId == userBranch()`, the Central Academic Lead is blocked from inspecting progress reports submitted by instructors at satellite branches (Bone Bolango, Limboto, Pohuwato), preventing province-wide pedagogical monitoring.
+- **Governance Conformance:** **FAIL** (Governance Divergence against Blueprint v3.4 §6.11 and G-012).
+
+#### 6. Direct User Document Update Granting Tuition Coverage (Dimension 3 & 6)
+- **Observed Behavior:**
+  - In `firestore.rules:651-663`, the `diffKeys.hasOnly` list for `isStaffOrMgr` updating `/users/{studentId}` includes:
+    `'paymentPlan', 'paymentStatus', 'lastPaymentPeriod', 'lastPaymentDate', 'lastPaymentAmount', 'lastPaymentMethod', 'paidUntil'`.
+  - While `recordPayment` in `paymentsRepository.js` legitimately writes these fields in a batch alongside an immutable payment record, `firestore.rules` does NOT verify that a corresponding `/payments` record exists or was created in the same transaction.
+  - Result: A rogue or compromised Front Office staff account could write directly to `/users/{studentId}` with `paymentStatus: "paid"` and `paidUntil: "2027-12-31"`, effectively granting free tuition at the database layer without creating a payment record, receipt, or approval ticket.
+- **Governance Conformance:** **FAIL** (Violates Blueprint §18, OD-1, OD-2, OD-3). Tuition coverage must derive strictly from authorized payments or approved discounts.
+
+#### 7. Unsigned Public Media Storage for Child Identification Photographs (Dimension 5)
+- **Observed Behavior:**
+  - In `src/features/students/StudentPhotoCapture.jsx:67, 90` and `src/features/shared/cloudinaryUpload.js:6-18`, child headshots captured via webcam or file upload are uploaded directly to Cloudinary using an **unsigned upload preset** (`mylibertyies-f2f38`).
+  - The resulting images are returned as public HTTPS URLs (`https://res.cloudinary.com/...`) stored directly in `student.photoURL`.
+  - These image URLs are completely unauthenticated and accessible to anyone with the URL, without token expiration or access controls.
+- **Governance Conformance:** **OBSERVED RISK / FINDING** (Blueprint §19). Unauthenticated third-party storage of child facial imagery presents a privacy and reputational risk.
+
+---
+
+### 5.5 Phase 4: Working Role-Function Conformance Ledger (Slice 3)
+
+| Contract ID | Role + Scope | Expected Behavior & Source | Feature / Path | Observed Behavior | Evidence | Result | Mismatch Type | Finding ID |
+|---|---|---|---|---|---|---|---|---|
+| `CTR-STU-01` | `admin` (System Admin) | Zero business access to student, child, or parent personal records. (Blueprint §7, §19, INV-02, INV-08) | `firestore.rules:687, 703` | Database rules allow `get` and `list` on `/users` for `isExecutive()`, which bundles `isAdmin()`. | `firestore.rules:43, 687, 703` | **FAIL** | Excess Capability / Privacy Breach | `DOM05-SEC-02` |
+| `CTR-STU-02` | `admin` (System Admin) | Technical dashboard must not sync student/child personal dossiers into memory. (Blueprint §7, §19, INV-02) | `useDashboardData.js:272` | Real-time listener on entire `/users` collection downloads all students and parents to Admin in memory. | `useDashboardData.js:261-278` | **FAIL** | Excess Capability / Data Leakage | `DOM11-SEC-01` |
+| `CTR-STU-03` | `admin` (System Admin) | Admin must not see Admissions & Leads reporting or query applications. (Blueprint §7, INV-02) | `ReportsDashboard.jsx:157` | "Admissions & Leads" sub-tab displayed to Admin; emits unscoped query; crashes with permission-denied. | `ReportsDashboard.jsx:157`, `reportsRepository.js:263` | **FAIL** | Governance Drift / Error State | `DOM05-UX-02` |
+| `CTR-STU-04` | `frontoffice` / `manager` | Student withdrawal or enrollment freeze must require dual-control approval ticket. (Blueprint §14, §15, §16, §26) | `StudentRoster.jsx:122` | Changes student status directly via `updateStudentStatus` without generating `STUDENT_WITHDRAWAL_OR_FREEZE` ticket. | `StudentRoster.jsx:122`, `firestore.rules:653` | **FAIL** | Missing Control / Dual-Control Bypass | `DOM05-GOV-02` |
+| `CTR-STU-05` | `instructor` (Teaching Instructor) | Teaching instructor must not bulk-export parent WhatsApp numbers and child PII to personal devices. (Blueprint §6.12, §19) | `StudentRoster.jsx:487` | "Export CSV" button is visible and active on instructor class roster view; downloads unencrypted CSV of parent phone numbers. | `StudentRoster.jsx:487-492`, `studentRosterExport.js:5-41` | **FAIL** | Excess Capability / Privacy Conformance | `DOM05-PRIV-01` |
+| `CTR-STU-06` | `officeboy` (Facilities) | Facilities staff must not read, create, or update prospective student leads. (Blueprint §6.10, §19) | `firestore.rules:1066, 1071, 1078` | Rules permit `isStaff()` (which includes `officeboy`) to read, create, and update `/deskInquiries`. | `firestore.rules:63, 1066-1078` | **FAIL** | Excess Capability / Least Privilege | `DOM05-SEC-03` |
+| `CTR-STU-07` | `instructorleader` (Central Academic Lead) | Province-wide pedagogical oversight across all four physical branches. (Blueprint v3.4 §6.11, G-012, ADR 2026-10-13) | `firestore.rules:1154, 1159` | Progress reports read rule restricts Instructor Leader to `isSameBranchStrict`, blocking satellite branch evaluations. | `firestore.rules:1154, 1159` | **FAIL** | Governance Divergence / Scope Lock | `DOM05-GOV-03` |
+| `CTR-STU-08` | `frontoffice` / `manager` | Tuition coverage (`paymentStatus`, `paidUntil`) must only advance through verified payments. (Blueprint §18, OD-1, OD-2, OD-3) | `firestore.rules:651-663` | Direct update on `/users/{studentId}` permits `diffKeys` including `paymentStatus` and `paidUntil` without payment record verification. | `firestore.rules:660-662`, `usersRepository.js:72-82` | **FAIL** | Integrity Vulnerability / Financial Bypass | `DOM04-SEC-03` |
+| `CTR-STU-09` | External Storage (Media) | Child identification photographs must be stored with access control and least exposure. (Blueprint §19) | `cloudinaryUpload.js:6-18` | Unsigned client upload preset stores child headshots in public unauthenticated Cloudinary URLs. | `cloudinaryUpload.js:1-18`, `StudentPhotoCapture.jsx:67` | **FAIL** | Privacy Risk / Insecure Storage | `DOM05-PRIV-02` |
+| `CTR-STU-10` | `parent` (Parent Profile) | Parent portal access must be strictly restricted to verified linked children. (Blueprint §19, §20, INV-08) | `ParentDashboard.jsx:78` | Scoped strictly to `childStudentIds` validated by `isParentOf` in Firestore rules and Worker. | `ParentDashboard.jsx:78-95`, `firestore.rules:574-583` | **PASS** | Compliant | None |
+| `CTR-STU-11` | `student` (Learner Profile) | Student accounts must only access their own self-records. (Blueprint §20, INV-08) | `App.jsx:639` | Student landing page redirects to self-portal; cannot list peer records or other families. | `App.jsx:639-666`, `firestore.rules:687` | **PASS** | Compliant | None |
+| `CTR-STU-12` | Public Intake (`/register`) | Public registration form must ingest leads without exposing backend Firestore database directly. (Blueprint §20) | `RegistrationPage.jsx:6` | Embeds Google Form; synchronization executed asynchronously via Google Apps Script Service Account. | `RegistrationPage.jsx:6-120`, `FormSync.gs`, `firestore.rules:771` | **PASS** | Compliant | None |
+
+---
+
+### 5.6 Detailed Audit Findings & Evidence
+
+#### Finding 1: System Admin Full Personal Data Exposure & Unscoped Listener (`DOM05-SEC-02` / `DOM11-SEC-01`)
+- **Classification:** Bug / Security & Privacy Vulnerability
+- **Severity:** HIGH / PRIVACY BREACH
+- **Evidence:**
+  - `firestore.rules:43`: `function isExecutive() { return isDirector() || isViceDirector() || isAdmin(); }`
+  - `firestore.rules:687-705`: `match /users/{userId}` allows `allow get: if ... || isExecutive()` and `allow list: if isExecutive()`.
+  - `src/features/dashboard/useDashboardData.js:272-278`:
+    ```javascript
+    const usersQuery = usersConstraints.length
+      ? query(collection(db, "users"), ...usersConstraints)
+      : collection(db, "users");
+    unsubUsers = onSnapshot(usersQuery, (snap) => setUsers(snap.docs.map(...)));
+    ```
+    For Admin, `usersConstraints` is empty, querying and downloading the entire `/users` collection into memory.
+  - `firestore.rules:613-642`: `canUpdateUser` allows `isExec` (including `admin`) to update any field on student and parent documents without diffKeys constraints.
+- **Why It Matters:** System Admin is an IT/technical system role. Granting System Admin database-level read, list, and update permissions over student and child dossiers violates Blueprint §7, Blueprint §19, and Invariant INV-02.
+- **Recommended Direction:**
+  1. In `firestore.rules`, decouple `/users/{userId}` read and list rules: require `isOrgExecutive()` (`director`, `vice_director`) for `role in ['student', 'parent']`. Restrict `admin` to staff roles (`role in ['admin', 'director', 'vice_director', 'manager', 'instructor', 'frontoffice', 'opslead', 'marketing', 'officeboy']`).
+  2. In `useDashboardData.js`, when mounted in `AdminDashboard`, add constraint `where("role", "in", STAFF_ROLES)` so it never listens to student or parent documents.
+  3. In `canUpdateUser`, remove `admin` from unrestricted executive updates over student and parent profiles.
+- **Owner Decision Required:** No (Explicitly established in Blueprint §7 and INV-02).
+- **Blocking Status:** Blocking before completion of Slice 3 remediation.
+
+#### Finding 2: Admissions & Leads Tab Exposed to Admin with Broken Unscoped Query (`DOM05-UX-02` / `DOM11-GOV-04`)
+- **Classification:** Bug / Governance Drift & Error State
+- **Severity:** MEDIUM
+- **Evidence:**
+  - `src/features/reports/ReportsDashboard.jsx:157`:
+    ```jsx
+    {(isActualAdmin || isExecutiveView || isFrontOffice || isManager) && (
+      <button onClick={() => handleSubTabClick("admissions")}>Admissions & Leads</button>
+    )}
+    ```
+  - `src/features/reports/reportsRepository.js:258-264`: classifies `callerRole === "admin"` or `isAdminView` as `isExecutive: true`, emitting an unscoped `collection(db, "applications")` query.
+  - `firestore.rules:767`: `/applications/{applicationId}` strictly permits `isOrgExecutive()` (`director`, `vice_director`), Front Office, and Division Managers, excluding `admin`.
+- **Why It Matters:** Admin clicking the tab results in a silent failure or `Failed to load admissions report data` error state. System Admin has no operational need to view prospective student applications.
+- **Recommended Direction:**
+  1. In `ReportsDashboard.jsx:157`, remove `isActualAdmin` from the tab button condition.
+  2. In `reportsRepository.js:258-264`, remove `isAdminView` and `callerRole === "admin"` from `isExecutive`.
+- **Owner Decision Required:** No (Strict alignment with Blueprint §7 and existing Firestore rules).
+- **Blocking Status:** Before completion of Slice 3 remediation.
+
+#### Finding 3: Student Withdrawal & Freeze Dual-Control Gate Unhooked in UI and Rules (`DOM05-GOV-02`)
+- **Classification:** Governance Conflict / Missing Dual-Control
+- **Severity:** HIGH / BUSINESS INTEGRITY
+- **Evidence:**
+  - `src/features/shared/approvalGates.constants.js:248-269`: Defines `STUDENT_WITHDRAWAL_OR_FREEZE` (approver: `manager`, escalation: `vice_director`).
+  - `src/features/students/StudentRoster.jsx:122`: When status is changed to "graduated", "inactive", or "archived", directly calls `updateStudentStatus(student.id, newStatus)`.
+  - `firestore.rules:653`: `'status'` is in `diffKeys.hasOnly` for `isStaffOrMgr` without any approval envelope requirement.
+- **Why It Matters:** Front Office staff can unilaterally withdraw or freeze students, terminating billing coverage, freeing up cohort seats, or marking accounts inactive without Division Manager review.
+- **Recommended Direction:**
+  1. In `StudentRoster.jsx:86-130`, when Front Office initiates a student status change to `inactive`, `graduated`, or `archived`, generate and submit a `STUDENT_WITHDRAWAL_OR_FREEZE` approval ticket instead of writing directly to Firestore.
+  2. In `firestore.rules:664-668`, require `isApprovedStudentWithdrawalOrFreeze(userId, req, res)` when `req.status != res.status && req.status in ['inactive', 'graduated', 'archived']`.
+- **Owner Decision Required:** Yes (Confirm whether Division Manager can self-approve student withdrawals for their own division, or whether all withdrawals require Vice Director sign-off).
+- **Blocking Status:** Owner decision required.
+
+#### Finding 4: Unrestricted Bulk CSV Export of Child PII and Parent WhatsApp Numbers on Instructor Roster (`DOM05-PRIV-01`)
+- **Classification:** Security Vulnerability / Privacy Conformance
+- **Severity:** HIGH / PRIVACY BREACH
+- **Evidence:**
+  - `src/features/dashboard/instructor/InstructorClasses.jsx:276`: mounts `<StudentRoster readOnly={true} userRole="instructor" canViewParents={false} />`.
+  - `src/features/students/StudentRoster.jsx:486-492`: Renders `<button onClick={() => exportStudentRosterCSV(sortedStudents)}>Export CSV</button>` unconditionally, ignoring `readOnly` and `userRole`.
+  - `src/features/students/studentRosterExport.js:5-41`: Exports Student Name, Parent Name, Parent WhatsApp Number, Student DOB, Education Level, and Payment Status into an unencrypted CSV file.
+- **Why It Matters:** Instructors can download full contact lists of parents and student birth dates to their personal laptops and phones. Under Blueprint §19, unnecessary exposure and distribution of child personal information and parent contact details must be strictly minimized.
+- **Recommended Direction:**
+  1. In `StudentRoster.jsx:486`, hide the `Export CSV` button when `readOnly` is true or when `userRole === "instructor"`.
+  2. Restrict student roster CSV exports to authorized operational roles: `isOrgExecutive`, `manager`, `frontoffice`.
+- **Owner Decision Required:** No (Strict realization of Blueprint §19).
+- **Blocking Status:** Before completion of Slice 3 remediation.
+
+#### Finding 5: Facilities / Office Boy Granted Database Access on Prospect Leads (`DOM05-SEC-03`)
+- **Classification:** Security Vulnerability / Least Privilege
+- **Severity:** LOW
+- **Evidence:**
+  - `firestore.rules:1066, 1071, 1078`: `/deskInquiries/{inquiryId}` permits get, list, create, update for `isStaff()`.
+  - `firestore.rules:63`: `isStaff()` includes `'officeboy'`.
+  - `firestore.rules:174-176`: `isDivisionAllowedForBranchStaff` returns `true` for `officeboy` because `!isStaffRole` evaluates to true.
+- **Why It Matters:** Maintenance and facilities staff have no business purpose reading prospective student names, phone numbers, or intake notes.
+- **Recommended Direction:**
+  - In `firestore.rules:1066-1085`, replace `isStaff()` with `(isFrontOffice() || isManager() || hasRole('marketing'))`.
+- **Owner Decision Required:** No (Blueprint §6.10 explicitly excludes administrative/intake authority from Office Boy).
+- **Blocking Status:** Before completion of Slice 3 remediation.
+
+#### Finding 6: Central Academic Lead (Instructor Leader) Locked by Same-Branch Rule on Progress Reports (`DOM05-GOV-03`)
+- **Classification:** Governance Conflict / Scope Divergence
+- **Severity:** MEDIUM
+- **Evidence:**
+  - `firestore.rules:1154, 1159`:
+    `|| (isInstructorLeader() && isSameBranch(resource.data))`
+    `|| (isInstructorLeader() && isSameBranchStrict(resource.data))`
+- **Why It Matters:** Under Blueprint v3.4 §4, §5, §6.11, G-012, and ADR 2026-10-13, the Instructor Leader is based at Kota Gorontalo but holds province-wide pedagogical scope across all branches. Locking progress report reads behind `isSameBranchStrict` prevents the Central Academic Lead from reviewing academic evaluations submitted by teachers at satellite branches (Bone Bolango, Limboto, Pohuwato).
+- **Recommended Direction:**
+  - In `firestore.rules:1154, 1159`, allow `isInstructorLeader()` to read `/progressReports` across all branches without `isSameBranchStrict`.
+- **Owner Decision Required:** No (Ratified in Blueprint v3.4 §6.11 and G-012).
+- **Blocking Status:** Before completion of Slice 3 remediation.
+
+#### Finding 7: Direct User Document Update Granting Tuition Coverage Without Payment Record (`DOM04-SEC-03` / `DOM05-SEC-04`)
+- **Classification:** Security Vulnerability / Financial Bypass
+- **Severity:** HIGH / FINANCIAL RISK
+- **Evidence:**
+  - `firestore.rules:651-663`: `diffKeys.hasOnly` for `isStaffOrMgr` updating `/users/{studentId}` includes `'paymentPlan', 'paymentStatus', 'lastPaymentPeriod', 'lastPaymentDate', 'lastPaymentAmount', 'lastPaymentMethod', 'paidUntil'`.
+  - `src/features/dashboard/usersRepository.js:72-82`: `updateStudentStatus` or direct Firestore `setDoc`/`updateDoc` can update these fields without creating a corresponding record in `/payments`.
+- **Why It Matters:** A Front Office staff member or Manager could grant active tuition status and advance `paidUntil` coverage directly on a student document in Firestore, bypassing payment recording, receipt generation, and executive discount approvals.
+- **Recommended Direction:**
+  - In `firestore.rules:651-663`, remove `'paymentPlan', 'paymentStatus', 'lastPaymentPeriod', 'lastPaymentDate', 'lastPaymentAmount', 'lastPaymentMethod', 'paidUntil'` from client-writable `diffKeys`, OR require that any update to these fields be accompanied by an atomic batch write to `/payments`.
+- **Owner Decision Required:** Yes (Confirm whether Front Office should ever be able to edit `paymentPlan` manually without recording a payment).
+- **Blocking Status:** Owner decision required.
+
+#### Finding 8: Unsigned Public Media Storage for Child Identification Photographs (`DOM05-PRIV-02`)
+- **Classification:** Privacy Risk / Insecure Storage
+- **Severity:** MEDIUM / PRIVACY CONFORMANCE
+- **Evidence:**
+  - `src/features/shared/cloudinaryUpload.js:6-18`: Uses unsigned upload preset `mylibertyies-f2f38` to upload images directly from browser to Cloudinary.
+  - `src/features/students/StudentPhotoCapture.jsx:67`: Child headshot webcam captures are uploaded and saved as public URLs.
+- **Why It Matters:** Under Blueprint §19 (*Parent and Child Data Privacy Principle*), child personal data must be safeguarded. Public unauthenticated URLs for child facial imagery present privacy and data leakage risks.
+- **Recommended Direction:**
+  - In the future rebuild/migration plan, migrate child identification media to private Firebase Storage with signed short-lived download URLs and branch-scoped security rules.
+- **Owner Decision Required:** Yes (Acknowledge third-party Cloudinary storage as temporary zero-budget architecture or schedule private bucket migration).
+- **Blocking Status:** Advisory / Non-blocking for current zero-budget operation.
+
+---
+
+### 5.7 Segregation of Owner Policy Decisions vs Implementation Defects
+
+#### Implementation Defects (Fix directly via approved code/rule remediation):
+1. **`DOM05-SEC-02` / `DOM11-SEC-01`:** Strip `admin` from `/users` student and parent read/list rules and scope `useDashboardData.js` staff listener.
+2. **`DOM05-UX-02` / `DOM11-GOV-04`:** Remove "Admissions & Leads" tab from `ReportsDashboard.jsx` for `isActualAdmin`.
+3. **`DOM05-PRIV-01`:** Hide `Export CSV` button on student roster for `readOnly` and teaching `instructor` role.
+4. **`DOM05-SEC-03`:** Remove `officeboy` / `isStaff()` from `/deskInquiries` rules.
+5. **`DOM05-GOV-03`:** Grant province-wide read access on `/progressReports` to Central Academic Lead (`isInstructorLeader()`) per Blueprint v3.4 §6.11.
+
+#### Owner Policy Decisions Required:
+1. **Owner Decision OD-STU-1 (Student Withdrawal / Freeze Dual-Control Authority):**
+   - *Question:* Who holds final approval authority for withdrawing or freezing a student (`STUDENT_WITHDRAWAL_OR_FREEZE`)?
+   - *Option A (Recommended):* Course Division Manager / Kindergarten Division Manager approves local branch withdrawals for their division; escalates to Vice Director if contested or cross-branch.
+   - *Option B:* Vice Director approves all student withdrawals province-wide to monitor churn and retention.
+2. **Owner Decision OD-STU-2 (Direct Student Tuition Field Updates):**
+   - *Question:* Should Front Office / Division Managers ever be able to edit `paymentStatus` or `paidUntil` directly on a student profile, or must tuition coverage derive strictly from an immutable `/payments` record?
+   - *Option A (Recommended):* Strict derivation: Strip `paymentStatus` and `paidUntil` from direct `/users` client updates. All tuition health changes must be written via `paymentsRepository.recordPayment` or approved discount envelopes.
+   - *Option B:* Allow manual override by Division Manager only (locked for Front Office).
+3. **Owner Decision OD-STU-3 (Child Photograph Storage Architecture):**
+   - *Question:* Should child identification photos remain on Cloudinary free-tier unsigned uploads (zero budget, public URL), or should they be scheduled for migration to Firebase Storage with authenticated access controls?
+   - *Option A (Recommended for Free Tier):* Retain Cloudinary unsigned upload for current $0 budget operations, documenting as an accepted risk.
+   - *Option B:* Migrate to Firebase Storage default bucket (within 5GB Spark limit) with security rules restricting access to staff and verified parents.
+

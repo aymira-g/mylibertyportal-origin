@@ -235,16 +235,12 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
         idempotencyKey: operationId,
         recordedAt: nowISO,
         recordedBy: auth.currentUser?.email || "Staff",
+        recordedByUid: auth.currentUser?.uid || null,
+        requestedByUid: auth.currentUser?.uid || null,
       };
 
-      // DOM04-FIN-01: Calculate effective discount by comparing entered amount with expected standard plan price
       const enteredAmountNum = Number(amount);
       const expectedPlanPrice = selectedPlan !== "custom" ? pricing.finalPrice : null;
-      let effectiveDiscount = discountAmount || 0;
-      // OD-3: If designated as an installment schedule, it is an agreed partial payment with an outstanding balance, NOT a discount!
-      if (!isInstallment && expectedPlanPrice && enteredAmountNum < expectedPlanPrice) {
-        effectiveDiscount = Math.max(effectiveDiscount, expectedPlanPrice - enteredAmountNum);
-      }
 
       const effectiveTotalAgreed = isInstallment
         ? (Number(totalAgreedAmount) || expectedPlanPrice || enteredAmountNum)
@@ -253,13 +249,48 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
         ? Math.max(0, effectiveTotalAgreed - enteredAmountNum)
         : 0;
 
+      // OD-3 §1 & §2.2 Installment parameter validations
       if (isInstallment) {
+        if (enteredAmountNum >= effectiveTotalAgreed) {
+          toast("Installment amount must be less than the total agreed amount. For full payment, uncheck Installment.", "error");
+          return;
+        }
+        if (!nextDueDate || !nextDueDate.trim()) {
+          toast("Next due date is required for installment plans per OD-3.", "error");
+          return;
+        }
+        if (finalCoverageEnd && nextDueDate > finalCoverageEnd) {
+          toast("Next due date cannot be later than the coverage period end date.", "error");
+          return;
+        }
+        const effectiveInstallmentIndex = Number(installmentIndex) || 1;
+        const isMonthlyPlan = planMonths === 1 || selectedPlan === "monthly";
+        if (isMonthlyPlan && effectiveInstallmentIndex > 2) {
+          toast("Monthly plans allow a maximum of 2 installments per OD-3.", "error");
+          return;
+        }
+        if (effectiveInstallmentIndex > 3) {
+          toast("Multi-month plans allow a maximum of 3 installments per OD-3.", "error");
+          return;
+        }
+
         paymentRecord.isInstallment = true;
-        paymentRecord.installmentIndex = Number(installmentIndex) || 1;
+        paymentRecord.installmentIndex = effectiveInstallmentIndex;
         paymentRecord.totalAgreedAmount = effectiveTotalAgreed;
         paymentRecord.outstandingBalance = effectiveOutstanding;
-        if (nextDueDate) {
-          paymentRecord.nextDueDate = nextDueDate;
+        paymentRecord.nextDueDate = nextDueDate;
+      }
+
+      // DOM04-FIN-01 & OD-3 §1, §2.4: Calculate effective discount
+      let effectiveDiscount = discountAmount || 0;
+      if (!isInstallment) {
+        if (expectedPlanPrice && enteredAmountNum < expectedPlanPrice) {
+          effectiveDiscount = Math.max(effectiveDiscount, expectedPlanPrice - enteredAmountNum);
+        }
+      } else {
+        // When on installment, if the agreed total fee is less than standard plan price, it requires discount approval
+        if (expectedPlanPrice && effectiveTotalAgreed < expectedPlanPrice) {
+          effectiveDiscount = Math.max(effectiveDiscount, expectedPlanPrice - effectiveTotalAgreed);
         }
       }
 

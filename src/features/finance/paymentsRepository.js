@@ -245,6 +245,9 @@ export async function recordPayment(studentId, paymentRecord, idempotencyKey = n
     branch,
     branchId,
     division: finalDivision,
+    ...(paymentRecord.requestedByUid || paymentRecord.recordedByUid
+      ? { requestedByUid: paymentRecord.requestedByUid || paymentRecord.recordedByUid }
+      : {}),
     ...(effectiveIdempotencyKey ? { idempotencyKey: effectiveIdempotencyKey } : {}),
   };
 
@@ -436,6 +439,7 @@ export async function executePaymentVoid({
     voidedAt: new Date().toISOString(),
     voidedByUid: decidedByUid || null,
     reversalOfPaymentId: reversalRef.id,
+    appliedFromApproval: approvalId || null,
     updatedAt: new Date().toISOString(),
   });
 

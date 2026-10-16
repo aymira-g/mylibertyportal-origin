@@ -138,6 +138,93 @@ describe("paymentRecordSchema & studentIdSchema", () => {
     ).toThrow(/greater than 0/);
   });
 
+  it("validates OD-3 installment payments and enforces parameter bounds", () => {
+    // Valid installment
+    const valid = paymentRecordSchema.parse({
+      amount: 175000,
+      totalAgreedAmount: 350000,
+      isInstallment: true,
+      installmentIndex: 1,
+      nextDueDate: "2026-10-25",
+      coverageEnd: "2026-11-01",
+      period: "October 2026",
+      method: "cash",
+      planId: "monthly",
+      planMonths: 1,
+    });
+    expect(valid.isInstallment).toBe(true);
+    expect(valid.amount).toBe(175000);
+
+    // Rejects if amount >= totalAgreedAmount
+    expect(() =>
+      paymentRecordSchema.parse({
+        amount: 350000,
+        totalAgreedAmount: 350000,
+        isInstallment: true,
+        installmentIndex: 1,
+        nextDueDate: "2026-10-25",
+        period: "October 2026",
+        method: "cash",
+      })
+    ).toThrow(/less than the total agreed amount/);
+
+    // Rejects if nextDueDate is missing
+    expect(() =>
+      paymentRecordSchema.parse({
+        amount: 150000,
+        totalAgreedAmount: 350000,
+        isInstallment: true,
+        installmentIndex: 1,
+        period: "October 2026",
+        method: "cash",
+      })
+    ).toThrow(/requires nextDueDate/);
+
+    // Rejects if nextDueDate > coverageEnd
+    expect(() =>
+      paymentRecordSchema.parse({
+        amount: 150000,
+        totalAgreedAmount: 350000,
+        isInstallment: true,
+        installmentIndex: 1,
+        nextDueDate: "2026-12-01",
+        coverageEnd: "2026-11-01",
+        period: "October 2026",
+        method: "cash",
+      })
+    ).toThrow(/within the active coverage period/);
+
+    // Rejects monthly installmentIndex > 2
+    expect(() =>
+      paymentRecordSchema.parse({
+        amount: 100000,
+        totalAgreedAmount: 350000,
+        isInstallment: true,
+        installmentIndex: 3,
+        nextDueDate: "2026-10-25",
+        period: "October 2026",
+        method: "cash",
+        planId: "monthly",
+        planMonths: 1,
+      })
+    ).toThrow(/max 2 for monthly/);
+
+    // Rejects multi-month installmentIndex > 3
+    expect(() =>
+      paymentRecordSchema.parse({
+        amount: 200000,
+        totalAgreedAmount: 900000,
+        isInstallment: true,
+        installmentIndex: 4,
+        nextDueDate: "2026-11-25",
+        period: "October - December 2026",
+        method: "cash",
+        planId: "quarterly",
+        planMonths: 3,
+      })
+    ).toThrow(/max 2 for monthly, max 3 for multi-month/);
+  });
+
   it("rejects empty studentId", () => {
     expect(() => studentIdSchema.parse("")).toThrow();
     expect(() => studentIdSchema.parse("   ")).toThrow();

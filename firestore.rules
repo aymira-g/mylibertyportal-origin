@@ -354,6 +354,13 @@ service cloud.firestore {
         && approval.approverRole == 'director';
     }
 
+    function isValidPaymentVoidApproval(approvalId) {
+      return approvalId is string
+        && exists(/databases/$(database)/documents/approvals/$(approvalId))
+        && get(/databases/$(database)/documents/approvals/$(approvalId)).data.status == 'approved'
+        && get(/databases/$(database)/documents/approvals/$(approvalId)).data.actionId == 'PAYMENT_CORRECTION_OR_VOID';
+    }
+
     function isApprovedStaffDeactivation(targetUserId, approvalId) {
       let approval = get(/databases/$(database)/documents/approvals/$(approvalId)).data;
       return approval.actionId == 'STAFF_DEACTIVATION'
@@ -1019,6 +1026,7 @@ service cloud.firestore {
             && ('appliedFromApproval' in request.resource.data)
             && ('isReversal' in request.resource.data)
             && request.resource.data.isReversal == true
+            && isValidPaymentVoidApproval(request.resource.data.appliedFromApproval)
           )
         )
         && request.resource.data.amount is number
@@ -1031,9 +1039,16 @@ service cloud.firestore {
             // Executive updating discount/refund decision or executing approved void reversal via ApprovalInbox
             isOrgExecutive()
             && request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['notes', 'approvalStatus', 'updatedAt', 'status', 'voidReason', 'voidedAt', 'voidedByUid', 'reversalOfPaymentId'])
-            && (!('approvalStatus' in request.resource.data) || request.resource.data.approvalStatus in ['approved', 'rejected'])
-            && (!('status' in request.resource.data) || request.resource.data.status in ['voided', 'active', 'reversal'])
+              .hasOnly(['notes', 'approvalStatus', 'updatedAt', 'status', 'voidReason', 'voidedAt', 'voidedByUid', 'reversalOfPaymentId', 'appliedFromApproval'])
+            && (!('approvalStatus' in request.resource.data) || (
+              request.resource.data.approvalStatus in ['approved', 'rejected']
+              && (!('requestedByUid' in resource.data) || resource.data.requestedByUid != request.auth.uid)
+            ))
+            && (!('status' in request.resource.data) || request.resource.data.status in ['active', 'reversal'] || (
+              request.resource.data.status == 'voided'
+              && ('appliedFromApproval' in request.resource.data)
+              && isValidPaymentVoidApproval(request.resource.data.appliedFromApproval)
+            ))
           )
           || (
             // Front Office cashier updating non-sensitive desk record fields (notes, ref number)

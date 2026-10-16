@@ -3,7 +3,7 @@
  */
 import { describe, beforeAll, beforeEach, afterAll, it } from "vitest";
 import { assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
-import { doc, updateDoc, collection, addDoc } from "firebase/firestore";
+import { doc, updateDoc, collection, addDoc, getDoc } from "firebase/firestore";
 import { setupEmulatorHarness, HAS_EMULATOR, SHIFT_KOTA, APPROVED_CORRECTION } from "./setup.js";
 
 let testEnv;
@@ -275,4 +275,48 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Attendance and Shifts", () =
       await assertFails(updateDoc(doc(authed("admin"), "shiftAuditEvents", "evt1"), {}));
     });
   });
+
+  describe("facilities isolation on attendance and shift boundaries (DOM05-PRIV-04)", () => {
+    beforeEach(async () => {
+      await seedDoc(["attendance", "attFacilitiesTest"], {
+        userId: "student1",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        timestamp: "2026-09-21T08:00:00.000Z",
+        role: "student",
+      });
+      await seedDoc(["shifts", "shiftOb"], {
+        userId: "obGto",
+        role: "officeboy",
+        branchId: "kota_gorontalo",
+        clockIn: "2026-09-21T06:00:00.000Z",
+        clockOut: null,
+      });
+      await seedDoc(["shifts", "shiftCleaner"], {
+        userId: "cleanerGto",
+        role: "cleaner",
+        branchId: "kota_gorontalo",
+        clockIn: "2026-09-21T06:30:00.000Z",
+        clockOut: null,
+      });
+    });
+
+    it("denies officeboy and cleaner from reading attendance documents", async () => {
+      await assertFails(getDoc(doc(authed("obGto"), "attendance", "attFacilitiesTest")));
+      await assertFails(getDoc(doc(authed("cleanerGto"), "attendance", "attFacilitiesTest")));
+    });
+
+    it("allows officeboy and cleaner to read their own shift records but denies reading other staff shifts", async () => {
+      // Own shift reads allowed
+      await assertSucceeds(getDoc(doc(authed("obGto"), "shifts", "shiftOb")));
+      await assertSucceeds(getDoc(doc(authed("cleanerGto"), "shifts", "shiftCleaner")));
+
+      // Cross-staff shift reads denied
+      await assertFails(getDoc(doc(authed("obGto"), "shifts", "shiftCleaner")));
+      await assertFails(getDoc(doc(authed("cleanerGto"), "shifts", "shiftOb")));
+      await assertFails(getDoc(doc(authed("obGto"), "shifts", "shift1")));
+      await assertFails(getDoc(doc(authed("cleanerGto"), "shifts", "shift1")));
+    });
+  });
 });
+

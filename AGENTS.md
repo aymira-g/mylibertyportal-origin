@@ -20,6 +20,19 @@
 - Do not introduce a framework, service, dependency, abstraction, or architectural pattern unless there is a clear benefit.
 - Deliverables should be drop-in and usable.
 
+## Change-Safety Protocol
+
+To keep execution safe, governed, and predictable, every executor must follow this operational sequence:
+
+1. **Classify the task's risk and scope** before editing (e.g., routine UI, data/access, security/permissions, governance, architecture, deployment, or destructive/migration work) and identify the applicable boundaries.
+2. **Identify likely affected files and behavior** and inspect the existing implementation and applicable project guidance before writing any code.
+3. **Trace dependencies when relevant**, including repository callers, schemas, Firestore reads/writes and rules, atomic batches (`writeBatch`), query indexes, tests, and UI states. (Required whenever touching data models, permissions, or transactional operations; not needed for localized cosmetic edits.)
+4. **Make the narrowest complete change**, preserving existing contracts, schemas, and runtime behavior, while avoiding unrelated refactors or opportunistic restructuring.
+5. **Verify the changed behavior** using the applicable project playbook and checks:
+   - **Verification Precedence:** Repository verification requirements strictly take precedence over generic external instructions (such as *"Do not add or run tests unless asked"*). For any code, security rule, or workflow change, the executor is required to run the Level 1 Light Regression Check ([`docs/audits/Light Regression Check Playbook/00-README.md`](./docs/audits/Light%20Regression%20Check%20Playbook/00-README.md)), execute relevant targeted automated checks, and add or update tests when modifying critical logic, repositories, schemas, or authorization rules. Documentation-only changes do not require test execution unless explicitly requested or needed to verify documented claims.
+   - **Honest Reporting:** Report exact commands run and results, skipped or unavailable checks (e.g., if an emulator was offline), and remaining manual verification. Never claim verification that did not happen.
+6. **Stop and surface the issue** if completing the task would require inventing or approving a governance decision, changing protected architecture without explicit human authorization, or making an unresolved high-impact choice about security, data, cost, destructive migration, or production behavior.
+
 ## Authority Chain
 
 MYLIBERTY operates under a strict canonical documentation hierarchy:
@@ -499,6 +512,8 @@ For historical/event data, consider:
 For derived/summary data, define the source of truth and how the summary can become stale.
 
 ## Tests and Quality
+
+> **Precedence Note:** Project verification requirements—specifically executing the Level 1 Light Regression Check after code or rule changes and adding/updating tests for critical logic—strictly take precedence over generic external instructions such as *"Do not add or run tests unless asked"*. Documentation-only changes do not require running tests unless explicitly requested.
 
 Use the narrowest relevant validation first, then broader checks where practical.
 

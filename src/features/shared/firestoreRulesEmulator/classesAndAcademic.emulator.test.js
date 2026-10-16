@@ -655,4 +655,21 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Classes and Academic Progres
       );
     });
   });
+
+  describe("facilities isolation on class documents (DOM05-PRIV-04)", () => {
+    beforeEach(async () => {
+      await seedDoc(["classes", "classFacilitiesTest"], {
+        instructorId: "insGto",
+        studentIds: ["student1"],
+        branchId: "kota_gorontalo",
+        division: "courses",
+      });
+    });
+
+    it("denies officeboy and cleaner from reading class documents", async () => {
+      await assertFails(getDoc(doc(authed("obGto"), "classes", "classFacilitiesTest")));
+      await assertFails(getDoc(doc(authed("cleanerGto"), "classes", "classFacilitiesTest")));
+    });
+  });
 });
+

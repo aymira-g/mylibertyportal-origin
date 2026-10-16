@@ -217,6 +217,21 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Users and Profiles", () => {
     });
   });
 
+  describe("facilities privacy isolation (DOM05-PRIV-04)", () => {
+    it("denies officeboy and cleaner from reading student, parent, and instructor user profiles", async () => {
+      for (const roleUid of ["obGto", "cleanerGto"]) {
+        await assertFails(getDoc(doc(authed(roleUid), "users", "student1")));
+        await assertFails(getDoc(doc(authed(roleUid), "users", "parent1")));
+        await assertFails(getDoc(doc(authed(roleUid), "users", "insGto")));
+      }
+    });
+
+    it("allows officeboy and cleaner to read their own user profile", async () => {
+      await assertSucceeds(getDoc(doc(authed("obGto"), "users", "obGto")));
+      await assertSucceeds(getDoc(doc(authed("cleanerGto"), "users", "cleanerGto")));
+    });
+  });
+
   describe("users frontoffice student fields (H1)", () => {
     it("allows status updates with audit fields on a same-branch student", async () => {
       await assertSucceeds(

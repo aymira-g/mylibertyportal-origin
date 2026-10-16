@@ -166,9 +166,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Users and Profiles", () => {
     });
 
     it("does not let an unrelated role read the front office profile", async () => {
-      await assertFails(
-        getDoc(doc(authed("cleanerGto"), "users", FRONT_OFFICE_PROFILE_UID))
-      );
+      await assertFails(getDoc(doc(authed("cleanerGto"), "users", FRONT_OFFICE_PROFILE_UID)));
     });
 
     it("does not let front office read another same-branch front office profile", async () => {
@@ -178,15 +176,11 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Users and Profiles", () => {
         branchId: "kota_gorontalo",
         status: "active",
       });
-      await assertFails(
-        getDoc(doc(authed(FRONT_OFFICE_PROFILE_UID), "users", "otherFrontOffice"))
-      );
+      await assertFails(getDoc(doc(authed(FRONT_OFFICE_PROFILE_UID), "users", "otherFrontOffice")));
     });
 
     it("keeps front office profile reads scoped to the same branch", async () => {
-      await assertFails(
-        getDoc(doc(authed(FRONT_OFFICE_PROFILE_UID), "users", "student2"))
-      );
+      await assertFails(getDoc(doc(authed(FRONT_OFFICE_PROFILE_UID), "users", "student2")));
     });
 
     it("lets front office read operational staff but denies peers, leadership and executives", async () => {
@@ -223,10 +217,19 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Users and Profiles", () => {
     });
   });
 
-
   describe("users frontoffice student fields (H1)", () => {
     it("allows status updates with audit fields on a same-branch student", async () => {
       await assertSucceeds(
+        updateDoc(doc(authed("foGto"), "users", "student1"), {
+          status: "active",
+          statusUpdatedAt: "2026-09-21T02:00:00.000Z",
+          statusUpdatedBy: "foGto",
+        })
+      );
+    });
+
+    it("blocks Front Office from transitioning student to inactive without approval (DOM05-GOV-02)", async () => {
+      await assertFails(
         updateDoc(doc(authed("foGto"), "users", "student1"), {
           status: "inactive",
           statusUpdatedAt: "2026-09-21T02:00:00.000Z",
@@ -236,14 +239,22 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Users and Profiles", () => {
     });
 
     it("blocks branch moves, role escalation, and foreign fields", async () => {
-      await assertFails(updateDoc(doc(authed("foGto"), "users", "student1"), { branchId: "bone_bolango" }));
-      await assertFails(updateDoc(doc(authed("foGto"), "users", "student1"), { role: "instructor" }));
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "users", "student1"), { branchId: "bone_bolango" })
+      );
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "users", "student1"), { role: "instructor" })
+      );
       await assertFails(updateDoc(doc(authed("foGto"), "users", "student1"), { tuitionFee: 0 }));
-      await assertFails(updateDoc(doc(authed("foGto"), "users", "student1"), { secretBackdoor: true }));
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "users", "student1"), { secretBackdoor: true })
+      );
     });
 
     it("blocks frontoffice from editing other branches' students or staff", async () => {
-      await assertFails(updateDoc(doc(authed("foGto"), "users", "student2"), { status: "inactive" }));
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "users", "student2"), { status: "inactive" })
+      );
       await assertFails(updateDoc(doc(authed("foGto"), "users", "insGto"), { status: "inactive" }));
     });
 
@@ -275,7 +286,9 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Users and Profiles", () => {
     });
 
     it("lets a user edit only their own profile basics", async () => {
-      await assertSucceeds(updateDoc(doc(authed("insGto"), "users", "insGto"), { displayName: "Rina S." }));
+      await assertSucceeds(
+        updateDoc(doc(authed("insGto"), "users", "insGto"), { displayName: "Rina S." })
+      );
       await assertFails(updateDoc(doc(authed("insGto"), "users", "insGto"), { level: "Advanced" }));
     });
 
@@ -492,12 +505,9 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Users and Profiles", () => {
       });
 
       // Admin hard-delete of student record is rejected by security rules
-      await assertFails(
-        deleteDoc(doc(authed("admin"), "users", "studentToDelete"))
-      );
+      await assertFails(deleteDoc(doc(authed("admin"), "users", "studentToDelete")));
     });
   });
-
 
   // OD-IL-ENF4 (owner decision 2026-10-09): a staff account may not be created without an
   // approved NEW_STAFF_ACCOUNT envelope. Student/parent intake and the invite-based
@@ -528,9 +538,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Users and Profiles", () => {
     });
 
     it("refuses to create a staff account with no ticket on record", async () => {
-      await assertFails(
-        setDoc(doc(authed("dirGto"), "users", "newStaff1"), staffAccount())
-      );
+      await assertFails(setDoc(doc(authed("dirGto"), "users", "newStaff1"), staffAccount()));
     });
 
     it("lets the Director provision the account against an approved envelope", async () => {
@@ -586,27 +594,28 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Users and Profiles", () => {
 
     it("still lets an executive create a student account with no ticket", async () => {
       await assertSucceeds(
-        setDoc(
-          doc(authed("dirGto"), "users", "newStudent1"),
-          { displayName: "New Student", role: "student", branchId: "kota_gorontalo", division: "courses" }
-        )
+        setDoc(doc(authed("dirGto"), "users", "newStudent1"), {
+          displayName: "New Student",
+          role: "student",
+          branchId: "kota_gorontalo",
+          division: "courses",
+        })
       );
     });
 
     it("still lets Front Office enrol a student directly, with no ticket", async () => {
       await assertSucceeds(
-        setDoc(
-          doc(authed("foGto"), "users", "newStudent2"),
-          { displayName: "Walk-in Student", role: "student", branchId: "kota_gorontalo", division: "courses" }
-        )
+        setDoc(doc(authed("foGto"), "users", "newStudent2"), {
+          displayName: "Walk-in Student",
+          role: "student",
+          branchId: "kota_gorontalo",
+          division: "courses",
+        })
       );
     });
 
     it("still refuses Front Office creating a staff account", async () => {
-      await assertFails(
-        setDoc(doc(authed("foGto"), "users", "newStaff2"), staffAccount())
-      );
+      await assertFails(setDoc(doc(authed("foGto"), "users", "newStaff2"), staffAccount()));
     });
   });
-
 });

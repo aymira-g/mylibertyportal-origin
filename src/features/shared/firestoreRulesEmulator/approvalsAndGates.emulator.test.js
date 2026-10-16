@@ -3,14 +3,7 @@
  */
 import { describe, beforeAll, beforeEach, afterAll, it } from "vitest";
 import { assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
-import {
-  doc,
-  getDoc,
-  updateDoc,
-  collection,
-  addDoc,
-  serverTimestamp,
-} from "firebase/firestore";
+import { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import {
   setupEmulatorHarness,
   HAS_EMULATOR,
@@ -62,14 +55,20 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Approvals and Governance Gat
     it("routes manager approvals to the manager of that branch", async () => {
       await assertSucceeds(getDoc(doc(authed("mgrGto"), "approvals", "appr1")));
       await assertFails(getDoc(doc(authed("mgrBoba"), "approvals", "appr1")));
-      await assertSucceeds(updateDoc(doc(authed("mgrGto"), "approvals", "appr1"), decision("mgrGto")));
-      await assertFails(updateDoc(doc(authed("mgrBoba"), "approvals", "appr1"), decision("mgrBoba")));
+      await assertSucceeds(
+        updateDoc(doc(authed("mgrGto"), "approvals", "appr1"), decision("mgrGto"))
+      );
+      await assertFails(
+        updateDoc(doc(authed("mgrBoba"), "approvals", "appr1"), decision("mgrBoba"))
+      );
     });
 
     it("gives the Bone Bolango manager access to Bone Bolango approvals", async () => {
       await assertSucceeds(getDoc(doc(authed("mgrBoba"), "approvals", "apprBoba")));
       await assertFails(getDoc(doc(authed("mgrGto"), "approvals", "apprBoba")));
-      await assertSucceeds(updateDoc(doc(authed("mgrBoba"), "approvals", "apprBoba"), decision("mgrBoba")));
+      await assertSucceeds(
+        updateDoc(doc(authed("mgrBoba"), "approvals", "apprBoba"), decision("mgrBoba"))
+      );
     });
 
     it("allows Central Academic Lead (Kota Gorontalo) to decide satellite academic approvals under G-012 (DOM07-GOV-04)", async () => {
@@ -85,7 +84,9 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Approvals and Governance Gat
 
       // Central Academic Lead at Kota Gorontalo can view and decide satellite academic ticket
       await assertSucceeds(getDoc(doc(authed("ilGto"), "approvals", "apprAcadBoba")));
-      await assertSucceeds(updateDoc(doc(authed("ilGto"), "approvals", "apprAcadBoba"), decision("ilGto")));
+      await assertSucceeds(
+        updateDoc(doc(authed("ilGto"), "approvals", "apprAcadBoba"), decision("ilGto"))
+      );
 
       // Satellite Instructor Leader (Bone Bolango) CANNOT decide main branch academic tickets
       const mainPlacement = {
@@ -98,7 +99,9 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Approvals and Governance Gat
       };
       await seedDoc(["approvals", "apprAcadGto"], mainPlacement);
       await assertFails(getDoc(doc(authed("ilBoba"), "approvals", "apprAcadGto")));
-      await assertFails(updateDoc(doc(authed("ilBoba"), "approvals", "apprAcadGto"), decision("ilBoba")));
+      await assertFails(
+        updateDoc(doc(authed("ilBoba"), "approvals", "apprAcadGto"), decision("ilBoba"))
+      );
 
       // Central Academic Lead CANNOT approve non-academic gates from satellite branch
       const satelliteOpsTicket = {
@@ -111,7 +114,9 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Approvals and Governance Gat
       };
       await seedDoc(["approvals", "apprOpsBoba"], satelliteOpsTicket);
       await assertFails(getDoc(doc(authed("ilGto"), "approvals", "apprOpsBoba")));
-      await assertFails(updateDoc(doc(authed("ilGto"), "approvals", "apprOpsBoba"), decision("ilGto")));
+      await assertFails(
+        updateDoc(doc(authed("ilGto"), "approvals", "apprOpsBoba"), decision("ilGto"))
+      );
     });
 
     it("blocks non-approver roles from deciding", async () => {
@@ -127,13 +132,21 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Approvals and Governance Gat
         requestedByUid: "foGto",
       };
       await seedDoc(["approvals", "apprSelf"], opsApproval);
-      const selfDecision = { status: "approved", decidedByUid: "foGto", decidedAt: "t", updatedAt: "t" };
+      const selfDecision = {
+        status: "approved",
+        decidedByUid: "foGto",
+        decidedAt: "t",
+        updatedAt: "t",
+      };
       await assertFails(updateDoc(doc(authed("foGto"), "approvals", "apprSelf"), selfDecision));
     });
 
     it("requires decidedByUid to be the deciding user", async () => {
       await assertFails(
-        updateDoc(doc(authed("mgrGto"), "approvals", "appr1"), { ...decision("mgrGto"), decidedByUid: "admin" })
+        updateDoc(doc(authed("mgrGto"), "approvals", "appr1"), {
+          ...decision("mgrGto"),
+          decidedByUid: "admin",
+        })
       );
     });
 
@@ -151,7 +164,10 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Approvals and Governance Gat
         })
       );
       await assertFails(
-        updateDoc(doc(authed("mgrGto"), "approvals", "appr1"), { ...decision("mgrGto"), status: "pending" })
+        updateDoc(doc(authed("mgrGto"), "approvals", "appr1"), {
+          ...decision("mgrGto"),
+          status: "pending",
+        })
       );
     });
 
@@ -182,7 +198,6 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Approvals and Governance Gat
       );
     });
   });
-
 
   describe("gate binding hardening (owner-approved 2026-10-08)", () => {
     // Regression tests for the confirmed bypass: firestore.rules previously validated only
@@ -217,7 +232,10 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Approvals and Governance Gat
       );
       await seedDoc(
         ["approvals", "ilRetro"],
-        misaddressed({ actionId: "RETROACTIVE_STUDENT_ATTENDANCE", approverRole: "instructor_leader" })
+        misaddressed({
+          actionId: "RETROACTIVE_STUDENT_ATTENDANCE",
+          approverRole: "instructor_leader",
+        })
       );
       await seedDoc(
         ["approvals", "mgrCancel"],
@@ -230,7 +248,9 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Approvals and Governance Gat
 
       await assertFails(updateDoc(doc(authed("ilGto"), "approvals", "ilCash"), decide("ilGto")));
       await assertFails(updateDoc(doc(authed("ilGto"), "approvals", "ilRetro"), decide("ilGto")));
-      await assertFails(updateDoc(doc(authed("mgrGto"), "approvals", "mgrCancel"), decide("mgrGto")));
+      await assertFails(
+        updateDoc(doc(authed("mgrGto"), "approvals", "mgrCancel"), decide("mgrGto"))
+      );
       await assertFails(
         updateDoc(doc(authed("mgrGto"), "approvals", "mgrDiscount"), decide("mgrGto"))
       );
@@ -250,8 +270,12 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Approvals and Governance Gat
         misaddressed({ actionId: "TUITION_PLAN_CHANGE", approverRole: "manager" })
       );
 
-      await assertSucceeds(updateDoc(doc(authed("ilGto"), "approvals", "okLegacy"), decide("ilGto")));
-      await assertSucceeds(updateDoc(doc(authed("opsGto"), "approvals", "okCash"), decide("opsGto")));
+      await assertSucceeds(
+        updateDoc(doc(authed("ilGto"), "approvals", "okLegacy"), decide("ilGto"))
+      );
+      await assertSucceeds(
+        updateDoc(doc(authed("opsGto"), "approvals", "okCash"), decide("opsGto"))
+      );
       await seedDoc(
         ["approvals", "okCashExecFallback"],
         misaddressed({ actionId: "CASH_DISCREPANCY", approverRole: "ops_lead" })
@@ -342,7 +366,6 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Approvals and Governance Gat
     });
   });
 
-
   describe("fallback deny-all", () => {
     it("denies unauthenticated access to collections without public rules", async () => {
       const anon = testEnv.unauthenticatedContext().firestore();
@@ -360,5 +383,4 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Approvals and Governance Gat
       await assertFails(getDoc(doc(authed("admin"), "mysteryCollection", "doc1")));
     });
   });
-
 });

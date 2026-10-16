@@ -8,7 +8,10 @@ import { dirname, join } from "node:path";
 import { initializeTestEnvironment } from "@firebase/rules-unit-testing";
 import { doc, setDoc } from "firebase/firestore";
 
-export const RULES_PATH = join(dirname(fileURLToPath(import.meta.url)), "../../../../firestore.rules");
+export const RULES_PATH = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "../../../../firestore.rules"
+);
 export const HAS_EMULATOR = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
 
 export const USERS = {
@@ -38,9 +41,24 @@ export const USERS = {
   cleanerGto: { role: "cleaner", branchId: "kota_gorontalo" },
   parent1: { role: "parent", branchId: "kota_gorontalo", childStudentIds: ["student1"] },
   parent2: { role: "parent", branchId: "bone_bolango", childStudentIds: ["student2"] },
-  parentActive: { role: "parent", branchId: "kota_gorontalo", childStudentIds: ["student1"], status: "active" },
-  parentInactive: { role: "parent", branchId: "kota_gorontalo", childStudentIds: ["student1"], status: "inactive" },
-  parentSuspended: { role: "parent", branchId: "kota_gorontalo", childStudentIds: ["student1"], status: "suspended" },
+  parentActive: {
+    role: "parent",
+    branchId: "kota_gorontalo",
+    childStudentIds: ["student1"],
+    status: "active",
+  },
+  parentInactive: {
+    role: "parent",
+    branchId: "kota_gorontalo",
+    childStudentIds: ["student1"],
+    status: "inactive",
+  },
+  parentSuspended: {
+    role: "parent",
+    branchId: "kota_gorontalo",
+    childStudentIds: ["student1"],
+    status: "suspended",
+  },
   student1: { role: "student", branchId: "kota_gorontalo" },
   student2: { role: "student", branchId: "bone_bolango" },
 };
@@ -68,7 +86,11 @@ export const APPROVAL_KOTA = {
   payload: null,
 };
 
-export const APPROVAL_BOBA = { ...APPROVAL_KOTA, approverBranchId: "bone_bolango", requestedByUid: "foBoba" };
+export const APPROVAL_BOBA = {
+  ...APPROVAL_KOTA,
+  approverBranchId: "bone_bolango",
+  requestedByUid: "foBoba",
+};
 
 export const SHIFT_KOTA = {
   userId: "insGto",
@@ -88,7 +110,11 @@ export const APPROVED_CORRECTION = {
   requestedByUid: "insGto",
   decidedBy: "Manager",
   decidedByUid: "mgrGto",
-  payload: { shiftId: "shift1", beforeShift: { clockIn: "2026-09-21T01:00:00.000Z" }, afterData: { clockIn: "2026-09-21T00:30:00.000Z" } },
+  payload: {
+    shiftId: "shift1",
+    beforeShift: { clockIn: "2026-09-21T01:00:00.000Z" },
+    afterData: { clockIn: "2026-09-21T00:30:00.000Z" },
+  },
 };
 
 export async function setupEmulatorHarness(projectId) {

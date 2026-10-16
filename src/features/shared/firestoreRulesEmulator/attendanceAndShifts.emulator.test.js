@@ -3,18 +3,8 @@
  */
 import { describe, beforeAll, beforeEach, afterAll, it } from "vitest";
 import { assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
-import {
-  doc,
-  updateDoc,
-  collection,
-  addDoc,
-} from "firebase/firestore";
-import {
-  setupEmulatorHarness,
-  HAS_EMULATOR,
-  SHIFT_KOTA,
-  APPROVED_CORRECTION,
-} from "./setup.js";
+import { doc, updateDoc, collection, addDoc } from "firebase/firestore";
+import { setupEmulatorHarness, HAS_EMULATOR, SHIFT_KOTA, APPROVED_CORRECTION } from "./setup.js";
 
 let testEnv;
 let authed;
@@ -58,7 +48,10 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Attendance and Shifts", () =
         addDoc(collection(authed("foGto"), "shifts"), { ...SHIFT_KOTA, branchId: "bone_bolango" })
       );
       await assertFails(
-        addDoc(collection(authed("foGto"), "shifts"), { ...SHIFT_KOTA, clockOut: "2026-09-21T09:00:00.000Z" })
+        addDoc(collection(authed("foGto"), "shifts"), {
+          ...SHIFT_KOTA,
+          clockOut: "2026-09-21T09:00:00.000Z",
+        })
       );
       await assertFails(
         addDoc(collection(authed("foGto"), "shifts"), { ...SHIFT_KOTA, userId: "student1" })
@@ -130,7 +123,11 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Attendance and Shifts", () =
       await assertSucceeds(updateDoc(doc(authed("vdGto"), "shifts", "shift1"), applied("corr1")));
 
       // Satellite branch shift approved correction
-      await seedDoc(["shifts", "shiftBoba"], { ...SHIFT_KOTA, branchId: "bone_bolango", branch: "Bone Bolango" });
+      await seedDoc(["shifts", "shiftBoba"], {
+        ...SHIFT_KOTA,
+        branchId: "bone_bolango",
+        branch: "Bone Bolango",
+      });
       await seedDoc(["approvals", "corrBoba"], {
         ...APPROVED_CORRECTION,
         approverBranchId: "bone_bolango",
@@ -166,9 +163,13 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Attendance and Shifts", () =
         ...APPROVED_CORRECTION,
         payload: { shiftId: "shift999", afterData: { clockIn: "t" } },
       });
-      await assertFails(updateDoc(doc(authed("foGto"), "shifts", "shift1"), applied("corrPending")));
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "shifts", "shift1"), applied("corrPending"))
+      );
       await assertFails(updateDoc(doc(authed("foGto"), "shifts", "shift1"), applied("corrOther")));
-      await assertFails(updateDoc(doc(authed("foGto"), "shifts", "shift1"), applied("nonexistent")));
+      await assertFails(
+        updateDoc(doc(authed("foGto"), "shifts", "shift1"), applied("nonexistent"))
+      );
     });
 
     it("blocks corrections touching anything beyond the correction keys", async () => {
@@ -176,7 +177,10 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Attendance and Shifts", () =
         updateDoc(doc(authed("foGto"), "shifts", "shift1"), { ...applied("corr1"), notes: "oops" })
       );
       await assertFails(
-        updateDoc(doc(authed("foGto"), "shifts", "shift1"), { ...applied("corr1"), userId: "student1" })
+        updateDoc(doc(authed("foGto"), "shifts", "shift1"), {
+          ...applied("corr1"),
+          userId: "student1",
+        })
       );
     });
 
@@ -193,7 +197,6 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Attendance and Shifts", () =
       await assertFails(updateDoc(doc(authed("mgrBoba"), "shifts", "shift1"), applied("corr1")));
     });
   });
-
 
   describe("shift audit events (C4 dual-control trail)", () => {
     beforeEach(async () => {
@@ -266,9 +269,10 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Attendance and Shifts", () =
 
     it("keeps the audit trail append-only", async () => {
       await seedDoc(["shiftAuditEvents", "evt1"], { shiftId: "shift1", actorId: "admin" });
-      await assertFails(updateDoc(doc(authed("admin"), "shiftAuditEvents", "evt1"), { tampered: true }));
+      await assertFails(
+        updateDoc(doc(authed("admin"), "shiftAuditEvents", "evt1"), { tampered: true })
+      );
       await assertFails(updateDoc(doc(authed("admin"), "shiftAuditEvents", "evt1"), {}));
     });
   });
-
 });

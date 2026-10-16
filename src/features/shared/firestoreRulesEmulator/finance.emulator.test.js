@@ -12,11 +12,7 @@ import {
   writeBatch,
   deleteField,
 } from "firebase/firestore";
-import {
-  setupEmulatorHarness,
-  HAS_EMULATOR,
-  PAYMENT_KOTA,
-} from "./setup.js";
+import { setupEmulatorHarness, HAS_EMULATOR, PAYMENT_KOTA } from "./setup.js";
 
 let testEnv;
 let authed;
@@ -55,7 +51,9 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Finance and Payments", () =>
     });
 
     it("blocks signed-out reads", async () => {
-      await assertFails(getDoc(doc(testEnv.unauthenticatedContext().firestore(), "payments", "pay1")));
+      await assertFails(
+        getDoc(doc(testEnv.unauthenticatedContext().firestore(), "payments", "pay1"))
+      );
     });
 
     it("lets same-branch front office read it but not another branch", async () => {
@@ -64,18 +62,14 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Finance and Payments", () =>
     });
 
     it("blocks cross-branch update and cross-branch moves", async () => {
-      await assertFails(
-        updateDoc(doc(authed("foBoba"), "payments", "pay1"), { amount: 1 })
-      );
+      await assertFails(updateDoc(doc(authed("foBoba"), "payments", "pay1"), { amount: 1 }));
       await assertFails(
         updateDoc(doc(authed("foGto"), "payments", "pay1"), { branchId: "bone_bolango" })
       );
     });
 
     it("blocks mutation of immutable payment fields (amount, studentId, branchId)", async () => {
-      await assertFails(
-        updateDoc(doc(authed("foGto"), "payments", "pay1"), { amount: 500000 })
-      );
+      await assertFails(updateDoc(doc(authed("foGto"), "payments", "pay1"), { amount: 500000 }));
       await assertFails(
         updateDoc(doc(authed("foGto"), "payments", "pay1"), { studentId: "student2" })
       );
@@ -94,15 +88,11 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Finance and Payments", () =>
       await assertFails(
         updateDoc(doc(authed("admin"), "payments", "pay1"), { notes: "Admin note" })
       );
-      await assertFails(
-        addDoc(collection(authed("admin"), "payments"), PAYMENT_KOTA)
-      );
+      await assertFails(addDoc(collection(authed("admin"), "payments"), PAYMENT_KOTA));
     });
 
     it("blocks Director from mutating core financial fields on existing payments (DOM04-SEC-02 / OD-1)", async () => {
-      await assertFails(
-        updateDoc(doc(authed("dirGto"), "payments", "pay1"), { amount: 100000 })
-      );
+      await assertFails(updateDoc(doc(authed("dirGto"), "payments", "pay1"), { amount: 100000 }));
       await assertFails(
         updateDoc(doc(authed("dirGto"), "payments", "pay1"), { studentId: "student2" })
       );
@@ -128,6 +118,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Finance and Payments", () =>
       lastPaymentMethod: "Cash",
       paymentPlan: "quarterly",
       paidUntil: "2026-12-21",
+      lastPaymentId: "payNew",
     };
 
     beforeEach(async () => {
@@ -199,5 +190,4 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Finance and Payments", () =>
       await assertFails(batch.commit());
     });
   });
-
 });

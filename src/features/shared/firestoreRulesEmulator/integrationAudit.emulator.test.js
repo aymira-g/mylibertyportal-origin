@@ -3,19 +3,8 @@
  */
 import { describe, beforeAll, beforeEach, afterAll, it, expect } from "vitest";
 import { assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
-import {
-  doc,
-  getDoc,
-  updateDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-} from "firebase/firestore";
-import {
-  setupEmulatorHarness,
-  HAS_EMULATOR,
-} from "./setup.js";
+import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { setupEmulatorHarness, HAS_EMULATOR } from "./setup.js";
 
 let testEnv;
 let authed;
@@ -108,19 +97,37 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Integration Audit Verificati
 
       // 2. Branch-scoped query succeeds for Kota Gorontalo and receives Kota + All
       const snapKota = await assertSucceeds(
-        getDocs(query(collection(authed("foGto"), "todos"), where("branchId", "in", ["kota_gorontalo", "all"])))
+        getDocs(
+          query(
+            collection(authed("foGto"), "todos"),
+            where("branchId", "in", ["kota_gorontalo", "all"])
+          )
+        )
       );
       const kotaIds = snapKota.docs.map((d) => d.id);
-      if (!kotaIds.includes("todoKota") || !kotaIds.includes("todoAll") || kotaIds.includes("todoBoba")) {
+      if (
+        !kotaIds.includes("todoKota") ||
+        !kotaIds.includes("todoAll") ||
+        kotaIds.includes("todoBoba")
+      ) {
         throw new Error("Kota query returned incorrect directives: " + JSON.stringify(kotaIds));
       }
 
       // 3. Branch-scoped query succeeds for Bone Bolango and receives Boba + All
       const snapBoba = await assertSucceeds(
-        getDocs(query(collection(authed("foBoba"), "todos"), where("branchId", "in", ["bone_bolango", "all"])))
+        getDocs(
+          query(
+            collection(authed("foBoba"), "todos"),
+            where("branchId", "in", ["bone_bolango", "all"])
+          )
+        )
       );
       const bobaIds = snapBoba.docs.map((d) => d.id);
-      if (!bobaIds.includes("todoBoba") || !bobaIds.includes("todoAll") || bobaIds.includes("todoKota")) {
+      if (
+        !bobaIds.includes("todoBoba") ||
+        !bobaIds.includes("todoAll") ||
+        bobaIds.includes("todoKota")
+      ) {
         throw new Error("Boba query returned incorrect directives: " + JSON.stringify(bobaIds));
       }
     });
@@ -178,79 +185,96 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Integration Audit Verificati
 
       // 1. Kota Gorontalo manager lists audienceType == "all" events -> succeeds
       await assertSucceeds(
-        getDocs(query(collection(authed("mgrGto"), "corporateEvents"), where("audienceType", "==", "all")))
+        getDocs(
+          query(collection(authed("mgrGto"), "corporateEvents"), where("audienceType", "==", "all"))
+        )
       );
 
       // 2. Kota Gorontalo manager lists branchId == "kota_gorontalo" -> succeeds
       await assertSucceeds(
-        getDocs(query(collection(authed("mgrGto"), "corporateEvents"), where("branchId", "==", "kota_gorontalo")))
+        getDocs(
+          query(
+            collection(authed("mgrGto"), "corporateEvents"),
+            where("branchId", "==", "kota_gorontalo")
+          )
+        )
       );
 
       // 3. Bone Bolango Front Office lists branchId == "kota_gorontalo" -> fails
       await assertFails(
-        getDocs(query(collection(authed("foBoba"), "corporateEvents"), where("branchId", "==", "kota_gorontalo")))
+        getDocs(
+          query(
+            collection(authed("foBoba"), "corporateEvents"),
+            where("branchId", "==", "kota_gorontalo")
+          )
+        )
       );
 
       // 4. Any non-admin staff lists events with no filter -> fails
-      await assertFails(
-        getDocs(collection(authed("foGto"), "corporateEvents"))
-      );
-      await assertFails(
-        getDocs(collection(authed("mgrGto"), "corporateEvents"))
-      );
+      await assertFails(getDocs(collection(authed("foGto"), "corporateEvents")));
+      await assertFails(getDocs(collection(authed("mgrGto"), "corporateEvents")));
 
       // 5. Staff gets a single Bone Bolango branch event while belonging to Kota Gorontalo -> fails
-      await assertFails(
-        getDoc(doc(authed("foGto"), "corporateEvents", "bobaEvent"))
-      );
+      await assertFails(getDoc(doc(authed("foGto"), "corporateEvents", "bobaEvent")));
 
       // 6. Staff gets a single company-wide event from any branch -> succeeds
-      await assertSucceeds(
-        getDoc(doc(authed("foGto"), "corporateEvents", "allEvent"))
-      );
-      await assertSucceeds(
-        getDoc(doc(authed("foBoba"), "corporateEvents", "allEvent"))
-      );
+      await assertSucceeds(getDoc(doc(authed("foGto"), "corporateEvents", "allEvent")));
+      await assertSucceeds(getDoc(doc(authed("foBoba"), "corporateEvents", "allEvent")));
 
       // 7. Marketing user lists branchId == own branch -> succeeds. Other branch -> fails
       await assertSucceeds(
-        getDocs(query(collection(authed("mktGto"), "corporateEvents"), where("branchId", "==", "kota_gorontalo")))
+        getDocs(
+          query(
+            collection(authed("mktGto"), "corporateEvents"),
+            where("branchId", "==", "kota_gorontalo")
+          )
+        )
       );
       await assertFails(
-        getDocs(query(collection(authed("mktGto"), "corporateEvents"), where("branchId", "==", "bone_bolango")))
+        getDocs(
+          query(
+            collection(authed("mktGto"), "corporateEvents"),
+            where("branchId", "==", "bone_bolango")
+          )
+        )
       );
 
       // 8. Staff with no branchId and no branch lists branchId == "kota_gorontalo" -> fails
       await assertFails(
-        getDocs(query(collection(authed("foUnassigned"), "corporateEvents"), where("branchId", "==", "kota_gorontalo")))
+        getDocs(
+          query(
+            collection(authed("foUnassigned"), "corporateEvents"),
+            where("branchId", "==", "kota_gorontalo")
+          )
+        )
       );
 
       // 9. Admin lists with no filter -> succeeds
-      await assertSucceeds(
-        getDocs(collection(authed("admin"), "corporateEvents"))
-      );
+      await assertSucceeds(getDocs(collection(authed("admin"), "corporateEvents")));
 
       // 10. Student and parent cannot list or get any corporate event -> fails
+      await assertFails(getDoc(doc(authed("student1"), "corporateEvents", "allEvent")));
       await assertFails(
-        getDoc(doc(authed("student1"), "corporateEvents", "allEvent"))
+        getDocs(
+          query(
+            collection(authed("student1"), "corporateEvents"),
+            where("audienceType", "==", "all")
+          )
+        )
       );
+      await assertFails(getDoc(doc(authed("parent1"), "corporateEvents", "allEvent")));
       await assertFails(
-        getDocs(query(collection(authed("student1"), "corporateEvents"), where("audienceType", "==", "all")))
-      );
-      await assertFails(
-        getDoc(doc(authed("parent1"), "corporateEvents", "allEvent"))
-      );
-      await assertFails(
-        getDocs(query(collection(authed("parent1"), "corporateEvents"), where("audienceType", "==", "all")))
+        getDocs(
+          query(
+            collection(authed("parent1"), "corporateEvents"),
+            where("audienceType", "==", "all")
+          )
+        )
       );
 
       // 11. Resigned or terminated staff cannot list or read events -> fails
-      await assertFails(
-        getDoc(doc(authed("foResigned"), "corporateEvents", "allEvent"))
-      );
-      await assertFails(
-        getDoc(doc(authed("foTerminated"), "corporateEvents", "allEvent"))
-      );
+      await assertFails(getDoc(doc(authed("foResigned"), "corporateEvents", "allEvent")));
+      await assertFails(getDoc(doc(authed("foTerminated"), "corporateEvents", "allEvent")));
 
       // 12. Kiosk date query shape:
       // Same branch succeeds
@@ -657,9 +681,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Integration Audit Verificati
           )
         )
       );
-      await assertFails(
-        getDoc(doc(authed("foUnassigned"), "payments", "pay1"))
-      );
+      await assertFails(getDoc(doc(authed("foUnassigned"), "payments", "pay1")));
 
       // 11. Item B defense-in-depth: Unassigned staff (FO, Manager, Instructor with no branchId and no branch)
       // attempting to query with branchId == null filter must be rejected across all branch-scoped collections
@@ -679,35 +701,19 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Integration Audit Verificati
 
         // payments listing with branchId == null must fail
         await assertFails(
-          getDocs(
-            query(
-              collection(authedDb, "payments"),
-              where("branchId", "==", null)
-            )
-          )
+          getDocs(query(collection(authedDb, "payments"), where("branchId", "==", null)))
         );
 
         // attendance listing with branchId == null must fail
         await assertFails(
-          getDocs(
-            query(
-              collection(authedDb, "attendance"),
-              where("branchId", "==", null)
-            )
-          )
+          getDocs(query(collection(authedDb, "attendance"), where("branchId", "==", null)))
         );
 
         // classes listing with branchId == null must fail
         await assertFails(
-          getDocs(
-            query(
-              collection(authedDb, "classes"),
-              where("branchId", "==", null)
-            )
-          )
+          getDocs(query(collection(authedDb, "classes"), where("branchId", "==", null)))
         );
       }
     });
   });
-
 });

@@ -16,11 +16,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { todayWita, witaDayStart } from "../../../utils/dateWita.js";
-import {
-  setupEmulatorHarness,
-  HAS_EMULATOR,
-  SHIFT_KOTA,
-} from "./setup.js";
+import { setupEmulatorHarness, HAS_EMULATOR, SHIFT_KOTA } from "./setup.js";
 
 let testEnv;
 let authed;
@@ -55,7 +51,11 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Classes and Academic Progres
 
     beforeEach(async () => {
       await seedDoc(["classes", "class1"], CLASS_DOC);
-      await seedDoc(["users", "insSub"], { displayName: "insSub", role: "instructor", branchId: "kota_gorontalo" });
+      await seedDoc(["users", "insSub"], {
+        displayName: "insSub",
+        role: "instructor",
+        branchId: "kota_gorontalo",
+      });
     });
 
     it("allows assigned instructor to create attendance for enrolled student", async () => {
@@ -171,10 +171,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Classes and Academic Progres
       const withoutTs = retroRecord();
       delete withoutTs.attendanceDateTs;
       await assertFails(
-        setDoc(
-          doc(authed("insGto"), "classAttendance", `class1_student1_${PAST_DATE}`),
-          withoutTs
-        )
+        setDoc(doc(authed("insGto"), "classAttendance", `class1_student1_${PAST_DATE}`), withoutTs)
       );
     });
 
@@ -217,10 +214,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Classes and Academic Progres
     });
 
     it("refuses an envelope addressed to a role the gate never assigned", async () => {
-      await seedDoc(
-        ["approvals", "apBackfill"],
-        approvedBackfill({ approverRole: "manager" })
-      );
+      await seedDoc(["approvals", "apBackfill"], approvedBackfill({ approverRole: "manager" }));
       await assertFails(
         setDoc(
           doc(authed("opsGto"), "classAttendance", `class1_student1_${PAST_DATE}`),
@@ -333,11 +327,14 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Classes and Academic Progres
       );
     });
 
-    it("denies cross-branch progress reports and branchless listing", async () => {
-      await assertFails(getDoc(doc(authed("ilGto"), "progressReports", "prBoba")));
-      await assertFails(getDoc(doc(authed("ilBoba"), "progressReports", "prKotaCourses")));
-      // list requires the branch constraint: isSameBranchStrict has no fieldless fallback
-      await assertFails(getDocs(collection(authed("ilGto"), "progressReports")));
+    it("allows Central Academic Lead province-wide progress reports read under G-012 but denies non-academic staff", async () => {
+      // Under Blueprint v3.4 §4, §5, G-012, Central Academic Lead (Instructor Leader at Kota Gorontalo)
+      // holds province-wide pedagogical scope over evaluations, so ilGto can read satellite reports:
+      await assertSucceeds(getDoc(doc(authed("ilGto"), "progressReports", "prBoba")));
+      // Plain instructors cannot read cross-branch reports or other instructors' reports:
+      await assertFails(getDoc(doc(authed("insGto"), "progressReports", "prBoba")));
+      // Non-academic branch staff cannot read cross-branch reports:
+      await assertFails(getDoc(doc(authed("foBoba"), "progressReports", "prKotaCourses")));
     });
 
     it("lists only same-branch progress reports when branch-constrained", async () => {
@@ -360,10 +357,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Classes and Academic Progres
       );
       await assertSucceeds(
         getDocs(
-          query(
-            collection(authed("ilGto"), "classAttendance"),
-            where("classId", "==", "classKota")
-          )
+          query(collection(authed("ilGto"), "classAttendance"), where("classId", "==", "classKota"))
         )
       );
       await assertFails(
@@ -371,10 +365,7 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Classes and Academic Progres
       );
       await assertFails(
         getDocs(
-          query(
-            collection(authed("ilGto"), "classAttendance"),
-            where("classId", "==", "classBoba")
-          )
+          query(collection(authed("ilGto"), "classAttendance"), where("classId", "==", "classBoba"))
         )
       );
     });
@@ -447,7 +438,6 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Classes and Academic Progres
       );
     });
   });
-
 
   // OD-IL-ENF2 (design A′, owner-ratified 2026-10-08): a placement level the recorded
   // score does not imply is only writable with an approved PLACEMENT_LEVEL_OVERRIDE
@@ -665,5 +655,4 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Classes and Academic Progres
       );
     });
   });
-
 });

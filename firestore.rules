@@ -40,11 +40,21 @@ service cloud.firestore {
     }
 
     function isExecutive() {
-      return isDirector() || isViceDirector() || isAdmin();
+      let p = userProfile();
+      return signedIn()
+        && p != null
+        && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'))
+        && ('role' in p)
+        && (p.role in ['director', 'vice_director', 'admin']);
     }
 
     function isOrgExecutive() {
-      return isDirector() || isViceDirector();
+      let p = userProfile();
+      return signedIn()
+        && p != null
+        && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'))
+        && ('role' in p)
+        && (p.role in ['director', 'vice_director']);
     }
 
     function isManager() {
@@ -177,7 +187,7 @@ service cloud.firestore {
       let p = userProfile();
       let role = p != null && 'role' in p ? p.role : '';
       let isStaffRole = role in ['manager', 'frontoffice', 'opslead', 'ops_lead', 'operational_leader', 'operationalleader', 'frontofficelead', 'marketing'];
-      let uDiv = userDivision();
+      let uDiv = p != null && ('division' in p) ? p.division : null;
       return !isStaffRole
         || (role == 'marketing'
           ? (!('division' in data) || data.division != 'kindergarten')
@@ -191,6 +201,15 @@ service cloud.firestore {
 
     function isDivisionAllowedForManager(data) {
       return isDivisionAllowedForBranchStaff(data);
+    }
+
+    function isDeskInquiryStaff() {
+      let p = userProfile();
+      return signedIn()
+        && p != null
+        && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated'))
+        && ('role' in p)
+        && (p.role in ['manager', 'frontoffice', 'opslead', 'ops_lead', 'operational_leader', 'operationalleader', 'frontofficelead', 'marketing', 'instructorleader', 'instructor_leader']);
     }
 
     function isTodoAssignee(data) {
@@ -436,6 +455,34 @@ service cloud.firestore {
             && isApprovedPlacementLevelOverride(inquiryId, req.appliedFromApproval, req.currentLevel));
     }
 
+    function canUpdateDeskInquiry(inquiryId) {
+      let p = userProfile();
+      let r = signedIn() && p != null && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated')) && ('role' in p) ? p.role : '';
+      let isOrgExec = r in ['director', 'vice_director'];
+      let isCentralIl = (r in ['instructorleader', 'instructor_leader']) && (
+        (p != null && 'branchId' in p && p.branchId == 'kota_gorontalo')
+        || (p != null && !('branchId' in p) && 'branch' in p && (p.branch == 'Kota Gorontalo' || p.branch == 'Cabang Utama'))
+      );
+      let isStaff = r in ['manager', 'frontoffice', 'opslead', 'ops_lead', 'operational_leader', 'operationalleader', 'frontofficelead', 'marketing', 'instructorleader', 'instructor_leader'];
+      let req = request.resource.data;
+      let res = resource.data;
+      let branchOk = !('branchId' in res) || req.branchId == res.branchId;
+
+      return branchOk
+        && (
+          isOrgExec
+          || isCentralIl
+          || (
+            isStaff
+            && isDocSameBranch(res)
+            && isDocSameBranch(req)
+            && isDivisionAllowedForBranchStaff(res)
+            && isDivisionAllowedForBranchStaff(req)
+          )
+        )
+        && placementLevelAllowed(inquiryId, req, res);
+    }
+
     // ── Retroactive class attendance (OD-IL-ENF3, owner-ratified 2026-10-08) ─────────
     // `attendanceDate` is a client-supplied "YYYY-MM-DD" string that rules cannot parse,
     // so `attendanceDateTs` carries the same day as a Timestamp. A mark for a day that has
@@ -626,107 +673,129 @@ service cloud.firestore {
         && (approval.payload.studentId == userId || approval.payload.targetUserId == userId);
     }
 
+    function canStaffUpdateStudent(userId, req, res, diffKeys, r, p) {
+      let isOrgExec = r in ['director', 'vice_director'];
+      let uDiv = p != null && ('division' in p) ? p.division : null;
+      let divAllowedRes = (uDiv == 'all' && r != 'manager') || (uDiv == 'kindergarten' ? ('division' in res && res.division == 'kindergarten') : (!('division' in res) || res.division != 'kindergarten'));
+      let divAllowedReq = (!('division' in req) || req.division == res.division || ((uDiv == 'all' && r != 'manager') || (uDiv == 'kindergarten' ? (req.division == 'kindergarten') : (req.division != 'kindergarten'))));
+
+      return res.role == 'student'
+        && req.role == 'student'
+        && (isOrgExec || isDocSameBranch(res))
+        && (isOrgExec || isDocSameBranch(req))
+        && divAllowedRes
+        && divAllowedReq
+        && (!('branchId' in res) || req.branchId == res.branchId)
+        && diffKeys.hasOnly([
+          'displayName', 'name', 'phone', 'dob', 'address', 'parentName', 'parentPhone',
+          'emergencyContact', 'emergencyPhone', 'notes', 'placementTests', 'status',
+          'statusUpdatedAt', 'statusUpdatedBy',
+          'enrollmentDate',
+          'updatedAt', 'photoURL', 'nickname', 'gender', 'nis', 'school', 'grade',
+          'placeOfBirth', 'religion', 'programId', 'program', 'batchType', 'classType',
+          'schoolOrJob', 'classOrSemester', 'joinedDate', 'fatherName', 'fatherJob',
+          'fatherPhone', 'motherName', 'motherJob', 'motherPhone', 'referralSource',
+          'rating', 'paymentPlan', 'paymentStatus', 'lastPaymentPeriod', 'lastPaymentDate',
+          'lastPaymentAmount', 'lastPaymentMethod', 'paidUntil', 'branch', 'division',
+          'currentLevel', 'promotedFromReport',
+          'lastPaymentId', 'isInstallment', 'outstandingBalance', 'totalAgreedAmount', 'nextDueDate',
+          'appliedFromApproval'
+        ])
+        && (
+          !diffKeys.hasAny(['paymentStatus', 'paidUntil', 'lastPaymentPeriod', 'lastPaymentDate', 'lastPaymentAmount', 'lastPaymentMethod', 'paymentPlan', 'isInstallment', 'outstandingBalance', 'totalAgreedAmount', 'nextDueDate'])
+          || (
+            ('paymentStatus' in req)
+            && req.paymentStatus in ['pending', 'unpaid']
+            && (!('paidUntil' in req) || req.paidUntil == null || req.paidUntil == '')
+            && !diffKeys.hasAny(['lastPaymentPeriod', 'lastPaymentDate', 'lastPaymentAmount', 'lastPaymentMethod', 'lastPaymentId'])
+          )
+          || (
+            ('lastPaymentId' in req)
+            && req.lastPaymentId is string
+            && req.lastPaymentId != ''
+            && !exists(/databases/$(database)/documents/payments/$(req.lastPaymentId))
+            && getAfter(/databases/$(database)/documents/payments/$(req.lastPaymentId)).data.studentId == userId
+          )
+        )
+        && (
+          !diffKeys.hasAny(['status'])
+          || !(req.status in ['inactive', 'graduated', 'archived'])
+          || (r == 'manager')
+          || isOrgExec
+          || (
+            ('appliedFromApproval' in req)
+            && req.appliedFromApproval is string
+            && req.appliedFromApproval != ''
+            && isApprovedStudentWithdrawalOrFreeze(userId, req.appliedFromApproval)
+          )
+        )
+        && (
+          !diffKeys.hasAny(['currentLevel', 'promotedFromReport'])
+          || isApprovedPromotion(userId, req, res)
+        );
+    }
+
+    function canExecutiveUpdateStaff(userId, req, res, diffKeys, r) {
+      let isOrgExec = r in ['director', 'vice_director'];
+      return (isOrgExec || (r == 'admin' && (!('role' in res) || !(res.role in ['student', 'parent'])) && (!('role' in req) || !(req.role in ['student', 'parent']))))
+        && (
+          req.role != res.role
+            ? (
+                ('appliedFromApproval' in req)
+                && req.appliedFromApproval is string
+                && isApprovedRoleElevation(userId, req.appliedFromApproval, req.role)
+              )
+            : true
+        )
+        && (
+          isOrgExec
+          || !(res.role in ['director', 'vice_director'])
+          || !('status' in req)
+          || !(req.status in ['resigned', 'terminated'])
+        )
+        && (
+          (!('status' in req) || !(req.status in ['resigned', 'terminated']) || (isOrgExec && res.role in ['student', 'parent']))
+          || (r == 'director')
+          || (
+            ('appliedFromApproval' in req)
+            && req.appliedFromApproval is string
+            && isApprovedStaffDeactivation(userId, req.appliedFromApproval)
+          )
+        );
+    }
+
     function canUpdateUser(userId) {
       let p = userProfile();
       let r = signedIn() && p != null && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated')) && ('role' in p) ? p.role : '';
       let req = request.resource.data;
       let res = resource.data;
       let diffKeys = req.diff(res).affectedKeys();
-      let isOrgExec = r in ['director', 'vice_director'];
-      let isAdminUser = r == 'admin';
-      let isStaffOrMgr = r in ['frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'manager'];
+      let targetRole = 'role' in res ? res.role : '';
 
       return (
-        ((isOrgExec || (isAdminUser && (!('role' in res) || !(res.role in ['student', 'parent'])) && (!('role' in req) || !(req.role in ['student', 'parent']))))
-          && (
-            req.role != res.role
+        signedIn()
+        && userId == request.auth.uid
+        && diffKeys.hasOnly(['displayName', 'phone', 'dob', 'photoURL', 'nickname'])
+      )
+      || (
+        targetRole == 'student'
+          ? (
+            (r in ['director', 'vice_director', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'manager'])
+            && canStaffUpdateStudent(userId, req, res, diffKeys, r, p)
+          )
+          : (
+            targetRole == 'parent'
               ? (
-                  ('appliedFromApproval' in req)
-                  && req.appliedFromApproval is string
-                  && isApprovedRoleElevation(userId, req.appliedFromApproval, req.role)
-                )
-              : true
+                (r in ['director', 'vice_director', 'frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'manager'])
+                && req.role == 'parent'
+                && (!('status' in res) || res.status == 'active')
+                && (r in ['director', 'vice_director'] || (isDocSameBranch(res) && isDocSameBranch(req)))
+                && (!('branchId' in res) || req.branchId == res.branchId)
+                && diffKeys.hasOnly(['displayName', 'phone', 'updatedAt', 'status', 'branch', 'childStudentIds'])
+                && (!diffKeys.hasAny(['childStudentIds']) || req.childStudentIds is list)
+              )
+              : canExecutiveUpdateStaff(userId, req, res, diffKeys, r)
           )
-          && (
-            isOrgExec
-            || !(res.role in ['director', 'vice_director'])
-            || !('status' in req)
-            || !(req.status in ['resigned', 'terminated'])
-          )
-          && (
-            (!('status' in req) || !(req.status in ['resigned', 'terminated']) || (isOrgExec && res.role in ['student', 'parent']))
-            || (r == 'director')
-            || (
-              ('appliedFromApproval' in req)
-              && req.appliedFromApproval is string
-              && isApprovedStaffDeactivation(userId, req.appliedFromApproval)
-            )
-          )
-        )
-        || (isStaffOrMgr
-          && res.role == 'student'
-          && req.role == 'student'
-          && isSameBranch(res)
-          && isSameBranch(req)
-          && isDivisionAllowedForBranchStaff(res)
-          && isDivisionAllowedForBranchStaff(req)
-          && (!('branchId' in res) || req.branchId == res.branchId)
-          && diffKeys.hasOnly([
-            'displayName', 'name', 'phone', 'dob', 'address', 'parentName', 'parentPhone',
-            'emergencyContact', 'emergencyPhone', 'notes', 'placementTests', 'status',
-            'statusUpdatedAt', 'statusUpdatedBy',
-            'enrollmentDate',
-            'updatedAt', 'photoURL', 'nickname', 'gender', 'nis', 'school', 'grade',
-            'placeOfBirth', 'religion', 'programId', 'program', 'batchType', 'classType',
-            'schoolOrJob', 'classOrSemester', 'joinedDate', 'fatherName', 'fatherJob',
-            'fatherPhone', 'motherName', 'motherJob', 'motherPhone', 'referralSource',
-            'rating', 'paymentPlan', 'paymentStatus', 'lastPaymentPeriod', 'lastPaymentDate',
-            'lastPaymentAmount', 'lastPaymentMethod', 'paidUntil', 'branch', 'division',
-            'currentLevel', 'promotedFromReport',
-            'lastPaymentId', 'isInstallment', 'outstandingBalance', 'totalAgreedAmount', 'nextDueDate',
-            'appliedFromApproval'
-          ])
-          && (
-            !diffKeys.hasAny(['paymentStatus', 'paidUntil', 'lastPaymentPeriod', 'lastPaymentDate', 'lastPaymentAmount', 'lastPaymentMethod', 'paymentPlan', 'isInstallment', 'outstandingBalance', 'totalAgreedAmount', 'nextDueDate'])
-            || (
-              ('lastPaymentId' in req)
-              && req.lastPaymentId is string
-              && req.lastPaymentId != ''
-              && !exists(/databases/$(database)/documents/payments/$(req.lastPaymentId))
-              && getAfter(/databases/$(database)/documents/payments/$(req.lastPaymentId)).data.studentId == userId
-            )
-          )
-          && (
-            !diffKeys.hasAny(['status'])
-            || !(req.status in ['inactive', 'graduated', 'archived'])
-            || isManager()
-            || isOrgExecutive()
-            || (
-              ('appliedFromApproval' in req)
-              && req.appliedFromApproval is string
-              && req.appliedFromApproval != ''
-              && isApprovedStudentWithdrawalOrFreeze(userId, req.appliedFromApproval)
-            )
-          )
-          && (
-            !diffKeys.hasAny(['currentLevel', 'promotedFromReport'])
-            || isApprovedPromotion(userId, req, res)
-          )
-        )
-        || (isStaffOrMgr
-          && res.role == 'parent'
-          && req.role == 'parent'
-          && (!('status' in res) || res.status == 'active')
-          && isSameBranch(res)
-          && isSameBranch(req)
-          && (!('branchId' in res) || req.branchId == res.branchId)
-          && diffKeys.hasOnly(['displayName', 'phone', 'updatedAt', 'status', 'branch', 'childStudentIds'])
-          && (!diffKeys.hasAny(['childStudentIds']) || req.childStudentIds is list)
-        )
-        || (signedIn()
-          && userId == request.auth.uid
-          && diffKeys.hasOnly(['displayName', 'phone', 'dob', 'photoURL', 'nickname'])
-        )
       );
     }
 
@@ -1119,29 +1188,15 @@ service cloud.firestore {
 
     match /deskInquiries/{inquiryId} {
       allow get: if isOrgExecutive()
-        || ((isManager() || isFrontOffice() || hasRole('marketing') || isInstructorLeader()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data))
+        || (isDeskInquiryStaff() && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data))
         || (isInstructorLeader() && userBranch() == 'kota_gorontalo');
-      allow list: if isOrgExecutive() || ((isManager() || isFrontOffice() || hasRole('marketing') || isInstructorLeader()) && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data));
+      allow list: if isOrgExecutive() || (isDeskInquiryStaff() && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data));
       // Placement level authority (FO-03 / OD-IL-ENF2): A course inquiry cannot be created
       // with a graded academic level; placement levels must be assigned via an assessment score
       // rubric or an approved PLACEMENT_LEVEL_OVERRIDE envelope.
-      allow create: if (isOrgExecutive() || ((isManager() || isFrontOffice() || hasRole('marketing')) && isSameBranch(request.resource.data) && isDivisionAllowedForManager(request.resource.data)))
+      allow create: if (isOrgExecutive() || (isDeskInquiryStaff() && isSameBranch(request.resource.data) && isDivisionAllowedForManager(request.resource.data)))
         && (!('currentLevel' in request.resource.data) || request.resource.data.currentLevel in ['', 'unassessed'] || (('division' in request.resource.data) && request.resource.data.division == 'kindergarten'));
-      allow update: if (
-          (
-            isOrgExecutive()
-            || (
-              (isManager() || isFrontOffice() || hasRole('marketing') || isInstructorLeader())
-              && isSameBranch(resource.data) && isSameBranch(request.resource.data)
-              && isDivisionAllowedForManager(resource.data) && isDivisionAllowedForManager(request.resource.data)
-            )
-            || (isInstructorLeader() && userBranch() == 'kota_gorontalo')
-          )
-          && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId)
-        )
-        // Placement level authority (OD-IL-ENF2). Kept last: it is the only clause here
-        // that can read another document, and only when the level actually changes.
-        && placementLevelAllowed(inquiryId, request.resource.data, resource.data);
+      allow update: if canUpdateDeskInquiry(inquiryId);
       allow delete: if isViceDirector() || isDirector();
     }
 

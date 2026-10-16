@@ -133,8 +133,11 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
       expect(canGetApplication(appCoursesGtlo, admin)).toBe(false);
       expect(canGetProgressReport(progKidsGtlo, admin)).toBe(false);
       expect(canGetProgressReport(progCoursesGtlo, admin)).toBe(false);
-      expect(canGetUser(studentKidsGtlo, admin)).toBe(true);
-      expect(canGetUser(studentCoursesGtlo, admin)).toBe(true);
+      // Admin cannot read student records (DOM05-SEC-02 / DOM11-SEC-01) but retains staff reads
+      expect(canGetUser(studentKidsGtlo, admin)).toBe(false);
+      expect(canGetUser(studentCoursesGtlo, admin)).toBe(false);
+      expect(canGetUser(kidsManagerGorontalo, admin)).toBe(true);
+      expect(canGetUser(coursesManagerGorontalo, admin)).toBe(true);
     });
 
     it("Missing division record -> Kids Manager list query / get: DENY", () => {
@@ -840,8 +843,11 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
       expect(canGetClass(classCoursesGtlo, admin)).toBe(true);
       expect(canGetClass(classKidsBoba, admin)).toBe(false);
       expect(canGetClass(classCoursesBoba, admin)).toBe(false);
-      expect(canGetUser(studentKidsBoba, admin)).toBe(true);
-      expect(canGetUser(studentCoursesBoba, admin)).toBe(true);
+      // Admin cannot read student records in any branch (DOM05-SEC-02 / DOM11-SEC-01)
+      expect(canGetUser(studentKidsBoba, admin)).toBe(false);
+      expect(canGetUser(studentCoursesBoba, admin)).toBe(false);
+      expect(canGetUser(kidsManagerGorontalo, admin)).toBe(true);
+      expect(canGetUser(coursesManagerGorontalo, admin)).toBe(true);
     });
 
     it("6. Role hierarchy permissions remain intact for division='all' users", () => {
@@ -968,15 +974,11 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
       expect(canListProgressReports({ branchId: "kota_gorontalo" }, leaderLegacyGorontalo)).toBe(true);
     });
 
-    it("blocks an Instructor Leader from another branch's progress reports", () => {
-      expect(canGetProgressReport(reportBoba, leaderGorontalo)).toBe(false);
-      expect(canListProgressReports({ branchId: "bone_bolango" }, leaderGorontalo)).toBe(false);
-      expect(canGetProgressReport(reportCoursesGtlo, leaderBoneBolango)).toBe(false);
-    });
-
-    it("requires an explicit branch constraint for leader progress-report listing", () => {
-      // isSameBranchStrict has no fieldless fallback, so a query without branchId is denied.
-      expect(canListProgressReports({}, leaderGorontalo)).toBe(false);
+    it("DOM05-GOV-03: grants Instructor Leader province-wide progress report read scope (Blueprint v3.4 §4, §5, G-012)", () => {
+      expect(canGetProgressReport(reportBoba, leaderGorontalo)).toBe(true);
+      expect(canListProgressReports({ branchId: "bone_bolango" }, leaderGorontalo)).toBe(true);
+      expect(canListProgressReports({}, leaderGorontalo)).toBe(true);
+      expect(canGetProgressReport(reportCoursesGtlo, leaderBoneBolango)).toBe(true);
     });
 
     it("denies a resigned Instructor Leader", () => {

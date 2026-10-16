@@ -9,7 +9,11 @@ import {
   getNextLevel,
   useToast,
   useConfirm,
+  createApprovalEnvelope,
+  GATED_ACTIONS,
 } from "../shared";
+import { submitApprovalRequest } from "../shared/approvalsRepository";
+import { auth } from "../../firebase";
 import {
   normalizeWhatsAppNumber,
   buildWhatsAppRenewalReminderMessage,
@@ -87,7 +91,50 @@ export default function StudentRoster({
     const currentStatus = student.status || "active";
     if (currentStatus === newStatus) return;
 
-    if (newStatus === "graduated" || newStatus === "inactive" || newStatus === "archived") {
+    const isDeactivating = newStatus === "graduated" || newStatus === "inactive" || newStatus === "archived";
+    const isExecutiveOrMgr = ["director", "vice_director", "manager"].includes(userRole) || isAdmin;
+
+    if (isDeactivating && !isExecutiveOrMgr) {
+      const targetLabel = STUDENT_STATUS_MAP[newStatus]?.label || newStatus;
+      const ok = await confirm(
+        `Changing status to "${targetLabel}" for ${student.displayName || "this student"} requires Manager approval under governing dual-control rules.\n\n` +
+          `Would you like to submit an approval request to the Division Manager now?`
+      );
+      if (!ok) return;
+
+      setUpdatingStatusId(student.id);
+      try {
+        const envelope = createApprovalEnvelope(
+          GATED_ACTIONS.STUDENT_WITHDRAWAL_OR_FREEZE.id,
+          {
+            uid: auth.currentUser?.uid,
+            name: auth.currentUser?.displayName || "Front Office Staff",
+            role: userRole || "frontoffice",
+            branchId: branchId || student.branchId || null,
+          },
+          {
+            studentId: student.id,
+            targetUserId: student.id,
+            studentName: student.displayName || "Student",
+            currentStatus,
+            targetStatus: newStatus,
+            newStatus,
+            branchId: branchId || student.branchId || null,
+            division: division || student.division || "courses",
+            reason: `Front Office requested status transition to ${newStatus}`,
+          }
+        );
+        await submitApprovalRequest(envelope);
+        toast(`Submitted withdrawal request for ${student.displayName || "Student"} to Division Manager for authorization.`, "info");
+      } catch (err) {
+        toast("Error submitting withdrawal approval: " + err.message, "error");
+      } finally {
+        setUpdatingStatusId(null);
+      }
+      return;
+    }
+
+    if (isDeactivating) {
       const targetLabel = STUDENT_STATUS_MAP[newStatus]?.label || newStatus;
       const ok = await confirm(
         `Are you sure you want to mark ${student.displayName || "this student"} as ${targetLabel}?`
@@ -483,13 +530,15 @@ export default function StudentRoster({
                 <span>Add Student</span>
               </button>
             )}
-            <button
-              onClick={() => exportStudentRosterCSV(sortedStudents)}
-              className="inline-flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 px-3.5 py-2 rounded-xl font-bold text-xs transition shadow-2xs cursor-pointer"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span>Export CSV</span>
-            </button>
+            {!readOnly && userRole !== "instructor" && (
+              <button
+                onClick={() => exportStudentRosterCSV(sortedStudents)}
+                className="inline-flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 px-3.5 py-2 rounded-xl font-bold text-xs transition shadow-2xs cursor-pointer"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                <span>Export CSV</span>
+              </button>
+            )}
             <span className="bg-[#1a3a8f]/10 text-[#1a3a8f] px-3 py-1.5 rounded-full font-bold text-xs uppercase tracking-wider">
               {statusCounts.active} Active Students
             </span>

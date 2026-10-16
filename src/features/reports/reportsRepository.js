@@ -252,15 +252,22 @@ export async function fetchAdmissionsReportData(
 ) {
   let normalizedBranchId = branchId ? branchToId(branchId) : null;
 
+  // System Admin boundary (Blueprint §7, DOM05-UX-02): Admin has no operational need
+  // to query prospective student leads or admissions data. Fail closed immediately.
+  if (callerContext.isAdminView || callerContext.callerRole === "admin") {
+    return {
+      applications: [],
+      classes: [],
+    };
+  }
+
   // Branch isolation (DOM06-SEC-03): Non-executive callers (Front Office, Manager)
   // cannot query unscoped collections (/applications, /classes) under isSameBranchStrict.
   // If branchId is not provided or "all", attempt to resolve caller's branch or fail closed.
   const isExecutive = Boolean(
-    callerContext.isAdminView ||
     callerContext.isExecutiveView ||
     callerContext.callerRole === "director" ||
-    callerContext.callerRole === "vice_director" ||
-    callerContext.callerRole === "admin"
+    callerContext.callerRole === "vice_director"
   );
 
   const isNonExecutiveScoped = Boolean(

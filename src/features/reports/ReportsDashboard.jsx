@@ -153,8 +153,8 @@ export default function ReportsDashboard({
             <span>Learner Progress</span>
           </button>
 
-          {/* Sub-Tab: Admissions Velocity (Admin, Executive, Manager, Front Office) */}
-          {(isActualAdmin || isExecutiveView || isFrontOffice || isManager) && (
+          {/* Sub-Tab: Admissions Velocity (Executive, Manager, Front Office) */}
+          {(isExecutiveView || isFrontOffice || isManager) && (
             <button
               onClick={() => handleSubTabClick("admissions")}
               className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
@@ -285,13 +285,13 @@ export default function ReportsDashboard({
         />
       )}
 
-      {subTab === "admissions" && (isActualAdmin || isExecutiveView || isFrontOffice || isManager) && (
+      {subTab === "admissions" && (isExecutiveView || isFrontOffice || isManager) && (
         <AdmissionsTab
           ref={activeTabRef}
           branchFilter={branchFilter}
           rangeDays={rangeDays}
           division={division}
-          isAdminView={isActualAdmin}
+          isAdminView={false}
           isExecutiveView={isExecutiveView}
           isFrontOffice={isFrontOffice}
           isManager={isManager}

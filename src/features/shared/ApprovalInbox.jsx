@@ -12,7 +12,7 @@ import {
   applyApprovedPlacementOverride,
   clearPendingPlacementOverride,
 } from "../dashboard/frontoffice/deskInquiriesRepository";
-import { updateStaffRecord } from "../dashboard/usersRepository";
+import { updateStaffRecord, updateStudentStatus } from "../dashboard/usersRepository";
 import {
   updatePaymentApprovalStatus,
   executePaymentVoid,
@@ -258,6 +258,24 @@ export function ApprovalInbox({
       return {
         success: true,
         message: `Authorized & transferred: ${payload.studentName || "Student"} transferred successfully.`,
+      };
+    }
+
+    if (
+      approval.actionId === "STUDENT_WITHDRAWAL_OR_FREEZE" &&
+      (approval.payload?.studentId || approval.payload?.targetUserId)
+    ) {
+      const studentId = approval.payload.studentId || approval.payload.targetUserId;
+      const targetStatus = approval.payload.targetStatus || approval.payload.newStatus || "inactive";
+      await updateStudentStatus(studentId, targetStatus, currentUid, approval.id);
+      try {
+        await markApprovalApplied(approval.id, currentUid);
+      } catch (markErr) {
+        console.warn("markApprovalApplied error for student withdrawal:", markErr);
+      }
+      return {
+        success: true,
+        message: `Authorized: Student status updated to ${targetStatus}.`,
       };
     }
 
@@ -637,6 +655,22 @@ export function ApprovalInbox({
                     </div>
                     {req.payload?.reason && (
                       <div className="text-rose-800 font-medium italic">
+                        Reason: {req.payload.reason}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {req.actionId === "STUDENT_WITHDRAWAL_OR_FREEZE" && (
+                  <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 text-xs space-y-1">
+                    <div className="font-bold text-slate-800">
+                      Student: <span className="font-semibold text-amber-800">{req.payload?.studentName || req.payload?.studentId || "Student"}</span>
+                    </div>
+                    <div className="text-slate-600">
+                      Requested Status: <strong className="text-amber-900 font-bold uppercase">{req.payload?.targetStatus || req.payload?.newStatus || "inactive"}</strong>
+                    </div>
+                    {req.payload?.reason && (
+                      <div className="text-slate-600 font-medium italic">
                         Reason: {req.payload.reason}
                       </div>
                     )}

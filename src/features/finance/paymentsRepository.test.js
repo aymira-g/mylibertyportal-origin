@@ -80,6 +80,7 @@ describe("recordPayment", () => {
       lastPaymentMethod: "Cash",
       paymentPlan: "quarterly",
       paidUntil: "2026-12-21",
+      lastPaymentId: "auto-1",
     });
   });
 

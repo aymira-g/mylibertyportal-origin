@@ -874,4 +874,22 @@ Findings Summary:
 
 Next Campaign Action: Solicit owner policy decisions on OD-STU-1 (withdrawal authority), OD-STU-2 (direct tuition field update), and OD-STU-3 (child photograph storage), then draft and execute Slice 3 remediation plan.
 
+## 2026-10-16 — Role & Business Logic Conformance Audit (BLRCA): Slice 3 — Phase 6 Post-Fix Verification & Ledger Closure
+Source: Level 2 Role & Business Logic Conformance Audit methodology (`05-campaign-execution-and-coverage.md`, `06-findings-and-closure.md`).
+Scope: Implementation and post-fix verification of Slice 3 remediations under ratified Owner Decisions OD-STU-1, OD-STU-2, and OD-STU-3.
+Status: COMPLETED (All Slice 3 findings CLOSED or accepted risk in `bug-ledger.md`; role-function-conformance ledger updated to PASS).
+
+Remediation & Closure Summary:
+1. `DOM04-SEC-03` & `DOM05-SEC-04` (CLOSED): Preserved atomic `recordPayment` writeBatch safety in `paymentsRepository.js:281` by adding `lastPaymentId: paymentRef.id` to the student update document. In `firestore.rules:655-688`, guarded tuition/installment fields on student documents to strictly require `('lastPaymentId' in req) && !exists(...) && getAfter(...).data.studentId == userId`. Directly updating student tuition status without an atomic payment write is blocked at the rule layer.
+2. `DOM05-SEC-02` & `DOM11-SEC-01` (CLOSED): Admin `/users` isolation. In `firestore.rules:727, 743`, Admin is blocked from reading or listing student and parent records. In `useDashboardData.js:29, 280`, Admin queries `/users` constrained with `where("role", "in", STAFF_QUERY_ROLES)`, retaining full access to all staff roles and unassigned/pending accounts while ensuring student/parent PII is never loaded into browser memory.
+3. `DOM05-UX-02` & `DOM11-GOV-04` (CLOSED): Removed Admissions & Leads tab from Admin in `ReportsDashboard.jsx:157, 288`. In `reportsRepository.js:257-264`, `fetchAdmissionsReportData` fails closed on Admin callers returning `{ applications: [], classes: [] }`.
+4. `DOM05-GOV-02` (CLOSED): Wired `STUDENT_WITHDRAWAL_OR_FREEZE` dual-control maker-checker gate in `StudentRoster.jsx:90-135`. Non-manager transitions to `inactive`, `graduated`, or `archived` create and submit an approval ticket routed to Division Manager / Vice Director per OD-STU-1. In `ApprovalInbox.jsx:264, 680`, approving calls `updateStudentStatus` with `appliedFromApproval`. In `firestore.rules:607, 690-701`, gated status transitions behind manager, executive, or valid approved envelope.
+5. `DOM05-PRIV-01` (CLOSED): Blocked teaching instructor bulk PII CSV export in `StudentRoster.jsx:533-541`. "Export CSV" button and handler are hidden and disabled when `readOnly` is true or `userRole === 'instructor'`.
+6. `DOM05-SEC-03` (CLOSED): Stripped `officeboy` from `/deskInquiries` in `firestore.rules:1111-1132` by replacing `isStaff()` with explicit operational allowlist (`isOrgExecutive() || isManager() || isFrontOffice() || hasRole('marketing') || isInstructorLeader()`).
+7. `DOM05-GOV-03` (CLOSED): Granted Central Academic Lead (Instructor Leader at Kota Gorontalo) province-wide get and list scope on `/progressReports` in `firestore.rules:1186, 1205` per Blueprint v3.4 §4, §5, G-012. Synchronized `securityRulesMatrix.helpers.js` and tests in `divisionIsolation.test.js`.
+8. `DOM05-PRIV-02` (ACCEPTED RISK): Cloudinary unsigned upload documented as accepted zero-budget architecture per ratified OD-STU-3 Option A.
+9. Automated Quality Gates: 106 test files passed (1,448 passed, 139 skipped, 0 failed); `npm run typecheck` passed (0 errors); `npm run lint` passed (0 errors); `npm run build` passed (clean Vite PWA bundle in 925ms).
+10. Next Campaign Action: Proceed to **Slice 4: Academic Integrity, Class Rostering & Scheduling Across Roles**.
+
+
 

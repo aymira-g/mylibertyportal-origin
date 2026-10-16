@@ -187,7 +187,10 @@ export function isDivisionAllowedForManager(data, user) {
 
 export function canCreateUser(data, user) {
   if (!user) return false;
-  if (isExecutive(user)) return true;
+  if (isOrgExecutive(user)) return true;
+  if (isAdmin(user)) {
+    return !("role" in data) || !["student", "parent"].includes(data.role);
+  }
   if (
     isFrontOffice(user) &&
     ["student", "parent"].includes(data.role) &&
@@ -202,13 +205,30 @@ export function canCreateUser(data, user) {
 
 export function canUpdateUser(existing, incoming, user) {
   if (!user) return false;
-  if (isExecutive(user)) {
+  if (isOrgExecutive(user)) {
     if (
       ["director", "vice_director"].includes(existing.role) &&
       incoming.status &&
       ["resigned", "terminated"].includes(incoming.status) &&
       !isDirector(user) &&
       !isViceDirector(user)
+    ) {
+      return false;
+    }
+    return true;
+  }
+  if (isAdmin(user)) {
+    // Admin cannot update student or parent accounts (Blueprint §7, DOM05-SEC-02)
+    if (
+      ["student", "parent"].includes(existing.role) ||
+      ["student", "parent"].includes(incoming.role)
+    ) {
+      return false;
+    }
+    if (
+      ["director", "vice_director"].includes(existing.role) &&
+      incoming.status &&
+      ["resigned", "terminated"].includes(incoming.status)
     ) {
       return false;
     }
@@ -223,6 +243,15 @@ export function canUpdateUser(existing, incoming, user) {
     isDivisionAllowedForBranchStaff(existing, user) &&
     isDivisionAllowedForBranchStaff(incoming, user)
   ) {
+    if (
+      incoming.status &&
+      ["inactive", "graduated", "archived"].includes(incoming.status) &&
+      existing.status !== incoming.status
+    ) {
+      if (!isManager(user) && !incoming.appliedFromApproval) {
+        return false;
+      }
+    }
     return true;
   }
   return false;
@@ -312,6 +341,30 @@ export function canListApplications(queryData, user) {
   return false;
 }
 
+export function canGetDeskInquiry(doc, user) {
+  if (!user) return false;
+  if (isOrgExecutive(user)) return true;
+  if (
+    (isManager(user) || isFrontOffice(user) || user.role === "marketing" || isInstructorLeader(user)) &&
+    isSameBranch(doc, user) &&
+    isDivisionAllowedForManager(doc, user)
+  )
+    return true;
+  return false;
+}
+
+export function canListDeskInquiries(queryData, user) {
+  if (!user) return false;
+  if (isOrgExecutive(user)) return true;
+  if (
+    (isManager(user) || isFrontOffice(user) || user.role === "marketing" || isInstructorLeader(user)) &&
+    isSameBranchStrict(queryData, user) &&
+    isDivisionAllowedForManager(queryData, user)
+  )
+    return true;
+  return false;
+}
+
 export function canGetProgressReport(doc, user) {
   if (!user) return false;
   if (isOrgExecutive(user)) return true;
@@ -323,8 +376,8 @@ export function canGetProgressReport(doc, user) {
     return true;
   if (doc.instructorId === user.uid) return true;
   if (isParentOf(doc.studentId, user)) return true;
-  // Instructor Leader branch-scope academic monitoring (read-only, both divisions).
-  if (isInstructorLeader(user) && isSameBranch(doc, user)) return true;
+  // Instructor Leader province-wide academic monitoring (read-only per Blueprint v3.4 §4, §5, G-012).
+  if (isInstructorLeader(user)) return true;
   return false;
 }
 
@@ -344,15 +397,18 @@ export function canListProgressReports(queryData, user) {
     user.childStudentIds.includes(queryData.studentId)
   )
     return true;
-  // Instructor Leader branch-scope academic monitoring (read-only, both divisions).
-  if (isInstructorLeader(user) && isSameBranchStrict(queryData, user)) return true;
+  // Instructor Leader province-wide academic monitoring (read-only per Blueprint v3.4 §4, §5, G-012).
+  if (isInstructorLeader(user)) return true;
   return false;
 }
 
 export function canGetUser(doc, user) {
   if (!user) return false;
-  if (isExecutive(user)) return true;
   if (doc.uid === user.uid || doc.id === user.uid) return true;
+  if (isOrgExecutive(user)) return true;
+  if (isAdmin(user)) {
+    return !("role" in doc) || !["student", "parent"].includes(doc.role);
+  }
   // Mirrors firestore.rules `/users/{userId}` allow get: the broad same-branch profile read is
   // scoped to division/operational leadership only. Plain `frontoffice` must NOT reach it, so it
   // cannot read peer staff, marketing, operational leadership, manager or executive profiles.
@@ -379,7 +435,10 @@ export function canGetUser(doc, user) {
 
 export function canListUsers(queryData, user) {
   if (!user) return false;
-  if (isExecutive(user)) return true;
+  if (isOrgExecutive(user)) return true;
+  if (isAdmin(user)) {
+    return !queryData || !("role" in queryData) || !["student", "parent"].includes(queryData.role);
+  }
   if (
     isManager(user) &&
     isSameBranchStrict(queryData, user) &&

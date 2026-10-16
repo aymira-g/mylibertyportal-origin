@@ -278,6 +278,7 @@ export async function recordPayment(studentId, paymentRecord, idempotencyKey = n
     lastPaymentAmount: validatedRecord.amount,
     lastPaymentMethod: validatedRecord.method,
     paymentPlan: validatedRecord.planId || "monthly",
+    lastPaymentId: paymentRef.id,
     ...(paymentRecord.coverageEnd ? { paidUntil: paymentRecord.coverageEnd } : {}),
     ...(validatedRecord.isInstallment ? {
       isInstallment: true,

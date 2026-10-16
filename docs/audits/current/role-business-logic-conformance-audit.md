@@ -566,4 +566,50 @@ The audit discovered 12 distinct feature components, collection routes, and back
    - *Question:* Should child identification photos remain on Cloudinary free-tier unsigned uploads (zero budget, public URL), or should they be scheduled for migration to Firebase Storage with authenticated access controls?
    - *Option A (Recommended for Free Tier):* Retain Cloudinary unsigned upload for current $0 budget operations, documenting as an accepted risk.
    - *Option B:* Migrate to Firebase Storage default bucket (within 5GB Spark limit) with security rules restricting access to staff and verified parents.
+   - *Owner Status:* Ratified Option A (Accepted zero-budget architecture).
+
+---
+
+## 6. Slice 3 Remediation Execution & Verification (Phase 5/6 Closure)
+
+**Execution Date:** 2026-10-16  
+**Auditor / Agent:** Primary Coding Agent, authorized by Owner Kifry  
+**Approved Strategy Plan:** [`docs/plans/active/2026-10-16-blrca-slice3-personal-data-remediation.md`](../../plans/active/2026-10-16-blrca-slice3-personal-data-remediation.md)  
+**Ratified Owner Decisions:** `OD-STU-1` (Option A), `OD-STU-2` (Option A with Atomic Batch Safeguard), `OD-STU-3` (Option A).
+
+### 6.1 Executed Remediations & Mandatory Safeguards
+
+1. **Safeguard 1: Atomic `recordPayment` Batch Integrity (`DOM04-SEC-03` / `DOM05-SEC-04` — CLOSED)**
+   - In `paymentsRepository.js:281`, added `lastPaymentId: paymentRef.id` to the student update object in `recordPayment`.
+   - In `firestore.rules:655-688`, added `'lastPaymentId'`, `'isInstallment'`, `'outstandingBalance'`, `'totalAgreedAmount'`, `'nextDueDate'`, and `'appliedFromApproval'` to `diffKeys.hasOnly`.
+   - Added atomic batch guard on tuition/installment fields: any modification requires `('lastPaymentId' in req) && !exists(...) && getAfter(...).data.studentId == userId`. Guaranteed that tuition updates on `/users/{studentId}` cannot be executed from the client outside an atomic batch that creates a brand new payment for that student.
+2. **Safeguard 2: Admin `/users` Isolation (`DOM05-SEC-02` / `DOM11-SEC-01` — CLOSED)**
+   - In `firestore.rules:727, 743`, blocked `isAdmin()` from reading or listing documents where `role in ['student', 'parent']`. Preserved access to all staff roles and unassigned/pending staff accounts.
+   - In `useDashboardData.js:29, 280`, constrained Admin user query to `where("role", "in", STAFF_QUERY_ROLES)` so student and parent PII is never loaded into browser memory.
+   - Synchronized `securityRulesMatrix.helpers.js` (`canGetUser`, `canListUsers`, `canCreateUser`).
+3. **Safeguard 3: Admissions Tab Stripped from Admin (`DOM05-UX-02` / `DOM11-GOV-04` — CLOSED)**
+   - In `ReportsDashboard.jsx:157, 288`, removed `isActualAdmin` from Admissions & Leads tab visibility and render guards.
+   - In `reportsRepository.js:257-264`, failed closed on Admin callers returning `{ applications: [], classes: [] }`.
+4. **Safeguard 4: `STUDENT_WITHDRAWAL_OR_FREEZE` Dual-Control Gate (`DOM05-GOV-02` — CLOSED)**
+   - In `StudentRoster.jsx:90-135`, non-manager status transitions to `inactive`, `graduated`, or `archived` create and submit a `STUDENT_WITHDRAWAL_OR_FREEZE` approval ticket routed to the branch Division Manager (or Vice Director).
+   - In `ApprovalInbox.jsx:264, 680`, wired execution and preview card; approving calls `updateStudentStatus` with `appliedFromApproval: approval.id`.
+   - In `firestore.rules:607, 690-701`, gated status transitions to `inactive`, `graduated`, or `archived` behind `isManager()`, `isOrgExecutive()`, or a valid approved `STUDENT_WITHDRAWAL_OR_FREEZE` envelope.
+5. **Safeguard 5: Instructor Bulk PII Export Blocked (`DOM05-PRIV-01` — CLOSED)**
+   - In `StudentRoster.jsx:533-541`, hid and disabled `Export CSV` button and handler when `readOnly` is true or `userRole === 'instructor'`.
+6. **Safeguard 6: Stripped `officeboy` from Desk Inquiries (`DOM05-SEC-03` — CLOSED)**
+   - In `firestore.rules:1111-1132`, replaced `isStaff()` with explicit operational allowlist (`isOrgExecutive() || isManager() || isFrontOffice() || hasRole('marketing') || isInstructorLeader()`).
+   - Synchronized `securityRulesMatrix.helpers.js` (`canGetDeskInquiry`, `canListDeskInquiries`).
+7. **Safeguard 7: Province-Wide Academic Scope for Central Lead (`DOM05-GOV-03` — CLOSED)**
+   - In `firestore.rules:1186, 1205`, granted `isInstructorLeader()` province-wide get and list on `/progressReports` per Blueprint v3.4 §4, §5, G-012. Synchronized `securityRulesMatrix.helpers.js` and tests in `divisionIsolation.test.js`.
+8. **Safeguard 8: Unsigned Media Storage Risk Accepted (`DOM05-PRIV-02` — ACCEPTED RISK)**
+   - Retained Cloudinary unsigned upload for current $0 budget operations per ratified OD-STU-3 Option A.
+
+### 6.2 Quality Gate & Regression Verification
+
+- **Automated Unit Tests (`vitest run`):** 106 test files passed, **1,448 tests passed** (139 skipped, 0 failed).
+- **TypeScript Typecheck (`tsc --noEmit`):** Clean pass (0 errors).
+- **ESLint (`eslint .`):** Clean pass (0 errors).
+- **Production Build (`vite build`):** Built cleanly in 925ms with PWA service worker generated.
+- **Spark Zero-Budget Retention:** 100% maintained; no paid services, no extra dependencies.
+
 

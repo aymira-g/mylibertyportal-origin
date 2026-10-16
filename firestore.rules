@@ -604,17 +604,31 @@ service cloud.firestore {
           || get(/databases/$(database)/documents/progressReports/$(rId)).data.recommendedLevel == req.currentLevel);
     }
 
+    function isApprovedStudentWithdrawalOrFreeze(userId, approvalId) {
+      let approval = get(/databases/$(database)/documents/approvals/$(approvalId)).data;
+      return approval.actionId == 'STUDENT_WITHDRAWAL_OR_FREEZE'
+        && approval.status == 'approved'
+        && (!('applied' in approval) || approval.applied != true)
+        && approval.requestedByUid != approval.decidedByUid
+        && ('approverRole' in approval)
+        && (approval.approverRole in ['manager', 'vice_director', 'director'])
+        && ('payload' in approval)
+        && approval.payload != null
+        && (approval.payload.studentId == userId || approval.payload.targetUserId == userId);
+    }
+
     function canUpdateUser(userId) {
       let p = userProfile();
       let r = signedIn() && p != null && (!('status' in p) || (p.status != 'resigned' && p.status != 'terminated')) && ('role' in p) ? p.role : '';
       let req = request.resource.data;
       let res = resource.data;
       let diffKeys = req.diff(res).affectedKeys();
-      let isExec = r in ['director', 'vice_director', 'admin'];
+      let isOrgExec = r in ['director', 'vice_director'];
+      let isAdminUser = r == 'admin';
       let isStaffOrMgr = r in ['frontoffice', 'opslead', 'ops_lead', 'frontofficelead', 'manager'];
 
       return (
-        (isExec
+        ((isOrgExec || (isAdminUser && (!('role' in res) || !(res.role in ['student', 'parent'])) && (!('role' in req) || !(req.role in ['student', 'parent']))))
           && (
             req.role != res.role
               ? (
@@ -625,13 +639,13 @@ service cloud.firestore {
               : true
           )
           && (
-            (r in ['director', 'vice_director'])
+            isOrgExec
             || !(res.role in ['director', 'vice_director'])
             || !('status' in req)
             || !(req.status in ['resigned', 'terminated'])
           )
           && (
-            (!('status' in req) || !(req.status in ['resigned', 'terminated']) || (res.role in ['student', 'parent']))
+            (!('status' in req) || !(req.status in ['resigned', 'terminated']) || (isOrgExec && res.role in ['student', 'parent']))
             || (r == 'director')
             || (
               ('appliedFromApproval' in req)
@@ -659,8 +673,32 @@ service cloud.firestore {
             'fatherPhone', 'motherName', 'motherJob', 'motherPhone', 'referralSource',
             'rating', 'paymentPlan', 'paymentStatus', 'lastPaymentPeriod', 'lastPaymentDate',
             'lastPaymentAmount', 'lastPaymentMethod', 'paidUntil', 'branch', 'division',
-            'currentLevel', 'promotedFromReport'
+            'currentLevel', 'promotedFromReport',
+            'lastPaymentId', 'isInstallment', 'outstandingBalance', 'totalAgreedAmount', 'nextDueDate',
+            'appliedFromApproval'
           ])
+          && (
+            !diffKeys.hasAny(['paymentStatus', 'paidUntil', 'lastPaymentPeriod', 'lastPaymentDate', 'lastPaymentAmount', 'lastPaymentMethod', 'paymentPlan', 'isInstallment', 'outstandingBalance', 'totalAgreedAmount', 'nextDueDate'])
+            || (
+              ('lastPaymentId' in req)
+              && req.lastPaymentId is string
+              && req.lastPaymentId != ''
+              && !exists(/databases/$(database)/documents/payments/$(req.lastPaymentId))
+              && getAfter(/databases/$(database)/documents/payments/$(req.lastPaymentId)).data.studentId == userId
+            )
+          )
+          && (
+            !diffKeys.hasAny(['status'])
+            || !(req.status in ['inactive', 'graduated', 'archived'])
+            || isManager()
+            || isOrgExecutive()
+            || (
+              ('appliedFromApproval' in req)
+              && req.appliedFromApproval is string
+              && req.appliedFromApproval != ''
+              && isApprovedStudentWithdrawalOrFreeze(userId, req.appliedFromApproval)
+            )
+          )
           && (
             !diffKeys.hasAny(['currentLevel', 'promotedFromReport'])
             || isApprovedPromotion(userId, req, res)
@@ -685,7 +723,8 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get: if (signedIn() && userId == request.auth.uid)
-        || isExecutive()
+        || isOrgExecutive()
+        || (isAdmin() && (!('role' in resource.data) || !(resource.data.role in ['student', 'parent'])))
         // Broad same-branch profile read is scoped to division/operational leadership only
         // (manager + ops lead family). Plain `frontoffice` is deliberately NOT included:
         // it falls through to the allow-list clauses below so Front Office cannot read peer
@@ -700,10 +739,11 @@ service cloud.firestore {
         // Front Office may read beyond the academic allow-list above.
         || (isFrontDeskStaff() && resource.data.role in ['officeboy', 'cleaner'] && isSameBranch(resource.data))
         || (isParentOf(userId) && resource.data.role == 'student');
-      allow list: if isExecutive()
+      allow list: if isOrgExecutive()
+        || (isAdmin() && (!('role' in resource.data) || !(resource.data.role in ['student', 'parent'])))
         || (isManager() && isSameBranchStrict(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)))
         || (isStaff() && resource.data.role in ['student', 'instructor', 'instructorleader', 'instructor_leader', 'parent'] && isSameBranchStrict(resource.data) && (resource.data.role == 'parent' || isDivisionAllowedForBranchStaff(resource.data)));
-      allow create: if (isExecutive()
+      allow create: if (isOrgExecutive()
           && (
             // Student and parent accounts are ordinary intake, not a staff appointment.
             request.resource.data.role in ['student', 'parent']
@@ -713,6 +753,12 @@ service cloud.firestore {
                 && request.resource.data.appliedFromApproval != ''
                 && isApprovedNewStaffAccount(userId, request.resource.data.appliedFromApproval))
           ))
+        || (isAdmin()
+          && (!('role' in request.resource.data) || !(request.resource.data.role in ['student', 'parent']))
+          && (('appliedFromApproval' in request.resource.data)
+              && request.resource.data.appliedFromApproval is string
+              && request.resource.data.appliedFromApproval != ''
+              && isApprovedNewStaffAccount(userId, request.resource.data.appliedFromApproval)))
         || (isFrontDeskStaff() && request.resource.data.role in ['student', 'parent'] && isSameBranch(request.resource.data)
           && (request.resource.data.role != 'student' || isDivisionAllowedForBranchStaff(request.resource.data))
           && (request.resource.data.role != 'student'
@@ -1063,19 +1109,14 @@ service cloud.firestore {
     }
 
     match /deskInquiries/{inquiryId} {
-      allow get: if isOrgExecutive() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
-      allow list: if isOrgExecutive() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data));
+      allow get: if isOrgExecutive() || ((isManager() || isFrontOffice() || hasRole('marketing') || isInstructorLeader()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data));
+      allow list: if isOrgExecutive() || ((isManager() || isFrontOffice() || hasRole('marketing') || isInstructorLeader()) && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data));
       // Placement level authority (FO-03 / OD-IL-ENF2): A course inquiry cannot be created
       // with a graded academic level; placement levels must be assigned via an assessment score
       // rubric or an approved PLACEMENT_LEVEL_OVERRIDE envelope.
-      allow create: if (isOrgExecutive() || ((isManager() || isFrontOffice() || isStaff()) && isSameBranch(request.resource.data) && isDivisionAllowedForManager(request.resource.data)))
+      allow create: if (isOrgExecutive() || ((isManager() || isFrontOffice() || hasRole('marketing')) && isSameBranch(request.resource.data) && isDivisionAllowedForManager(request.resource.data)))
         && (!('currentLevel' in request.resource.data) || request.resource.data.currentLevel in ['', 'unassessed'] || (('division' in request.resource.data) && request.resource.data.division == 'kindergarten'));
-      // Placement level authority (OD-IL-ENF2) needs headroom under the engine's
-      // 1000-expression ceiling, and `isExecutive() || isManager() || isFrontOffice() ||
-      // isStaff()` is exactly `isStaff()` (its role list is a superset of the other three,
-      // and all four share the same signed-in / active-profile predicate). Collapsing it
-      // removes three redundant userProfile() reads per evaluation. Behaviour is identical.
-      allow update: if (isStaff()
+      allow update: if ((isOrgExecutive() || isManager() || isFrontOffice() || hasRole('marketing') || isInstructorLeader())
           && isSameBranch(resource.data) && isSameBranch(request.resource.data)
           && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId)
           && isDivisionAllowedForManager(resource.data) && isDivisionAllowedForManager(request.resource.data))
@@ -1146,17 +1187,13 @@ service cloud.firestore {
         || ((isManager() || isFrontOffice()) && isSameBranch(resource.data) && isDivisionAllowedForManager(resource.data))
         || (signedIn() && resource.data.instructorId == request.auth.uid)
         || (isParentOf(resource.data.studentId))
-        // Instructor Leader branch-scope academic monitoring (read-only).
-        // No division filter: the leader's academic scope spans both divisions
-        // within the branch, mirroring the existing instructor-family behaviour on
-        // /classes and /users (isDivisionAllowedForBranchStaff's role list omits
-        // instructor-family roles, so a division gate would be a no-op here anyway).
-        || (isInstructorLeader() && isSameBranch(resource.data));
+        // Instructor Leader province-wide academic monitoring (read-only per Blueprint v3.4 §4, §5, G-012).
+        || isInstructorLeader();
       allow list: if isOrgExecutive()
         || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data) && isDivisionAllowedForManager(resource.data))
         || (signedIn() && resource.data.instructorId == request.auth.uid)
         || (isParent() && isSameBranchStrict(resource.data) && ('childStudentIds' in userProfile()) && userProfile().childStudentIds.hasAny([resource.data.studentId]))
-        || (isInstructorLeader() && isSameBranchStrict(resource.data));
+        || isInstructorLeader();
       allow create: if signedIn()
         && request.resource.data.instructorId == request.auth.uid
         && request.resource.data.studentId is string

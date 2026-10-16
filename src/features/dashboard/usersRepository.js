@@ -69,16 +69,30 @@ export function updateStaffStatus(uid, status, updatedBy = auth.currentUser?.uid
   );
 }
 
-export function updateStudentStatus(uid, status, updatedBy = auth.currentUser?.uid || null) {
-  return setDoc(
-    doc(db, "users", uid),
-    {
-      status,
-      statusUpdatedAt: new Date().toISOString(),
-      statusUpdatedBy: updatedBy,
-    },
-    { merge: true }
-  );
+export function updateStudentStatus(
+  uid,
+  status,
+  updatedByOrOptions = auth.currentUser?.uid || null,
+  appliedFromApproval = null
+) {
+  let by = auth.currentUser?.uid || null;
+  let approvalId = appliedFromApproval;
+  if (typeof updatedByOrOptions === "string") {
+    by = updatedByOrOptions;
+  } else if (Boolean(updatedByOrOptions) && typeof updatedByOrOptions === "object") {
+    const opts = /** @type {{ updatedBy?: string; appliedFromApproval?: string }} */ (updatedByOrOptions);
+    by = opts.updatedBy || auth.currentUser?.uid || null;
+    approvalId = opts.appliedFromApproval || null;
+  }
+  const payload = {
+    status,
+    statusUpdatedAt: new Date().toISOString(),
+    statusUpdatedBy: by,
+  };
+  if (approvalId) {
+    payload.appliedFromApproval = approvalId;
+  }
+  return setDoc(doc(db, "users", uid), payload, { merge: true });
 }
 
 /**

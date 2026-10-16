@@ -208,8 +208,13 @@ describe("User & Parent/Student Authorization Rules Matrix", () => {
       // 8. Staff reads with branch isolation
       expect(canGetUser({ id: "student_1", role: "student", branchId: "kota_gorontalo" }, foGto)).toBe(true);
       expect(canGetUser({ id: "parent_a", role: "parent", branchId: "kota_gorontalo" }, foGto)).toBe(true);
-      expect(canGetUser({ id: "parent_b", role: "parent", branchId: "bone_bolango" }, foGto)).toBe(false);
-      expect(canGetUser({ id: "parent_b", role: "parent", branchId: "bone_bolango" }, adminUser)).toBe(true);
+      // Admin is blocked from student/parent records (DOM05-SEC-02 / DOM11-SEC-01) but retains staff reads
+      expect(canGetUser({ id: "parent_b", role: "parent", branchId: "bone_bolango" }, adminUser)).toBe(false);
+      expect(canGetUser({ id: "student_1", role: "student", branchId: "kota_gorontalo" }, adminUser)).toBe(false);
+      expect(canGetUser({ id: "ins_1", role: "instructor", branchId: "bone_bolango" }, adminUser)).toBe(true);
+      expect(canGetUser({ id: "lead_1", role: "instructorleader", branchId: "bone_bolango" }, adminUser)).toBe(true);
+      expect(canGetUser({ id: "cleaner_1", role: "cleaner", branchId: "bone_bolango" }, adminUser)).toBe(true);
+      expect(canGetUser({ id: "unassigned_staff" }, adminUser)).toBe(true);
     });
 
     it("lets Front Office read operational staff but denies peers, leadership and executives", () => {

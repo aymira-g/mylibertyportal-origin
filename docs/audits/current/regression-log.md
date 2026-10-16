@@ -36,6 +36,48 @@
 | 2026-10-16 | BLRCA Slice 1: Phase 6 Post-Fix Verification & Ledger Closure (DOM11-GOV-02, DOM01-GOV-03, DOM01-REP-01, DOM01-PERF-01 verified resolved; commits `220c10a`, `131f1b2`) | Auth · System Admin · Security Rules · Dashboard · Reports | **PASS** | No | 7/7 targeted test files passed (194 tests); 0 lint, 0 typecheck; all 4 findings CLOSED in bug-ledger.md |
 | 2026-10-16 | BLRCA Slice 2 Remediation: Financial Surfaces Across Roles (DOM04-GOV-03, DOM04-SEC-02, DOM04-GOV-04, DOM04-GOV-05, DOM04-GOV-06, DOM04-GOV-07) | Finance · Payments · Security Rules · Approvals · Shifts | **PASS** | No | 1,437 vitest unit tests pass; 0 lint, 0 typecheck, build clean; all 6 findings CLOSED in bug-ledger.md |
 | 2026-10-16 | BLRCA Slice 3 Audit: Student, Child & Parent Personal Data Across Roles (Phases 0–4 strictly audit-only; 8 findings cataloged; 0 production code changes) | Students · Parent Portal · Security Rules · Reports | **AUDIT COMPLETE** | Yes (8 Findings Logged) | System Admin /users list exposure, Admissions tab leak, student withdrawal gate unhooked, instructor roster CSV export, office boy deskInquiries access, progressReports branch lock, direct tuition field update |
+| 2026-10-16 | BLRCA Slice 3 Remediation: Student, Child & Parent Personal Data Across Roles (DOM04-SEC-03, DOM05-SEC-02, DOM05-SEC-03, DOM05-SEC-04, DOM05-GOV-02, DOM05-GOV-03, DOM05-PRIV-01, DOM05-UX-02, DOM11-SEC-01, DOM11-GOV-04) | Students · Security Rules · Users · Dashboard · Reports | **PASS** | No | 1,448 vitest unit tests pass; 0 lint, 0 typecheck, build clean; all findings CLOSED in bug-ledger.md |
+
+---
+
+## Evidence Record — 2026-10-16 (BLRCA Slice 3 Personal Data Remediation & Verification)
+
+```text
+Change: Role & Business Logic Conformance Audit (BLRCA) — Slice 3 Personal Data Remediation & Level 1 Regression
+Date: 2026-10-16
+Section: Students / Users / Security Rules / Approvals / Reports
+Workflow: Implementation and verification of approved remediation plan for Slice 3 findings
+Tester / Agent: Primary Coding Agent, authorized by Kifry
+Risk classification: HIGH-RISK (Student/Child/Parent PII privacy, Firestore security rules, dual-control withdrawal gate, atomic payment batch)
+
+Verification Evidence:
+  - Safeguard 1 (Atomic recordPayment Batch Integrity):
+    - paymentsRepository.js: recordPayment attaches lastPaymentId: paymentRef.id to student update doc.
+    - firestore.rules: Diff keys permitted on student docs restricted; modification of tuition/installment fields strictly requires ('lastPaymentId' in req) && !exists(...) && getAfter(...).data.studentId == userId.
+    - Verified in paymentsRepository.test.js:75 (26/26 tests passed).
+  - Safeguard 2 (Admin /users Isolation):
+    - firestore.rules: match /users/{userId} get and list rules block Admin on role in ['student', 'parent']. Full access preserved for all staff roles and unassigned/pending accounts.
+    - useDashboardData.js: Admin query restricted with where("role", "in", STAFF_QUERY_ROLES). Student and parent PII is never loaded into browser memory.
+    - Verified in userAuthorization.test.js:212 and divisionIsolation.test.js:136, 847.
+  - Safeguard 3 (Admissions Tab Stripped from Admin):
+    - ReportsDashboard.jsx: Removed isActualAdmin from Admissions tab button and render guard.
+    - reportsRepository.js: fetchAdmissionsReportData fails closed on Admin callers returning empty array.
+  - Safeguard 4 (STUDENT_WITHDRAWAL_OR_FREEZE Dual-Control Gate):
+    - StudentRoster.jsx: Non-manager status transition to inactive/graduated/archived routes through STUDENT_WITHDRAWAL_OR_FREEZE ticket to Division Manager / Vice Director.
+    - ApprovalInbox.jsx: Wired execution and preview card; calls updateStudentStatus with appliedFromApproval.
+    - firestore.rules: canUpdateUser gates student status transitions to inactive/graduated/archived behind manager, executive, or valid approved envelope.
+  - Safeguard 5 (Instructor Bulk CSV Export Blocked):
+    - StudentRoster.jsx: Export CSV button and handler hidden and disabled when readOnly or userRole === 'instructor'.
+  - Safeguard 6 (Stripped officeboy from Desk Inquiries):
+    - firestore.rules: match /deskInquiries replaced isStaff() with explicit allowlist (isOrgExecutive || isManager || isFrontOffice || marketing || isInstructorLeader), stripping officeboy.
+  - Safeguard 7 (Province-Wide Progress Reports Read Scope for Central Lead):
+    - firestore.rules: match /progressReports grants isInstructorLeader() province-wide get and list scope per Blueprint v3.4 §4, §5, G-012. Verified in divisionIsolation.test.js:977.
+  - Quality Gates:
+    - Vitest: 106 test files passed, 1,448 tests passed (0 failures).
+    - TypeScript: 0 errors (tsc --noEmit clean).
+    - ESLint: 0 errors (eslint . clean).
+    - Vite Build: Built in 925ms.
+```
 
 ---
 

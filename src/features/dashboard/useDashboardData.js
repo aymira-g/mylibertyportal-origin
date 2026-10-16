@@ -26,6 +26,23 @@ import { UNASSESSED, hasAssessedLevel } from "../../constants/levels";
 import { isInstructorRole, normalizeRole, isExecutiveRole } from "../shared/roles";
 import { useUserProfile } from "../shared/useUserProfile";
 
+export const STAFF_QUERY_ROLES = [
+  "admin",
+  "director",
+  "vice_director",
+  "manager",
+  "instructor",
+  "instructorleader",
+  "instructor_leader",
+  "opslead",
+  "ops_lead",
+  "frontoffice",
+  "frontofficelead",
+  "marketing",
+  "officeboy",
+  "cleaner",
+];
+
 const emptyFormData = {
   firstName: "",
   lastName: "",
@@ -259,7 +276,13 @@ export function useDashboardData({
       };
     } else {
       const usersConstraints = [];
-      if (restrictedRead) {
+      const normalizedCurrentRole = normalizeRole(profileRole);
+      if (normalizedCurrentRole === "admin") {
+        // System Admin boundary (Blueprint §7, DOM05-SEC-02, DOM11-SEC-01):
+        // Admin manages technical IT and staff accounts only. Student dossiers and
+        // parent contact records are strictly excluded to avoid leaking PII into admin memory.
+        usersConstraints.push(where("role", "in", STAFF_QUERY_ROLES));
+      } else if (restrictedRead) {
         // In firestore.rules, staff can list 'student', 'instructor', 'instructorleader', and 'parent'.
         // Front Office needs parents loaded to display linked parent accounts on the student roster.
         usersConstraints.push(where("role", "in", ["student", "instructor", "parent"]));

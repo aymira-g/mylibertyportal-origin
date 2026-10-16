@@ -115,21 +115,47 @@
 
 ---
 
-## 4. Ledger Summary & Defect Indexing
+## 4. Slice 3: Student, Child & Parent Personal Data Across Roles
 
-| Metric | Slice 1 (Admin Boundary) | Slice 2 (Financial Surfaces) | Cumulative BLRCA |
-|---|---|---|---|
-| **Total Testable Assertions** | 8 | 32 | 40 |
-| **Clean Conformance (`PASS`)** | 8 (100%) | 31 (96.9%) | 39 (97.5%) |
-| **Confirmed Defects (`FAIL`)** | 0 (4 closed) | 0 (6 closed) | 0 (10 closed) |
-| **Inconsistencies / Gaps (`GAP`)** | 0 | 0 (closed) | 0 |
-| **Owner Decisions Required (`[ODR]`)** | 0 | 1 (3.1%) | 1 |
+| Slice | Role ID | Capability / Action | Scope Level | Expected Contract | Outcome | Evidence (File:Line) | Test Citation |
+|---|---|---|---|---|---|---|---|
+| Slice 3 | `admin` | `/users` Read & List Scope | None (Staff Only) | ❌ FORBIDDEN on Students & Parents; restricted strictly to staff accounts | **PASS** | `firestore.rules:727, 743`, `useDashboardData.js:280` (`STAFF_QUERY_ROLES`) | `userAuthorization.test.js:212`, `divisionIsolation.test.js:136, 847` |
+| Slice 3 | `admin` | Admissions & Leads Report Tab | None | ❌ FORBIDDEN: Admin has no business lead inspection authority | **PASS** | `ReportsDashboard.jsx:157, 288`, `reportsRepository.js:257` | Automated build / lint clean |
+| Slice 3 | `admin` | `/users` Student/Parent Creation | None | ❌ FORBIDDEN: Technical Admin cannot mint student or parent accounts | **PASS** | `firestore.rules:756-761`, `securityRulesMatrix.helpers.js:192` | Automated test suite pass |
+| Slice 3 | `director` | Province-Wide Student/Parent Read | Province-Wide | ✅ FULL ACCESS: View student and family profiles across all branches | **PASS** | `firestore.rules:726, 742` (`isOrgExecutive()`) | `divisionIsolation.test.js:835` |
+| Slice 3 | `vice_director` | Province-Wide Student/Parent Read | Province-Wide | ✅ FULL ACCESS: View student and family profiles across all branches | **PASS** | `firestore.rules:726, 742` (`isOrgExecutive()`) | `divisionIsolation.test.js:835` |
+| Slice 3 | `manager` | Local Branch/Division Student Profile | Branch+Division | ✅ READ & DIRECT WORK: Supervise branch students in assigned division | **PASS** | `firestore.rules:734, 744` | `divisionIsolation.test.js:80` |
+| Slice 3 | `manager` | `STUDENT_WITHDRAWAL_OR_FREEZE` Approval | Branch+Division | ✅ LOCAL APPROVER: Ratified approver for branch withdrawal tickets (OD-STU-1) | **PASS** | `approvalGates.constants.js:145`, `ApprovalInbox.jsx:264, 680`, `firestore.rules:614` | `approvals.test.js`, `firestore.rules` |
+| Slice 3 | `frontoffice` | Student Profile Field Updates | Branch-Local | 📝 MAKER ONLY: Updates standard profile; tuition fields locked to atomic batch | **PASS** | `firestore.rules:655-688` (Atomic batch `lastPaymentId` check) | `paymentsRepository.test.js:75` |
+| Slice 3 | `frontoffice` | Student Withdrawal / Freeze (OD-STU-1) | Branch-Local | 📝 MAKER ONLY: Non-manager status transition to inactive/graduated/archived MUST route through ticket | **PASS** | `StudentRoster.jsx:90-135`, `ApprovalInbox.jsx:264`, `firestore.rules:690-701` | `userAuthorization.test.js` |
+| Slice 3 | `frontoffice` | Desk Inquiries Management | Branch-Local | ✅ PRIMARY OPERATOR: Intake and follow-up on prospective student leads | **PASS** | `firestore.rules:1111-1132` | `WalkInInquiryTab.test.js` (17 tests pass) |
+| Slice 3 | `instructor` | Class Cohort Student Roster View | Own-Classes | ✅ TEACHING SCOPE: View students enrolled in assigned classes | **PASS** | `firestore.rules:match /classes`, `InstructorClasses.jsx` | `InstructorDashboard.test.js` |
+| Slice 3 | `instructor` | Bulk Student PII CSV Export | None | ❌ FORBIDDEN: Instructors blocked from downloading bulk student PII | **PASS** | `StudentRoster.jsx:533-541` (Button hidden & disabled for `instructor` / `readOnly`) | Clean build / lint verification |
+| Slice 3 | `instructorleader` | Province-Wide Progress Report Read | Province-Wide | ✅ ACADEMIC MONITORING: Province-wide pedagogical oversight (Blueprint v3.4 §4, §5, G-012) | **PASS** | `firestore.rules:1186, 1205`, `securityRulesMatrix.helpers.js:353, 374` | `divisionIsolation.test.js:977` |
+| Slice 3 | `instructorleader` | Desk Inquiries Evaluation | Branch-Local | ✅ ACADEMIC PLACEMENT: Inspect leads for student placement evaluation | **PASS** | `firestore.rules:1111, 1125` | `securityRulesMatrix.helpers.js:347` |
+| Slice 3 | `officeboy` | Desk Inquiries / Leads Access | None | ❌ FORBIDDEN: Facilities staff completely stripped from `/deskInquiries` | **PASS** | `firestore.rules:1111-1132` (`isStaff()` replaced with explicit allowlist) | `securityRulesMatrix.helpers.js:341-365` |
+| Slice 3 | `parent` | Personal & Child Family Privacy | Own-Children | ✅ FAMILY PRIVACY: Can read own profile and linked child records only | **PASS** | `firestore.rules:725, 741` (`isParentOf`) | `userAuthorization.test.js:178-197` |
+| Slice 3 | `student` | Personal Profile Isolation | Own-Record | ✅ PERSONAL SCOPE: Can read own record only; peer reads strictly denied | **PASS** | `firestore.rules:725, 741` (`userId == request.auth.uid`) | `userAuthorization.test.js:200` |
 
-### Closed Slice 2 Findings (Verified in `bug-ledger.md`):
-1. **`DOM04-GOV-03` (High) — CLOSED:** Maker-checker collapse on `/payments` create & update resolved in `firestore.rules:1011-1036`.
-2. **`DOM04-SEC-02` (High) — CLOSED:** Direct unverified write to payment `approvalStatus` guarded in `firestore.rules:1020-1036`.
-3. **`DOM04-GOV-04` (High) — CLOSED:** Coverage rollback on discount rejection implemented in `ApprovalInbox.jsx:415-422`.
-4. **`DOM04-GOV-05` (High) — CLOSED:** Ratified OD-1/OD-3 `PAYMENT_CORRECTION_OR_VOID` two-step dual-control workflow registered, previewed, and executed.
-5. **`DOM04-GOV-06` (Medium) — CLOSED:** OD-3 partial payments / installments architecture implemented in `paymentSchema.js`, `RecordPaymentTab.jsx`, `PaymentModal.jsx`, and `paymentsRepository.js`.
-6. **`DOM04-GOV-07` (Medium) — CLOSED:** Shift cash discrepancy threshold aligned to Rp 10.000 in `shiftsRepository.js:24`.
+---
+
+## 5. Ledger Summary & Defect Indexing
+
+| Metric | Slice 1 (Admin Boundary) | Slice 2 (Financial Surfaces) | Slice 3 (Personal Data & PII) | Cumulative BLRCA |
+|---|---|---|---|---|
+| **Total Testable Assertions** | 8 | 32 | 17 | 57 |
+| **Clean Conformance (`PASS`)** | 8 (100%) | 31 (96.9%) | 17 (100%) | 56 (98.2%) |
+| **Confirmed Defects (`FAIL`)** | 0 (4 closed) | 0 (6 closed) | 0 (8 closed) | 0 (18 closed) |
+| **Inconsistencies / Gaps (`GAP`)** | 0 | 0 (closed) | 0 (closed) | 0 |
+| **Owner Decisions Required (`[ODR]`)** | 0 | 1 (3.1%) | 0 (3 ratified) | 1 (1.8%) |
+
+### Closed Slice 3 Findings (Verified in `bug-ledger.md`):
+1. **`DOM04-SEC-03` / `DOM05-SEC-04` (High) — CLOSED:** Safeguarded atomic `recordPayment` writeBatch on `/users/{studentId}` via `lastPaymentId` brand-new payment creation check in `firestore.rules:655-688`.
+2. **`DOM05-SEC-02` / `DOM11-SEC-01` (High) — CLOSED:** Admin `/users` isolation. Blocked from student/parent records in `firestore.rules:727, 743`, `securityRulesMatrix.helpers.js`, and `useDashboardData.js` (`STAFF_QUERY_ROLES`).
+3. **`DOM05-UX-02` / `DOM11-GOV-04` (Medium) — CLOSED:** Removed Admissions & Leads tab from Admin in `ReportsDashboard.jsx:157, 288` and failed closed in `reportsRepository.js:257`.
+4. **`DOM05-GOV-02` (High) — CLOSED:** `STUDENT_WITHDRAWAL_OR_FREEZE` dual-control maker-checker gate implemented in `StudentRoster.jsx`, `ApprovalInbox.jsx`, `usersRepository.js`, and `firestore.rules:607, 690`.
+5. **`DOM05-PRIV-01` (Medium) — CLOSED:** Blocked teaching instructor bulk PII CSV export in `StudentRoster.jsx:533-541`.
+6. **`DOM05-SEC-03` (Medium) — CLOSED:** Stripped `officeboy` from `/deskInquiries` in `firestore.rules:1111-1132` and `securityRulesMatrix.helpers.js`.
+7. **`DOM05-GOV-03` (Medium) — CLOSED:** Central Academic Lead province-wide `/progressReports` read scope granted in `firestore.rules:1186, 1205` and `securityRulesMatrix.helpers.js`.
+8. **`DOM05-PRIV-02` (Low) — ACCEPTED RISK:** Cloudinary unsigned upload documented as accepted zero-budget architecture per ratified OD-STU-3 Option A.
 

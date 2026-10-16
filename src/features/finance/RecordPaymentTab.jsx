@@ -35,6 +35,14 @@ export default function RecordPaymentTab({
   onSubmit,
   onMarkPending,
   onClearPending = null,
+  isInstallment = false,
+  onInstallmentChange,
+  installmentIndex = 1,
+  onInstallmentIndexChange,
+  totalAgreedAmount = "",
+  onTotalAgreedAmountChange,
+  nextDueDate = "",
+  onNextDueDateChange,
 }) {
   const { isOnline } = useNetworkStatus();
 
@@ -332,6 +340,65 @@ export default function RecordPaymentTab({
             </button>
           ))}
         </div>
+      </div>
+
+      {/* OD-3 Installment / Partial Payment Toggle */}
+      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={isInstallment}
+            onChange={(e) => onInstallmentChange && onInstallmentChange(e.target.checked)}
+            className="w-4 h-4 rounded text-[#1a3a8f] focus:ring-[#1a3a8f]"
+          />
+          <span className="font-bold text-slate-700 text-xs">
+            Split into Installment Schedule (OD-3 Partial Payment)
+          </span>
+        </label>
+        {isInstallment && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-200 text-xs">
+            <div>
+              <label className="block font-bold text-slate-600 text-[10px] uppercase mb-1">
+                Installment #
+              </label>
+              <select
+                value={installmentIndex}
+                onChange={(e) => onInstallmentIndexChange && onInstallmentIndexChange(Number(e.target.value))}
+                className="w-full p-2 border rounded-lg font-semibold bg-white"
+              >
+                <option value={1}>1st Installment (Down Payment)</option>
+                <option value={2}>2nd Installment (Final Settlement)</option>
+                <option value={3}>3rd Installment (Multi-month plan)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block font-bold text-slate-600 text-[10px] uppercase mb-1">
+                Total Term Tuition
+              </label>
+              <input
+                type="number"
+                value={totalAgreedAmount}
+                onChange={(e) => onTotalAgreedAmountChange && onTotalAgreedAmountChange(Number(e.target.value))}
+                placeholder={String(pricing.finalPrice || "350000")}
+                className="w-full p-2 border rounded-lg font-semibold bg-white"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-600 text-[10px] uppercase mb-1">
+                Next Due Date
+              </label>
+              <input
+                type="date"
+                value={nextDueDate}
+                onChange={(e) => onNextDueDateChange && onNextDueDateChange(e.target.value)}
+                className="w-full p-2 border rounded-lg font-semibold bg-white"
+              />
+            </div>
+            <div className="sm:col-span-3 text-[11px] text-slate-500 font-medium">
+              Outstanding Balance to Settle: <strong className="text-[#1a3a8f]">{formatIDR(Math.max(0, (totalAgreedAmount || pricing.finalPrice || Number(amount || 0)) - Number(amount || 0)))}</strong> (extends active coverage immediately; no discount approval ticket required per OD-3).
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Payment Method */}

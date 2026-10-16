@@ -31,6 +31,7 @@ Read these in order:
 5. **Audit & Verification Suites (`docs/audits/`)**:
    - **[`Light Regression Check Playbook`](./docs/audits/Light%20Regression%20Check%20Playbook/00-README.md)** — fast post-change checks after any modification (Level 1).
    - **[`Comprehensive Hidden-Bug Audit Strategy`](./docs/audits/Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md)** — section deep dives, 5-pass workflow tracing, and failure matrix (Level 2).
+     - **[`Role & Business Logic Conformance Audit (BLRCA)`](./docs/audits/Role%20&%20Business%20Logic%20Conformance%20Audit/00-README.md)** — structured slice-by-slice campaign across roles and workflows.
    - **[`Full System Architecture & Scalability Audit Procedure`](./docs/audits/Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md)** — architecture drift, database growth, and scalability audit (Level 3).
 
 Claude Code may also use **[`CLAUDE.md`](./CLAUDE.md)**, Gemini CLI may use **[`GEMINI.md`](./GEMINI.md)**, and OpenAI Codex may use **[`CODEX.md`](./CODEX.md)** as project-specific adapters.
@@ -199,6 +200,7 @@ docs/
 │   ├── active/
 │   └── completed/
 ├── audits/
+│   ├── Role & Business Logic Conformance Audit/
 │   ├── current/
 │   └── archive/
 ├── audit-prompts/

@@ -411,6 +411,7 @@ export const GATE_APPROVER_ROLES = Object.freeze({
   NEW_STAFF_ACCOUNT: ["director", "vice_director"],
   STAFF_DEACTIVATION: ["director"],
   DISCOUNT_OR_REFUND: ["director", "vice_director"],
+  PAYMENT_CORRECTION_OR_VOID: ["director", "vice_director"],
   TUITION_PLAN_CHANGE: ["manager", "director", "vice_director"],
   STUDENT_WITHDRAWAL_OR_FREEZE: ["manager", "director", "vice_director"],
   CASH_DISCREPANCY: ["opslead", "ops_lead", "manager", "director", "vice_director"],

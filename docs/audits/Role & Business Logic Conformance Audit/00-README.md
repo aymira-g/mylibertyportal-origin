@@ -98,8 +98,8 @@ This framework is organized into eight numbered procedure files:
 
 To ensure thoroughness without overwhelming the zero-budget environment, BLRCA executes in distinct, independently completable and verifiable **slices**:
 
-1. **Slice 1 — System Admin Boundary:** Technical-only boundary verification across all business and data surfaces. (Status: Audited on 2026-10-15; remediation in progress; next action is post-fix verification once remediation is ready).
-2. **Slice 2 — Financial Surfaces Across Roles:** Comprehensive financial audit across all roles (payments, tuition, receipts, discounts/refunds, cash reconciliation, payment corrections/voids, and financial reports). Evaluates compliance with OD-1, OD-2, OD-4, G-009, and Blueprint §7, §18.
+1. **Slice 1 — System Admin Boundary:** Technical-only boundary verification across all business and data surfaces. (Status: Audited 2026-10-15; remediated in `220c10a`/`131f1b2`; verified CLOSED on 2026-10-16).
+2. **Slice 2 — Financial Surfaces Across Roles:** Comprehensive financial audit across all roles (payments, tuition, receipts, discounts/refunds, cash reconciliation, payment corrections/voids, and financial reports). (Status: Audited 2026-10-16; remediated and verified CLOSED on 2026-10-16; findings `DOM04-GOV-03`..`07` resolved).
 3. **Slice 3 — Student, Child & Parent Personal Data:** Personal data exposure, profile access, and family privacy across all roles and linkage paths.
 4. **Slice 4 — Data Exports, Downloads & Print Operations:** CSV exports, clipboard operations, printed receipts, and reports across all roles.
 5. **Slice 5+ — Remaining Individual Organizational Roles:** Course Division Manager, Kindergarten Division Manager, Operational Leader, Central Instructor Leader, Front Office, Instructors, and Facilities/Staff evaluated one at a time.
@@ -110,25 +110,24 @@ To ensure thoroughness without overwhelming the zero-budget environment, BLRCA e
 
 ### Current Campaign Artifact Status
 
-Per the repository's documentation governance, consolidated campaign files are created when the first consolidated report is written, rather than maintained as misleading empty placeholders:
+The consolidated BLRCA campaign artifacts are established and actively maintained:
 
-- `docs/audits/current/role-business-logic-conformance-audit.md` — *[NOT YET CREATED — will be established upon first consolidated campaign report]*
-- `docs/audits/current/role-function-conformance-ledger.md` — *[NOT YET CREATED — will be established upon first consolidated campaign ledger]*
+- **Master Campaign Audit Report:** [`docs/audits/current/role-business-logic-conformance-audit.md`](../current/role-business-logic-conformance-audit.md) (Contains Slice 1 verified summary and full Slice 2 Financial Surfaces audit report).
+- **Master Role-Function Ledger:** [`docs/audits/current/role-function-conformance-ledger.md`](../current/role-function-conformance-ledger.md) (Granular testable matrix rows across all roles and evaluated capabilities).
 
-### Verified Slice 1 Evidence
+### Verified Campaign Evidence
 
-Slice 1 (System Admin boundary) was audited on 2026-10-15 against baseline `99163ca`, remediated in commits `220c10a` and `131f1b2`, and verified closed on 2026-10-16 via Phase 6 Post-Fix Verification. Existing verified evidence and remediation tracking are maintained in:
+- **Slice 1 Evidence (System Admin Boundary — CLOSED):**
+  - Findings: `DOM11-GOV-02`, `DOM01-GOV-03`, `DOM01-REP-01`, `DOM01-PERF-01` in [`docs/audits/current/bug-ledger.md`](../current/bug-ledger.md).
+  - Remediation Plan: [`docs/plans/active/2026-10-15-blrca-slice1-system-admin-remediation.md`](../../plans/active/2026-10-15-blrca-slice1-system-admin-remediation.md) (Completed).
+- **Slice 2 Evidence (Financial Surfaces Across Roles — CLOSED):**
+  - Findings: `DOM04-GOV-03`, `DOM04-SEC-02`, `DOM04-GOV-04`, `DOM04-GOV-05`, `DOM04-GOV-06`, `DOM04-GOV-07` in [`docs/audits/current/bug-ledger.md`](../current/bug-ledger.md) (All CLOSED).
+  - Remediation Plan: [`docs/plans/active/2026-10-16-blrca-slice2-financial-surfaces-remediation.md`](../../plans/active/2026-10-16-blrca-slice2-financial-surfaces-remediation.md) (Completed).
+  - Master Report & Ledger: [`role-business-logic-conformance-audit.md`](../current/role-business-logic-conformance-audit.md) §3 and [`role-function-conformance-ledger.md`](../current/role-function-conformance-ledger.md) §3.
+- **Audit Log:** [`docs/audits/audit-log.md`](../audit-log.md).
+- **Regression Log:** [`docs/audits/current/regression-log.md`](../current/regression-log.md).
 
-- **Audit Findings:** [`docs/audits/current/bug-ledger.md`](../current/bug-ledger.md)
-  - `DOM11-GOV-02` (High, CLOSED): UI Financial Reports exposure & All-Campuses scope filter removed from Admin; `financialCache` keyed by `currentUserUid`; fail-closed error UI with retry banner added.
-  - `DOM01-GOV-03` (High, CLOSED): Rules helper `isOrgExecutive()` decoupled from `admin` across business collections (`/payments`, `/applications`, `/approvals`, `/progressReports`, `/deskInquiries`); remaining 16 `isExecutive()` occurrences verified strictly technical IT/user/audit or calendar reads.
-  - `DOM01-REP-01` (High, CLOSED): Frontend helper `isOrgExecutiveRole()` introduced; `paymentsRepository.js` and `approvalsRepository.js` bound to organizational executive scope.
-  - `DOM01-PERF-01` (Low, CLOSED): Unscoped real-time `/applications` snapshot listener eliminated for Admin in `useDashboardData.js`.
-- **Regression Log:** [`docs/audits/current/regression-log.md`](../current/regression-log.md) (Entries: 2026-10-15 Slice 1 Audit; 2026-10-16 Post-Fix Verification & Ledger Closure).
-- **Remediation Plan:** [`docs/plans/active/2026-10-15-blrca-slice1-system-admin-remediation.md`](../../plans/active/2026-10-15-blrca-slice1-system-admin-remediation.md) (Status: COMPLETED).
-- **Audit Log:** [`docs/audits/audit-log.md`](../audit-log.md) (Entries: 2026-10-15 BLRCA Slice 1 cataloged; 2026-10-16 Slice 1 closed).
-
-*Next Step for Campaign:* Proceed to **Slice 2: Financial Surfaces Across Roles** (Payments, Tuition, Discounts, Cash Balancing, and `DOM04-GOV-03`).
+*Next Step for Campaign:* Proceed to **Slice 3: Student, Child & Parent Personal Data Across Roles**.
 
 ---
 

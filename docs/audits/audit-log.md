@@ -822,3 +822,37 @@ Verification & Closure Summary:
 4. DOM01-PERF-01 (CLOSED): Unscoped real-time `/applications` snapshot listener eliminated for `admin` in `useDashboardData.js`.
 5. Automated Verification: 7 test suites, 194 passed (`roles.test.js`, `FinancialReportsTab.test.js`, 5 `securityRulesMatrix` suites); `npm run typecheck` passed (0 errors); `npm run lint` passed (0 errors).
 6. Next Campaign Action: Proceed to **Slice 2: Financial Surfaces Across Roles**.
+
+## 2026-10-16 — Role & Business Logic Conformance Audit (BLRCA): Slice 2 — Financial Surfaces Across Roles (Phases 0–4 Completed)
+Source: Level 2 Role & Business Logic Conformance Audit methodology (`docs/audits/Role & Business Logic Conformance Audit/`).
+Scope: Comprehensive financial audit across all canonical roles (payments, tuition, receipts, discounts/refunds, cash reconciliation, payment corrections/voids, and financial reports) evaluated against Blueprint v3.4 (§7, §18, §26 G-009, G-012) and Owner Decisions OD-1, OD-2, OD-3, OD-4.
+Status: AUDITED (Strictly Audit-Only; 6 findings indexed in `bug-ledger.md`; master campaign report and testable ledger established).
+
+Master Deliverables Created:
+1. `docs/audits/current/role-business-logic-conformance-audit.md` (Consolidated BLRCA report containing Slice 1 verified summary and full Slice 2 Financial Audit report).
+2. `docs/audits/current/role-function-conformance-ledger.md` (Consolidated testable matrix: 40 evaluated assertions; 32 clean PASS, 5 FAIL, 2 GAP, 1 Owner Decision Required).
+
+Findings Summary:
+1. `DOM04-GOV-03` (High): `firestore.rules:1010, 1017` allow `isDirector() || isViceDirector()` create and update on `/payments`, directly violating OD-2 (§OD-2: Director/VD: Create ❌ Forbidden, Update ❌ Forbidden; collapses maker-checker separation).
+2. `DOM04-SEC-02` (High): `firestore.rules:1025-1026` update rule restricts affected keys but omits new value validation on `approvalStatus`, allowing direct unverified client write from `"pending"` to `"approved"`, completely bypassing dual control.
+3. `DOM04-GOV-04` (High): `PaymentModal.jsx:275` & `paymentsRepository.js:267-283` extend student `paidUntil` and set `paymentStatus: "paid"` immediately at desk entry; when executive rejects discount in `ApprovalInbox.jsx:387`, `updatePaymentApprovalStatus` marks payment rejected but never reverts student coverage, leaving unapproved discount active.
+4. `DOM04-GOV-05` (High): Ratified `PAYMENT_CORRECTION_OR_VOID` two-step dual-control workflow (OD-1, OD-3, Blueprint §26 G-006 Action #14) is completely absent from `approvalGates.constants.js`, `ApprovalInbox.jsx`, `paymentsRepository.js`, and `paymentSchema.js`.
+5. `DOM04-GOV-06` (Med): OD-3 partial payments / installment schedules unimplemented; any desk entry below standard price automatically generates a fee discount ticket in `PaymentModal.jsx:236`; fields `totalAgreedAmount`, `outstandingBalance`, `nextDueDate` missing.
+6. `DOM04-GOV-07` (Med): Static threshold `DEFAULT_CASH_DISCREPANCY_THRESHOLD_IDR = 25000` in `shiftsRepository.js:24` allows shift discrepancies between Rp 20.000 and Rp 25.000 to be closed at desk without approval ticket, bypassing Vice Director review under OD-4.
+
+Next Campaign Action: Prepare remediation plan for Slice 2, then proceed to **Slice 3: Student, Child & Parent Personal Data**.
+
+## 2026-10-16 — Role & Business Logic Conformance Audit (BLRCA): Slice 2 — Phase 6 Post-Fix Verification & Ledger Closure
+Source: Level 2 Role & Business Logic Conformance Audit methodology (`05-campaign-execution-and-coverage.md`, `06-findings-and-closure.md`).
+Scope: Implementation and post-fix verification of Slice 2 remediations (DOM04-GOV-03..07).
+Status: COMPLETED (All 6 Slice 2 findings CLOSED in `bug-ledger.md`; role-function-conformance ledger updated to PASS).
+
+Remediation & Closure Summary:
+1. `DOM04-GOV-03` & `DOM04-SEC-02` (CLOSED): Hardened `/payments` create and update security rules in `firestore.rules:1011-1036`. Only `isFrontOffice()` can create desk payments; `isOrgExecutive()` restricted to reversal records (`isReversal == true` and `appliedFromApproval`). Front Office update restricted to non-sensitive desk metadata (`['notes', 'referenceNumber', 'updatedAt']`); `isOrgExecutive()` updates guarded with strict enum validation (`approvalStatus in ['approved', 'rejected']`, `status in ['voided', 'active', 'reversal']`).
+2. `DOM04-GOV-04` (CLOSED): Reversion of unapproved student tuition coverage on discount rejection in `ApprovalInbox.jsx:415-422`. Rejection now calls `markPaymentPending(studentId)`, resetting `paymentStatus` to `"pending"` and clearing unearned `paidUntil`. Verified in `ApprovalInbox.test.js`.
+3. `DOM04-GOV-05` (CLOSED): Implemented end-to-end `PAYMENT_CORRECTION_OR_VOID` (Action #14) dual-control workflow across `approvalGates.constants.js`, `approvalGates.js` (> Rp 500.000 to Director, <= Rp 500.000 to Vice Director), `paymentsRepository.js` (`requestPaymentVoid` and atomic `executePaymentVoid`), `ApprovalInbox.jsx`, `PaymentHistoryTab.jsx`, and `PaymentModal.jsx`. Verified in `paymentsRepository.test.js` and `ApprovalInbox.test.js`.
+4. `DOM04-GOV-06` (CLOSED): Implemented OD-3 installment / partial payment schedules in `paymentSchema.js`, `RecordPaymentTab.jsx`, `PaymentModal.jsx`, and `paymentsRepository.js` (`paymentStatus: "partially_paid"`, `outstandingBalance`, `nextDueDate`). Verified in `paymentsRepository.test.js`.
+5. `DOM04-GOV-07` (CLOSED): Corrected cash discrepancy escalation threshold in `shiftsRepository.js:24` to `DEFAULT_CASH_DISCREPANCY_THRESHOLD_IDR = 10000`, guaranteeing shift discrepancies >= Rp 20.000 escalate to Vice Director per OD-4. Verified in `shiftsRepository.test.js`.
+6. Automated Quality Gates: 106 test files passed (1,437 passed, 123 skipped, 0 failed); `npm run typecheck` passed (0 errors); `npm run lint` passed (0 errors); `npm run build` passed (clean Vite PWA bundle).
+7. Next Campaign Action: Proceed to **Slice 3: Student, Child & Parent Personal Data Across Roles**.
+

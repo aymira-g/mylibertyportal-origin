@@ -350,11 +350,11 @@ describe("Cash Reconciliation on Shift Clock-Out", () => {
     // 1% of 1,000,000 is 10,000 (< 25,000) -> 10,000
     expect(calculateCashDiscrepancyThreshold(1000000)).toBe(10000);
 
-    // 1% of 5,000,000 is 50,000 (> 25,000 max fixed threshold) -> 25,000
-    expect(calculateCashDiscrepancyThreshold(5000000)).toBe(25000);
+    // 1% of 5,000,000 is 50,000 (> 10,000 max fixed threshold) -> 10,000
+    expect(calculateCashDiscrepancyThreshold(5000000)).toBe(10000);
 
-    // Zero expected -> default 25,000
-    expect(calculateCashDiscrepancyThreshold(0)).toBe(25000);
+    // Zero expected -> default 10,000
+    expect(calculateCashDiscrepancyThreshold(0)).toBe(10000);
   });
 
   it("embeds reconciliation data without approval gate when within threshold", async () => {

@@ -34,7 +34,44 @@
 | 2026-10-15 | BLRCA Slice 1: System Admin Technical-Only Boundary Audit — cataloged verified findings DOM11-GOV-02, DOM01-GOV-03, DOM01-REP-01, DOM01-PERF-01 across UI, repository, and rules layers | Auth · System Admin · Security Rules · Dashboard · Reports | **AUDIT COMPLETE** | Yes (4 Findings Logged) | Proven business data exposure (financial reports, payment list, application listener, approvals stream) under isExecutive rules helper; worker endpoints pass; 1,433 unit tests pass |
 | 2026-10-16 | Post-Slice 1 CI Remediation: Synchronized security rules matrix unit assertions to match Admin branch/division isolation and restored isExecutive() on corporateEvents calendar read | Security Rules · Test Matrix · Firestore Emulator | **PASS** | No | 1,433/1,433 unit tests pass; 139/139 emulator tests pass; 0 lint, 0 typecheck, build clean |
 | 2026-10-16 | BLRCA Slice 1: Phase 6 Post-Fix Verification & Ledger Closure (DOM11-GOV-02, DOM01-GOV-03, DOM01-REP-01, DOM01-PERF-01 verified resolved; commits `220c10a`, `131f1b2`) | Auth · System Admin · Security Rules · Dashboard · Reports | **PASS** | No | 7/7 targeted test files passed (194 tests); 0 lint, 0 typecheck; all 4 findings CLOSED in bug-ledger.md |
+| 2026-10-16 | BLRCA Slice 2 Remediation: Financial Surfaces Across Roles (DOM04-GOV-03, DOM04-SEC-02, DOM04-GOV-04, DOM04-GOV-05, DOM04-GOV-06, DOM04-GOV-07) | Finance · Payments · Security Rules · Approvals · Shifts | **PASS** | No | 1,437 vitest unit tests pass; 0 lint, 0 typecheck, build clean; all 6 findings CLOSED in bug-ledger.md |
 
+---
+
+## Evidence Record — 2026-10-16 (BLRCA Slice 2 Financial Surfaces Remediation & Verification)
+
+```text
+Change: Role & Business Logic Conformance Audit (BLRCA) — Slice 2 Financial Surfaces Remediation & Level 1 Regression
+Date: 2026-10-16
+Section: Finance / Payments / Security Rules / Approvals / Staff Shifts
+Workflow: Implementation and verification of approved remediation plan for Slice 2 findings (DOM04-GOV-03..07)
+Tester / Agent: Primary Coding Agent, authorized by Kifry
+Risk classification: HIGH-RISK (Financial integrity, dual-control maker-checker, Firestore security rules, cash reconciliation)
+
+Verification Evidence:
+  - DOM04-GOV-03 & DOM04-SEC-02 (Payments Rules Hardening):
+    - firestore.rules:1011-1036: Restricts desk cashier payment creation strictly to isFrontOffice(); allows isOrgExecutive() only to create reversal payments when isReversal == true and appliedFromApproval is present.
+    - firestore.rules update: Front Office restricted to non-sensitive desk metadata ['notes', 'referenceNumber', 'updatedAt']; isOrgExecutive() permitted for ['notes', 'approvalStatus', 'updatedAt', 'status', 'voidReason', 'voidedAt', 'voidedByUid', 'reversalOfPaymentId'] with strict enum guards (approvalStatus in ['approved', 'rejected'], status in ['voided', 'active', 'reversal']).
+  - DOM04-GOV-04 (Discount Rejection Coverage Reversion):
+    - ApprovalInbox.jsx:415-422: When executive rejects DISCOUNT_OR_REFUND ticket with payload.studentId, calls markPaymentPending(studentId), resetting student paymentStatus to 'pending' and deleting paidUntil coverage to eliminate revenue leak.
+  - DOM04-GOV-05 (Payment Correction & Void Dual-Control Workflow):
+    - Registered PAYMENT_CORRECTION_OR_VOID (Action #14) in approvalGates.constants.js, securityRulesMatrix.helpers.js, and approvalGates.js (threshold routing > Rp 500.000 to Director, <= Rp 500.000 to Vice Director).
+    - paymentsRepository.js: Added requestPaymentVoid(payment, requester, reason) generating ticket with payload snapshot, and atomic executePaymentVoid(...) batch reverting student coverage and recording audit void metadata.
+    - ApprovalInbox.jsx: Wired action execution and custom payment ticket preview card.
+    - PaymentHistoryTab.jsx & PaymentModal.jsx: Wired Void button triggering dual-control approval modal.
+  - DOM04-GOV-06 (Installment & Partial Payment Schedules):
+    - paymentSchema.js: Added optional fields isInstallment, installmentIndex, totalAgreedAmount, outstandingBalance, nextDueDate.
+    - RecordPaymentTab.jsx & PaymentModal.jsx: Added installment toggle and plan schedule inputs.
+    - paymentsRepository.js: Sets student paymentStatus to 'partially_paid' and updates balance when isInstallment is true.
+  - DOM04-GOV-07 (Cash Discrepancy Escalation Threshold):
+    - shiftsRepository.js:24: Updated DEFAULT_CASH_DISCREPANCY_THRESHOLD_IDR from 25000 to 10000. All discrepancies >= Rp 20.000 strictly escalate to Vice Director per OD-4.
+  - Quality Gates Executed:
+    - npx vitest run: 106 test files passed, 1,437 passed, 123 skipped, 0 failed.
+    - npm run typecheck: 0 errors.
+    - npm run lint: 0 errors.
+    - npm run build: Built successfully in 5.18s.
+  - Ledger Closure: DOM04-GOV-03, DOM04-SEC-02, DOM04-GOV-04, DOM04-GOV-05, DOM04-GOV-06, DOM04-GOV-07 marked CLOSED in docs/audits/current/bug-ledger.md.
+```
 
 ---
 

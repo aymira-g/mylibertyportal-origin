@@ -10,6 +10,8 @@ import {
   getPaymentsForRecordedDay,
   fetchPaymentsForWindow,
   resolveCallerBranchId,
+  requestPaymentVoid,
+  executePaymentVoid,
 } from "./paymentsRepository.js";
 
 vi.mock(
@@ -299,5 +301,117 @@ describe("getRecentPayments & getPaymentsForRecordedDay (DOM04-SEC-01 & DOM04-ID
     expect(result.payments.length).toBe(1);
   });
 });
+
+describe("OD-3 Installment Partial Payments", () => {
+  it("records installment payment and sets student paymentStatus to partially_paid", async () => {
+    const installmentRecord = {
+      ...record,
+      amount: 350000,
+      isInstallment: true,
+      installmentIndex: 1,
+      totalAgreedAmount: 1050000,
+      outstandingBalance: 700000,
+      nextDueDate: "2026-10-21",
+    };
+
+    const result = await recordPayment("s1", installmentRecord);
+    expect(result.id).toBeDefined();
+
+    const studentOp = fake.find("users/s1");
+    expect(studentOp.data.paymentStatus).toBe("partially_paid");
+    expect(studentOp.data.outstandingBalance).toBe(700000);
+    expect(studentOp.data.totalAgreedAmount).toBe(1050000);
+    expect(studentOp.data.nextDueDate).toBe("2026-10-21");
+  });
+});
+
+describe("OD-1 / OD-3 Payment Correction & Void Workflow", () => {
+  it("submits a PAYMENT_CORRECTION_OR_VOID approval envelope", async () => {
+    const payment = {
+      id: "pay-100",
+      studentId: "s1",
+      amount: 350000,
+      period: "October 2026",
+      method: "Cash",
+      receiptNumber: "ML-100",
+      branchId: "kota_gorontalo",
+      division: "courses",
+    };
+    const requester = {
+      uid: "fo-1",
+      name: "Desk Staff",
+      role: "frontoffice",
+      branchId: "kota_gorontalo",
+    };
+
+    const res = await requestPaymentVoid(payment, requester, "Duplicate receipt entered by mistake");
+    expect(res).toBeDefined();
+
+    const approvalOp = fake.ops.find(
+      (o) => o.path.startsWith("approvals/") && o.data?.actionId === "PAYMENT_CORRECTION_OR_VOID"
+    );
+    expect(approvalOp).toBeDefined();
+    expect(approvalOp.data.payload.paymentId).toBe("pay-100");
+    expect(approvalOp.data.payload.amount).toBe(350000);
+    expect(approvalOp.data.payload.reason).toBe("Duplicate receipt entered by mistake");
+    expect(approvalOp.data.approverRole).toBe("vice_director"); // <= 500k routes to vice_director
+  });
+
+  it("atomically creates reversal record, marks original voided, and rolls back student coverage", async () => {
+    fake.seed("payments", [
+      {
+        id: "pay-to-void",
+        studentId: "s1",
+        amount: 350000,
+        period: "October 2026",
+        method: "Cash",
+        branch: "Kota Gorontalo",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        receiptNumber: "ML-200",
+      },
+    ]);
+    fake.seed("users", [
+      {
+        id: "s1",
+        displayName: "Student One",
+        role: "student",
+        branch: "Kota Gorontalo",
+        branchId: "kota_gorontalo",
+        division: "courses",
+        status: "active",
+        paymentStatus: "paid",
+        paidUntil: "2026-11-20",
+      },
+    ]);
+
+    const { reversalId } = await executePaymentVoid({
+      originalPaymentId: "pay-to-void",
+      studentId: "s1",
+      amount: 350000,
+      reason: "Cashier miskey refund",
+      decidedByUid: "vd-1",
+      approvalId: "app-void-1",
+    });
+
+    expect(reversalId).toBeDefined();
+
+    const originalOp = fake.find("payments/pay-to-void");
+    expect(originalOp.data.status).toBe("voided");
+    expect(originalOp.data.voidReason).toBe("Cashier miskey refund");
+    expect(originalOp.data.reversalOfPaymentId).toBe(reversalId);
+
+    const reversalOp = fake.find(`payments/${reversalId}`);
+    expect(reversalOp).toBeDefined();
+    expect(reversalOp.data.status).toBe("reversal");
+    expect(reversalOp.data.isReversal).toBe(true);
+    expect(reversalOp.data.originalPaymentId).toBe("pay-to-void");
+    expect(reversalOp.data.amount).toBe(350000);
+
+    const studentOp = fake.find("users/s1");
+    expect(studentOp.data.paymentStatus).toBe("pending");
+  });
+});
+
 
 

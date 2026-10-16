@@ -16,7 +16,7 @@ Start at `README.md`, then read in order:
 3. `docs/ARCHITECTURE.md`: canonical architecture (HOW); other ARCHITECTURE.md files are pointers
 4. `docs/specs/`, especially `authorization-contract.md`
 5. Actual behavior: `firestore.rules`, `cloudflare-worker/worker.js`, `src/`, `tests/`
-6. `docs/audits/`: `blueprint-conformance-matrix.md`, `current/`, and suites L1 Light Regression, L2 Hidden-Bug, L3 Architecture & Scalability
+6. `docs/audits/`: `blueprint-conformance-matrix.md`, `current/`, and suites L1 Light Regression, L2 Hidden-Bug, L2 Role & Business Logic Conformance (BLRCA), L3 Architecture & Scalability
 7. `AGENTS.md` (plus `CLAUDE.md`, `GEMINI.md`, `CODEX.md` adapters)
 
 **Not authority:** `docs/plans/`, `docs/proposals/`, `archive/` folders, and audit findings (evidence, not rules). Verify old docs against the code.

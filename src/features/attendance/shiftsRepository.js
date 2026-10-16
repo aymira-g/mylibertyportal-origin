@@ -21,7 +21,7 @@ import { normalizeDivision } from "../../constants/divisions";
 import { getOrCreateKioskKey, signKioskChallenge } from "./kioskDeviceCrypto";
 import { todayWita } from "../../utils/dateWita.js";
 
-export const DEFAULT_CASH_DISCREPANCY_THRESHOLD_IDR = 25000;
+export const DEFAULT_CASH_DISCREPANCY_THRESHOLD_IDR = 10000;
 export const DEFAULT_CASH_DISCREPANCY_PERCENT = 0.01;
 
 /**

@@ -166,6 +166,30 @@ export const GATED_ACTIONS = Object.freeze({
       RISK_MODIFIERS.POLICY_EXCEPTION,
     ]),
   }),
+  PAYMENT_CORRECTION_OR_VOID: Object.freeze({
+    id: "PAYMENT_CORRECTION_OR_VOID",
+    label: "Payment Correction / Void Reversal",
+    approverRole: APPROVAL_ROLES.VICE_DIRECTOR,
+    primaryController: APPROVAL_ROLES.VICE_DIRECTOR,
+    eligibleApproverRoles: Object.freeze([
+      APPROVAL_ROLES.DIRECTOR,
+      APPROVAL_ROLES.VICE_DIRECTOR,
+    ]),
+    mode: APPROVAL_MODES.BLOCKING,
+    domain: "finance",
+    requiredDomain: "finance",
+    requiredScope: SCOPE_LEVELS.ORGANIZATION_WIDE,
+    controlLevel: CONTROL_LEVELS.L2,
+    escalationTarget: APPROVAL_ROLES.DIRECTOR,
+    delegationAllowed: true,
+    separationRequired: true,
+    locked: true,
+    riskModifiers: Object.freeze([
+      RISK_MODIFIERS.HIGH_FINANCIAL_IMPACT,
+      RISK_MODIFIERS.HARD_TO_REVERSE,
+      RISK_MODIFIERS.POLICY_EXCEPTION,
+    ]),
+  }),
 
   // ── Division Manager Gates (Division Operations & Status Oversight) ──
   CASH_DISCREPANCY: Object.freeze({

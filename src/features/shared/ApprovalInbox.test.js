@@ -22,6 +22,8 @@ vi.mock("./approvalsRepository", () => ({
 
 vi.mock("../finance/paymentsRepository", () => ({
   updatePaymentApprovalStatus: vi.fn().mockResolvedValue(undefined),
+  executePaymentVoid: vi.fn().mockResolvedValue({ reversalId: "rev-1" }),
+  markPaymentPending: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("./useToast", () => ({
@@ -174,5 +176,33 @@ describe("ApprovalInbox (DOM04-GOV-01)", () => {
 
     expect(html).toContain("Action Required / Unapplied");
     expect(html).toContain("1 unapplied");
+  });
+
+  it("renders pending PAYMENT_CORRECTION_OR_VOID ticket with details (DOM04-GOV-05)", () => {
+    mockApprovals = [
+      {
+        id: "appr-void-1",
+        actionId: "PAYMENT_CORRECTION_OR_VOID",
+        label: "Payment Correction / Void Reversal",
+        domain: "finance",
+        requestedBy: "Front Desk Staff",
+        requestedByUid: "fo_1",
+        payload: {
+          studentId: "s-1",
+          amount: 350000,
+          paymentId: "pay-101",
+          receiptNumber: "ML-101",
+          reason: "Cashier miskey correction",
+        },
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      React.createElement(ApprovalInbox, { userRole: "vice_director", branchId: "all", initialApprovals: mockApprovals })
+    );
+
+    expect(html).toContain("Payment Correction / Void Reversal");
+    expect(html).toContain("ML-101");
+    expect(html).toContain("Cashier miskey correction");
   });
 });

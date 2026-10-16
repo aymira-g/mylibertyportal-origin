@@ -20,6 +20,7 @@ import {
   recordPayment,
   markPaymentPending,
   updateStudentPaymentStatus,
+  requestPaymentVoid,
 } from "./paymentsRepository";
 import { branchToId } from "../../constants/branches";
 import { normalizeDivision, divisionOfProgram } from "../../constants/divisions";
@@ -102,6 +103,10 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
   });
   const [method, setMethod] = useState("Bank Transfer"); // "Bank Transfer" | "QRIS" | "Cash"
   const [notes, setNotes] = useState("");
+  const [isInstallment, setIsInstallment] = useState(false);
+  const [installmentIndex, setInstallmentIndex] = useState(1);
+  const [totalAgreedAmount, setTotalAgreedAmount] = useState("");
+  const [nextDueDate, setNextDueDate] = useState("");
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [history, setHistory] = useState([]);
   const [activeReceipt, setActiveReceipt] = useState(null);
@@ -236,8 +241,26 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
       const enteredAmountNum = Number(amount);
       const expectedPlanPrice = selectedPlan !== "custom" ? pricing.finalPrice : null;
       let effectiveDiscount = discountAmount || 0;
-      if (expectedPlanPrice && enteredAmountNum < expectedPlanPrice) {
+      // OD-3: If designated as an installment schedule, it is an agreed partial payment with an outstanding balance, NOT a discount!
+      if (!isInstallment && expectedPlanPrice && enteredAmountNum < expectedPlanPrice) {
         effectiveDiscount = Math.max(effectiveDiscount, expectedPlanPrice - enteredAmountNum);
+      }
+
+      const effectiveTotalAgreed = isInstallment
+        ? (Number(totalAgreedAmount) || expectedPlanPrice || enteredAmountNum)
+        : enteredAmountNum;
+      const effectiveOutstanding = isInstallment
+        ? Math.max(0, effectiveTotalAgreed - enteredAmountNum)
+        : 0;
+
+      if (isInstallment) {
+        paymentRecord.isInstallment = true;
+        paymentRecord.installmentIndex = Number(installmentIndex) || 1;
+        paymentRecord.totalAgreedAmount = effectiveTotalAgreed;
+        paymentRecord.outstandingBalance = effectiveOutstanding;
+        if (nextDueDate) {
+          paymentRecord.nextDueDate = nextDueDate;
+        }
       }
 
       let discountEnvelope = null;
@@ -283,7 +306,7 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
         } catch (approvalErr) {
           console.error("Failed to submit discount approval request:", approvalErr);
           toast(
-            "Payment saved, but the manager approval request for this discount could not be sent. Please notify a manager directly so it gets reviewed.",
+            "Payment saved, but the executive approval request for this discount could not be sent. Please notify an executive directly so it gets reviewed.",
             "warning"
           );
         }
@@ -366,6 +389,42 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleVoidRequest = async (paymentToVoid) => {
+    const isReachable = await checkNetworkReachability();
+    if (!isReachable) {
+      toast("Cannot submit request: connection is offline or unstable.", "error");
+      return;
+    }
+    const reason = window.prompt(
+      `Enter operational reason to request void / correction for receipt ${paymentToVoid.receiptNumber || paymentToVoid.referenceNumber || paymentToVoid.id}:`
+    );
+    if (!reason || !reason.trim()) {
+      toast("A valid operational reason is required to request a void.", "warning");
+      return;
+    }
+
+    try {
+      const currentUser = auth.currentUser;
+      await requestPaymentVoid(
+        paymentToVoid,
+        {
+          uid: currentUser?.uid,
+          name: currentUser?.displayName || currentUser?.email || "Staff",
+          role: "frontoffice",
+          branchId: studentBranchId,
+        },
+        reason.trim()
+      );
+      toast(
+        `Void authorization ticket submitted for receipt ${paymentToVoid.receiptNumber || paymentToVoid.id}. It is now queued for executive review.`,
+        "success"
+      );
+      await refreshHistory();
+    } catch (err) {
+      toast("Failed to request void: " + err.message, "error");
+    }
   };
 
   return (
@@ -466,6 +525,14 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
               onSubmit={handleRecordPayment}
               onMarkPending={handleMarkPending}
               onClearPending={handleClearPending}
+              isInstallment={isInstallment}
+              onInstallmentChange={setIsInstallment}
+              installmentIndex={installmentIndex}
+              onInstallmentIndexChange={setInstallmentIndex}
+              totalAgreedAmount={totalAgreedAmount}
+              onTotalAgreedAmountChange={setTotalAgreedAmount}
+              nextDueDate={nextDueDate}
+              onNextDueDateChange={setNextDueDate}
             />
           )}
 
@@ -478,6 +545,7 @@ export default function PaymentModal({ student, onClose, onPaymentUpdated = null
                 setActiveTab("receipt");
               }}
               onSendWhatsApp={handleSendWhatsApp}
+              onVoidRequest={handleVoidRequest}
             />
           )}
 

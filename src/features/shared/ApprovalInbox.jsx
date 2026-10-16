@@ -13,7 +13,11 @@ import {
   clearPendingPlacementOverride,
 } from "../dashboard/frontoffice/deskInquiriesRepository";
 import { updateStaffRecord } from "../dashboard/usersRepository";
-import { updatePaymentApprovalStatus } from "../finance/paymentsRepository";
+import {
+  updatePaymentApprovalStatus,
+  executePaymentVoid,
+  markPaymentPending,
+} from "../finance/paymentsRepository";
 import { transferStudentBetweenClasses } from "../classes/classesRepository";
 import { todayWita } from "../../utils/dateWita";
 import { useToast } from "./useToast";
@@ -208,6 +212,26 @@ export function ApprovalInbox({
       };
     }
 
+    if (approval.actionId === "PAYMENT_CORRECTION_OR_VOID" && approval.payload?.paymentId) {
+      await executePaymentVoid({
+        originalPaymentId: approval.payload.paymentId,
+        studentId: approval.payload.studentId,
+        amount: approval.payload.amount,
+        reason: approval.payload.reason || "Approved payment void / correction",
+        decidedByUid: currentUid,
+        approvalId: approval.id,
+      });
+      try {
+        await markApprovalApplied(approval.id, currentUid);
+      } catch (markErr) {
+        console.warn("markApprovalApplied error for void:", markErr);
+      }
+      return {
+        success: true,
+        message: `Authorized: Payment voided and reversal record recorded.`,
+      };
+    }
+
     if (
       approval.actionId === "STUDENT_CLASS_TRANSFER" &&
       approval.payload?.studentId &&
@@ -387,6 +411,13 @@ export function ApprovalInbox({
           await updatePaymentApprovalStatus(approval.payload.paymentId, "rejected");
         } catch (rejectErr) {
           console.warn("Failed to update payment approvalStatus to rejected:", rejectErr);
+        }
+        if (approval.payload?.studentId) {
+          try {
+            await markPaymentPending(approval.payload.studentId);
+          } catch (pendingErr) {
+            console.warn("Failed to reset student paymentStatus on discount rejection:", pendingErr);
+          }
         }
       }
 
@@ -593,6 +624,22 @@ export function ApprovalInbox({
                     <div className="text-slate-600">
                       Deactivation Status: <strong className="text-rose-800 font-bold uppercase">{req.payload?.targetStatus || "resigned"}</strong>
                     </div>
+                  </div>
+                )}
+
+                {req.actionId === "PAYMENT_CORRECTION_OR_VOID" && (
+                  <div className="bg-rose-50/70 border border-rose-200/80 rounded-xl p-3 text-xs space-y-1">
+                    <div className="font-bold text-slate-800">
+                      Payment Void & Reversal: Receipt <strong className="text-rose-700 font-mono">{req.payload?.receiptNumber || req.payload?.paymentId || "Receipt"}</strong>
+                    </div>
+                    <div className="text-slate-600">
+                      Original Amount: <strong className="text-slate-800">Rp {Number(req.payload?.amount || 0).toLocaleString("id-ID")}</strong>
+                    </div>
+                    {req.payload?.reason && (
+                      <div className="text-rose-800 font-medium italic">
+                        Reason: {req.payload.reason}
+                      </div>
+                    )}
                   </div>
                 )}
 

@@ -410,6 +410,9 @@ export function createApprovalEnvelope(actionId, requester = {}, context = {}) {
       requesterUid: requester.uid,
       checkerUid: context.payload?.checkerUid,
     });
+  } else if (gate.id === "PAYMENT_CORRECTION_OR_VOID") {
+    const voidAmount = Math.abs(Number(context.payload?.amount ?? context.amount ?? 0));
+    resolvedApproverRole = voidAmount > 500000 ? APPROVAL_ROLES.DIRECTOR : APPROVAL_ROLES.VICE_DIRECTOR;
   }
   const division =
     requester.division ||

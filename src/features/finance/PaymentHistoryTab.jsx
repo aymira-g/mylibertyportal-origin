@@ -5,6 +5,7 @@ export default function PaymentHistoryTab({
   loadingHistory = false,
   onViewReceipt,
   onSendWhatsApp,
+  onVoidRequest,
 }) {
   if (loadingHistory) {
     return (
@@ -31,11 +32,19 @@ export default function PaymentHistoryTab({
       {history.map((h) => (
         <div
           key={h.id}
-          className="p-3.5 bg-white border border-slate-200 rounded-xl hover:shadow-sm transition flex items-center justify-between gap-3 text-xs"
+          className={`p-3.5 bg-white border rounded-xl hover:shadow-sm transition flex items-center justify-between gap-3 text-xs ${
+            h.status === "voided"
+              ? "border-rose-200 bg-rose-50/30 opacity-75"
+              : h.isReversal || h.status === "reversal"
+                ? "border-amber-200 bg-amber-50/20"
+                : "border-slate-200"
+          }`}
         >
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="font-black text-[#1a3a8f]">{formatIDR(h.amount)}</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`font-black ${h.status === "voided" ? "line-through text-slate-400" : "text-[#1a3a8f]"}`}>
+                {formatIDR(h.amount)}
+              </span>
               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 uppercase">
                 {h.method}
               </span>
@@ -44,9 +53,24 @@ export default function PaymentHistoryTab({
                   {h.planName}
                 </span>
               )}
+              {h.status === "voided" && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                  🚫 Voided
+                </span>
+              )}
+              {(h.isReversal || h.status === "reversal") && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                  ↩️ Reversal Record
+                </span>
+              )}
+              {h.isInstallment && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                  📊 Installment #{h.installmentIndex || 1} {h.outstandingBalance > 0 ? `(Bal: ${formatIDR(h.outstandingBalance)})` : "(Settled)"}
+                </span>
+              )}
               {h.approvalStatus === "pending" && (
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                  ⏳ Discount Pending Manager Review
+                  ⏳ Discount Pending Executive Review
                 </span>
               )}
             </div>
@@ -62,6 +86,9 @@ export default function PaymentHistoryTab({
               • Rec by: {h.recordedBy}
             </p>
             {h.notes && <p className="text-[11px] text-slate-500 italic">Note: {h.notes}</p>}
+            {h.voidReason && (
+              <p className="text-[11px] text-rose-600 font-medium">Void Reason: {h.voidReason}</p>
+            )}
           </div>
 
           <div className="flex flex-col gap-1.5 shrink-0">
@@ -79,6 +106,14 @@ export default function PaymentHistoryTab({
                 className="bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-lg text-xs hover:bg-emerald-100 transition border border-emerald-200 cursor-pointer"
               >
                 WhatsApp
+              </button>
+            )}
+            {onVoidRequest && h.status !== "voided" && !h.isReversal && h.status !== "reversal" && (
+              <button
+                onClick={() => onVoidRequest(h)}
+                className="bg-rose-50 text-rose-700 font-bold px-2.5 py-1 rounded-lg text-xs hover:bg-rose-100 transition border border-rose-200 cursor-pointer"
+              >
+                Request Void
               </button>
             )}
           </div>

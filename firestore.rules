@@ -263,6 +263,7 @@ service cloud.firestore {
         || (actionId == 'NEW_STAFF_ACCOUNT' && (approverRole == 'director' || approverRole == 'vice_director'))
         || (actionId == 'STAFF_DEACTIVATION' && approverRole == 'director')
         || (actionId == 'DISCOUNT_OR_REFUND' && (approverRole == 'director' || approverRole == 'vice_director'))
+        || (actionId == 'PAYMENT_CORRECTION_OR_VOID' && (approverRole == 'director' || approverRole == 'vice_director'))
         || (actionId == 'TUITION_PLAN_CHANGE' && (approverRole == 'manager' || approverRole == 'director' || approverRole == 'vice_director'))
         || (actionId == 'STUDENT_WITHDRAWAL_OR_FREEZE' && (approverRole == 'manager' || approverRole == 'director' || approverRole == 'vice_director'))
         || (actionId == 'CASH_DISCREPANCY' && (approverRole == 'opslead' || approverRole == 'ops_lead' || approverRole == 'manager' || approverRole == 'director' || approverRole == 'vice_director'))
@@ -1007,23 +1008,43 @@ service cloud.firestore {
         || ((isManager() || isFrontOffice()) && isSameBranchStrict(resource.data) && isDivisionAllowedForBranchStaff(resource.data))
         || (signedIn() && resource.data.studentId == request.auth.uid)
         || (isParent() && isSameBranchStrict(resource.data) && ('childStudentIds' in userProfile()) && userProfile().childStudentIds.hasAny([resource.data.studentId]));
-      allow create: if ((isDirector() || isViceDirector()) || (isFrontOffice() && isSameBranch(request.resource.data) && isDivisionAllowedForBranchStaff(request.resource.data)))
+      allow create: if (
+          (
+            isFrontOffice()
+            && isSameBranch(request.resource.data)
+            && isDivisionAllowedForBranchStaff(request.resource.data)
+          )
+          || (
+            isOrgExecutive()
+            && ('appliedFromApproval' in request.resource.data)
+            && ('isReversal' in request.resource.data)
+            && request.resource.data.isReversal == true
+          )
+        )
         && request.resource.data.amount is number
         && request.resource.data.amount > 0
         && request.resource.data.studentId is string
         && roleOf(request.resource.data.studentId) == 'student'
         && isSameBranch(get(/databases/$(database)/documents/users/$(request.resource.data.studentId)).data);
       allow update: if (
-          (isDirector() || isViceDirector())
+          (
+            // Executive updating discount/refund decision or executing approved void reversal via ApprovalInbox
+            isOrgExecutive()
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['notes', 'approvalStatus', 'updatedAt', 'status', 'voidReason', 'voidedAt', 'voidedByUid', 'reversalOfPaymentId'])
+            && (!('approvalStatus' in request.resource.data) || request.resource.data.approvalStatus in ['approved', 'rejected'])
+            && (!('status' in request.resource.data) || request.resource.data.status in ['voided', 'active', 'reversal'])
+          )
           || (
+            // Front Office cashier updating non-sensitive desk record fields (notes, ref number)
             isFrontOffice()
             && isSameBranch(resource.data)
             && isSameBranch(request.resource.data)
             && (!('branchId' in resource.data) || request.resource.data.branchId == resource.data.branchId)
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['notes', 'referenceNumber', 'updatedAt'])
           )
-        )
-        && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['notes', 'approvalStatus', 'referenceNumber', 'updatedAt']);
+        );
     }
 
     match /deskInquiries/{inquiryId} {
@@ -1065,10 +1086,10 @@ service cloud.firestore {
           )
         )
         && (
-          (request.resource.data.actionId != 'STAFF_ROLE_ELEVATION' && request.resource.data.actionId != 'STAFF_DEACTIVATION' && request.resource.data.actionId != 'DISCOUNT_OR_REFUND')
+          (request.resource.data.actionId != 'STAFF_ROLE_ELEVATION' && request.resource.data.actionId != 'STAFF_DEACTIVATION' && request.resource.data.actionId != 'DISCOUNT_OR_REFUND' && request.resource.data.actionId != 'PAYMENT_CORRECTION_OR_VOID')
           || (('approverRole' in request.resource.data) && (
             (request.resource.data.actionId in ['STAFF_ROLE_ELEVATION', 'STAFF_DEACTIVATION'] && request.resource.data.approverRole == 'director')
-            || (request.resource.data.actionId == 'DISCOUNT_OR_REFUND' && request.resource.data.approverRole in ['director', 'vice_director'])
+            || (request.resource.data.actionId in ['DISCOUNT_OR_REFUND', 'PAYMENT_CORRECTION_OR_VOID'] && request.resource.data.approverRole in ['director', 'vice_director'])
           ))
         )
         // Every envelope must name an approver role the ratified registry permits for its

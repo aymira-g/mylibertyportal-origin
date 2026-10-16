@@ -18,6 +18,9 @@ import { studentIdSchema, paymentRecordSchema } from "../../schemas";
 import { branchToId, idToBranch, DEFAULT_BRANCH_ID } from "../../constants/branches";
 import { normalizeDivision, divisionOfProgram } from "../../constants/divisions";
 import { normalizeRole, isOrgExecutiveRole } from "../shared/roles.js";
+import { createApprovalEnvelope } from "../shared/approvalGates.js";
+import { submitApprovalRequest } from "../shared/approvalsRepository.js";
+import { GATED_ACTIONS } from "../shared/approvalGates.constants.js";
 
 /**
  * Resolves the caller's authorized branch ID for payments queries (DOM04-SEC-01).
@@ -264,18 +267,22 @@ export async function recordPayment(studentId, paymentRecord, idempotencyKey = n
     ? todayWita(recordedDate)
     : (paymentRecord.recordedAt || "").slice(0, 10);
 
+  const isPartialInstallment = validatedRecord.isInstallment && Number(validatedRecord.outstandingBalance) > 0;
   const studentUpdate = {
-    paymentStatus: "paid",
+    paymentStatus: isPartialInstallment ? "partially_paid" : "paid",
     lastPaymentPeriod: validatedRecord.period,
     lastPaymentDate,
     lastPaymentAmount: validatedRecord.amount,
     lastPaymentMethod: validatedRecord.method,
     paymentPlan: validatedRecord.planId || "monthly",
+    ...(paymentRecord.coverageEnd ? { paidUntil: paymentRecord.coverageEnd } : {}),
+    ...(validatedRecord.isInstallment ? {
+      isInstallment: true,
+      outstandingBalance: Number(validatedRecord.outstandingBalance) || 0,
+      totalAgreedAmount: Number(validatedRecord.totalAgreedAmount) || validatedRecord.amount,
+      nextDueDate: validatedRecord.nextDueDate || null,
+    } : {}),
   };
-
-  if (paymentRecord.coverageEnd) {
-    studentUpdate.paidUntil = paymentRecord.coverageEnd;
-  }
 
   batch.set(paymentRef, enrichedRecord);
   batch.set(doc(db, "users", validStudentId), studentUpdate, { merge: true });
@@ -325,3 +332,127 @@ export async function updatePaymentApprovalStatus(paymentId, approvalStatus) {
     updatedAt: new Date().toISOString(),
   });
 }
+
+/**
+ * Submits an OD-1 / OD-3 dual-control approval envelope to void/reverse a payment.
+ *
+ * @param {any} payment
+ * @param {any} requester
+ * @param {string} reason
+ * @returns {Promise<any>}
+ */
+export async function requestPaymentVoid(payment, requester, reason) {
+  if (!payment || !payment.id) {
+    throw new Error("Cannot request payment void: invalid payment record.");
+  }
+  if (!reason || !reason.trim()) {
+    throw new Error("An operational justification is required to request a payment void.");
+  }
+
+  const envelope = createApprovalEnvelope(
+    GATED_ACTIONS.PAYMENT_CORRECTION_OR_VOID.id,
+    {
+      uid: requester.uid,
+      name: requester.name || requester.displayName || "Front Office Staff",
+      role: requester.role,
+      branchId: requester.branchId || null,
+    },
+    {
+      paymentId: payment.id,
+      studentId: payment.studentId,
+      amount: Number(payment.amount) || 0,
+      period: payment.period || "",
+      method: payment.method || "",
+      receiptNumber: payment.receiptNumber || payment.referenceNumber || null,
+      reason: reason.trim(),
+      branchId: payment.branchId || null,
+      division: payment.division || null,
+    }
+  );
+
+  return submitApprovalRequest(envelope);
+}
+
+/**
+ * Executes an approved payment void and reversal transaction atomically per OD-1 / OD-3.
+ *
+ * @param {object} params
+ * @param {string} params.originalPaymentId
+ * @param {string} [params.studentId]
+ * @param {number} [params.amount]
+ * @param {string} [params.reason]
+ * @param {string} [params.decidedByUid]
+ * @param {string} [params.approvalId]
+ * @returns {Promise<{ reversalId: string }>}
+ */
+export async function executePaymentVoid({
+  originalPaymentId,
+  studentId,
+  amount,
+  reason,
+  decidedByUid,
+  approvalId,
+}) {
+  if (!originalPaymentId) {
+    throw new Error("Missing originalPaymentId for payment void.");
+  }
+
+  const originalRef = doc(db, "payments", originalPaymentId);
+  const originalSnap = await getDoc(originalRef);
+  if (!originalSnap.exists()) {
+    throw new Error(`Original payment document "${originalPaymentId}" not found.`);
+  }
+  const original = originalSnap.data();
+
+  const reversalRef = doc(collection(db, "payments"));
+  const reversalRecord = {
+    studentId: studentId || original.studentId,
+    amount: Number(amount || original.amount),
+    method: original.method || "cash",
+    type: "reversal",
+    period: original.period || "",
+    branch: original.branch || "",
+    branchId: original.branchId || "",
+    division: original.division || "courses",
+    recordedBy: decidedByUid || "system",
+    recordedAt: new Date().toISOString(),
+    status: "reversal",
+    isReversal: true,
+    originalPaymentId,
+    originalReceiptNumber: original.receiptNumber || original.referenceNumber || null,
+    voidReason: reason || "Approved payment void / correction",
+    appliedFromApproval: approvalId || null,
+    approvalId: approvalId || null,
+    approvalStatus: "approved",
+  };
+
+  const batch = writeBatch(db);
+
+  batch.set(reversalRef, reversalRecord);
+
+  batch.update(originalRef, {
+    status: "voided",
+    voidReason: reason || "Approved payment void / correction",
+    voidedAt: new Date().toISOString(),
+    voidedByUid: decidedByUid || null,
+    reversalOfPaymentId: reversalRef.id,
+    updatedAt: new Date().toISOString(),
+  });
+
+  const effectiveStudentId = studentId || original.studentId;
+  if (effectiveStudentId) {
+    batch.set(
+      doc(db, "users", effectiveStudentId),
+      {
+        paymentStatus: "pending",
+        paidUntil: deleteField(),
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  }
+
+  await batch.commit();
+  return { reversalId: reversalRef.id };
+}
+

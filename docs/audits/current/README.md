@@ -39,6 +39,7 @@ For permanent verification procedures and baselines, use:
 - Cross-Cutting Conformance: [`../blueprint-conformance-matrix.md`](../blueprint-conformance-matrix.md)
 - Level 1 (Targeted Regression): [`../Light Regression Check Playbook/`](../Light%20Regression%20Check%20Playbook/00-README.md)
 - Level 2 (Deep Functional & Workflow Conformance): [`../Comprehensive Hidden-Bug Audit Strategy/`](../Comprehensive%20Hidden-Bug%20Audit%20Strategy/00-README.md)
+  - BLRCA Campaign Framework: [`../Role & Business Logic Conformance Audit/`](../Role%20&%20Business%20Logic%20Conformance%20Audit/00-README.md)
 - Level 3 (Architecture & Scalability): [`../Full System Architecture & Scalability Audit Procedure/`](../Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md)
 
 ## Important Notice

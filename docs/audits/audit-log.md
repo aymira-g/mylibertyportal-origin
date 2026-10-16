@@ -1009,3 +1009,34 @@ Remediation Summary:
    - ESLint: `npm run lint` passed cleanly (0 errors, 0 warnings).
    - Vite Production Build: `npm run build` passed cleanly in 3.83s.
 5. Next Campaign Action: Handoff to Independent Advisor for **BLRCA Slice 6 Phase 6: Post-Fix Verification & Regression Testing** (Independent review of Tier 1 finding `DOM05-PRIV-04`).
+
+## 2026-10-16 — Role & Business Logic Conformance Audit (BLRCA): Slice 6 — Phase 6 Independent Verification Report
+Source: Level 2 Role & Business Logic Conformance Audit methodology (`docs/audits/Role & Business Logic Conformance Audit/`).
+Scope: Independent review and verification of BLRCA Slice 6 remediations (`DOM05-PRIV-04`, `DOM14-GOV-01`, `SL6-STU-01`) per `AGENTS.md` verification standards.
+Status: VERIFIED WITH LIMITATIONS (Tier 1 `DOM05-PRIV-04` remains `PENDING_INDEPENDENT_VERIFICATION` pending live emulator test addition; `DOM14-GOV-01` and `SL6-STU-01` confirmed CLOSED).
+
+Independent Review Summary:
+1. `DOM05-PRIV-04` (Facilities Privacy Over-Privilege Leak — Tier 1):
+   - Verified rules implementation (`firestore.rules:76, 813, 823, 926, 934, 977, 979`) and JavaScript helper parity (`securityRulesMatrix.helpers.js:118`).
+   - Verified automated unit tests in `divisionIsolation.test.js:Section 3.3` (181 passed).
+   - Limitation Identified: Live emulator suite (`src/features/shared/firestoreRulesEmulator/`) exercises `cleanerGto` FO profile read block and `obGto` todos completion, but currently lacks dedicated live emulator assertions for `obGto`/`cleanerGto` denial on `/users`, `/classes`, and `/attendance`.
+   - Verdict: `VERIFIED WITH LIMITATIONS`. Status remains `PENDING_INDEPENDENT_VERIFICATION` in `bug-ledger.md` per `AGENTS.md` anti-self-closure mandate.
+2. `DOM14-GOV-01` (Marketing / Kindergarten Commercialization Leak — Tier 2):
+   - Verified rules enforcement in `firestore.rules:186-200` (`role == 'marketing'` strictly requires `data.division != 'kindergarten'`).
+   - Verified `MarketingDashboard.jsx` locks `activeDivision = "courses"`, removes switcher, and filters stream.
+   - Verified schema refinement in `inviteSchema.js` and form locks in `InvitesPanel.jsx` & `ApprovalInbox.jsx`.
+   - Verified automated tests in `schemas.test.js:178-216` (42/42 passed) and `divisionIsolation.test.js:Section 3.1`.
+   - Verdict: `PASS / FULLY VERIFIED / CLOSED`.
+3. `SL6-STU-01` (Student Account Card Dead Link — Tier 3):
+   - Verified implementation of ratified Owner Decision `OD-STU-4` Option A in `src/App.jsx:654-665`.
+   - Verified Vite production build (`dist/` generated with zero errors).
+   - Verdict: `PASS / FULLY VERIFIED / CLOSED`.
+4. Quality Gates Verified:
+   - Vitest Unit Suite: 107 test files passed (1,467 passed tests).
+   - Firestore Emulator Suite: 7 test files passed (140 passed tests, 0 ceiling errors).
+   - TypeScript Check: Clean (0 errors).
+   - ESLint: Clean (0 errors).
+   - Vite Build: Clean (4.94s).
+5. Recommended Follow-Up Action:
+   - Add live emulator test cases for `obGto`/`cleanerGto` read denial on `/users`, `/classes`, and `/attendance` in `firestoreRulesEmulator/` before formally closing `DOM05-PRIV-04`.
+

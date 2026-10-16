@@ -1348,5 +1348,31 @@ In accordance with `AGENTS.md` **Read-Only Audit Boundaries**, execution for Sli
 - **Vitest Full Suite:** 107 test files passed (1,467 passed tests, 139 skipped emulator tests, 0 failed).
 - **TypeScript Typecheck:** `npm run typecheck` passed cleanly (0 errors).
 - **ESLint:** `npm run lint` passed cleanly (0 errors, 0 warnings).
-- **Vite Production Build:** `npm run build` passed cleanly in 3.83s.
 - **Handoff:** Ready for independent Phase 6 verification sign-off by the Independent Advisor.
+
+---
+
+### 9.8 Phase 6 Independent Verification (Post-Fix Verification & Regression Testing)
+
+**Verification Date:** 2026-10-16  
+**Auditor:** Independent Advisor & Auditor (Phase 6 Verification)  
+**Governing Standard:** `AGENTS.md` (Strict prohibition on self-verification and self-closure for Tier 1 findings; evidence-based closure requirement).
+
+#### 1. Independent Findings Review & Verdicts
+
+| Finding ID | Title & Scope | Tier / Severity | Implementation Verified? | Test Evidence Verified? | Phase 6 Outcome |
+|---|---|---|---|---|---|
+| **`DOM05-PRIV-04`** / `SL6-FAC-01` | Facilities Privacy Over-Privilege Leak (`officeboy` / `cleaner` on `/users`, `/classes`, `/attendance`) | Tier 1 (High) | **YES** (`firestore.rules:76` `isNonFacilityStaff()`, applied on `/users:813, 823`, `/classes:926, 934`, `/attendance:977, 979`; mirrored in `securityRulesMatrix.helpers.js:118`) | **PARTIAL** (Passed 4/4 in `divisionIsolation.test.js:Section 3.3` helper matrix; live emulator assertions pending integration in `src/features/shared/firestoreRulesEmulator/`) | **VERIFIED WITH LIMITATIONS** (Remains `PENDING_INDEPENDENT_VERIFICATION` in `bug-ledger.md` pending live emulator test addition) |
+| **`DOM14-GOV-01`** / `SL6-MKT-01` | Marketing / Kindergarten Commercialization Leak | Tier 2 (Medium) | **YES** (`firestore.rules:186-200` & `securityRulesMatrix.helpers.js:184-199` strictly deny kindergarten access; `MarketingDashboard.jsx` locks `activeDivision = "courses"`, strips toggle, and filters stream; `inviteSchema.js`, `InvitesPanel.jsx`, `ApprovalInbox.jsx` enforce course assignment) | **YES** (`schemas.test.js:178-216` 42 passed; `divisionIsolation.test.js:944-1004` Section 3.1 passed) | **PASS / VERIFIED / CLOSED** |
+| **`SL6-STU-01`** / `OD-STU-4` | Student Account Card Dead Portal Anchor | Tier 3 (Info/UX) | **YES** (Ratified Option A implemented in `src/App.jsx:654-665`; dead `<a href="/portal">` removed, informational kiosk copy and Sign Out preserved) | **YES** (Vite production build passes; static inspection confirms clean component tree) | **PASS / VERIFIED / CLOSED** |
+
+#### 2. Verification Evidence Details
+- **Firestore Rules Live Emulator Suite (`npm run test:rules`):** 7/7 test suites passed, 140/140 tests passed in 18.54s. Confirmed CEL 1000-expression ceiling fully resolved. Note: Suite tests `todos` completion by `obGto` and negative FO profile read by `cleanerGto`, but lacks explicit denial assertions for `obGto`/`cleanerGto` on `/users`, `/classes`, and `/attendance`.
+- **Unit & Security Matrix Suite (`npm test`):** 107 test files passed, 1,467 passed tests, 140 skipped emulator tests in 13.25s. Verified Section 3.1 (`DOM14-GOV-01`) and Section 3.3 (`DOM05-PRIV-04`).
+- **TypeScript Typecheck (`npm run typecheck`):** Clean (0 errors).
+- **ESLint (`npm run lint`):** Clean (0 errors).
+- **Vite Production Build (`npm run build`):** Clean (dist bundles generated in 4.94s).
+
+#### 3. Recommended Follow-Up Action
+- Add dedicated live emulator assertions in `src/features/shared/firestoreRulesEmulator/usersAndProfiles.emulator.test.js` and `classesAndAcademic.emulator.test.js` asserting `obGto` and `cleanerGto` are rejected on `/users`, `/classes`, and `/attendance`. Upon completion of those live emulator tests, `DOM05-PRIV-04` can be formally closed in `bug-ledger.md`.
+

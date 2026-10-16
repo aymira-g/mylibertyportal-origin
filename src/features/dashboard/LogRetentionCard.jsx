@@ -7,12 +7,14 @@ import {
 } from "./logRetentionRepository";
 import { Database, Trash2, RefreshCw, CheckCircle2, AlertTriangle } from "lucide-react";
 
-export default function LogRetentionCard() {
+let memoryLogRetentionCache = null;
+
+export default function LogRetentionCard({ forceFresh = false }) {
   const toast = useToast();
   const confirm = useConfirm();
 
-  const [staleCount, setStaleCount] = useState(null);
-  const [checking, setChecking] = useState(true);
+  const [staleCount, setStaleCount] = useState(memoryLogRetentionCache);
+  const [checking, setChecking] = useState(memoryLogRetentionCache === null);
   const [purging, setPurging] = useState(false);
   const [error, setError] = useState("");
 
@@ -21,6 +23,7 @@ export default function LogRetentionCard() {
     setError("");
     try {
       const count = await fetchStaleErrorLogsCount(DEFAULT_RETENTION_DAYS);
+      memoryLogRetentionCache = count;
       setStaleCount(count);
     } catch (err) {
       console.error("Failed to check stale logs:", err);
@@ -31,10 +34,14 @@ export default function LogRetentionCard() {
   }, []);
 
   useEffect(() => {
+    if (memoryLogRetentionCache !== null && !forceFresh) {
+      return;
+    }
     let cancelled = false;
     fetchStaleErrorLogsCount(DEFAULT_RETENTION_DAYS)
       .then((count) => {
         if (!cancelled) {
+          memoryLogRetentionCache = count;
           setStaleCount(count);
           setChecking(false);
         }
@@ -49,7 +56,7 @@ export default function LogRetentionCard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [forceFresh]);
 
   const handlePurge = async () => {
     if (staleCount === null || staleCount === 0) return;

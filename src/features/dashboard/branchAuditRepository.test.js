@@ -56,4 +56,27 @@ describe("branchAuditRepository", () => {
     expect(audit.overallReadiness).toBeDefined();
     expect(audit.timestamp).toBeDefined();
   });
+
+  it("handles query errors gracefully, setting readinessPercent to null and excluding failed scans from score", async () => {
+    const { getDocs } = await import("firebase/firestore");
+    vi.mocked(getDocs).mockRejectedValueOnce(new Error("Permission denied"));
+
+    const audit = await runBranchHealthAudit(50);
+    const failedCol = /** @type {any} */ (audit.collections.find((c) => /** @type {any} */ (c).error));
+    expect(failedCol).toBeDefined();
+    expect(failedCol.readinessPercent).toBeNull();
+    expect(failedCol.error).toContain("Permission denied");
+    expect(audit.failedScansCount).toBe(1);
+  });
+
+  it("returns overallReadiness as null when all collection scans fail", async () => {
+    const { getDocs } = await import("firebase/firestore");
+    vi.mocked(getDocs).mockRejectedValue(new Error("Permission denied"));
+
+    const audit = await runBranchHealthAudit(50);
+    expect(audit.overallReadiness).toBeNull();
+    expect(audit.failedScansCount).toBe(AUDIT_COLLECTIONS.length);
+    expect(audit.totalScanned).toBe(0);
+  });
 });
+

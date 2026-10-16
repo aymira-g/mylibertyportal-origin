@@ -11,14 +11,21 @@ import {
 } from "lucide-react";
 import { runBranchHealthAudit } from "./branchAuditRepository";
 
+let memoryAuditCache = null;
+
 /**
  * BranchHealthAuditCard: Live visual read-only audit tool for multi-branch data isolation.
  * Samples live database collections within free-tier Spark limits (limit(100) per collection).
+ * Results are cached in session memory to prevent redundant queries on tab switches.
  */
-export default function BranchHealthAuditCard({ defaultExpanded = true }) {
+export default function BranchHealthAuditCard({
+  defaultExpanded = true,
+  forceFresh = false,
+  initialData = null,
+}) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-  const [loading, setLoading] = useState(true);
-  const [auditData, setAuditData] = useState(null);
+  const [loading, setLoading] = useState(!initialData && !memoryAuditCache);
+  const [auditData, setAuditData] = useState(initialData || memoryAuditCache);
   const [error, setError] = useState("");
 
   const executeAudit = useCallback(async () => {
@@ -26,6 +33,7 @@ export default function BranchHealthAuditCard({ defaultExpanded = true }) {
     setError("");
     try {
       const data = await runBranchHealthAudit(100);
+      memoryAuditCache = data;
       setAuditData(data);
     } catch (err) {
       console.error("Failed to run branch health audit:", err);
@@ -36,10 +44,14 @@ export default function BranchHealthAuditCard({ defaultExpanded = true }) {
   }, []);
 
   useEffect(() => {
+    if (initialData || (memoryAuditCache && !forceFresh)) {
+      return;
+    }
     let cancelled = false;
     runBranchHealthAudit(100)
       .then((data) => {
         if (!cancelled) {
+          memoryAuditCache = data;
           setAuditData(data);
           setLoading(false);
         }
@@ -54,7 +66,7 @@ export default function BranchHealthAuditCard({ defaultExpanded = true }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [forceFresh, initialData]);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
@@ -128,10 +140,18 @@ export default function BranchHealthAuditCard({ defaultExpanded = true }) {
                     Readiness Score
                   </span>
                   <div className="flex items-baseline gap-1.5 mt-1">
-                    <span className="text-xl font-black text-slate-800">
-                      {auditData.overallReadiness}%
-                    </span>
-                    <span className="text-[11px] font-semibold text-emerald-600">partitioned</span>
+                    {auditData.overallReadiness === null ? (
+                      <span className="text-xl font-bold text-slate-400 italic">
+                        Not Scanned
+                      </span>
+                    ) : (
+                      <>
+                        <span className="text-xl font-black text-slate-800">
+                          {auditData.overallReadiness}%
+                        </span>
+                        <span className="text-[11px] font-semibold text-emerald-600">partitioned</span>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -141,7 +161,7 @@ export default function BranchHealthAuditCard({ defaultExpanded = true }) {
                   </span>
                   <div className="flex items-baseline gap-1.5 mt-1">
                     <span className="text-xl font-black text-emerald-800">
-                      {auditData.totalCanonical}
+                      {auditData.overallReadiness === null ? "—" : auditData.totalCanonical}
                     </span>
                     <span className="text-[11px] text-emerald-600 font-medium">docs</span>
                   </div>
@@ -153,7 +173,7 @@ export default function BranchHealthAuditCard({ defaultExpanded = true }) {
                   </span>
                   <div className="flex items-baseline gap-1.5 mt-1">
                     <span className="text-xl font-black text-amber-800">
-                      {auditData.totalLegacy}
+                      {auditData.overallReadiness === null ? "—" : auditData.totalLegacy}
                     </span>
                     <span className="text-[11px] text-amber-600 font-medium">compatible</span>
                   </div>
@@ -165,7 +185,7 @@ export default function BranchHealthAuditCard({ defaultExpanded = true }) {
                   </span>
                   <div className="flex items-baseline gap-1.5 mt-1">
                     <span className="text-xl font-black text-slate-700">
-                      {auditData.totalMissing}
+                      {auditData.overallReadiness === null ? "—" : auditData.totalMissing}
                     </span>
                     <span className="text-[11px] text-slate-400 font-medium">unscoped</span>
                   </div>
@@ -177,31 +197,46 @@ export default function BranchHealthAuditCard({ defaultExpanded = true }) {
                 <div className="flex justify-between text-xs font-semibold text-slate-600">
                   <span>Overall Multi-Branch Isolation Status</span>
                   <span>
-                    {auditData.totalCanonical} of {auditData.totalScanned} documents canonicalized
+                    {auditData.overallReadiness === null ? (
+                      <span className="text-rose-600 font-medium">All collection scans failed</span>
+                    ) : (
+                      <>
+                        {auditData.totalCanonical} of {auditData.totalScanned} documents canonicalized
+                        {auditData.failedScansCount > 0 && (
+                          <span className="text-amber-600 font-medium ml-1">
+                            ({auditData.failedScansCount} {auditData.failedScansCount === 1 ? "collection" : "collections"} not scanned)
+                          </span>
+                        )}
+                      </>
+                    )}
                   </span>
                 </div>
                 <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex">
-                  <div
-                    className="bg-emerald-500 h-full transition-all duration-500"
-                    style={{
-                      width: `${(auditData.totalCanonical / (auditData.totalScanned || 1)) * 100}%`,
-                    }}
-                    title="Canonical branchId"
-                  />
-                  <div
-                    className="bg-amber-400 h-full transition-all duration-500"
-                    style={{
-                      width: `${(auditData.totalLegacy / (auditData.totalScanned || 1)) * 100}%`,
-                    }}
-                    title="Legacy branch name"
-                  />
-                  <div
-                    className="bg-slate-300 h-full transition-all duration-500"
-                    style={{
-                      width: `${(auditData.totalMissing / (auditData.totalScanned || 1)) * 100}%`,
-                    }}
-                    title="Missing branch"
-                  />
+                  {auditData.overallReadiness !== null && (
+                    <>
+                      <div
+                        className="bg-emerald-500 h-full transition-all duration-500"
+                        style={{
+                          width: `${(auditData.totalCanonical / (auditData.totalScanned || 1)) * 100}%`,
+                        }}
+                        title="Canonical branchId"
+                      />
+                      <div
+                        className="bg-amber-400 h-full transition-all duration-500"
+                        style={{
+                          width: `${(auditData.totalLegacy / (auditData.totalScanned || 1)) * 100}%`,
+                        }}
+                        title="Legacy branch name"
+                      />
+                      <div
+                        className="bg-slate-300 h-full transition-all duration-500"
+                        style={{
+                          width: `${(auditData.totalMissing / (auditData.totalScanned || 1)) * 100}%`,
+                        }}
+                        title="Missing branch"
+                      />
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -227,38 +262,64 @@ export default function BranchHealthAuditCard({ defaultExpanded = true }) {
                           <span>{col.label}</span>
                         </td>
                         <td className="py-2.5 px-3 text-center font-medium text-slate-600">
-                          {col.total}
+                          {col.error ? <span className="text-slate-400">—</span> : col.total}
                         </td>
                         <td className="py-2.5 px-3 text-center">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                            {col.canonical}
-                          </span>
+                          {col.error ? (
+                            <span className="text-slate-400">—</span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                              {col.canonical}
+                            </span>
+                          )}
                         </td>
                         <td className="py-2.5 px-3 text-center">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100">
-                            {col.legacy}
-                          </span>
+                          {col.error ? (
+                            <span className="text-slate-400">—</span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100">
+                              {col.legacy}
+                            </span>
+                          )}
                         </td>
                         <td className="py-2.5 px-3 text-center">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
-                            {col.missing}
-                          </span>
+                          {col.error ? (
+                            <span className="text-slate-400">—</span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                              {col.missing}
+                            </span>
+                          )}
                         </td>
                         <td className="py-2.5 px-3 text-right font-bold">
-                          <span
-                            className={
-                            col.readinessPercent >= 80
-                              ? "text-emerald-600"
-                              : col.readinessPercent >= 50
-                                ? "text-amber-600"
-                                : "text-rose-600"
-                            }
-                          >
-                            {col.readinessPercent}%
-                          </span>
+                          {col.error || col.readinessPercent === null ? (
+                            <span className="text-slate-400 font-normal italic">
+                              Not Scanned
+                            </span>
+                          ) : (
+                            <span
+                              className={
+                              col.readinessPercent >= 80
+                                ? "text-emerald-600"
+                                : col.readinessPercent >= 50
+                                  ? "text-amber-600"
+                                  : "text-rose-600"
+                              }
+                            >
+                              {col.readinessPercent}%
+                            </span>
+                          )}
                         </td>
                         <td className="py-2.5 px-3 text-right">
-                          {col.legacy > 0 || col.missing > 0 ? (
+                          {col.error ? (
+                            <span
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200"
+                              title={col.error}
+                            >
+                              <AlertTriangle className="w-3 h-3 text-rose-500" />
+                              <span>Not Scanned</span>
+                            </span>
+                          ) : col.legacy > 0 || col.missing > 0 ? (
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
                               Legacy Compatible
                             </span>

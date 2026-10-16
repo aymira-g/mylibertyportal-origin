@@ -3,7 +3,7 @@
  */
 import { describe, beforeAll, beforeEach, afterAll, it } from "vitest";
 import { assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
-import { doc, updateDoc, collection, addDoc, getDoc } from "firebase/firestore";
+import { doc, updateDoc, collection, addDoc, getDoc, query, where, getDocs } from "firebase/firestore";
 import { setupEmulatorHarness, HAS_EMULATOR, SHIFT_KOTA, APPROVED_CORRECTION } from "./setup.js";
 
 let testEnv;
@@ -304,6 +304,23 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Attendance and Shifts", () =
     it("denies officeboy and cleaner from reading attendance documents", async () => {
       await assertFails(getDoc(doc(authed("obGto"), "attendance", "attFacilitiesTest")));
       await assertFails(getDoc(doc(authed("cleanerGto"), "attendance", "attFacilitiesTest")));
+    });
+
+    it("denies System Admin from reading or querying attendance documents (OD-ADM-01) while preserving front office and staff access", async () => {
+      // System Admin get and query/list denied under OD-ADM-01
+      await assertFails(getDoc(doc(authed("admin"), "attendance", "attFacilitiesTest")));
+      await assertFails(getDocs(query(collection(authed("admin"), "attendance"), where("branchId", "==", "kota_gorontalo"))));
+      await assertFails(getDocs(collection(authed("admin"), "attendance")));
+
+      // Authorized staff still succeed on direct get
+      await assertSucceeds(getDoc(doc(authed("foGto"), "attendance", "attFacilitiesTest")));
+      await assertSucceeds(getDoc(doc(authed("insGto"), "attendance", "attFacilitiesTest")));
+      await assertSucceeds(getDoc(doc(authed("mgrGto"), "attendance", "attFacilitiesTest")));
+      await assertSucceeds(getDoc(doc(authed("dirGto"), "attendance", "attFacilitiesTest")));
+
+      // Authorized staff still succeed on query/list
+      await assertSucceeds(getDocs(query(collection(authed("foGto"), "attendance"), where("branchId", "==", "kota_gorontalo"))));
+      await assertSucceeds(getDocs(collection(authed("dirGto"), "attendance")));
     });
 
     it("allows officeboy and cleaner to read their own shift records but denies reading other staff shifts", async () => {

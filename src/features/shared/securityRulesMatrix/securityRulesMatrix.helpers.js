@@ -710,15 +710,15 @@ export function canCreatePayment(data, user, approvalDoc = null) {
 
 export function canGetAttendance(doc, user) {
   if (!user) return false;
-  if (isExecutive(user)) return true;
-  if (isNonFacilityStaff(user) && isSameBranch(doc, user) && isDivisionAllowedForBranchStaff(doc, user)) return true;
+  if (isOrgExecutive(user)) return true;
+  if (isNonFacilityStaff(user) && !isAdmin(user) && isSameBranch(doc, user) && isDivisionAllowedForBranchStaff(doc, user)) return true;
   return false;
 }
 
 export function canListAttendance(queryData, user) {
   if (!user) return false;
-  if (isExecutive(user)) return true;
-  if (isNonFacilityStaff(user) && isSameBranchStrict(queryData, user) && isDivisionAllowedForBranchStaff(queryData, user)) return true;
+  if (isOrgExecutive(user)) return true;
+  if (isNonFacilityStaff(user) && !isAdmin(user) && isSameBranchStrict(queryData, user) && isDivisionAllowedForBranchStaff(queryData, user)) return true;
   return false;
 }
 

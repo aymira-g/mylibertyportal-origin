@@ -72,7 +72,7 @@ export function computeCollectionBranchMetrics(docs = []) {
  * Bounded by maxPerCollection to protect Spark free tier read quotas.
  *
  * @param {number} maxPerCollection - Max documents to sample per collection (default 100)
- * @returns {Promise<{ overallReadiness: number, totalScanned: number, totalCanonical: number, totalLegacy: number, totalMissing: number, collections: Array<object>, timestamp: string }>}
+ * @returns {Promise<{ overallReadiness: number | null, totalScanned: number, totalCanonical: number, totalLegacy: number, totalMissing: number, failedScansCount: number, collections: Array<object>, timestamp: string }>}
  */
 export async function runBranchHealthAudit(maxPerCollection = 100) {
   const results = [];
@@ -109,13 +109,20 @@ export async function runBranchHealthAudit(maxPerCollection = 100) {
         canonical: 0,
         legacy: 0,
         missing: 0,
-        readinessPercent: 100,
+        readinessPercent: null,
         error: err instanceof Error ? err.message : "Query failed",
       });
     }
   }
 
-  const overallReadiness = sumTotal === 0 ? 100 : Math.round((sumCanonical / sumTotal) * 100);
+  const successfulCollections = results.filter((r) => !r.error);
+  const failedScansCount = results.filter((r) => Boolean(r.error)).length;
+  const overallReadiness =
+    successfulCollections.length === 0
+      ? null
+      : sumTotal === 0
+        ? 100
+        : Math.round((sumCanonical / sumTotal) * 100);
 
   return {
     overallReadiness,
@@ -123,6 +130,7 @@ export async function runBranchHealthAudit(maxPerCollection = 100) {
     totalCanonical: sumCanonical,
     totalLegacy: sumLegacy,
     totalMissing: sumMissing,
+    failedScansCount,
     collections: results,
     timestamp: new Date().toISOString(),
   };

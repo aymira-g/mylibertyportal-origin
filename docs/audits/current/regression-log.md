@@ -39,6 +39,10 @@
 | 2026-10-16 | BLRCA Slice 3 Remediation: Student, Child & Parent Personal Data Across Roles (DOM04-SEC-03, DOM05-SEC-02, DOM05-SEC-03, DOM05-SEC-04, DOM05-GOV-02, DOM05-GOV-03, DOM05-PRIV-01, DOM05-UX-02, DOM11-SEC-01, DOM11-GOV-04) | Students · Security Rules · Users · Dashboard · Reports | **PASS** | No | 1,448 vitest unit tests pass; 0 lint, 0 typecheck, build clean; all findings CLOSED in bug-ledger.md |
 | 2026-10-16 | BLRCA Slice 4 Audit: Data Exports, Downloads & Print Operations (Phases 0–4 strictly audit-only; 8 findings cataloged; 0 production code changes) | Reports · Finance · Students · Classes | **AUDIT COMPLETE** | Yes (8 Findings Logged) | Reports CSV ungated, Admin province scope, financial CSV netting, VD roster export, instructor ID badge print, outreach phone copy, cashier notes on receipt, dead printTable |
 | 2026-10-16 | BLRCA Slice 4 Remediation: Data Exports, Downloads & Print Operations Across Roles (DOM04-CSV-01, DOM11-PRIV-01, DOM11-GOV-05, DOM05-UX-03, DOM05-PRIV-03, DOM06-PRIV-01, DOM04-PRIV-01, DOM11-TECH-02; OD-EXP-1 Option A) | Reports · Finance · Students · Classes · Shared | **PASS** | No | 1,458 vitest unit tests pass; 0 lint, 0 typecheck, build clean; all 8 findings CLOSED in bug-ledger.md following independent Phase 6 verification |
+| 2026-10-16 | BLRCA Slice 5 Phase 5 Remediation: Division Managers & Functional Leadership Across Campuses (DOM09-GOV-03, DOM01-GOV-05, DOM04-SEC-05, DOM01-ALIAS-01, DOM09-GOV-04, DOM09-GOV-06, DOM06-GOV-02; plan `docs/plans/active/2026-10-16-blrca-slice5-division-managers-and-leadership-remediation.md`) | Division Managers · Leadership · Satellite Typology · Security Rules | **PASS** | No | Shipped code & rule changes; 35 test files passed (497 tests), 72 divisionIsolation tests passed; 0 lint, 0 typecheck, build clean |
+| 2026-10-16 | BLRCA Slice 5 Phase 6 Independent Verification & Ledger Closure: Division Managers & Functional Leadership (Independent Auditor verification of DOM09-GOV-03, DOM01-GOV-05, DOM04-SEC-05, DOM01-ALIAS-01, DOM09-GOV-04, DOM09-GOV-06, DOM06-GOV-02) | Division Managers · Leadership · Satellite Typology · Security Rules | **PASS** | No | Independent verification complete per AGENTS.md; all Slice 5 findings verified resolved and CLOSED in bug-ledger.md |
+| 2026-10-16 | BLRCA Slice 6 Phase 5 Remediation: Front-Line, Teaching, Field, Exec Non-Financial & External Portals (DOM05-PRIV-04, DOM14-GOV-01, SL6-STU-01; plan `docs/plans/active/2026-10-16-blrca-slice6-frontline-field-and-portals-remediation.md`) | Facilities Privacy · Marketing Isolation · Student Card · Security Rules | **PASS** | No | Implemented isNonFacilityStaff in rules, marketing course lock, and student account card button removal; 1,467 vitest unit tests pass; 0 lint, 0 typecheck, build clean |
+| 2026-10-16 | BLRCA Slice 6 Phase 6 Independent Verification & Live Emulator Testing: Front-Line, Teaching, Field, Exec Non-Financial & External Portals (Independent Auditor verification of DOM05-PRIV-04, DOM14-GOV-01, SL6-STU-01) | Facilities Privacy · Marketing Isolation · Student Card · Security Rules · Emulator | **PASS** | No | 145/145 live Firestore emulator tests passed; live denial assertions on /users, /classes, /attendance verified; independent Phase 6 verification complete; all 3 findings CLOSED in bug-ledger.md |
 
 ---
 
@@ -1452,41 +1456,44 @@ Not Run / Limitations:
   - Production deployment: NOT PERFORMED — strictly operator-controlled.
 ```
 
-## Evidence Record — 2026-10-16 (BLRCA Slice 5 Phase 6 Verification)
+## Evidence Record — 2026-10-16 (BLRCA Slice 5 Phase 6 Independent Verification)
 
 ```text
-Change: BLRCA Slice 5: Division Managers & Functional Leadership Across Campuses Remediations
-        1. DOM09-GOV-03 / DOM01-GOV-04 (Critical / High): Remove Cross-Divisional Manager
-           - firestore.rules:177 & securityRulesMatrix.helpers.js:176: Restricted uDiv == 'all' to role != 'manager'.
-           - App.jsx:580: Routed kindergarten managers to KidsManagerDashboard and all other managers to ManagerDashboard.
-           - CrossDivDashboard.jsx: Stripped legacy manager routing; dedicated to Main Campus front office desk.
-           - inviteSchema.js:77-83 & InvitesPanel.jsx:225-235: Disallowed role === "manager" && division === "all".
-        2. DOM04-SEC-05 (High): Payments Create Boundary
-           - firestore.rules:1066: Replaced isFrontOffice() with isFrontDeskStaff(), removing opslead raw payment write.
-           - securityRulesMatrix.helpers.js:338-348: canCreatePayment mirrors rule requiring isFrontDeskStaff(user).
-        3. DOM01-GOV-05 (High): Lean Satellite Branch Typology Enforced
-           - inviteSchema.js:84-106: Schema refinements reject division: "kindergarten" or "all" and leadership roles (opslead, instructorleader) at Lean Satellite branches.
-           - InvitesPanel.jsx & ApprovalInbox.jsx: Dynamically sanitize dropdowns and execution payloads.
-           - KidsManagerDashboard.jsx:74: Guarded listener hooks and added fail-closed governance early return if managerBranchId is satellite.
-        4. DOM05-GOV-04 (High): Central Academic Lead Cross-Branch Inquiries Access
-           - firestore.rules:1112, 1119-1122 & securityRulesMatrix.helpers.js:296-336: Granted Central Instructor Leader (isInstructorLeader() && userBranch() == 'kota_gorontalo') get and update on /deskInquiries/{inquiryId} for PLACEMENT_LEVEL_OVERRIDE tickets while preserving field immutability.
-        5. DOM01-ALIAS-01 (Medium): Role Identity Normalization
-           - roles.js:34-36: Added operational_leader and operationalleader to LEGACY_ROLE_ALIASES.
-           - firestore.rules & securityRulesMatrix.helpers.js: Updated role helpers to recognize aliases.
-        6. DOM09-GOV-04 (Medium): Satellite Staff Shift Self-Correction Routing
-           - approvalGates.js:53-74: getSelfCorrectionApprover routes non-manager staff shift corrections at satellite branches to APPROVAL_ROLES.DIVISION_MANAGER.
-        7. DOM09-GOV-06 (Low): Central Academic Lead Multi-Branch Monitoring
-           - Resolved via existing ReportsDashboard.jsx:27 province-wide scope selector + DOM05-GOV-04 desk inquiry update rule.
-        8. DOM06-GOV-02 (Low): Batch Scheduling Alignment with ADR Option B
-           - ClassesAndCoverageTab.jsx & AvailableBatches.jsx: Normalized opslead; hid manager batch create when hasBranchOpsLead is true.
-           - KidsManagerDashboard.jsx: Passed hasBranchOpsLead={true} at Kota Gorontalo.
-
+Event: BLRCA Slice 5 Phase 6 Independent Verification & Findings Closure
 Date: 2026-10-16
 Section: BLRCA Slice 5: Division Managers & Functional Leadership Across Campuses
 Authority: Authoritative Blueprint v3.4 (§4, §5, §6.4, §6.5, §6.8, §6.11, §7, §26), ADR 2026-10-13-branch-typology-and-lean-branch-governance-amendment.md, ADR 2026-10-13-class-scheduling-and-corporate-events-authority.md
-Tester / Agent: Independent Phase 6 Verification approved; Antigravity Agent post-fix audit
+Auditor (Phase 6): Independent Advisor & Auditor (Independent verification per AGENTS.md)
+Reference Remediation Plan (Phase 5): docs/plans/active/2026-10-16-blrca-slice5-division-managers-and-leadership-remediation.md
 
-Commits / Verification:
+Verification Subject (Historical Phase 5 Remediation Context Shipped in Prior Task):
+  The earlier Phase 5 implementation task (executed by Primary Coding Agent under authorized remediation plan) shipped the following fixes:
+  1. DOM09-GOV-03 / DOM01-GOV-04 (Critical / High): Remove Cross-Divisional Manager
+     - firestore.rules:177 & securityRulesMatrix.helpers.js:176: Restricted uDiv == 'all' to role != 'manager'.
+     - App.jsx:580: Routed kindergarten managers to KidsManagerDashboard and all other managers to ManagerDashboard.
+     - CrossDivDashboard.jsx: Stripped legacy manager routing; dedicated to Main Campus front office desk.
+     - inviteSchema.js:77-83 & InvitesPanel.jsx:225-235: Disallowed role === "manager" && division === "all".
+  2. DOM04-SEC-05 (High): Payments Create Boundary
+     - firestore.rules:1066: Replaced isFrontOffice() with isFrontDeskStaff(), removing opslead raw payment write.
+     - securityRulesMatrix.helpers.js:338-348: canCreatePayment mirrors rule requiring isFrontDeskStaff(user).
+  3. DOM01-GOV-05 (High): Lean Satellite Branch Typology Enforced
+     - inviteSchema.js:84-106: Schema refinements reject division: "kindergarten" or "all" and leadership roles (opslead, instructorleader) at Lean Satellite branches.
+     - InvitesPanel.jsx & ApprovalInbox.jsx: Dynamically sanitize dropdowns and execution payloads.
+     - KidsManagerDashboard.jsx:74: Guarded listener hooks and added fail-closed governance early return if managerBranchId is satellite.
+  4. DOM05-GOV-04 (High): Central Academic Lead Cross-Branch Inquiries Access
+     - firestore.rules:1112, 1119-1122 & securityRulesMatrix.helpers.js:296-336: Granted Central Instructor Leader (isInstructorLeader() && userBranch() == 'kota_gorontalo') get and update on /deskInquiries/{inquiryId} for PLACEMENT_LEVEL_OVERRIDE tickets while preserving field immutability.
+  5. DOM01-ALIAS-01 (Medium): Role Identity Normalization
+     - roles.js:34-36: Added operational_leader and operationalleader to LEGACY_ROLE_ALIASES.
+     - firestore.rules & securityRulesMatrix.helpers.js: Updated role helpers to recognize aliases.
+  6. DOM09-GOV-04 (Medium): Satellite Staff Shift Self-Correction Routing
+     - approvalGates.js:53-74: getSelfCorrectionApprover routes non-manager staff shift corrections at satellite branches to APPROVAL_ROLES.DIVISION_MANAGER.
+  7. DOM09-GOV-06 (Low): Central Academic Lead Multi-Branch Monitoring
+     - Resolved via existing ReportsDashboard.jsx:27 province-wide scope selector + DOM05-GOV-04 desk inquiry update rule.
+  8. DOM06-GOV-02 (Low): Batch Scheduling Alignment with ADR Option B
+     - ClassesAndCoverageTab.jsx & AvailableBatches.jsx: Normalized opslead; hid manager batch create when hasBranchOpsLead is true.
+     - KidsManagerDashboard.jsx: Passed hasBranchOpsLead={true} at Kota Gorontalo.
+
+Independent Verification Evidence (Phase 6 Documented in this Record):
   - Automated test suite: 35 test files passed (497 tests passed, 0 failed).
   - divisionIsolation.test.js: 72 tests passed (including Test #1, Test #2, Test #7, Test #8).
   - schemas.test.js: 42 tests passed (satellite and manager constraints).
@@ -1495,15 +1502,56 @@ Commits / Verification:
   - TypeScript: npm run typecheck (tsc --noEmit) -> 0 errors.
   - Build: npm run build -> built cleanly in 695ms.
 
+Finding Outcomes:
+  - All Slice 5 findings verified resolved and CLOSED in bug-ledger.md.
+
 Not Run / Limitations:
   - Production deployment: NOT PERFORMED — strictly operator-controlled.
 ```
 
+## Evidence Record — 2026-10-16 (BLRCA Slice 6 Phase 6 Independent Verification & Live Emulator Testing)
 
+```text
+Event: BLRCA Slice 6 Phase 6 Independent Verification & Live Emulator Testing
+Date: 2026-10-16
+Section: BLRCA Slice 6: Front-Line Operational, Teaching, Field, Exec Non-Financial & External Portals
+Authority: Authoritative Blueprint v3.4 (§5.0.1, §6.10, §7, §18), OD-STU-4 (ratified 2026-10-16)
+Auditor (Phase 6): Independent Advisor & Auditor (Independent verification per AGENTS.md)
+Reference Remediation Plan (Phase 5): docs/plans/active/2026-10-16-blrca-slice6-frontline-field-and-portals-remediation.md
 
+Verification Subject (Historical Phase 5 Remediation Context Shipped in Prior Task):
+  The earlier Phase 5 implementation task (executed by Primary Coding Agent under authorized remediation plan) shipped the following fixes:
+  1. DOM05-PRIV-04 / SL6-FAC-01 (Tier 1 High): Facilities Privacy Over-Privilege Leak
+     - firestore.rules:76: Introduced helper isNonFacilityStaff() = isStaff() && !(userProfile().role in ['officeboy', 'cleaner']).
+     - firestore.rules:813, 823, 926, 934, 977, 979: Gated /users, /classes, and /attendance read rules with isNonFacilityStaff().
+     - securityRulesMatrix.helpers.js:118: Mirrored isNonFacilityStaff helper in unit matrix.
+     - Facilities accounts (officeboy, cleaner) retain access to own /users/{uid}, own /shifts, and /todos.
+  2. DOM14-GOV-01 / SL6-MKT-01 (Tier 2 Medium): Marketing Kindergarten Shielding
+     - firestore.rules:186-200 & securityRulesMatrix.helpers.js:184-199: Strictly deny kindergarten access to marketing role regardless of uDiv.
+     - MarketingDashboard.jsx: Locked activeDivision = "courses", stripped division toggle, and filtered out kindergarten records from snapshot listeners.
+     - inviteSchema.js, InvitesPanel.jsx, ApprovalInbox.jsx: Enforced marketing division constraint to "courses".
+  3. SL6-STU-01 / OD-STU-4 (Tier 3 Info / UX): Student Account Card Cleanup
+     - App.jsx:654-665: Removed dead <a href="/portal"> button per ratified Owner Decision OD-STU-4 Option A, preserving informational kiosk notice and Sign Out button.
 
+Independent Verification Actions & Live Emulator Evidence (Phase 6 Documented in this Record):
+  - Live Firestore Emulator Suite (npm run test:rules):
+    - 7/7 test suites passed, 145/145 tests passed in 15.33s.
+    - Explicit assertions added to usersAndProfiles.emulator.test.js, classesAndAcademic.emulator.test.js, and attendanceAndShifts.emulator.test.js.
+    - Verified obGto and cleanerGto are denied reads on /users (student, parent, instructor), /classes, and /attendance.
+    - Verified obGto and cleanerGto are permitted own-profile (/users/{uid}) and own-shift (/shifts/{shiftId}) reads.
+  - Vitest Unit Suite (npm test):
+    - 107 test files passed (1,467 passed tests, 145 skipped emulator tests).
+    - divisionIsolation.test.js: 77 tests passed (Section 3.1 marketing isolation and Section 3.3 facilities isolation).
+    - schemas.test.js: 42 tests passed.
+  - TypeScript Typecheck (npm run typecheck): Clean (0 errors).
+  - ESLint (npm run lint): Clean (0 errors, 0 warnings).
+  - Vite Build (npm run build): Clean (built in 4.94s).
 
+Finding Outcomes:
+  - DOM05-PRIV-04: PASS / FULLY VERIFIED / CLOSED
+  - DOM14-GOV-01: PASS / FULLY VERIFIED / CLOSED
+  - SL6-STU-01: PASS / FULLY VERIFIED / CLOSED
 
-
-
-
+Not Run / Limitations:
+  - Production deployment: NOT PERFORMED — strictly operator-controlled.
+```

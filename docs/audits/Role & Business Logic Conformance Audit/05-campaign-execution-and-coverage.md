@@ -122,7 +122,7 @@ Auditors are strictly prohibited from using broad, aggregated rows such as *"Adm
 
 ## 3. Slice-by-Slice Execution Sequence & Dependencies
 
-BLRCA is structured into five distinct operational slices:
+BLRCA is structured into six approved operational slices:
 
 ```text
 SLICE 1: System Admin Boundary (Technical-Only Infrastructure vs. Business Data)
@@ -133,14 +133,24 @@ SLICE 3: Personal Data Surfaces (Student Records, Parent Linkage, Staff Director
    ↓
 SLICE 4: Exports, Downloads & Print Operations (CSV Generation, Receipt Printing)
    ↓
-SLICE 5+: Individual Role Deep-Dives (Division Managers, Ops Lead, Instructors, Facilities)
+SLICE 5: Division Managers & Functional Leadership Across Campuses (Satellites, Ops Lead, Instructor Leader)
+   ↓
+SLICE 6: Front-Line Operational, Teaching, Field, Exec Non-Financial & External Portals
 ```
 
-### Slice 1 State & Next Action
+### Campaign Execution State & Completed Slices (Slices 1–6)
 
-- **Status:** **COMPLETED** (Audited 2026-10-15; remediated in `220c10a` and `131f1b2`; Phase 6 verified and all 4 findings closed on 2026-10-16).
-- **Remediation State:** Remediation plan `docs/plans/active/2026-10-15-blrca-slice1-system-admin-remediation.md` is **COMPLETED**. Findings `DOM11-GOV-02`, `DOM01-GOV-03`, `DOM01-REP-01`, and `DOM01-PERF-01` are `CLOSED` in `bug-ledger.md`.
-- **Next Operational Action:** Execute **Slice 2: Financial Surfaces Across Roles** (Payments, Tuition, Discounts, Cash Balancing, and `DOM04-GOV-03`).
+- **Campaign Slice Count:** Exactly **six slices** (Slices 1 through 6). No "Slice 7" exists in the approved BLRCA campaign sequence (references to "7" elsewhere correspond to framework document `07-agent-instructions.md`, report chapter 7 on Slice 4, or ledger section 7).
+- **Status across Slices 1–6:** **Provisionally Complete across Slices 1–6 Functional Scope; Frontend Workspace Placement Pass Ratified (Execution Active)** (All planned functional, data-scoping, and privilege-boundary checks across Slices 1–6 are remediated and independently verified closed in the bug ledger; the Frontend Workspace Placement Pass was formally ratified by Owner Kifry on 2026-10-17).
+  - **Slice 1 (System Admin):** Remediated in `220c10a`/`131f1b2`; 4 confirmed defects CLOSED across 4 ledger rows.
+  - **Slice 2 (Financial Surfaces):** Remediated and verified; 6 confirmed defects CLOSED across 6 ledger rows.
+  - **Slice 3 (Personal Data):** Remediated and verified; 11 finding IDs CLOSED / accepted (8 confirmed defects, 2 paired companion IDs, 1 accepted risk) across 11 ledger rows.
+  - **Slice 4 (Exports & Prints):** Remediated under OD-EXP-1 Option A; 8 findings CLOSED (6 confirmed defects, 2 gaps/tech debt) across 8 ledger rows.
+  - **Slice 5 (Division Managers & Leadership):** Remediated under ADR 2026-10-13; 8 finding IDs CLOSED across 7 ledger rows (6 confirmed defects, 1 role alias gap, 1 paired view sharing Row 184).
+  - **Slice 6 (Front-Line, Teaching, Field, Exec Non-Fin, Portals):** Remediated under OD-STU-4; 3 findings CLOSED (2 confirmed defects, 1 UX gap) across 3 ledger rows.
+- **Next Operational Actions:**
+  1. **Frontend Workspace Placement Pass Execution:** Execute systematic role workspace coherence inspection across all dashboards per ratified `03-technical-audit-method.md` §3.
+  2. **Level 3 System Handoff:** Transition to the **Level 3 Full System Architecture & Scalability Audit** ([`docs/audits/Full System Architecture & Scalability Audit Procedure/00-README.md`](../Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md)).
 
 ---
 

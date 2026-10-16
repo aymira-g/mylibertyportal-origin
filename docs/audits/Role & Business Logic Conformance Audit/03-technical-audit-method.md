@@ -83,7 +83,155 @@ Every discovered role-feature combination must be systematically evaluated again
 
 ---
 
-## 3. Preserved Worked Example: System Admin & Financial Reports
+## 3. Frontend Workspace Placement Pass (Role Workspace Coherence)
+
+> **Status:** RATIFIED AUTHORITATIVE METHODOLOGY — APPROVED BY OWNER KIFRY (2026-10-17).
+> **Verification Purpose:** Evaluates whether each role's workspace contains the **right features** — verifying workspace coherence, clutter elimination, and cognitive focus, separate from backend access security.
+
+### 3.1 The Principle of Role Workspace Coherence
+
+Securing backend queries and Firestore rules is a mandatory baseline, but backend security alone does not guarantee a well-governed, usable user interface. This pass evaluates whether each role's workspace (dashboard, navigation shell, tabs, cards, and modals) provides tools aligned with its ratified operational responsibilities, records instances where exposed controls create operational clutter or usability friction, and identifies controls that cannot be used or lack governance backing.
+
+Auditors must enforce seven core placement principles during this pass:
+
+1. **Backend Denial Does Not Justify Frontend Exposure:** The fact that a backend Firestore security rule or Cloudflare Worker endpoint correctly returns `permission-denied` (HTTP 403) does **not** justify leaving an unauthorized, unusable, or confusing feature visible in the frontend. Exposing dead buttons, unauthorized tabs, or unopenable dialogs degrades user trust, clutters operational screens, and invites user confusion. Auditors record observed visibility or usability friction as an audit observation regardless of backend denial.
+2. **Existing Code or UI Is Not Proof of Authority:** The presence of a component in an existing dashboard or the historical availability of a button is never evidence that a role is authorized to have it. The current codebase is an audit target to be reconciled against governance, not an authoritative design specification.
+3. **Ratified Source Prohibition Compels Conformance Finding:** If the Authoritative Blueprint, an ADR, or an accepted Owner Decision establishes that a business capability does not belong to a role, its exposure in the user interface is recorded as an audit observation and logged as a conformance finding (`MISPLACED / UNCLEAR`), citing the ratified exclusion, regardless of whether backend security rules correctly block the underlying mutation or query.
+4. **No Authority by Inference:** If ownership or intended placement of a feature is not explicitly established in the Authoritative Blueprint or an accepted Owner Decision, the auditor must classify the item as `[Owner Decision Required]`. The auditor must **never** infer, assume, or assign authority to a role based on convenience, operational similarity, or perceived role seniority.
+5. **Separation of Defect Classifications:** Auditors must rigorously categorize and separate findings:
+   - **Frontend Placement Defect (UI / UX):** Feature visible/reachable in the wrong role's cockpit, dead buttons, missing expected tools, or misleading zero/error presentations.
+   - **Governance Conflict (Policy Divergence):** Software permits an action or data access directly conflicting with a ratified rule in the Authoritative Blueprint or an accepted Owner Decision.
+   - **Governance Gap (Policy Ambiguity):** Unclear operational ownership or unratified workflow requiring explicit owner decision (`[Owner Decision Required]`).
+   - **Technical Security Vulnerability:** Backend rules or Worker APIs permit unauthorized data mutations or reads when queried directly.
+6. **Preservation of Legitimate Neighboring-Role Coordination:** Restricting operational mutations does not require blinding staff to necessary operational context. Dashboards may provide read-only situational awareness (e.g. an Operational Leader viewing daily instructor class schedules) where necessary for on-site coordination, provided execution controls are cleanly omitted.
+7. **Fail-Closed Presentation & Clean Zero-States:** When queries fail or are denied, the UI must never render misleading affirmative business data (such as "0 Active Students", "100% Attendance", or "Rp 0 Revenue"). Failure states must be explicitly surfaced with clear retry or status indicators.
+
+### 3.2 Finding vs. Decision vs. Remedy Boundary Enforcement
+
+To protect organizational governance and system integrity, auditors executing a placement pass must strictly enforce the boundary between an **Audit Finding**, an **Owner Decision**, and an **Implementation Remedy**:
+
+```text
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ 1. FINDING (Auditor's Evidence-Backed Observation)                                     │
+│    - What is observed in the UI vs. what is explicitly ratified in the Blueprint/ODs.  │
+│    - Documents component location, route, user experience, and backend status.         │
+│    - Strictly read-only; never alters code; never manufactures policy.                 │
+└──────────────────────────────────────────┬─────────────────────────────────────────────┘
+                                           │
+             ┌─────────────────────────────┴─────────────────────────────┐
+             ▼                                                           ▼
+┌─────────────────────────────────────────┐ ┌───────────────────────────────────────────┐
+│ IF RATIFIED RULE CLEARLY VIOLATED:      │ │ IF RATIFIED GOVERNANCE SILENT / UNCLEAR:  │
+│ → Log as Conformance Finding            │ │ → Log as [Owner Decision Required]        │
+│   (MISPLACED / UNCLEAR or Confirmed)    │ │   (Governance Gap)                        │
+└────────────────────┬────────────────────┘ └─────────────────────┬─────────────────────┘
+                     │                                            │
+                     │                                            ▼
+                     │                      ┌───────────────────────────────────────────┐
+                     │                      │ 2. DECISION (Owner Kifry's Exclusive Pre- │
+                     │                      │    rogative)                              │
+                     │                      │    - Auditor documents options and risks. │
+                     │                      │    - Auditor NEVER infers authority.      │
+                     │                      │    - Requires formal Owner Ratification.  │
+                     │                      └─────────────────────┬─────────────────────┘
+                     │                                            │
+                     ▼                                            ▼
+┌───────────────────────────────────────────────────────────────────────────────────────┐
+│ 3. REMEDY (Separate Authorized Implementation Task)                                   │
+│    - Zero remediation during the audit pass (strict read-only boundary).              │
+│    - Requires Owner task authorization + approved strategy plan.                      │
+│    - Remedies determined through separate implementation planning; rules not widened.  │
+│    - Requires independent post-fix verification (prohibiting self-closure).           │
+└───────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Detailed Boundary Rules:
+
+1. **The Finding Boundary (Evidence, Not Policy):**
+   - An *Audit Finding* is an evidentiary observation of divergence between actual UI behavior and ratified governance.
+   - If an approved source explicitly excludes a capability (e.g. System Admin viewing revenue under OD-2; Marketing accessing Kindergarten under Blueprint §5.0.1; Facilities reading student PII under Blueprint §6.10), the finding is classified as a Conformance Finding (`MISPLACED / UNCLEAR` or `Governance Conflict`), citing the ratified exclusion, regardless of whether backend rules return `permission-denied`.
+   - The finding records: *file path, line numbers, rendered UI elements, navigation entry paths, backend rule behavior, and governing citations*.
+   - A finding never decides what the policy *should* be, and never alters application code.
+
+2. **The Decision Boundary (Governance Determination, Not Auditor Choice):**
+   - When the Authoritative Blueprint and accepted Owner Decisions do not explicitly define who owns a capability or whether a screen belongs in a role's cockpit, the situation is a **Governance Gap**, not an implementation bug.
+   - The auditor's authority halts at recording `[Owner Decision Required]`.
+   - The auditor must **never** resolve the gap by inferring authority from existing code, user convenience, operational similarity, or perceived role seniority.
+   - All governance determinations belong exclusively to Owner Kifry. An unratified recommendation is never a binding decision.
+
+3. **The Remedy Boundary (Authorized Implementation, Not Casual Edit):**
+   - **Auditors do not modify code during an audit pass.** The Frontend Workspace Placement Pass operates strictly under `AGENTS.md` Read-Only Audit Boundaries.
+   - An auditor who discovers a misplaced button, dead link, or missing view must **not** edit UI files or adjust props as an opportunistic continuation of the audit pass.
+   - Every remedy requires a separate, owner-authorized implementation task with an approved remediation plan.
+   - **Remedies are determined during separate remediation planning:**
+     - An audit observation documents the visibility, usability, and authority issue; it does not unilaterally prescribe product changes. When an authorized remediation task is scheduled, remedies must respect governance (e.g. scoping or omitting unauthorized UI components rather than relaxing security rules to accommodate stray controls).
+     - A *Governance Gap* cannot be remedied with code until Owner Kifry has formally ratified an Owner Decision defining the intended model.
+     - All Tier 1 and sensitive remedies require independent post-fix verification by an agent who did not implement the fix.
+
+---
+
+### 3.3 Placement Categories
+
+For every evaluated screen, tab, card, action, link, or shared component, the auditor must classify the feature's intended placement under one of five canonical categories:
+
+| Category | Definition | Example in MYLIBERTY |
+|---|---|---|
+| **`PRIMARY`** | Core daily capability directly tied to the role's primary ratified operational responsibilities. | Cashier payment entry for `frontoffice`; class attendance marking for `instructor`. |
+| **`SHARED`** | Legitimate cross-functional tool used cooperatively with other roles without expanding authority. | Reception kiosk station shared between Front Office and daily desk staff; shared visitor inquiry queue. |
+| **`CONDITIONAL`** | Feature mounted only when specific prerequisites, role modifiers, or branch typologies are active. | Lean Satellite Course Manager cohort scheduling under ADR 2026-10-13 Option B (mounted only when `hasBranchOpsLead` is false). |
+| **`INFORMATIONAL`** | Read-only operational context, exception summary, or status indicator needed for coordination; mutation actions omitted. | Ops Lead viewing daily instructor teaching assignments; Executive read-only high-level branch KPI summary. |
+| **`INTENTIONALLY ABSENT`** | Explicitly forbidden, shielded, or out-of-scope under approved governance; observed presence in UI constitutes a conformance finding. | Financial / revenue reports tab for `admin`; Kindergarten PAUD views for `marketing`; Student / parent PII for `officeboy`. |
+
+---
+
+### 3.4 Targeted Inspection Checks
+
+The auditor must execute eight specific structural checks during the placement pass:
+
+1. **Route & Direct URL Entry:** Inspect `src/App.jsx` and URL hash/path routing. Does directly navigating to `/portal`, `/kiosk`, or `/reports` expose views or broken states to unauthorized roles?
+2. **Top-Level Navigation & Shell Menus:** Inspect navigation bars, sidebars, and `MobileDashboardShell.jsx`. Are navigation options exposed for capabilities the role cannot execute?
+3. **Tabs & Sub-Tabs:** Inspect multi-tab dashboards (e.g. `ReportsDashboard.jsx`, `ManagerDashboard.jsx`). Do tab bars display options that violate division or role boundaries?
+4. **Nested & Shared Components:** Inspect shared presentation components (e.g. `AvailableBatches.jsx`, `StudentRoster.jsx`, `StudentRosterTable.jsx`, `ApprovalInbox.jsx`). Do props such as `canAdminister`, `isAdminView`, `readOnly`, or `isSupervisor` leak unauthorized controls when embedded in a sub-view?
+5. **Permanently Disabled Controls & Dead Buttons:** Identify buttons rendered in a permanently disabled state or controls that trigger an alert ("Access Denied") upon click. Record the visibility and usability issue as an audit observation. If a ratified exclusion exists (e.g., in the Authoritative Blueprint or an accepted Owner Decision), cite it and record a conformance finding; otherwise mark the placement as unclear (`[Owner Decision Required]`), leaving the operational remedy (such as omitting the control, hiding the action, or clarifying permissions) for a separate implementation decision.
+6. **Misleading Error & Zero States:** Check catch blocks and query fallbacks. When access is denied or data is absent, does the UI show "0 students" or "Rp 0", misleading the user into thinking no students or revenue exist?
+7. **Direct-Action Floating Controls & Modals:** Check global action triggers (e.g. Floating Action Buttons, quick switcher triggers, keyboard shortcuts). Can an unprivileged role trigger privileged creation or editing modals?
+8. **Intended Neighboring-Role Visibility:** Confirm that when read-only operational context is displayed for coordination, it does not inadvertently include mutation buttons, status toggles, or direct edit drawers.
+
+---
+
+### 3.5 Frontend Placement Ledger Schema
+
+When executing a Frontend Workspace Placement Pass, findings and observations must be recorded in the following standardized tabular schema:
+
+```markdown
+| Check ID | Role + Scope | Screen / Component Path | Feature Description | Placement Category | Ratified Source / Authority | Observed Navigation & Entry Path | Backend Enforcement Status | Placement Outcome | Finding / Ledger Ref |
+```
+
+#### Allowed Column Values & Standards:
+- **`Check ID`**: Unique identifier (e.g. `FP-ADM-01`, `FP-FO-03`, `FP-MKT-02`).
+- **`Role + Scope`**: Canonical role ID, branch scope, and division (e.g. `admin`, `manager (kota_gorontalo, courses)`, `officeboy`).
+- **`Screen / Component Path`**: Exact file path and line reference where the feature is mounted (e.g. `src/features/reports/ReportsDashboard.jsx:266`).
+- **`Feature Description`**: Clear description of what the feature displays or enables (e.g. "Financial & Tuition revenue tab").
+- **`Placement Category`**: `PRIMARY`, `SHARED`, `CONDITIONAL`, `INFORMATIONAL`, or `INTENTIONALLY ABSENT`.
+- **`Ratified Source / Authority`**: Canonical governance citation justifying why this feature belongs or is excluded (e.g. `Blueprint §7, OD-2`, `ADR 2026-10-13 Option B`).
+- **`Observed Navigation & Entry Path`**: How the user reaches the feature (e.g. `Dashboard Tab -> Sub-tab "finance"`, `Direct route /portal`, `Embedded table action column`).
+- **`Backend Enforcement Status`**: Recorded **separately** from frontend outcome:
+  - `BLOCKED (403 / permission-denied)`: Backend rules/repositories reject unauthorized requests.
+  - `ALLOWED (End-to-End Exposed)`: Backend rules permit the unauthorized request (Critical Governance & Security breach).
+  - `NOT ENFORCED`: No backend rule exists (purely client-side gating).
+  - `STATIC PRESENTATION`: Feature is purely display text with no underlying data fetch or mutation.
+- **`Placement Outcome`**:
+  - `CONFORMS`: Feature cleanly belongs in this workspace under an approved source.
+  - `MISPLACED / UNCLEAR`: Feature is visible or reachable but does not clearly belong to this role, or clutters/confuses the workspace.
+  - `MISSING_EXPECTED`: Feature belongs to this role under approved governance but is missing, unreachable, or inadvertently hidden.
+  - `[Owner Decision Required]`: Placement or ownership is not established by the Blueprint or an accepted decision; requires owner clarification.
+  - `NOT TESTED`: Screen/component not yet exercised in this pass.
+  - `NOT APPLICABLE`: Feature not relevant to this workspace.
+- **`Finding / Ledger Ref`**: Pointer to canonical entry in `bug-ledger.md` (for defects) or `role-function-conformance-ledger.md`.
+
+---
+
+## 4. Preserved Worked Example: System Admin & Financial Reports
 
 This worked example preserves the original evidence from the approved BLRCA source procedure.
 

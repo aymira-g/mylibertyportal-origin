@@ -74,4 +74,39 @@ describe("ReportsDashboard Scope & Export Gating (DOM11-PRIV-01 & DOM11-GOV-05)"
     const ilHtml = renderToStaticMarkup(React.createElement(ReportsDashboard, { isInstructorLeader: true }));
     expect(ilHtml).toContain("Export CSV Dataset");
   });
+
+  it("excludes all four operational sub-tabs when isAdminView is true (OD-ADM-01)", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(ReportsDashboard, {
+        isAdminView: true,
+        userBranch: "Kota Gorontalo",
+      })
+    );
+
+    // Gated sub-tab buttons must NOT appear for System Admin
+    expect(html).not.toContain("Today&#x27;s Check-ins");
+    expect(html).not.toContain("Staff Duty Logs");
+    expect(html).not.toContain("Learner Progress");
+    expect(html).not.toContain("Instructor Punctuality");
+    expect(html).not.toContain("Financial &amp; Tuition");
+    expect(html).not.toContain("Admissions &amp; Leads");
+
+    // Informational exclusion notice is displayed
+    expect(html).toContain("Institutional report views are excluded from System Administrator");
+  });
+
+  it("renders operational sub-tabs for non-admin domain leadership", () => {
+    const mgrHtml = renderToStaticMarkup(
+      React.createElement(ReportsDashboard, {
+        isAdminView: false,
+        isManager: true,
+        userBranch: "Kota Gorontalo",
+      })
+    );
+    expect(mgrHtml).toContain("Today&#x27;s Check-ins");
+    expect(mgrHtml).toContain("Staff Duty Logs");
+    expect(mgrHtml).toContain("Learner Progress");
+    expect(mgrHtml).toContain("Financial &amp; Tuition");
+    expect(mgrHtml).toContain("Instructor Punctuality");
+  });
 });

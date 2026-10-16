@@ -45,7 +45,9 @@ export default function ReportsDashboard({
       ? "finance"
       : isFrontOffice || (!isAdminView && !isManager)
       ? "today"
-      : "staff");
+      : !isAdminView
+      ? "staff"
+      : null);
 
   const handleSubTabClick = (tabKey) => {
     setUserSelectedSubTab(tabKey);
@@ -106,31 +108,35 @@ export default function ReportsDashboard({
 
         {/* Navigation Pills */}
         <div className="flex flex-wrap gap-2 pt-1">
-          {/* Sub-Tab: Today's Check-ins */}
-          <button
-            onClick={() => handleSubTabClick("today")}
-            className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
-              subTab === "today"
-                ? "bg-[#1a3a8f] text-white shadow-xs"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            <Clock className="w-3.5 h-3.5" />
-            <span>Today&apos;s Check-ins</span>
-          </button>
+          {/* Sub-Tab: Today's Check-ins (OD-ADM-01: Excluded from System Admin) */}
+          {!isAdminView && (
+            <button
+              onClick={() => handleSubTabClick("today")}
+              className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
+                subTab === "today"
+                  ? "bg-[#1a3a8f] text-white shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Today&apos;s Check-ins</span>
+            </button>
+          )}
 
-          {/* Sub-Tab: Staff Duty Logs */}
-          <button
-            onClick={() => handleSubTabClick("staff")}
-            className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
-              subTab === "staff"
-                ? "bg-[#1a3a8f] text-white shadow-xs"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span>{isSupervisor ? "Staff Duty Logs" : "My Duty Log"}</span>
-          </button>
+          {/* Sub-Tab: Staff Duty Logs (OD-ADM-01: Excluded from System Admin) */}
+          {!isAdminView && (
+            <button
+              onClick={() => handleSubTabClick("staff")}
+              className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
+                subTab === "staff"
+                  ? "bg-[#1a3a8f] text-white shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>{isSupervisor ? "Staff Duty Logs" : "My Duty Log"}</span>
+            </button>
+          )}
 
           {/* Sub-Tab: Financial & Tuition Revenue (Executive, Manager only per OD-2) */}
           {(isExecutiveView || isManager) && (
@@ -147,18 +153,20 @@ export default function ReportsDashboard({
             </button>
           )}
 
-          {/* Sub-Tab: Learner Progress & Attendance */}
-          <button
-            onClick={() => handleSubTabClick("students")}
-            className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
-              subTab === "students"
-                ? "bg-[#1a3a8f] text-white shadow-xs"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            <GraduationCap className="w-3.5 h-3.5" />
-            <span>Learner Progress</span>
-          </button>
+          {/* Sub-Tab: Learner Progress & Attendance (OD-ADM-01: Excluded from System Admin) */}
+          {!isAdminView && (
+            <button
+              onClick={() => handleSubTabClick("students")}
+              className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
+                subTab === "students"
+                  ? "bg-[#1a3a8f] text-white shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>Learner Progress</span>
+            </button>
+          )}
 
           {/* Sub-Tab: Admissions Velocity (Executive, Manager, Front Office) */}
           {(isExecutiveView || isFrontOffice || isManager) && (
@@ -175,8 +183,8 @@ export default function ReportsDashboard({
             </button>
           )}
 
-          {/* Sub-Tab: Instructor Punctuality (Admin, Executive, Manager, Instructor) */}
-          {!isFrontOffice && (
+          {/* Sub-Tab: Instructor Punctuality (OD-ADM-01: Excluded from System Admin) */}
+          {!isAdminView && !isFrontOffice && (
             <button
               onClick={() => handleSubTabClick("instructors")}
               className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 cursor-pointer ${
@@ -243,7 +251,7 @@ export default function ReportsDashboard({
       </div>
 
       {/* ── ACTIVE SUB-TAB VIEW ── */}
-      {subTab === "today" && (
+      {subTab === "today" && !isAdminView && (
         <TodayTab
           ref={activeTabRef}
           branchFilter={branchFilter}
@@ -255,7 +263,7 @@ export default function ReportsDashboard({
         />
       )}
 
-      {subTab === "staff" && (
+      {subTab === "staff" && !isAdminView && (
         <StaffDutyTab
           ref={activeTabRef}
           branchFilter={branchFilter}
@@ -279,7 +287,7 @@ export default function ReportsDashboard({
         />
       )}
 
-      {subTab === "students" && (
+      {subTab === "students" && !isAdminView && (
         <LearnerProgressTab
           ref={activeTabRef}
           branchFilter={branchFilter}
@@ -306,7 +314,7 @@ export default function ReportsDashboard({
         />
       )}
 
-      {subTab === "instructors" && !isFrontOffice && (
+      {subTab === "instructors" && !isAdminView && !isFrontOffice && (
         <InstructorPunctualityTab
           ref={activeTabRef}
           isAdminView={isActualAdmin}
@@ -315,6 +323,12 @@ export default function ReportsDashboard({
           branchFilter={branchFilter}
           division={division}
         />
+      )}
+
+      {isAdminView && (
+        <div className="p-8 text-center text-slate-500 font-medium bg-slate-50 rounded-2xl border border-slate-200">
+          Institutional report views are excluded from System Administrator per governance decision OD-ADM-01. Technical diagnostics are available under the System Diagnostics tab.
+        </div>
       )}
     </div>
   );

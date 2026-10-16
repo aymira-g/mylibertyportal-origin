@@ -86,7 +86,7 @@ This framework is organized into eight numbered procedure files:
 | **[`00-README.md`](./00-README.md)** | Purpose and Operating Model | This entry point: philosophy, architecture integration, campaign status, and navigation. Consult first before any BLRCA work. |
 | **[`01-governance-and-role-contracts.md`](./01-governance-and-role-contracts.md)** | Establishing Approved Role Contracts | How to derive expected contracts from canonical sources; roles vs. technical identities; canonical IDs vs. aliases; tracking open governance decisions. Consult during Phase 1. |
 | **[`02-feature-discovery-and-coverage.md`](./02-feature-discovery-and-coverage.md)** | Feature Discovery & Coverage | How to inventory all dashboards, routes, components, actions, queries, Worker endpoints, scripts, and hidden execution paths. Consult during Phase 2. |
-| **[`03-technical-audit-method.md`](./03-technical-audit-method.md)** | Technical Audit Method | Actionable end-to-end tracing method; six conformance dimensions; session/cache leakage; "denial-looks-like-zero" fail-closed checks; dated worked example. Consult during Phase 3. |
+| **[`03-technical-audit-method.md`](./03-technical-audit-method.md)** | Technical Audit Method | Actionable end-to-end tracing method; six conformance dimensions; session/cache leakage; "denial-looks-like-zero" fail-closed checks; proposed Frontend Workspace Placement Pass (`[NEW — PENDING OWNER REVIEW]`); dated worked example. Consult during Phase 3. |
 | **[`04-risk-tiers-and-test-matrix.md`](./04-risk-tiers-and-test-matrix.md)** | Risk Tiers & Test Matrix | Tier 1 (high-risk), Tier 2 (operational), Tier 3 (informational); mandatory test types (positive, negative, boundary, alternate-path); financial decisions integration. Consult when planning checks. |
 | **[`05-campaign-execution-and-coverage.md`](./05-campaign-execution-and-coverage.md)** | Campaign Execution & Coverage | Phases 0–6 step-by-step; slice-by-slice execution model; role-function ledger structure; slice dependencies; slice completion criteria. Consult when running a campaign slice. |
 | **[`06-findings-and-closure.md`](./06-findings-and-closure.md)** | Findings, Evidence & Closure | Atomic check outcomes (PASS, FAIL, BLOCKED, NOT TESTED, NOT APPLICABLE); categories; severity rationale; register integration; remediation handoff and post-fix verification. Consult when logging results. |
@@ -103,7 +103,7 @@ To ensure thoroughness without overwhelming the zero-budget environment, BLRCA e
 3. **Slice 3 — Student, Child & Parent Personal Data:** Personal data exposure, profile access, and family privacy across all roles and linkage paths. (Status: Audited 2026-10-16; remediated and verified CLOSED on 2026-10-16; findings `DOM04-SEC-03`, `DOM05-SEC-02`..`04`, `DOM05-GOV-02`..`03`, `DOM05-PRIV-01`, `DOM05-UX-02`, `DOM11-SEC-01`, `DOM11-GOV-04` resolved; `DOM05-PRIV-02` accepted risk under OD-STU-3 Option A).
 4. **Slice 4 — Data Exports, Downloads & Print Operations:** CSV exports, clipboard operations, printed receipts, and reports across all roles. (Status: Audited 2026-10-16; remediated and verified CLOSED on 2026-10-16; findings `DOM04-CSV-01`, `DOM11-PRIV-01`, `DOM11-GOV-05`, `DOM05-UX-03`, `DOM05-PRIV-03`, `DOM06-PRIV-01`, `DOM04-PRIV-01`, `DOM11-TECH-02` resolved under ratified OD-EXP-1 Option A).
 5. **Slice 5 — Division Managers & Functional Leadership Across Campuses:** Mid-level leadership across campuses: Course Division Manager, Kindergarten Division Manager, Operational Leader, Central Instructor Leader, and Lean Satellite branch typology. (Status: Audited 2026-10-16; remediated and verified CLOSED on 2026-10-16; findings `DOM09-GOV-03`, `DOM01-GOV-05`, `DOM04-SEC-05`, `DOM01-ALIAS-01`, `DOM09-GOV-04`, `DOM09-GOV-06`, `DOM06-GOV-02`, `DOM05-GOV-04` resolved).
-6. **Slice 6 — Front-Line Operational, Teaching, Field, Executive Non-Financial & External Portal Roles:** Executive Dual-Control Non-Financial Workflows (`director` vs `vice_director`), Front Office (`frontoffice` — Courses, Kindergarten & Main Campus Cross-Division Desk), Teaching Instructors (`instructor`), Marketing (`marketing`), Facilities / Office Boy (`officeboy`), and External Portals (`student` & `parent`).
+6. **Slice 6 — Front-Line Operational, Teaching, Field, Executive Non-Financial & External Portal Roles:** Executive Dual-Control Non-Financial Workflows (`director` vs `vice_director`), Front Office (`frontoffice` — Courses, Kindergarten & Main Campus Cross-Division Desk), Teaching Instructors (`instructor`), Marketing (`marketing`), Facilities / Office Boy (`officeboy`), and External Portals (`student` & `parent`). (Status: Audited 2026-10-16; remediated and verified CLOSED on 2026-10-16; findings `DOM05-PRIV-04`, `DOM14-GOV-01`, and `SL6-STU-01` / `OD-STU-4` resolved following independent Phase 6 verification and live Firestore emulator test execution).
 
 ---
 
@@ -113,8 +113,8 @@ To ensure thoroughness without overwhelming the zero-budget environment, BLRCA e
 
 The consolidated BLRCA campaign artifacts are established and actively maintained:
 
-- **Master Campaign Audit Report:** [`docs/audits/current/role-business-logic-conformance-audit.md`](../current/role-business-logic-conformance-audit.md) (Contains Slice 1 verified summary, Slice 2 Financial Surfaces, Slice 3 Personal Data, Slice 4 Exports & Prints, Slice 5 Division Managers & Leadership reports).
-- **Master Role-Function Ledger:** [`docs/audits/current/role-function-conformance-ledger.md`](../current/role-function-conformance-ledger.md) (Granular testable matrix rows across all roles and evaluated capabilities).
+- **Master Campaign Audit Report:** [`docs/audits/current/role-business-logic-conformance-audit.md`](../current/role-business-logic-conformance-audit.md) (Contains Slice 1 verified summary, Slice 2 Financial Surfaces, Slice 3 Personal Data, Slice 4 Exports & Prints, Slice 5 Division Managers & Leadership, and Slice 6 Front-Line, Field & Portals reports).
+- **Master Role-Function Ledger:** [`docs/audits/current/role-function-conformance-ledger.md`](../current/role-function-conformance-ledger.md) (Granular testable matrix rows across all roles and evaluated capabilities across Slices 1–6).
 
 ### Verified Campaign Evidence
 
@@ -137,10 +137,19 @@ The consolidated BLRCA campaign artifacts are established and actively maintaine
   - Findings: `DOM09-GOV-03`, `DOM01-GOV-05`, `DOM04-SEC-05`, `DOM05-GOV-04`, `DOM01-ALIAS-01`, `DOM09-GOV-04`, `DOM09-GOV-06`, `DOM06-GOV-02` in [`docs/audits/current/bug-ledger.md`](../current/bug-ledger.md) (All CLOSED).
   - Remediation Plan: [`docs/plans/active/2026-10-16-blrca-slice5-division-managers-and-leadership-remediation.md`](../../plans/active/2026-10-16-blrca-slice5-division-managers-and-leadership-remediation.md) (Completed).
   - Master Report & Ledger: [`role-business-logic-conformance-audit.md`](../current/role-business-logic-conformance-audit.md) §8 and [`role-function-conformance-ledger.md`](../current/role-function-conformance-ledger.md) §6.
+- **Slice 6 Evidence (Front-Line, Teaching, Field, Executive Non-Financial & External Portals — CLOSED):**
+  - Findings: `DOM05-PRIV-04` (Tier 1 High — CLOSED), `DOM14-GOV-01` (Tier 2 Medium — CLOSED), `SL6-STU-01` (Tier 3 Info — CLOSED) in [`docs/audits/current/bug-ledger.md`](../current/bug-ledger.md).
+  - Remediation Plan: [`docs/plans/active/2026-10-16-blrca-slice6-frontline-field-and-portals-remediation.md`](../../plans/active/2026-10-16-blrca-slice6-frontline-field-and-portals-remediation.md) (Completed).
+  - Master Report & Ledger: [`role-business-logic-conformance-audit.md`](../current/role-business-logic-conformance-audit.md) §9 and [`role-function-conformance-ledger.md`](../current/role-function-conformance-ledger.md) §7.
+  - Phase 6 Independent Verification: Live Firestore emulator suite (`usersAndProfiles.emulator.test.js`, `classesAndAcademic.emulator.test.js`, `attendanceAndShifts.emulator.test.js`) passing 145/145 tests; full Vitest suite passing 1,467/1,467 tests; clean TypeScript, ESLint, and Vite build.
+  - Verification Attribution: Phase 5 remediations executed by Primary Coding Agent under Owner Authorization; Phase 6 independent emulator verification executed and verified closed by Independent Advisor & Auditor.
 - **Audit Log:** [`docs/audits/audit-log.md`](../audit-log.md).
 - **Regression Log:** [`docs/audits/current/regression-log.md`](../current/regression-log.md).
 
-*Next Step for Campaign:* Proceed to **Slice 6: Front-Line Operational, Teaching, Field, Executive Non-Financial & External Portal Roles**.
+*Campaign Execution Status:* **Provisionally Complete across planned operational Slices 1–6; Frontend Workspace Placement Pass Ratified (Execution Active)** (Slices 1–6 functional, data-scope, and privilege-boundary checks are remediated and independently verified closed with all 32 confirmed defects closed across 39 rows in the bug ledger [see counting reconciliation in [`role-function-conformance-ledger.md`](../current/role-function-conformance-ledger.md) §8.1]; the Frontend Workspace Placement Pass was formally ratified by Owner Kifry on 2026-10-17).
+*Next Campaign Steps:*
+1. **Frontend Workspace Placement Pass Execution:** Execute systematic role workspace coherence inspection across all dashboards per ratified [`03-technical-audit-method.md`](./03-technical-audit-method.md) §3.
+2. **Level 3 System Handoff:** Transition to **Level 3: Full System Architecture & Scalability Audit Procedure** ([`docs/audits/Full System Architecture & Scalability Audit Procedure/00-README.md`](../Full%20System%20Architecture%20&%20Scalability%20Audit%20Procedure/00-README.md)).
 
 
 ---

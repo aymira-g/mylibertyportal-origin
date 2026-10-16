@@ -2,6 +2,7 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import AdminDashboard from "./AdminDashboard";
+import SystemDiagnosticsTab from "./SystemDiagnosticsTab";
 import { ToastProvider, ConfirmProvider } from "../shared";
 
 vi.mock("./useDashboardData", () => ({
@@ -74,8 +75,9 @@ describe("AdminDashboard Component (Technical Administration)", () => {
     expect(html).toContain("Pending Invites");
     expect(html).toContain("Spark (Free)");
     expect(html).toContain("System Health &amp; Free-Tier Governance");
-    expect(html).toContain("Branch Health Mock");
-    expect(html).toContain("Log Retention Mock");
+    expect(html).toContain("Open Diagnostics");
+    expect(html).toContain("Diagnostics");
+    expect(html).not.toContain("<span>Reports</span>");
   });
 
   it("strictly enforces separation of duties and does NOT include business approval queues or tuition widgets", () => {
@@ -101,5 +103,15 @@ describe("AdminDashboard Component (Technical Administration)", () => {
     // System Admin does not have unauthorized AI messaging or in-dashboard kiosk scanner
     expect(html).not.toContain("AI Assistant");
     expect(html).not.toContain("Attendance Kiosk");
+  });
+
+  it("renders System Diagnostics workspace with Branch Health and Log Retention tools", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(SystemDiagnosticsTab, null)
+    );
+    expect(html).toContain("System Diagnostics &amp; Health");
+    expect(html).toContain("Spark Free-Tier");
+    expect(html).toContain("Branch Health Mock");
+    expect(html).toContain("Log Retention Mock");
   });
 });

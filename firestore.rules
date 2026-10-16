@@ -973,10 +973,11 @@ service cloud.firestore {
 
     match /attendance/{attendanceId} {
       // Branch-lock attendance by default. Executives have province-wide access.
+      // OD-ADM-01: Exclude System Admin from student attendance records.
       allow get: if isOrgExecutive()
-        || (isNonFacilityStaff() && isSameBranch(resource.data) && isDivisionAllowedForBranchStaff(resource.data));
+        || (isNonFacilityStaff() && !isAdmin() && isSameBranch(resource.data) && isDivisionAllowedForBranchStaff(resource.data));
       allow list: if isOrgExecutive()
-        || (isNonFacilityStaff() && isSameBranchStrict(resource.data) && isDivisionAllowedForBranchStaff(resource.data));
+        || (isNonFacilityStaff() && !isAdmin() && isSameBranchStrict(resource.data) && isDivisionAllowedForBranchStaff(resource.data));
       // Student scans: Executives, Front Office, Instructor, and Instructor Leader; scanned person must be a student
       allow create: if (isOrgExecutive() || isFrontOffice() || hasRole('instructor') || hasRole('instructorleader') || hasRole('instructor_leader'))
         && isSameBranch(request.resource.data)

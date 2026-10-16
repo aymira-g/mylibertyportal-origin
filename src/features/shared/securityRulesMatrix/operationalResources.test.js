@@ -11,6 +11,7 @@ import {
   canGetClass,
   canGetShift,
   canGetAttendance,
+  canListAttendance,
   canCreateCorporateEvent,
   canUpdateCorporateEvent,
 } from "./securityRulesMatrix.helpers.js";
@@ -606,6 +607,12 @@ describe("Operational Resources Security Rules Matrix", () => {
       expect(canGetClass(classPohuwato, managerGorontalo)).toBe(false);
       expect(canGetShift(shiftPohuwato, managerGorontalo)).toBe(false);
       expect(canGetAttendance(attendancePohuwato, managerGorontalo)).toBe(false);
+    });
+
+    it("denies System Admin from reading or listing attendance records (OD-ADM-01)", () => {
+      const attendanceKota = { id: "att_gto", branchId: "kota_gorontalo", division: "courses", userId: "std_1" };
+      expect(canGetAttendance(attendanceKota, adminUser)).toBe(false);
+      expect(canListAttendance({ branchId: "kota_gorontalo", division: "courses" }, adminUser)).toBe(false);
     });
   });
 

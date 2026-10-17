@@ -5,6 +5,7 @@ import { formatIDR } from "../../finance/receiptMessages";
 import { matchesBranchFilter, normalizeBranch, branchToId } from "../../../constants/branches";
 import { todayWita } from "../../../utils/dateWita";
 import { useToast } from "../../shared";
+import { normalizeRole } from "../../shared/roles";
 import ShiftReconciliationModal from "./ShiftReconciliationModal";
 import {
   Wallet,
@@ -30,7 +31,9 @@ export default function FrontDeskCashReconcile({
   branchLabel = null,
   students = [],
   activeShift = null,
-  currentUser = {},
+  currentUser = /** @type {any} */ ({}),
+  userRole = "frontoffice",
+  canReconcileCashierShift = null,
   division = null,
   onShiftClosed = null,
 }) {
@@ -40,6 +43,18 @@ export default function FrontDeskCashReconcile({
   const [copied, setCopied] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState("");
   const [showReconcileModal, setShowReconcileModal] = useState(false);
+
+  const effectiveRole = normalizeRole(userRole || currentUser?.role || "");
+  const isOpsLeadRole = [
+    "opslead",
+    "ops_lead",
+    "operational_leader",
+    "operationalleader",
+    "frontofficelead",
+  ].includes(effectiveRole);
+  const canCountDrawer =
+    Boolean(activeShift) &&
+    (canReconcileCashierShift !== null ? canReconcileCashierShift : !isOpsLeadRole);
 
   const todayStr = todayWita();
 
@@ -179,7 +194,7 @@ export default function FrontDeskCashReconcile({
         </div>
 
         <div className="flex items-center gap-2">
-          {activeShift && (
+          {canCountDrawer && (
             <button
               onClick={() => setShowReconcileModal(true)}
               className="px-3.5 py-2 rounded-xl bg-amber-600 text-white hover:bg-amber-700 text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
@@ -187,6 +202,13 @@ export default function FrontDeskCashReconcile({
               <LogOut className="w-3.5 h-3.5" />
               <span>End Shift &amp; Count Drawer</span>
             </button>
+          )}
+
+          {activeShift && !canCountDrawer && (
+            <div className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-medium flex items-center gap-1.5 border border-slate-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+              <span>Duty Shift Active (Kiosk Attendance Only)</span>
+            </div>
           )}
 
           <button
@@ -264,7 +286,7 @@ export default function FrontDeskCashReconcile({
           activeShift={activeShift}
           expectedCash={summary.cashTotal}
           expectedQris={summary.qrisTotal}
-          currentUser={currentUser}
+          currentUser={{ ...currentUser, role: currentUser?.role || effectiveRole }}
           onSuccess={() => {
             onShiftClosed?.();
             loadDailyPayments();

@@ -1376,11 +1376,15 @@ service cloud.firestore {
         (!('branchId' in res) && !('branch' in res) && ub == 'kota_gorontalo')
       );
       let isFO = r in ['frontoffice', 'opslead', 'ops_lead', 'operational_leader', 'operationalleader', 'frontofficelead'];
+      let isPureFO = r == 'frontoffice';
       let isMgr = r == 'manager';
       let diffKeys = req.diff(res).affectedKeys();
 
       return (
-        // Shift clock-out and updates: Front Office (kiosk clock-out)
+        // Shift clock-out and updates: Front Office and Ops Lead (attendance kiosk clock-out)
+        // Cash drawer reconciliation is strictly restricted to Front Office cashiers (r == 'frontoffice').
+        // Ops Leads may clock out their own shifts for attendance, but are strictly forbidden
+        // from submitting cashReconciliation fields (ratified OD-O3 / G-009).
         (isFO
           && sameBranch
           && res.clockOut == null
@@ -1389,6 +1393,7 @@ service cloud.firestore {
           && (!('branch' in res) || req.branch == res.branch)
           && (!('branchId' in res) || req.branchId == res.branchId)
           && req.clockIn == res.clockIn
+          && (!('cashReconciliation' in diffKeys) || isPureFO)
           && diffKeys.hasOnly(['clockOut', 'updatedAt', 'cashReconciliation', 'notes', 'status', 'verifiedBy', 'verifiedAt', 'autoClosed']))
         // Approved shift self-corrections:
         // Front Office and Manager can apply for sameBranch.
@@ -1424,6 +1429,7 @@ service cloud.firestore {
         && request.resource.data.clockIn is string
         && request.resource.data.clockIn.size() > 0
         && request.resource.data.clockOut == null
+        && !('cashReconciliation' in request.resource.data)
         && isTrackedShiftRole(roleOf(request.resource.data.userId))
         && isSameBranch(get(/databases/$(database)/documents/users/$(request.resource.data.userId)).data);
       // Shift clock-out and updates: Front Office (kiosk clock-out)

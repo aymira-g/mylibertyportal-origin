@@ -269,6 +269,7 @@ export default function OpsLeadDashboard({ branch = null, role = "opslead" }) {
         <FrontOfficeReportsTab
           myBranch={myBranch}
           students={students}
+          userRole={effectiveRole}
         />
       ),
     },

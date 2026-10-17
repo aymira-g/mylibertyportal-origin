@@ -31,6 +31,7 @@ export default function FrontOfficeReportsTab({
   students = [],
   activeShift: propActiveShift = null,
   onShiftClosed = null,
+  userRole = "frontoffice",
 }) {
   const [activeSubTab, setActiveSubTab] = useState("cash"); // 'cash' | 'inquiries' | 'shifts'
   const [todayInquiries, setTodayInquiries] = useState([]);
@@ -193,6 +194,7 @@ export default function FrontOfficeReportsTab({
             students={students}
             activeShift={activeShift}
             currentUser={currentUser || {}}
+            userRole={userRole}
             division={division}
             onShiftClosed={handleShiftClosed}
           />

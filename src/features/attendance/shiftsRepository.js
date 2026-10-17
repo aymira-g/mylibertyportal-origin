@@ -442,6 +442,18 @@ export async function clockOutShiftWithCashReconciliation(
     customThreshold = null,
   } = {}
 ) {
+  const reqObj = /** @type {any} */ (requester) || {};
+  const requesterRole = (reqObj.role || "").toLowerCase().trim();
+  if (
+    ["opslead", "ops_lead", "operational_leader", "operationalleader", "frontofficelead"].includes(
+      requesterRole
+    )
+  ) {
+    throw new Error(
+      "Operational Leaders are not permitted to close shifts with cashier cash reconciliation (OD-O3)."
+    );
+  }
+
   const cCash = Number(countedCash) || 0;
   const cQris = Number(countedQris) || 0;
   const eCash = Number(expectedCash) || 0;

@@ -10,6 +10,7 @@ import {
   canListPayments,
   canGetClass,
   canGetShift,
+  canUpdateShift,
   canGetAttendance,
   canListAttendance,
   canCreateCorporateEvent,
@@ -27,6 +28,7 @@ import {
   managerBoneBolango,
   foGorontalo,
   foBoneBolango,
+  opsLeadGorontalo,
   instructorGorontalo,
 } from "./securityRulesMatrix.fixtures.js";
 
@@ -858,5 +860,76 @@ describe("Operational Resources Security Rules Matrix", () => {
       expect(canUpdateProgressReport(reportKotaUnstamped, updatedReport, directorUser)).toBe(true);
       expect(canDeleteProgressReport(reportKotaUnstamped, directorUser)).toBe(true);
     });
+  });
+
+  describe("canUpdateShift (FP-OPS-11A / Ratified OD-O3 / G-009)", () => {
+    const baseShift = {
+      id: "sh_1",
+      userId: "fo_gtlo",
+      role: "frontoffice",
+      branchId: "kota_gorontalo",
+      clockIn: "2026-10-17T01:00:00.000Z",
+      clockOut: null,
+    };
+
+    it("allows Front Office to close shift with cashReconciliation (cashier workflow preserved)", () => {
+      const incoming = {
+        ...baseShift,
+        clockOut: "2026-10-17T09:00:00.000Z",
+        updatedAt: "2026-10-17T09:00:00.000Z",
+        cashReconciliation: { countedCash: 500000, expectedCash: 500000 },
+      };
+      expect(canUpdateShift(baseShift, incoming, foGorontalo)).toBe(true);
+    });
+
+    it("allows Front Office to close shift without cashReconciliation (regular kiosk clock-out)", () => {
+      const incoming = {
+        ...baseShift,
+        clockOut: "2026-10-17T09:00:00.000Z",
+        updatedAt: "2026-10-17T09:00:00.000Z",
+      };
+      expect(canUpdateShift(baseShift, incoming, foGorontalo)).toBe(true);
+    });
+
+    const OPS_ALIASES = [
+      "opslead",
+      "ops_lead",
+      "operational_leader",
+      "operationalleader",
+      "frontofficelead",
+    ];
+
+    for (const alias of OPS_ALIASES) {
+      it(`strictly DENIES Ops Lead alias "${alias}" from closing shift with cashReconciliation (OD-O3)`, () => {
+        const opsUser = { ...opsLeadGorontalo, role: alias };
+        const opsShift = {
+          ...baseShift,
+          userId: opsUser.uid,
+          role: alias,
+        };
+        const incoming = {
+          ...opsShift,
+          clockOut: "2026-10-17T09:00:00.000Z",
+          updatedAt: "2026-10-17T09:00:00.000Z",
+          cashReconciliation: { countedCash: 500000, expectedCash: 500000 },
+        };
+        expect(canUpdateShift(opsShift, incoming, opsUser)).toBe(false);
+      });
+
+      it(`allows Ops Lead alias "${alias}" to close shift without cashReconciliation (legitimate attendance clock-out preserved)`, () => {
+        const opsUser = { ...opsLeadGorontalo, role: alias };
+        const opsShift = {
+          ...baseShift,
+          userId: opsUser.uid,
+          role: alias,
+        };
+        const incoming = {
+          ...opsShift,
+          clockOut: "2026-10-17T09:00:00.000Z",
+          updatedAt: "2026-10-17T09:00:00.000Z",
+        };
+        expect(canUpdateShift(opsShift, incoming, opsUser)).toBe(true);
+      });
+    }
   });
 });

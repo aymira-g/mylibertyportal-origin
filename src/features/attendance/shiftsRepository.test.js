@@ -447,6 +447,21 @@ describe("Cash Reconciliation on Shift Clock-Out", () => {
     // Shift must remain open so the discrepancy is never lost silently
     expect(fake.opsOf("update")).toHaveLength(0);
   });
+
+  it("strictly throws and refuses to close shift when an Ops Lead attempts cashier cash reconciliation (OD-O3)", async () => {
+    fake.seed("shifts", [{ id: "shift-ops", userId: "ops-1", clockOut: null }]);
+
+    await expect(
+      clockOutShiftWithCashReconciliation("shift-ops", {
+        clockOutAt: at,
+        countedCash: 1000000,
+        expectedCash: 1000000,
+        requester: { name: "Leader", uid: "ops-1", role: "opslead" },
+      })
+    ).rejects.toThrow("Operational Leaders are not permitted to close shifts with cashier cash reconciliation (OD-O3).");
+
+    expect(fake.opsOf("update")).toHaveLength(0);
+  });
 });
 
 describe("applyApprovedShiftCorrection", () => {

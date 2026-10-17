@@ -98,6 +98,118 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Attendance and Shifts", () =
     });
   });
 
+  describe("cashier cashReconciliation shift updates (FP-OPS-11A / Ratified OD-O3 / G-009)", () => {
+    const ALL_OPS_LEAD_ALIASES = [
+      { alias: "opslead", uid: "opsGto", shiftId: "shiftOps_opslead" },
+      { alias: "ops_lead", uid: "opsLeadAliasGto", shiftId: "shiftOps_ops_lead" },
+      { alias: "operational_leader", uid: "operationalLeaderAliasGto", shiftId: "shiftOps_operational_leader" },
+      { alias: "operationalleader", uid: "operationalleaderAliasGto", shiftId: "shiftOps_operationalleader" },
+      { alias: "frontofficelead", uid: "frontOfficeLeadAliasGto", shiftId: "shiftOps_frontofficelead" },
+    ];
+
+    beforeEach(async () => {
+      // Seed open shift for foGto
+      await seedDoc(["shifts", "shiftFo"], {
+        userId: "foGto",
+        role: "frontoffice",
+        branchId: "kota_gorontalo",
+        clockIn: "2026-09-21T01:00:00.000Z",
+        clockOut: null,
+      });
+
+      // Seed open shifts for each recognized Ops Lead alias
+      for (const { alias, uid, shiftId } of ALL_OPS_LEAD_ALIASES) {
+        await seedDoc(["shifts", shiftId], {
+          userId: uid,
+          role: alias,
+          branchId: "kota_gorontalo",
+          clockIn: "2026-09-21T01:00:00.000Z",
+          clockOut: null,
+        });
+      }
+    });
+
+    it("allows Front Office to close shift with cashReconciliation (cashier workflow preserved)", async () => {
+      await assertSucceeds(
+        updateDoc(doc(authed("foGto"), "shifts", "shiftFo"), {
+          userId: "foGto",
+          role: "frontoffice",
+          branchId: "kota_gorontalo",
+          clockIn: "2026-09-21T01:00:00.000Z",
+          clockOut: "2026-09-21T09:00:00.000Z",
+          updatedAt: "2026-09-21T09:00:00.000Z",
+          cashReconciliation: {
+            expectedCash: 500000,
+            countedCash: 500000,
+            discrepancy: 0,
+          },
+        })
+      );
+    });
+
+    it("allows Front Office to close shift without cashReconciliation (regular kiosk clock-out)", async () => {
+      await assertSucceeds(
+        updateDoc(doc(authed("foGto"), "shifts", "shiftFo"), {
+          userId: "foGto",
+          role: "frontoffice",
+          branchId: "kota_gorontalo",
+          clockIn: "2026-09-21T01:00:00.000Z",
+          clockOut: "2026-09-21T09:00:00.000Z",
+          updatedAt: "2026-09-21T09:00:00.000Z",
+        })
+      );
+    });
+
+    for (const { alias, uid, shiftId } of ALL_OPS_LEAD_ALIASES) {
+      it(`strictly DENIES Ops Lead alias "${alias}" from closing shift with cashReconciliation (OD-O3)`, async () => {
+        await assertFails(
+          updateDoc(doc(authed(uid), "shifts", shiftId), {
+            userId: uid,
+            role: alias,
+            branchId: "kota_gorontalo",
+            clockIn: "2026-09-21T01:00:00.000Z",
+            clockOut: "2026-09-21T09:00:00.000Z",
+            updatedAt: "2026-09-21T09:00:00.000Z",
+            cashReconciliation: {
+              expectedCash: 500000,
+              countedCash: 500000,
+              discrepancy: 0,
+            },
+          })
+        );
+      });
+
+      it(`allows Ops Lead alias "${alias}" to close shift without cashReconciliation (legitimate attendance clock-out preserved)`, async () => {
+        await assertSucceeds(
+          updateDoc(doc(authed(uid), "shifts", shiftId), {
+            userId: uid,
+            role: alias,
+            branchId: "kota_gorontalo",
+            clockIn: "2026-09-21T01:00:00.000Z",
+            clockOut: "2026-09-21T09:00:00.000Z",
+            updatedAt: "2026-09-21T09:00:00.000Z",
+          })
+        );
+      });
+    }
+
+    it("strictly DENIES creating a new shift that includes cashReconciliation", async () => {
+      await assertFails(
+        addDoc(collection(authed("foGto"), "shifts"), {
+          userId: "insGto",
+          role: "instructor",
+          branchId: "kota_gorontalo",
+          clockIn: "2026-09-21T01:00:00.000Z",
+          clockOut: null,
+          cashReconciliation: {
+            expectedCash: 500000,
+            countedCash: 500000,
+          },
+        })
+      );
+    });
+  });
+
   describe("approved shift self-correction gate (C4)", () => {
     beforeEach(async () => {
       await seedDoc(["shifts", "shift1"], SHIFT_KOTA);

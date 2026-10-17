@@ -5,6 +5,7 @@ import {
   clockOutShiftWithCashReconciliation,
 } from "../../attendance/shiftsRepository";
 import { useToast, useConfirm, useOverlayHistory } from "../../shared";
+import { normalizeRole } from "../../shared/roles";
 import { checkNetworkReachability } from "../../../utils/networkReachability";
 import {
   Wallet,
@@ -77,6 +78,16 @@ export default function ShiftReconciliationModal({
     e.preventDefault();
     if (!activeShift?.id) {
       toast("No active shift found to reconcile.", "error");
+      return;
+    }
+
+    const effectiveRole = normalizeRole(currentUser?.role || "");
+    if (
+      ["opslead", "ops_lead", "operational_leader", "operationalleader", "frontofficelead"].includes(
+        effectiveRole
+      )
+    ) {
+      toast("Operational Leaders are not permitted to submit cashier drawer counts (OD-O3).", "error");
       return;
     }
 

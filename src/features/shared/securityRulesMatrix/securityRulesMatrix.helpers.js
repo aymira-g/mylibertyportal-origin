@@ -844,6 +844,74 @@ export function canListShifts(queryData, user) {
   return false;
 }
 
+export function canUpdateShift(existingDoc, incomingDoc, user) {
+  if (!user || !isActiveUser(user)) return false;
+  const r = user.role || "";
+  const ub = userBranch(user);
+  const isSameBranchDoc =
+    Boolean(ub) &&
+    ((existingDoc.branchId && existingDoc.branchId === ub) ||
+      (!existingDoc.branchId && existingDoc.branch && userBranch({ branch: existingDoc.branch }) === ub) ||
+      (!existingDoc.branchId && !existingDoc.branch && ub === "kota_gorontalo"));
+
+  const isFO = ["frontoffice", "opslead", "ops_lead", "operational_leader", "operationalleader", "frontofficelead"].includes(r);
+  const isPureFO = r === "frontoffice";
+  const isMgr = r === "manager";
+
+  const allKeys = new Set([...Object.keys(existingDoc), ...Object.keys(incomingDoc)]);
+  const diffKeys = [];
+  for (const k of allKeys) {
+    if (JSON.stringify(existingDoc[k]) !== JSON.stringify(incomingDoc[k])) {
+      diffKeys.push(k);
+    }
+  }
+
+  // Clause 1: Shift clock-out and updates: Front Office and Ops Lead (attendance kiosk clock-out)
+  // Cash drawer reconciliation is strictly restricted to Front Office cashiers (r == 'frontoffice').
+  // Ops Leads may clock out their own shifts for attendance, but are strictly forbidden
+  // from submitting cashReconciliation fields (ratified OD-O3 / G-009).
+  if (
+    isFO &&
+    isSameBranchDoc &&
+    existingDoc.clockOut == null &&
+    typeof incomingDoc.clockOut === "string" &&
+    incomingDoc.userId === existingDoc.userId &&
+    (!("branch" in existingDoc) || incomingDoc.branch === existingDoc.branch) &&
+    (!("branchId" in existingDoc) || incomingDoc.branchId === existingDoc.branchId) &&
+    incomingDoc.clockIn === existingDoc.clockIn &&
+    (!diffKeys.includes("cashReconciliation") || isPureFO)
+  ) {
+    const allowedKeys = ["clockOut", "updatedAt", "cashReconciliation", "notes", "status", "verifiedBy", "verifiedAt", "autoClosed"];
+    if (diffKeys.every((k) => allowedKeys.includes(k))) {
+      return true;
+    }
+  }
+
+  // Clause 2: Approved shift self-corrections
+  if (
+    (((isFO || isMgr) && isSameBranchDoc) || isOrgExecutive(user)) &&
+    incomingDoc.userId === existingDoc.userId &&
+    typeof incomingDoc.appliedFromApproval === "string"
+  ) {
+    const allowedKeys = ["clockIn", "clockOut", "corrected", "reviewStatus", "appliedFromApproval"];
+    if (diffKeys.every((k) => allowedKeys.includes(k))) {
+      return true;
+    }
+  }
+
+  // Clause 3: Mark reviewed
+  if (
+    (isFO || isMgr) &&
+    isSameBranchDoc &&
+    diffKeys.length === 1 &&
+    diffKeys[0] === "reviewStatus"
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export function canGetClassAttendance(doc, user, classDoc = null) {
   if (!user) return false;
   if (isExecutive(user)) return true;

@@ -6,6 +6,8 @@ import {
   canListApplications,
   canGetProgressReport,
   canListProgressReports,
+  canUpdateProgressReport,
+  canDeleteProgressReport,
   canGetUser,
   canListUsers,
   canCreateUser,
@@ -497,7 +499,8 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
       });
     });
 
-    describe("Ops Lead staff across division values ([Owner Decision Required])", () => {
+    describe("Main Campus Ops Lead staff across division values (OD-OPS-01 / Blueprint v3.4.1 / G-013)", () => {
+      const progCoursesBoba = { id: "p_c_boba", branchId: "bone_bolango", division: "courses", studentId: "std_boba" };
       const opsLeadAliases = [
         "opslead",
         "ops_lead",
@@ -509,7 +512,7 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
       opsLeadAliases.forEach((aliasRole) => {
         describe(`Ops Lead alias '${aliasRole}'`, () => {
           divisionTestCases.forEach((tc) => {
-            it(`Ops Lead '${aliasRole}' with division=${tc.divisionLabel} -> strictly DENIED on list & direct-get while decision is open ([Owner Decision Required])`, () => {
+            it(`Ops Lead '${aliasRole}' at Main Campus (division=${tc.divisionLabel}) -> grants read-only access to stamped Courses & Kindergarten, strictly denying unstamped legacy, satellite, and mutations (OD-OPS-01)`, () => {
               const user = {
                 uid: `ops_${aliasRole}_${tc.divisionLabel.replace(/\s+/g, "_")}`,
                 role: aliasRole,
@@ -517,18 +520,71 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
                 ...(tc.division !== undefined ? { division: tc.division } : {}),
               };
 
-              // All list queries are strictly denied for Ops Lead across all division values
-              expect(canListProgressReports({ branchId: "kota_gorontalo", division: "courses" }, user)).toBe(false);
-              expect(canListProgressReports({ branchId: "kota_gorontalo", division: "kindergarten" }, user)).toBe(false);
-              expect(canListProgressReports({ branchId: "kota_gorontalo" }, user)).toBe(false);
-
-              // All direct gets are strictly denied for Ops Lead across all division values
-              expect(canGetProgressReport(progCoursesGtlo, user)).toBe(false);
-              expect(canGetProgressReport(progKidsGtlo, user)).toBe(false);
+              // 1. Direct Document Get:
+              // - Stamped Courses report at Main Campus: ALLOW (OD-OPS-01)
+              expect(canGetProgressReport(progCoursesGtlo, user)).toBe(true);
+              // - Stamped Kindergarten report at Main Campus: ALLOW (OD-OPS-01)
+              expect(canGetProgressReport(progKidsGtlo, user)).toBe(true);
+              // - Unstamped legacy report lacking division: DENY (unstamped reports excluded through Ops Lead path)
               expect(canGetProgressReport(progLegacyGtlo, user)).toBe(false);
+              // - Satellite branch report: DENY (Main Campus only)
+              expect(canGetProgressReport(progCoursesBoba, user)).toBe(false);
+
+              // 2. List Queries:
+              // - Scoped Courses query for Main Campus: ALLOW
+              expect(canListProgressReports({ branchId: "kota_gorontalo", division: "courses" }, user)).toBe(true);
+              // - Scoped Kindergarten query for Main Campus: ALLOW
+              expect(canListProgressReports({ branchId: "kota_gorontalo", division: "kindergarten" }, user)).toBe(true);
+              // - Unconstrained query lacking division: DENY
+              expect(canListProgressReports({ branchId: "kota_gorontalo" }, user)).toBe(false);
+              // - Satellite branch query: DENY
+              expect(canListProgressReports({ branchId: "bone_bolango", division: "courses" }, user)).toBe(false);
+
+              // 3. Absolute Prohibition on Mutations (OD-OPS-01):
+              expect(canUpdateProgressReport(progCoursesGtlo, { ...progCoursesGtlo, eligibleForPromotion: false }, user)).toBe(false);
+              expect(canDeleteProgressReport(progCoursesGtlo, user)).toBe(false);
+              expect(canUpdateProgressReport(progKidsGtlo, { ...progKidsGtlo, eligibleForPromotion: false }, user)).toBe(false);
+              expect(canDeleteProgressReport(progKidsGtlo, user)).toBe(false);
             });
           });
         });
+      });
+
+      it("strictly denies satellite branch Operational Leader from all progress reports access through role path (OD-OPS-01)", () => {
+        const satelliteOps = {
+          uid: "ops_boba_lead",
+          role: "ops_lead",
+          branchId: "bone_bolango",
+          division: "courses",
+        };
+
+        expect(canGetProgressReport(progCoursesGtlo, satelliteOps)).toBe(false);
+        expect(canGetProgressReport(progKidsGtlo, satelliteOps)).toBe(false);
+        expect(canGetProgressReport(progLegacyGtlo, satelliteOps)).toBe(false);
+        expect(canGetProgressReport(progCoursesBoba, satelliteOps)).toBe(false);
+
+        expect(canListProgressReports({ branchId: "kota_gorontalo", division: "courses" }, satelliteOps)).toBe(false);
+        expect(canListProgressReports({ branchId: "bone_bolango", division: "courses" }, satelliteOps)).toBe(false);
+      });
+
+      it("preserves independent instructor access when an Ops Lead authored the report", () => {
+        const opsInstructor = {
+          uid: "ops_and_instructor",
+          role: "ops_lead",
+          branchId: "bone_bolango", // Even at satellite branch
+          division: "courses",
+        };
+        const authoredReport = {
+          id: "p_authored",
+          branchId: "bone_bolango",
+          division: "courses",
+          instructorId: "ops_and_instructor",
+          studentId: "std_boba",
+        };
+
+        // Reads authored report through instructorId == user.uid
+        expect(canGetProgressReport(authoredReport, opsInstructor)).toBe(true);
+        expect(canListProgressReports({ instructorId: "ops_and_instructor" }, opsInstructor)).toBe(true);
       });
     });
   });

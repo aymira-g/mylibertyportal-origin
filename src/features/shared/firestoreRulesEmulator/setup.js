@@ -39,6 +39,7 @@ export const USERS = {
   opsKgGto: { role: "opslead", branchId: "kota_gorontalo", division: "kindergarten" },
   opsMissingGto: { role: "opslead", branchId: "kota_gorontalo" },
   opsInvalidGto: { role: "opslead", branchId: "kota_gorontalo", division: "operations" },
+  opsBoba: { role: "opslead", branchId: "bone_bolango", division: "courses" },
   dirGto: { role: "director", branchId: "kota_gorontalo" },
   vdGto: { role: "vice_director", branchId: "kota_gorontalo" },
   bmGto: { role: "branch_manager", branchId: "kota_gorontalo" },

@@ -1,8 +1,8 @@
 # MyLiberty Portal — Authoritative Organizational, Authority & Rebuild Blueprint
 
-**Version:** 3.4  
+**Version:** 3.4.1 (Amended 2026-10-17)
 **Status:** RATIFIED AUTHORITATIVE BASELINE — APPROVED BY OWNER (KIFRY)  
-**Date:** 2026-10-13  
+**Date:** 2026-10-13 (Amended 2026-10-17: Main Campus Operational Leader Academic Progress Report Read-Only Exception)
 **Scope:** Organizational identity, authority, access governance, workflow governance, data-scope principles, implementation derivation, and rebuild/re-foundation rules
 
 > **Canonical Repository Location:** `docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md`
@@ -59,6 +59,16 @@ Version 3.4 (ratified 2026-10-13) formally adopts the **Branch Typology Model** 
 - **Type 2: Lean Satellite Branches (`bone_bolango`, `limboto`, `pohuwato`):** Lean single-division operations (Course Division only; Kindergarten inactive). Staffed strictly by a Course Division Manager, Front Office, and teaching Instructors.
 - **Operational Oversight at Lean Branches:** The Course Division Manager serves as the operational supervisor for local site logistics, class cohort scheduling (ADR 2026-10-13 Option B), and Front Office coordination (acting as Checker for daily shifts and cash discrepancies < Rp 20.000).
 - **Central Academic Lead:** The Instructor Leader based at Kota Gorontalo holds province-wide academic coordination scope (`multi-branch`) across all branches for pedagogy, curriculum standardization, teacher evaluations, and placement test overrides.
+
+### Version 3.4.1 Main Campus Operational Leader academic progress report read-only exception
+
+Ratified by Owner Kifry on 2026-10-17 (recorded canonically in [`docs/decisions/2026-10-17-operational-leader-progress-reports-read-access-main-campus.md`](../decisions/2026-10-17-operational-leader-progress-reports-read-access-main-campus.md)):
+
+- **Approved Exception:** The Operational Leader at the Main Campus (`kota_gorontalo`) is granted read-only visibility (`get` and `list` queries) to student progress reports on `/progressReports` explicitly marked with `division: "courses"` or `division: "kindergarten"`. Both the signed-in user and the progress report document must belong to `kota_gorontalo` (`userBranch() == 'kota_gorontalo'` and `branchId == 'kota_gorontalo'`). Legacy unstamped reports lacking a `division` field are strictly excluded and denied.
+- **Strictly Operational Purpose:** This visibility supports site logistical awareness, campus-wide operational coordination, student throughput tracking, and facility oversight at the dual-division campus.
+- **Zero Academic / Write Authority:** The exception strictly excludes write mutations (`create`, `update`, `delete`), student level promotion, score alteration, remarks modification, syllabus grading, and academic approvals.
+- **Province-Wide Academic Scope Preserved:** The Central Academic Lead (**Instructor Leader**) retains exclusive province-wide pedagogical governance, placement test overrides, and teacher performance oversight across all physical branches.
+- **Data Exposure Architecture Limitation & Owner Acceptance:** Google Cloud Firestore rules architecture returns full document payloads without field-level masking. This read permission therefore exposes complete evaluation records (including scores and teacher comments) to the Operational Leader at the Main Campus. The Owner / Director (Kifry) has explicitly reviewed this architectural behavior and confirmed (approved summary): Owner Kifry confirmed approval for Main Campus Operational Leaders reading the complete `/progressReports` document, including student scores and teacher comments, for operational oversight.
 
 ---
 
@@ -649,6 +659,13 @@ The Operational Leader is an operational organizational role, not System Admin.
 
 The Operational Leader is **not** a replacement Branch Manager. The role has the operational authority expressly assigned to it and does not automatically acquire authority over the Course Division, Kindergarten Division, or Teaching and Learning Structure.
 
+**Main Campus Operational Progress Report Read-Only Access (Ratified 2026-10-17, OD-OPS-01):**
+- **Approved Exception:** At the Main Campus (`kota_gorontalo`), the Operational Leader is granted read-only visibility (`get` and `list` queries) over `/progressReports` explicitly marked with `division: "courses"` or `division: "kindergarten"` to facilitate site logistical coordination, campus-wide student throughput awareness, and facility planning.
+- **Strict Main Campus Physical Scope:** Access strictly requires both the user and the report document to be at the Main Campus: `userBranch() == 'kota_gorontalo'` AND `resource.data.branchId == 'kota_gorontalo'`. A generic `isSameBranch(...)` check alone is insufficient. The Operational Leader has zero access through the Operational Leader role path to progress reports from satellite branches (`bone_bolango`, `limboto`, `pohuwato`), and any operational leader outside the Main Campus holds zero progress report access through that role path (independent access paths for authored reports as instructor or linked children as parent remain preserved).
+- **Explicit Division Boundary (Legacy Unstamped Excluded):** Visibility is strictly limited to reports explicitly stamped with `division in ['courses', 'kindergarten']`. Legacy unstamped reports lacking a `division` field are strictly denied.
+- **Strict Boundary (No Academic or Mutation Authority):** This access is strictly read-only. The Operational Leader possesses zero authority to create, update, or delete progress reports, execute student level promotions, grade assessments, enter academic remarks, or approve academic overrides. Pedagogical oversight remains exclusively with the Teaching and Learning Structure led province-wide by the Instructor Leader (§6.11).
+- **Data Exposure Architecture Limitation & Owner Acceptance:** Under Google Cloud Firestore rules architecture, document reads return the complete document payload without field-level masking. Read access exposes full progress report documents (including scores and teacher comments) to the Operational Leader at the Main Campus. The Owner has explicitly evaluated this architectural constraint and confirmed (approved summary): Owner Kifry confirmed approval for Main Campus Operational Leaders reading the complete `/progressReports` document, including student scores and teacher comments, for operational oversight.
+
 ## 6.9 Front Office / Admin
 
 Front Office / Admin is a branch operational function.
@@ -694,6 +711,9 @@ The Instructor Leader belongs to the Teaching and Learning Structure and is base
 The higher-level reporting line is resolved by **G-003** (ratified 2026-10-07, see §26): operationally to the **Vice Director**, strategically to the **Director**. All branch Instructors report directly to the Central Instructor Leader.
 
 The Instructor Leader is **not** a Branch Manager and does not automatically inherit general operational or financial authority.
+
+**Preservation of Exclusive Academic Authority:**
+The read-only progress report visibility granted to the Main Campus Operational Leader for site logistics (OD 2026-10-17, OD-OPS-01) does not diminish or alter the Instructor Leader's role. The Instructor Leader remains the sole pedagogical authority across all branches for curriculum quality, academic overrides, teacher evaluations, and teaching-and-learning governance.
 
 ## 6.12 Instructors / Tutors
 
@@ -1387,10 +1407,11 @@ The following governance decisions have been formally reviewed, ratified, and ad
 | **G-010** | Which governance changes require preservation as superseded historical decisions? | **RESOLVED — Supersession Protocol Ratified:** Historical records under `docs/decisions/` are preserved rather than deleted. Superseded decisions are tagged with `Status: SUPERSEDED BY ADR-XXX` / `Blueprint v3.3` with date, rationale, and link to the governing document. |
 | **G-011** | What detailed upward reporting/accountability arrangement applies to the branch-scope Course Division Manager, Kindergarten Division Manager, Operational Leader, and Instructor Leader? | **RESOLVED — Peer Accountability & Executive Dual-Reporting Ratified:** The four branch leadership roles are functional peers. Daily operational execution, exception coordination, and multi-branch tracking report upward to the **Vice Director** (Operational Control). Academic curriculum standards, strategic planning, and major policy escalations report upward to the **Director** (Strategic Control). |
 | **G-012** | How do branches with lean staffing structures operate when lacking an Operational Leader, Instructor Leader, or Kindergarten Division? | **RESOLVED — Branch Typology & Lean Satellite Operating Model Ratified (2026-10-13, ADR 2026-10-13):**<br>• **Branch Classification:** Main Campus (Kota Gorontalo) maintains full 4-role leadership and dual divisions. Satellite branches (Bone Bolango, Limboto, Pohuwato) are lean single-division campuses (Courses only) staffed by Course Division Manager, Front Office, and Instructors.<br>• **Operational Oversight at Lean Branches:** Course Division Manager serves as operational supervisor for site logistics, class scheduling (ADR 2026-10-13), and Front Office coordination (acting as Checker for shifts and discrepancies < Rp 20.000).<br>• **Central Academic Lead:** Instructor Leader based at Kota Gorontalo holds province-wide academic coordination scope (`multi-branch`) across all branches for pedagogy, evaluations, and placement overrides.<br>• **Strict Boundaries:** Course Division Manager does not become a general Branch Manager; discounts, refunds, and staff elevations remain strictly reserved for Executive sign-off. |
+| **G-013** | Does the Operational Leader at dual-division campuses have access to student progress reports, and under what operational boundaries? | **RESOLVED — Read-Only Operational Visibility Exception at Main Campus Ratified (2026-10-17, OD-OPS-01):**<br>• **Scope:** Granted read-only access (`get` and `list`) to `/progressReports` strictly when both user and document are at Main Campus (`userBranch() == 'kota_gorontalo'` and `branchId == 'kota_gorontalo'`), and report is explicitly marked with `division in ['courses', 'kindergarten']`.<br>• **Legacy Unstamped & Satellites Excluded:** Reports lacking `division` and satellite branch reports are strictly denied through the Ops Lead role path (independent author/parent paths preserved).<br>• **Zero Academic / Write Authority:** Strictly denied create, update, delete, level promotion, grading, and academic approvals.<br>• **Province-Wide Authority Preserved:** Instructor Leader retains sole province-wide pedagogical and override authority.<br>• **Data Exposure Limitation & Acceptance (Approved Summary):** Firestore returns full document without field masking; Owner confirmed approval for Main Campus Operational Leaders reading the complete `/progressReports` document, including student scores and teacher comments, for operational oversight. |
 
 ### Rule for resolved decisions
 
-All governance items G-001 through G-012 are formally resolved and binding across all software layers. Implementation agents must strictly enforce these contracts without introducing unapproved deviations.
+All governance items G-001 through G-013 are formally resolved and binding across all software layers. Implementation agents must strictly enforce these contracts without introducing unapproved deviations.
 
 ---
 
@@ -1936,7 +1957,7 @@ Never reverse the dependency by allowing the existing UI, a technical role, an o
 
 This section records the owner's formal approval of this blueprint.
 
-**Blueprint:** MyLiberty Portal — Authoritative Organizational, Authority & Rebuild Blueprint v3.4
+**Blueprint:** MyLiberty Portal — Authoritative Organizational, Authority & Rebuild Blueprint v3.4.1
 
 **Approval status:** `APPROVED — RATIFIED AUTHORITATIVE BASELINE`
 
@@ -1944,20 +1965,21 @@ This section records the owner's formal approval of this blueprint.
 
 **Role / Authority:** Owner / Director
 
-**Approval date:** 2026-10-07 (v3.3 Baseline); amended and ratified 2026-10-13 (v3.4 Branch Typology Amendment)
+**Approval date:** 2026-10-07 (v3.3 Baseline); amended and ratified 2026-10-13 (v3.4 Branch Typology Amendment); amended and ratified 2026-10-17 (v3.4.1 Main Campus Operational Leader Progress Report Read-Only Exception)
 
 **Notes / approved exceptions:**
 
-- Decisions **G-001 through G-012** are ratified and binding across all software layers (see §26).
+- Decisions **G-001 through G-013** are ratified and binding across all software layers (see §26).
 - This approval includes the Director / Vice Director authority split and the Executive Dual-Control Model, ratified as **G-004** (see §26 and §5.4).
 - **2026-10-13 Ratification (Blueprint v3.4):** The Owner / Director (Kifry) formally ratified the Branch Typology Model, Lean Satellite Branch operating rules, and Central Academic Lead province-wide scope as **G-012** (recorded in [`docs/decisions/2026-10-13-branch-typology-and-lean-branch-governance-amendment.md`](../decisions/2026-10-13-branch-typology-and-lean-branch-governance-amendment.md)) and Class Batch Scheduling Option B (recorded in [`docs/decisions/2026-10-13-class-scheduling-and-corporate-events-authority.md`](../decisions/2026-10-13-class-scheduling-and-corporate-events-authority.md)).
-- Items recorded elsewhere in this document as unresolved, and which were **not** part of the G-001 – G-012 register, remain open governance gaps. Approval of this document does not approve them; see §26 and the "does not claim to have finalized" list in §39.
+- **2026-10-17 Ratification (Blueprint v3.4.1 / G-013 / OD-OPS-01):** The Owner / Director (Kifry) formally approved read-only access for the Operational Leader to student progress reports (`/progressReports`, `get` and `list`) strictly for operational oversight at the Main Campus, requiring both user and document at `kota_gorontalo` (`userBranch() == 'kota_gorontalo'` and `branchId == 'kota_gorontalo'`) with explicit `division in ['courses', 'kindergarten']` (legacy unstamped reports and satellite branch reports excluded through the Ops Lead role path, preserving independent author/parent access), with zero mutation or academic authority, and with owner confirmation summary approving exposure of scores and teacher comments for operational oversight (recorded in [`docs/decisions/2026-10-17-operational-leader-progress-reports-read-access-main-campus.md`](../decisions/2026-10-17-operational-leader-progress-reports-read-access-main-campus.md)).
+- Items recorded elsewhere in this document as unresolved, and which were **not** part of the G-001 – G-013 register, remain open governance gaps. Approval of this document does not approve them; see §26 and the "does not claim to have finalized" list in §39.
 - Amendments and supersessions follow the normal owner-decision process recorded under `docs/decisions/`.
 
 **Recorded basis:** Owner ratification is recorded canonically in
 [`docs/decisions/2026-10-07-resolution-of-governance-questions-g001-g011.md`](../decisions/2026-10-07-resolution-of-governance-questions-g001-g011.md)
 ("Authority: Ratified & Approved by Owner / Director (Kifry)", "Status: Active & Binding"), which §26 of this
-blueprint cites as the canonical source for the ratified G-001 – G-011 decisions.
+blueprint cites as the canonical source for the ratified G-001 – G-011 decisions, supplemented by ratified decisions G-012 ([`docs/decisions/2026-10-13-branch-typology-and-lean-branch-governance-amendment.md`](../decisions/2026-10-13-branch-typology-and-lean-branch-governance-amendment.md)) and G-013 ([`docs/decisions/2026-10-17-operational-leader-progress-reports-read-access-main-campus.md`](../decisions/2026-10-17-operational-leader-progress-reports-read-access-main-campus.md)).
 
 ### Effect of approval
 

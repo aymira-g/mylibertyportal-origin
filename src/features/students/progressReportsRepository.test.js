@@ -5,6 +5,10 @@ import {
   createProgressReport,
   fetchInstructorProgressReports,
   fetchPendingPromotions,
+  fetchOpsLeadProgressReports,
+  resolveOpsLeadQueryLimit,
+  DEFAULT_OPS_LEAD_REPORTS_LIMIT,
+  MAX_OPS_LEAD_REPORTS_LIMIT,
   FIRESTORE_BATCH_LIMIT,
 } from "./progressReportsRepository.js";
 
@@ -203,4 +207,188 @@ describe("progressReportsRepository", () => {
       expect(coursesKota[0].id).toBe("r1");
     });
   });
+
+  describe("fetchOpsLeadProgressReports (OD-OPS-01 / Blueprint v3.4.1 / G-013)", () => {
+    it("fetches both courses and kindergarten reports for Main Campus when divisionFilter is 'all'", async () => {
+      fake.seed("progressReports", [
+        { id: "r1", branchId: "kota_gorontalo", division: "courses", examDate: "2026-10-10" },
+        { id: "r2", branchId: "kota_gorontalo", division: "kindergarten", examDate: "2026-10-15" },
+        { id: "r3", branchId: "bone_bolango", division: "courses", examDate: "2026-10-12" },
+      ]);
+
+      const res = await fetchOpsLeadProgressReports("Kota Gorontalo", "all");
+      expect(res).toHaveLength(2);
+      expect(res.map((r) => r.id)).toEqual(["r2", "r1"]); // Sorted desc by examDate
+    });
+
+    it("scopes query strictly to courses division when requested", async () => {
+      fake.seed("progressReports", [
+        { id: "r1", branchId: "kota_gorontalo", division: "courses" },
+        { id: "r2", branchId: "kota_gorontalo", division: "kindergarten" },
+      ]);
+
+      const res = await fetchOpsLeadProgressReports("kota_gorontalo", "courses");
+      expect(res).toHaveLength(1);
+      expect(res[0].id).toBe("r1");
+    });
+
+    it("scopes query strictly to kindergarten division when requested", async () => {
+      fake.seed("progressReports", [
+        { id: "r1", branchId: "kota_gorontalo", division: "courses" },
+        { id: "r2", branchId: "kota_gorontalo", division: "kindergarten" },
+      ]);
+
+      const res = await fetchOpsLeadProgressReports("kota_gorontalo", "kindergarten");
+      expect(res).toHaveLength(1);
+      expect(res[0].id).toBe("r2");
+    });
+
+    it("returns empty array for satellite branches without performing unauthorized queries", async () => {
+      fake.seed("progressReports", [
+        { id: "r1", branchId: "bone_bolango", division: "courses" },
+      ]);
+
+      const res = await fetchOpsLeadProgressReports("Bone Bolango", "all");
+      expect(res).toEqual([]);
+    });
+
+    it("respects limitCount to guard Firestore read costs under the Spark free tier", async () => {
+      const reports = Array.from({ length: 15 }, (_, i) => ({
+        id: `r-${i}`,
+        branchId: "kota_gorontalo",
+        division: "courses",
+        examDate: `2026-10-${String(i + 1).padStart(2, "0")}`,
+      }));
+      fake.seed("progressReports", reports);
+
+      const res = await fetchOpsLeadProgressReports("kota_gorontalo", "courses", { limitCount: 5 });
+      expect(res).toHaveLength(5);
+    });
+
+    it("clamps limitCount to MAX_OPS_LEAD_REPORTS_LIMIT (50) to prevent unbound read quota exhaustion", async () => {
+      const reports = Array.from({ length: 60 }, (_, i) => ({
+        id: `r-${i}`,
+        branchId: "kota_gorontalo",
+        division: "courses",
+        examDate: `2026-10-${String((i % 28) + 1).padStart(2, "0")}`,
+      }));
+      fake.seed("progressReports", reports);
+
+      // Caller asks for 500 or 9999, but should be clamped to 50
+      const res500 = await fetchOpsLeadProgressReports("kota_gorontalo", "courses", { limitCount: 500 });
+      expect(res500).toHaveLength(MAX_OPS_LEAD_REPORTS_LIMIT);
+      expect(res500).toHaveLength(50);
+
+      const res9999 = await fetchOpsLeadProgressReports("kota_gorontalo", "courses", { limitCount: 9999 });
+      expect(res9999).toHaveLength(50);
+    });
+
+    it("clamps limitCount to DEFAULT (50) when 0, negative, fractional < 1, or invalid", async () => {
+      const reports = Array.from({ length: 60 }, (_, i) => ({
+        id: `r-${i}`,
+        branchId: "kota_gorontalo",
+        division: "courses",
+        examDate: `2026-10-${String((i % 28) + 1).padStart(2, "0")}`,
+      }));
+      fake.seed("progressReports", reports);
+
+      // Zero must never disable query limit
+      const resZero = await fetchOpsLeadProgressReports("kota_gorontalo", "courses", { limitCount: 0 });
+      expect(resZero).toHaveLength(DEFAULT_OPS_LEAD_REPORTS_LIMIT);
+      expect(resZero).toHaveLength(50);
+
+      // Negative values must fall back to 50
+      const resNeg = await fetchOpsLeadProgressReports("kota_gorontalo", "courses", { limitCount: -10 });
+      expect(resNeg).toHaveLength(50);
+
+      const resNegOne = await fetchOpsLeadProgressReports("kota_gorontalo", "courses", { limitCount: -1 });
+      expect(resNegOne).toHaveLength(50);
+
+      // Fractional values < 1 floor to 0 and must fall back to 50
+      const resFrac = await fetchOpsLeadProgressReports("kota_gorontalo", "courses", { limitCount: 0.5 });
+      expect(resFrac).toHaveLength(50);
+
+      // Non-number / invalid values must fall back to 50
+      const resNaN = await fetchOpsLeadProgressReports("kota_gorontalo", "courses", { limitCount: NaN });
+      expect(resNaN).toHaveLength(50);
+
+      const resNull = await fetchOpsLeadProgressReports("kota_gorontalo", "courses", { limitCount: null });
+      expect(resNull).toHaveLength(50);
+    });
+
+    it("safely retrieves legacy progress reports without examDate when orderByExamDate is false", async () => {
+      fake.seed("progressReports", [
+        { id: "legacy-1", branchId: "kota_gorontalo", division: "courses", submittedAt: "2026-09-01T10:00:00Z" },
+        { id: "legacy-2", branchId: "kota_gorontalo", division: "courses", createdAt: "2026-09-15T12:00:00Z" },
+        { id: "modern-1", branchId: "kota_gorontalo", division: "courses", examDate: "2026-09-10" },
+      ]);
+
+      const res = await fetchOpsLeadProgressReports("kota_gorontalo", "courses", { orderByExamDate: false });
+      expect(res).toHaveLength(3);
+      // Client-side sort prioritizes examDate || submittedAt || createdAt descending:
+      // legacy-2 (Sept 15) > modern-1 (Sept 10) > legacy-1 (Sept 01)
+      expect(res.map((r) => r.id)).toEqual(["legacy-2", "modern-1", "legacy-1"]);
+    });
+
+    it("applies daysWindow date filter when specified", async () => {
+      // 10 days ago vs 100 days ago
+      const recentDate = new Date(Date.now() - 5 * 86400000).toISOString().split("T")[0];
+      const oldDate = new Date(Date.now() - 45 * 86400000).toISOString().split("T")[0];
+
+      fake.seed("progressReports", [
+        { id: "recent", branchId: "kota_gorontalo", division: "courses", examDate: recentDate },
+        { id: "old", branchId: "kota_gorontalo", division: "courses", examDate: oldDate },
+      ]);
+
+      const res = await fetchOpsLeadProgressReports("kota_gorontalo", "courses", { daysWindow: 30 });
+      expect(res).toHaveLength(1);
+      expect(res[0].id).toBe("recent");
+    });
+  });
+
+  describe("resolveOpsLeadQueryLimit", () => {
+    it("returns DEFAULT_OPS_LEAD_REPORTS_LIMIT (50) when limitCount is undefined or null", () => {
+      expect(resolveOpsLeadQueryLimit()).toBe(50);
+      expect(resolveOpsLeadQueryLimit(undefined)).toBe(50);
+      expect(resolveOpsLeadQueryLimit(null)).toBe(50);
+    });
+
+    it("clamps limitCount to MAX_OPS_LEAD_REPORTS_LIMIT (50) if higher requested", () => {
+      expect(resolveOpsLeadQueryLimit(51)).toBe(50);
+      expect(resolveOpsLeadQueryLimit(100)).toBe(50);
+      expect(resolveOpsLeadQueryLimit(500)).toBe(50);
+      expect(resolveOpsLeadQueryLimit(9999)).toBe(50);
+    });
+
+    it("falls back to DEFAULT_OPS_LEAD_REPORTS_LIMIT (50) for zero, negative, fractional < 1, NaN, Infinity, or invalid values", () => {
+      expect(resolveOpsLeadQueryLimit(0)).toBe(50);
+      expect(resolveOpsLeadQueryLimit(-1)).toBe(50);
+      expect(resolveOpsLeadQueryLimit(-5)).toBe(50);
+      expect(resolveOpsLeadQueryLimit(-100)).toBe(50);
+      expect(resolveOpsLeadQueryLimit(0.5)).toBe(50);
+      expect(resolveOpsLeadQueryLimit(0.99)).toBe(50);
+      expect(resolveOpsLeadQueryLimit(NaN)).toBe(50);
+      expect(resolveOpsLeadQueryLimit(Infinity)).toBe(50);
+      expect(resolveOpsLeadQueryLimit(-Infinity)).toBe(50);
+      expect(resolveOpsLeadQueryLimit("invalid")).toBe(50);
+      expect(resolveOpsLeadQueryLimit("0")).toBe(50);
+      expect(resolveOpsLeadQueryLimit({})).toBe(50);
+      expect(resolveOpsLeadQueryLimit([])).toBe(50);
+    });
+
+    it("preserves positive integer values up to MAX_OPS_LEAD_REPORTS_LIMIT", () => {
+      expect(resolveOpsLeadQueryLimit(1)).toBe(1);
+      expect(resolveOpsLeadQueryLimit(10)).toBe(10);
+      expect(resolveOpsLeadQueryLimit(25)).toBe(25);
+      expect(resolveOpsLeadQueryLimit(49)).toBe(49);
+      expect(resolveOpsLeadQueryLimit(50)).toBe(50);
+    });
+
+    it("floors positive non-integer values >= 1", () => {
+      expect(resolveOpsLeadQueryLimit(1.9)).toBe(1);
+      expect(resolveOpsLeadQueryLimit(25.7)).toBe(25);
+      expect(resolveOpsLeadQueryLimit(49.99)).toBe(49);
+    });
+  });
 });
+

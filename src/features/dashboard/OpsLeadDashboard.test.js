@@ -74,6 +74,37 @@ vi.mock("../finance/paymentsRepository", () => ({
   ]),
 }));
 
+// Mock progressReportsRepository
+vi.mock("../students/progressReportsRepository", () => ({
+  fetchOpsLeadProgressReports: vi.fn().mockResolvedValue([
+    {
+      id: "pr1",
+      studentName: "Student Alpha",
+      studentId: "s1",
+      className: "English Starter",
+      classId: "c1",
+      instructorName: "Instructor Beta",
+      division: "courses",
+      overallScore: 88,
+      eligibleForPromotion: true,
+      recommendedLevel: "warrior",
+      examDate: "2026-10-15",
+    },
+    {
+      id: "pr2",
+      studentName: "Kid Gamma",
+      studentId: "s2",
+      className: "Kindergarten A",
+      classId: "c2",
+      instructorName: "Instructor Delta",
+      division: "kindergarten",
+      overallScore: 92,
+      eligibleForPromotion: false,
+      examDate: "2026-10-16",
+    },
+  ]),
+}));
+
 // Mock usePendingApprovalsCount
 vi.mock("../shared/usePendingApprovalsCount", () => ({
   usePendingApprovalsCount: () => 2,
@@ -86,6 +117,7 @@ import OpsLeadOverviewTab from "./opslead/OpsLeadOverviewTab";
 import OpsLeadReconciliationTab from "./opslead/OpsLeadReconciliationTab";
 import OpsLeadFacilitiesTab from "./opslead/OpsLeadFacilitiesTab";
 import FrontOfficePerformanceTab from "./opslead/FrontOfficePerformanceTab";
+import OpsLeadProgressReportsTab from "./opslead/OpsLeadProgressReportsTab";
 
 describe("OpsLeadDashboard Component Suite (Phase 1 & Phase 2 Conformance)", () => {
   it("renders OpsLeadDashboard with all operational tabs", () => {
@@ -111,10 +143,36 @@ describe("OpsLeadDashboard Component Suite (Phase 1 & Phase 2 Conformance)", () 
     expect(html).toContain("Facilities &amp; Support");
     expect(html).toContain("Front Desk Intake");
     expect(html).toContain("Campus Learners");
+    expect(html).toContain("Academic Progress");
     expect(html).toContain("Capacity &amp; Batches");
     expect(html).toContain("Live Schedule Board");
     expect(html).toContain("Operational Reports");
     expect(html).toContain("Events &amp; Logistics");
+  });
+
+  it("renders OpsLeadProgressReportsTab for Main Campus with governance notice and metrics", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(OpsLeadProgressReportsTab, {
+        myBranch: "Kota Gorontalo",
+      })
+    );
+    expect(html).toContain("Read-Only Governance (OD-OPS-01)");
+    expect(html).toContain("Student Progress Reports — Campus Academic Oversight");
+    expect(html).toContain("Total Reports");
+    expect(html).toContain("Courses Division");
+    expect(html).toContain("Kindergarten");
+    expect(html).toContain("Promotion Ready");
+  });
+
+  it("renders OpsLeadProgressReportsTab for satellite branch with scope restriction alert", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(OpsLeadProgressReportsTab, {
+        myBranch: "Bone Bolango",
+      })
+    );
+    expect(html).toContain("Main Campus Scope Restriction (OD-OPS-01)");
+    expect(html).toContain("Bone Bolango");
+    expect(html).toContain("Satellite branches operate under lean Course Division management");
   });
 
   it("renders FrontOfficePerformanceTab with intake metrics and queue", () => {

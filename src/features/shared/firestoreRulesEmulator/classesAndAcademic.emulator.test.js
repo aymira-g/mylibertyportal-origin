@@ -676,37 +676,48 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Classes and Academic Progres
         await assertFails(getDoc(doc(invalidFoDb, "progressReports", "prPromoLegacy")));
       });
 
-      it("verifies direct document get for Ops Lead is strictly denied across all 5 division values while decision is open ([Owner Decision Required])", async () => {
+      it("grants Main Campus Operational Leader read-only getDoc access to stamped Courses and Kindergarten reports, strictly denying legacy unstamped, satellite reports, and mutations (OD-OPS-01 / Blueprint v3.4.1 / G-013)", async () => {
         const opsAllDb = authed("opsGto");
         const opsMissingDb = authed("opsMissingGto");
         const opsInvalidDb = authed("opsInvalidGto");
         const opsKgDb = authed("opsKgGto");
         const opsCoursesDb = authed("opsCoursesGto");
+        const opsBobaDb = authed("opsBoba");
 
-        // 1. Ops Lead with division: "all" (opsGto) -> strictly DENIED on all direct gets (fail-closed)
-        await assertFails(getDoc(doc(opsAllDb, "progressReports", "prPromoMain")));
-        await assertFails(getDoc(doc(opsAllDb, "progressReports", "prPromoKgSameStudent")));
+        // 1. Main Campus Ops Lead across all division configurations:
+        // Stamped Courses report at Main Campus -> SUCCEEDS (OD-OPS-01)
+        await assertSucceeds(getDoc(doc(opsAllDb, "progressReports", "prPromoMain")));
+        await assertSucceeds(getDoc(doc(opsMissingDb, "progressReports", "prPromoMain")));
+        await assertSucceeds(getDoc(doc(opsInvalidDb, "progressReports", "prPromoMain")));
+        await assertSucceeds(getDoc(doc(opsKgDb, "progressReports", "prPromoMain")));
+        await assertSucceeds(getDoc(doc(opsCoursesDb, "progressReports", "prPromoMain")));
+
+        // Stamped Kindergarten report at Main Campus -> SUCCEEDS (OD-OPS-01)
+        await assertSucceeds(getDoc(doc(opsAllDb, "progressReports", "prPromoKgSameStudent")));
+        await assertSucceeds(getDoc(doc(opsMissingDb, "progressReports", "prPromoKgSameStudent")));
+        await assertSucceeds(getDoc(doc(opsInvalidDb, "progressReports", "prPromoKgSameStudent")));
+        await assertSucceeds(getDoc(doc(opsKgDb, "progressReports", "prPromoKgSameStudent")));
+        await assertSucceeds(getDoc(doc(opsCoursesDb, "progressReports", "prPromoKgSameStudent")));
+
+        // Legacy unstamped report lacking division -> strictly DENIED (OD-OPS-01: unstamped legacy excluded)
         await assertFails(getDoc(doc(opsAllDb, "progressReports", "prPromoLegacy")));
-
-        // 2. Ops Lead with missing division (opsMissingGto) -> strictly DENIED on all direct gets
-        await assertFails(getDoc(doc(opsMissingDb, "progressReports", "prPromoMain")));
-        await assertFails(getDoc(doc(opsMissingDb, "progressReports", "prPromoKgSameStudent")));
         await assertFails(getDoc(doc(opsMissingDb, "progressReports", "prPromoLegacy")));
-
-        // 3. Ops Lead with invalid division (opsInvalidGto) -> strictly DENIED on all direct gets
-        await assertFails(getDoc(doc(opsInvalidDb, "progressReports", "prPromoMain")));
-        await assertFails(getDoc(doc(opsInvalidDb, "progressReports", "prPromoKgSameStudent")));
-        await assertFails(getDoc(doc(opsInvalidDb, "progressReports", "prPromoLegacy")));
-
-        // 4. Ops Lead with explicit division: "kindergarten" (opsKgGto) -> strictly DENIED while decision is open
-        await assertFails(getDoc(doc(opsKgDb, "progressReports", "prPromoMain")));
-        await assertFails(getDoc(doc(opsKgDb, "progressReports", "prPromoKgSameStudent")));
+        await assertFails(getDoc(doc(opsCoursesDb, "progressReports", "prPromoLegacy")));
         await assertFails(getDoc(doc(opsKgDb, "progressReports", "prPromoLegacy")));
 
-        // 5. Ops Lead with explicit division: "courses" (opsCoursesGto) -> strictly DENIED while decision is open
-        await assertFails(getDoc(doc(opsCoursesDb, "progressReports", "prPromoMain")));
-        await assertFails(getDoc(doc(opsCoursesDb, "progressReports", "prPromoLegacy")));
-        await assertFails(getDoc(doc(opsCoursesDb, "progressReports", "prPromoKgSameStudent")));
+        // Satellite branch report at Bone Bolango -> strictly DENIED for Main Campus Ops Lead
+        await assertFails(getDoc(doc(opsAllDb, "progressReports", "prBoba")));
+
+        // 2. Satellite Branch Ops Lead (opsBoba at Bone Bolango) -> strictly DENIED across all reports
+        await assertFails(getDoc(doc(opsBobaDb, "progressReports", "prPromoMain")));
+        await assertFails(getDoc(doc(opsBobaDb, "progressReports", "prPromoKgSameStudent")));
+        await assertFails(getDoc(doc(opsBobaDb, "progressReports", "prBoba")));
+
+        // 3. Absolute Prohibition on Mutations (OD-OPS-01):
+        await assertFails(updateDoc(doc(opsAllDb, "progressReports", "prPromoMain"), { eligibleForPromotion: false }));
+        await assertFails(deleteDoc(doc(opsAllDb, "progressReports", "prPromoMain")));
+        await assertFails(updateDoc(doc(opsAllDb, "progressReports", "prPromoKgSameStudent"), { eligibleForPromotion: false }));
+        await assertFails(deleteDoc(doc(opsAllDb, "progressReports", "prPromoKgSameStudent")));
       });
 
       it("enforces strict division isolation on progress reports list queries for Front Office across all 5 division values", async () => {
@@ -771,14 +782,53 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Classes and Academic Progres
         await assertFails(getDocs(query(collection(invalidFoDb, "progressReports"), where("branchId", "==", "kota_gorontalo"))));
       });
 
-      it("enforces progress reports list behavior for Ops Lead is strictly denied across all 5 division values while decision is open ([Owner Decision Required])", async () => {
-        // 1. Ops Lead with division: "all" (opsGto) -> DENIED on all list queries (fail-closed)
+      it("grants Main Campus Operational Leader list access to scoped Courses and Kindergarten queries, strictly denying unconstrained, unstamped, and satellite queries (OD-OPS-01 / Blueprint v3.4.1 / G-013)", async () => {
         const opsAllDb = authed("opsGto");
-        await assertFails(getDocs(query(collection(opsAllDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "courses"))));
-        await assertFails(getDocs(query(collection(opsAllDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "kindergarten"))));
-        await assertFails(getDocs(query(collection(opsAllDb, "progressReports"), where("branchId", "==", "kota_gorontalo"))));
+        const opsBobaDb = authed("opsBoba");
 
-        // Test all supported aliases for Ops Lead across all division configurations
+        // 1. Scoped Courses query for Main Campus: ALLOW (OD-OPS-01)
+        const coursesQ = query(
+          collection(opsAllDb, "progressReports"),
+          where("branchId", "==", "kota_gorontalo"),
+          where("division", "==", "courses")
+        );
+        const coursesSnap = await assertSucceeds(getDocs(coursesQ));
+        const coursesIds = coursesSnap.docs.map((d) => d.id);
+        expect(coursesIds).toContain("prPromoMain");
+        expect(coursesIds).toContain("prPromoOther");
+        expect(coursesIds).not.toContain("prPromoKgSameStudent");
+
+        // 2. Scoped Kindergarten query for Main Campus: ALLOW (OD-OPS-01)
+        const kgQ = query(
+          collection(opsAllDb, "progressReports"),
+          where("branchId", "==", "kota_gorontalo"),
+          where("division", "==", "kindergarten")
+        );
+        const kgSnap = await assertSucceeds(getDocs(kgQ));
+        const kgIds = kgSnap.docs.map((d) => d.id);
+        expect(kgIds).toContain("prPromoKgSameStudent");
+        expect(kgIds).not.toContain("prPromoMain");
+
+        // 3. Unconstrained query omitting division filter: DENIED
+        const unconstrainedQ = query(
+          collection(opsAllDb, "progressReports"),
+          where("branchId", "==", "kota_gorontalo")
+        );
+        await assertFails(getDocs(unconstrainedQ));
+
+        // 4. Satellite branch query (Bone Bolango): DENIED
+        const satelliteQ = query(
+          collection(opsAllDb, "progressReports"),
+          where("branchId", "==", "bone_bolango"),
+          where("division", "==", "courses")
+        );
+        await assertFails(getDocs(satelliteQ));
+
+        // 5. Satellite Branch Ops Lead (opsBoba at Bone Bolango): DENIED across all queries
+        await assertFails(getDocs(query(collection(opsBobaDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "courses"))));
+        await assertFails(getDocs(query(collection(opsBobaDb, "progressReports"), where("branchId", "==", "bone_bolango"), where("division", "==", "courses"))));
+
+        // 6. Test all supported aliases for Ops Lead at Main Campus
         const aliases = [
           { uid: "opsAlias1", role: "ops_lead" },
           { uid: "opsAlias2", role: "operational_leader" },
@@ -793,34 +843,10 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Classes and Academic Progres
             division: "courses",
           });
           const aliasDb = authed(uid);
-          await assertFails(getDocs(query(collection(aliasDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "courses"))));
-          await assertFails(getDocs(query(collection(aliasDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "kindergarten"))));
+          await assertSucceeds(getDocs(query(collection(aliasDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "courses"))));
+          await assertSucceeds(getDocs(query(collection(aliasDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "kindergarten"))));
           await assertFails(getDocs(query(collection(aliasDb, "progressReports"), where("branchId", "==", "kota_gorontalo"))));
         }
-
-        // 2. Ops Lead with missing division (opsMissingGto) -> DENIED on all list queries
-        const opsMissingDb = authed("opsMissingGto");
-        await assertFails(getDocs(query(collection(opsMissingDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "courses"))));
-        await assertFails(getDocs(query(collection(opsMissingDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "kindergarten"))));
-        await assertFails(getDocs(query(collection(opsMissingDb, "progressReports"), where("branchId", "==", "kota_gorontalo"))));
-
-        // 3. Ops Lead with invalid division (opsInvalidGto) -> DENIED on all list queries
-        const opsInvalidDb = authed("opsInvalidGto");
-        await assertFails(getDocs(query(collection(opsInvalidDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "courses"))));
-        await assertFails(getDocs(query(collection(opsInvalidDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "kindergarten"))));
-        await assertFails(getDocs(query(collection(opsInvalidDb, "progressReports"), where("branchId", "==", "kota_gorontalo"))));
-
-        // 4. Ops Lead with explicit division: "kindergarten" (opsKgGto) -> DENIED on all list queries
-        const opsKgDb = authed("opsKgGto");
-        await assertFails(getDocs(query(collection(opsKgDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "kindergarten"))));
-        await assertFails(getDocs(query(collection(opsKgDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "courses"))));
-        await assertFails(getDocs(query(collection(opsKgDb, "progressReports"), where("branchId", "==", "kota_gorontalo"))));
-
-        // 5. Ops Lead with explicit division: "courses" (opsCoursesGto) -> DENIED on all list queries
-        const opsCoursesDb = authed("opsCoursesGto");
-        await assertFails(getDocs(query(collection(opsCoursesDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "courses"))));
-        await assertFails(getDocs(query(collection(opsCoursesDb, "progressReports"), where("branchId", "==", "kota_gorontalo"), where("division", "==", "kindergarten"))));
-        await assertFails(getDocs(query(collection(opsCoursesDb, "progressReports"), where("branchId", "==", "kota_gorontalo"))));
       });
 
       it("strictly denies standalone suppression attempts when no student advancement occurs in the write", async () => {

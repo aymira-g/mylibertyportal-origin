@@ -1313,12 +1313,24 @@ service cloud.firestore {
     match /progressReports/{reportId} {
       allow get: if isOrgExecutive()
         || ((isManager() || isFrontDeskStaff()) && isSameBranch(resource.data) && isDivisionAllowedForProgressReportsGet(resource.data))
+        || (
+          isOpsLead()
+          && userBranch() == 'kota_gorontalo'
+          && ('branchId' in resource.data) && resource.data.branchId == 'kota_gorontalo'
+          && ('division' in resource.data) && (resource.data.division == 'courses' || resource.data.division == 'kindergarten')
+        )
         || (signedIn() && ('instructorId' in resource.data) && resource.data.instructorId == request.auth.uid)
         || (('studentId' in resource.data) && isParentOf(resource.data.studentId))
         // Instructor Leader province-wide academic monitoring (read-only per Blueprint v3.4 §4, §5, G-012).
         || isInstructorLeader();
       allow list: if isOrgExecutive()
         || ((isManager() || isFrontDeskStaff()) && isSameBranchStrict(resource.data) && isDivisionAllowedForProgressReportsList(resource.data))
+        || (
+          isOpsLead()
+          && userBranch() == 'kota_gorontalo'
+          && ('branchId' in resource.data) && resource.data.branchId == 'kota_gorontalo'
+          && ('division' in resource.data) && (resource.data.division == 'courses' || resource.data.division == 'kindergarten')
+        )
         || (signedIn() && ('instructorId' in resource.data) && resource.data.instructorId == request.auth.uid)
         || (isParent() && isSameBranchStrict(resource.data) && ('childStudentIds' in userProfile()) && ('studentId' in resource.data) && userProfile().childStudentIds.hasAny([resource.data.studentId]))
         || isInstructorLeader();

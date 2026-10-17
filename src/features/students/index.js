@@ -21,4 +21,9 @@ export {
   hasLevelProvenance,
   getStudentLevelDisplay,
 } from "./studentRecord";
-export { createProgressReport, fetchInstructorProgressReports } from "./progressReportsRepository";
+export {
+  createProgressReport,
+  fetchInstructorProgressReports,
+  fetchOpsLeadProgressReports,
+  DEFAULT_OPS_LEAD_REPORTS_LIMIT,
+} from "./progressReportsRepository";

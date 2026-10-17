@@ -447,6 +447,17 @@ export function canGetProgressReport(doc, user) {
     isDivisionAllowedForProgressReportsGet(doc, user)
   )
     return true;
+  // Operational Leader Main Campus read-only progress report access (OD-OPS-01 / Blueprint v3.4.1 / G-013).
+  if (
+    isOpsLead(user) &&
+    userBranch(user) === "kota_gorontalo" &&
+    doc &&
+    doc.branchId === "kota_gorontalo" &&
+    "division" in doc &&
+    ["courses", "kindergarten"].includes(doc.division)
+  ) {
+    return true;
+  }
   if (doc.instructorId === user.uid) return true;
   if (isParentOf(doc.studentId, user)) return true;
   // Instructor Leader province-wide academic monitoring (read-only per Blueprint v3.4 §4, §5, G-012).
@@ -463,6 +474,17 @@ export function canListProgressReports(queryData, user) {
     isDivisionAllowedForProgressReportsList(queryData, user)
   )
     return true;
+  // Operational Leader Main Campus read-only progress report access (OD-OPS-01 / Blueprint v3.4.1 / G-013).
+  if (
+    isOpsLead(user) &&
+    userBranch(user) === "kota_gorontalo" &&
+    queryData &&
+    queryData.branchId === "kota_gorontalo" &&
+    "division" in queryData &&
+    ["courses", "kindergarten"].includes(queryData.division)
+  ) {
+    return true;
+  }
   if (queryData.instructorId === user.uid) return true;
   if (
     isParent(user) &&

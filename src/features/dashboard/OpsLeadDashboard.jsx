@@ -12,6 +12,7 @@ import { fetchRecentDeskInquiries } from "./frontoffice/deskInquiriesRepository"
 import OpsLeadOverviewTab from "./opslead/OpsLeadOverviewTab";
 import OpsLeadReconciliationTab from "./opslead/OpsLeadReconciliationTab";
 import OpsLeadFacilitiesTab from "./opslead/OpsLeadFacilitiesTab";
+import OpsLeadProgressReportsTab from "./opslead/OpsLeadProgressReportsTab";
 import FrontOfficePerformanceTab from "./opslead/FrontOfficePerformanceTab";
 import TodayScheduleBoard from "./frontoffice/TodayScheduleBoard";
 import FrontOfficeReportsTab from "./frontoffice/FrontOfficeReportsTab";
@@ -26,6 +27,7 @@ import {
   Wrench,
   UserCheck,
   Users,
+  GraduationCap,
   BookOpen,
   DoorOpen,
   FileText,
@@ -224,6 +226,16 @@ export default function OpsLeadDashboard({ branch = null, role = "opslead" }) {
       ),
     },
     {
+      id: "progress",
+      label: "Academic Progress",
+      icon: GraduationCap,
+      component: (
+        <OpsLeadProgressReportsTab
+          myBranch={myBranch}
+        />
+      ),
+    },
+    {
       id: "batches",
       label: "Capacity & Batches",
       icon: BookOpen,
@@ -281,6 +293,7 @@ export default function OpsLeadDashboard({ branch = null, role = "opslead" }) {
           "facilities",
           "frontoffice",
           "students",
+          "progress",
         ]}
         title="Operational Leader Portal"
         extraSidebarContent={

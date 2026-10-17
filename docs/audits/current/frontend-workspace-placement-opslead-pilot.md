@@ -3,22 +3,22 @@
 > **Audit Level:** BLRCA Campaign Extension — Frontend Workspace Placement Pass (Role Workspace Coherence)  
 > **Target Scope:** Operational Leader / Ops Lead (`opslead`) Workspace Cockpit  
 > **Methodology Reference:** [`docs/audits/Role & Business Logic Conformance Audit/03-technical-audit-method.md`](../Role%20&%20Business%20Logic%20Conformance%20Audit/03-technical-audit-method.md) §3  
-> **Governance Authority:** Authoritative Blueprint v3.4.1 (§4, §5, §6.8, §6.10, §6.11, §15, §16, §18, §26 G-009, G-013, §41), Ratified Owner Decisions OD-O1 to OD-O4 (2026-10-08), Class Scheduling & Corporate Events Decision (2026-10-13), and Ratified Progress Reports Read Access Decision `OD-OPS-01` (2026-10-17)  
-> **Status:** SCOPED PILOT REPORT — REMEDIATION & VERIFICATION COMPLETED (FP-OPS-11A & FP-OPS-11B)
-> **Verification Method:** Static code inspection of React components, routing, repository contracts, and Firestore security rules, coupled with live Firestore Rules emulator execution (`attendanceAndShifts.emulator.test.js`, 30/30 passed across all 5 recognized Ops Lead aliases), Level 1 regression check suites (TypeScript `npm run typecheck` passed with 0 errors; focused Vitest component suite with 106 tests passed across 11 files), and security rules matrix suites (239 tests passed)
+> **Governance Authority:** Authoritative Blueprint v3.4.1 (§4, §5, §6.8, §6.10, §6.11, §15, §16, §18, §26 G-009, G-013, G-014, §41), Ratified Owner Decisions OD-O1 to OD-O4 (2026-10-08), Class Scheduling & Corporate Events Decision (2026-10-13), Ratified Progress Reports Read Access Decision `OD-OPS-01` (2026-10-17), Ratified Bulk Roster Export Restriction Decision `OD-OPS-02` (2026-10-17), and Ratified Staff Shift History Self-Service Decision `OD-STF-01` (2026-10-17)
+> **Status:** SCOPED PILOT REPORT — REMEDIATION & VERIFICATION COMPLETED (FP-OPS-11A, FP-OPS-11B, FP-OPS-13, & OD-STF-01)
+> **Verification Method:** Static code inspection of React components, routing, repository contracts, and Firestore security rules, coupled with live Firestore Rules emulator execution (`attendanceAndShifts.emulator.test.js`, 30/30 passed across all 5 recognized Ops Lead aliases), Level 1 regression check suites (TypeScript `npm run typecheck` passed with 0 errors; focused Vitest component suite with 126 tests passed across 13 files), and security rules matrix suites (239 tests passed). Seven rules emulator suites were skipped in offline Vitest runs, and production behavior was not checked.
 
 ---
 
 ## 1. Pilot Scope & Executive Summary
 
-This pilot report documents a scoped inspection and automated test audit of the **Operational Leader / Ops Lead (`opslead`)** workspace under the approved **Frontend Workspace Placement Pass (Role Workspace Coherence)** methodology ([`03-technical-audit-method.md`](../Role%20&%20Business%20Logic%20Conformance%20Audit/03-technical-audit-method.md) §3), updated with the verified remediations of findings `FP-OPS-11A` (ratified OD-O3 / G-009) and `FP-OPS-11B` (Option A de-cluttering).
+This pilot report documents a scoped inspection and automated test audit of the **Operational Leader / Ops Lead (`opslead`)** workspace under the approved **Frontend Workspace Placement Pass (Role Workspace Coherence)** methodology ([`03-technical-audit-method.md`](../Role%20&%20Business%20Logic%20Conformance%20Audit/03-technical-audit-method.md) §3), updated with the verified remediations of findings `FP-OPS-11A` (ratified OD-O3 / G-009), `FP-OPS-11B` (Option A de-cluttering), and `FP-OPS-13` (ratified OD-OPS-02 / G-014).
 
 ### 1.1 Scope Boundaries & Operational Role Identity
 - **Single Role Cockpit:** This inspection is strictly focused on the Operational Leader (`opslead`) workspace mounted via `OpsLeadDashboard.jsx` in `src/App.jsx:604-610`. It evaluates the routing shell, 10 mounted tabs and nested components (following the verified removal of redundant Tab 10), shared controls, data queries, and underlying Firestore security rules.
 - **Strict Separation from Front Office:** Under Authoritative Blueprint v3.4.1 §6.8, §6.9 and Ratified Decisions OD-O1 through OD-O4, the Operational Leader is a branch-site operational coordinator, not a front-desk receptionist or cashier. Although legacy code aliases (`frontofficelead`, `ops_lead`) normalize to `opslead` for backward-compatible routing (OD-O1 Option A), the Operational Leader cockpit is distinct from `FrontOfficeDashboard.jsx`, `KidsFrontOfficeDashboard.jsx`, and `CrossDivDashboard.jsx`. Overlapping role aliases do not make their workspaces, permissions, or separation-of-duties boundaries interchangeable.
 - **Binding Governance Baseline for Academic Progress Reports (`OD-OPS-01` / `G-013`):** Under Owner Decision `OD-OPS-01` (ratified 2026-10-17) and Blueprint v3.4.1 (§6.8, G-013, §41), the Operational Leader is granted a narrow, read-only operational visibility exception over student progress reports strictly at the Main Campus (`kota_gorontalo`) across Course Academy and Kindergarten divisions. Operational Leaders hold zero academic, grading, student level promotion, or record mutation authority, and zero access to progress reports at satellite branches (`bone_bolango`, `limboto`, `pohuwato`).
 - **Preservation of Unresolved Legacy Reports:** Cloud Firestore query indexing requires explicit equality filters on `division`. Progress reports lacking an explicit `division` attribute (historical legacy records) or lacking `branchId` or `examDate` are excluded from Ops Lead queries and fail closed under security rules. In accordance with audit instructions, this known legacy state is preserved as excluded and unresolved; no historical data was backfilled or inferred during this pass.
-- **Remediation & Remaining Open Scope:** Conformance findings `FP-OPS-11A` (cash drawer counting and shift reconciliation write access) and `FP-OPS-11B` (Tab 10 redundancy and Courses-only inquiry truncation) have both been remediated and verified. Following approved Option A, redundant Tab 10 (`FrontOfficeReportsTab`) was cleanly unmounted from `OpsLeadDashboard.jsx`. This removal also removes the Ops Lead's personal shift history view, leaving relocation for a separate owner decision. Governance question `FP-OPS-13` (bulk student CSV export) remains explicitly OPEN as `[Owner Decision Required]`.
+- **Remediation & Verified Conformance:** Conformance findings `FP-OPS-11A` (cash drawer balancing and shift reconciliation write access), `FP-OPS-11B` (Tab 10 redundancy and Courses-only inquiry truncation), and `FP-OPS-13` (bulk student PII CSV export restriction) have all been remediated and verified. Following approved Option A, redundant Tab 10 (`FrontOfficeReportsTab`) was cleanly unmounted from `OpsLeadDashboard.jsx`, and personal shift history was subsequently relocated outside operational dashboards to the shared staff profile (`ProfilePanel.jsx`) under Ratified Decision `OD-STF-01`. Ratified Decision `OD-OPS-02` / `G-014` cleanly suppresses bulk CSV exports for Ops Lead and all aliases while preserving on-screen read-only roster visibility.
 
 ---
 
@@ -41,7 +41,7 @@ The following ledger documents all targeted structural checks evaluated for the 
 | **`FP-OPS-11A`** | `opslead` (Main Campus) | `src/features/dashboard/OpsLeadDashboard.jsx` (former Tab 10 mount)<br>`src/features/dashboard/frontoffice/FrontOfficeReportsTab.jsx:189-200` (former container)<br>`src/features/dashboard/frontoffice/FrontDeskCashReconcile.jsx:182-190`<br>`src/features/dashboard/frontoffice/ShiftReconciliationModal.jsx:1-300` | Cash Drawer Balancing & End-of-Shift Reconciliation Action Exposed to Ops Lead | `INTENTIONALLY ABSENT` | Authoritative Blueprint v3.4.1 §6.8, §18; Ratified Decision OD-O3 (Option A) | Ops Lead Dashboard -> Operational Reports Tab (`reports`) [former location, now unmounted] -> Sub-tab "cash" -> Button "End Shift & Count Drawer" [suppressed in component] | **Remediated & Runtime-Verified:** `FrontDeskCashReconcile.jsx` hides button and displays "Duty Shift Active (Kiosk Attendance Only)"; `canUpdateShift` (`firestore.rules:1378-1436`) strictly restricts `cashReconciliation` to Front Office cashiers. Verified in live Firestore emulator (30/30 passed) across all 5 recognized Ops Lead aliases (`opslead`, `ops_lead`, `operational_leader`, `operationalleader`, `frontofficelead`). | `CONFORMS (REMEDIATED & VERIFIED)` | Conformance finding remediated per OD-O3 / G-009: Ops Lead drawer count controls omitted from UI, shiftsRepository throws, and backend rules strictly reject cashReconciliation writes while preserving legitimate kiosk attendance clock-out (Finding 4.1). |
 | **`FP-OPS-11B`** | `opslead` (Main Campus) | `src/features/dashboard/OpsLeadDashboard.jsx` (former Tab 10 mount, previously lines 265-274)<br>`src/features/dashboard/frontoffice/FrontOfficeReportsTab.jsx:1-408` (former mount) | Redundant Operational Reports Tab Mount & Courses-Only Truncation | `INTENTIONALLY ABSENT` | Authoritative Blueprint v3.4.1 §6.8; OD-O2; Ratified Option A (2026-10-17) | Ops Lead Dashboard (former Tab 10 mount unmounted; formerly `/portal#reports`) | Cleanly unmounted from `OpsLeadDashboard.jsx` and imports pruned; verified via `OpsLeadDashboard.test.js` (8/8 passed) and component suite (11 files, 106 passed) | `CONFORMS (REMEDIATED — OPTION A)` | Option A implemented: redundant Tab 10 unmounted, eliminating duplicate cashier/intake sub-tabs and inquiry truncation. Personal shift history access removed and deferred to separate decision (Finding 4.1.2). |
 | **`FP-OPS-12`** | `opslead` (Main Campus) | `src/features/dashboard/OpsLeadDashboard.jsx:264-268`<br>`src/features/attendance/CorporateEventsPanel.jsx:1-394` | Campus Corporate Events & Logistics Management (`CorporateEventsPanel` with `canCreate={true}`, `canCancel={true}`) | `PRIMARY` | Authoritative Blueprint v3.4.1 §6.8; Ratified Owner Decision 2026-10-13 Decision 3 | Ops Lead Dashboard -> Events & Logistics Tab (`events`) | Enforced in rules: `corporateEvents` branch-scoped create/cancel allowed for `isOpsLead()` (`firestore.rules:1020-1049`) | `CONFORMS` | Primary authority to schedule and cancel local branch events, workshops, training sessions, and school calendar meetings |
-| **`FP-OPS-13`** | `opslead` (Main Campus) | `src/features/students/StudentRoster.jsx:77` | Campus Learners Bulk Student PII CSV Export Feature (`canExportRoster` check) | `INFORMATIONAL` | Authoritative Blueprint v3.4.1 §6.8, §6.10, §7.3; DOM05-PRIV-01 [Owner Decision Required] | Campus Learners Tab -> Roster Header -> Export CSV Button | Pure client-side generation from loaded `students` array | `[Owner Decision Required]` | Authority to export bulk student PII is unresolved in approved sources; operational monitoring does not infer export authority (Finding 4.2) |
+| **`FP-OPS-13`** | `opslead` (Main Campus) | `src/features/students/StudentRoster.jsx:77-86` | Campus Learners Bulk Student PII CSV Export Feature (`canExportRoster` check) | `INTENTIONALLY ABSENT` | Authoritative Blueprint v3.4.1 §6.8, §6.10, §7.3; DOM05-PRIV-01; Ratified Decision OD-OPS-02 / G-014 (2026-10-17) | Campus Learners Tab -> Roster Header (Export CSV button suppressed) | Enforced in UI props via `isOpsLeadRole`; verified in `StudentRoster.export.test.js` (13/13 passed) across all Ops Lead aliases | `CONFORMS (REMEDIATED — OD-OPS-02)` | Application-provided bulk CSV action disabled for Ops Lead aliases under DOM05-PRIV-01; users with on-screen access may still copy or extract visible data; on-screen read-only roster visibility preserved; authorized roles retain export (Finding 4.2). |
 | **`FP-OPS-14`** | `opslead` (global) | `src/features/dashboard/OpsLeadDashboard.jsx` (complete tab array: 10 tabs)<br>`firestore.rules:1138-1188` | Personal Cashier Tuition Payment Intake (`PaymentModal` / `PaymentCashierTab`) | `INTENTIONALLY ABSENT` | Authoritative Blueprint v3.4.1 §6.8, §18; Ratified Decision OD-O3 | Fully unmounted in Ops Lead shell; no payment intake buttons or cash register modal triggers | Enforced in rules: `canCreatePayment` denied to `opslead` (`firestore.rules:1138-1188`) | `CONFORMS` | Cleanly omitted from Ops Lead cockpit; preserves Maker-Checker separation between cashier and discrepancy approver |
 | **`FP-OPS-15`** | `opslead` (global) | `src/features/dashboard/OpsLeadDashboard.jsx`<br>`firestore.rules:1337-1359` | Pedagogical Evaluation Grading, Mutation & Student Level Promotion Actions | `INTENTIONALLY ABSENT` | Authoritative Blueprint v3.4.1 §6.8, §6.11; Ratified Decisions OD-OPS-01, OD-IL-ENF1 | Fully omitted from `OpsLeadProgressReportsTab` and `StudentRoster`; no promotion buttons | Enforced in rules: `progressReports` update/delete denied to `isOpsLead()` (`firestore.rules:1345-1358`) | `CONFORMS` | Academic authority belongs exclusively to teaching staff, Central Academic Lead, and Division Managers |
 | **`FP-OPS-16`** | `opslead` (satellite) | `src/features/dashboard/opslead/OpsLeadProgressReportsTab.jsx:45, 92-94, 166-184`<br>`firestore.rules:1318-1320, 1330-1332` | Satellite Branch Progress Reports Access (`bone_bolango`, `limboto`, `pohuwato`) | `INTENTIONALLY ABSENT` | Authoritative Blueprint v3.4.1 §4, §5, §6.8; Ratified Decisions G-012, OD-OPS-01 | Gated fail-closed in UI (`if (!isMainCampus) return ...`); renders amber scope restriction banner | Enforced in rules: requires `userBranch() == 'kota_gorontalo' && resource.data.branchId == 'kota_gorontalo'` | `CONFORMS` | Satellite operational staff hold zero access to student academic evaluations; lean satellite model strictly preserved |
@@ -171,9 +171,9 @@ The newly added **Academic Progress** tab (`OpsLeadProgressReportsTab.jsx`, moun
      - Tab 5 (`FrontOfficePerformanceTab.jsx`) remains the dedicated dual-division front-office performance and intake tracking cockpit, preserving complete visibility across Course Academy and Kindergarten inquiries.
      - All other operational tabs (Overview, Approvals, Facilities, Campus Learners, Academic Progress, Capacity & Batches, Live Schedule Board, Events & Logistics) remain intact.
      - No modifications were made to Firestore security rules, governance decisions, or Front Office workspaces (`FrontOfficeDashboard.jsx`, `KidsFrontOfficeDashboard.jsx`).
-  3. **Personal Shift History Impact (Disclosed Limitations):**
-     - **Reported Impact:** Removing Tab 10 completely removes access to the Operational Leader's personal shift history (`fetchUserShifts(currentUser.uid, 30)`), which was housed under Sub-tab 3 of `FrontOfficeReportsTab`.
-     - **Governance Discipline:** In strict accordance with audit instructions, personal shift history was NOT relocated to the Overview tab or added as a new self-service feature. Relocation of personal shift history is formally deferred for a separate owner decision.
+  3. **Personal Shift History Impact & Verified Relocation (Ratified OD-STF-01):**
+     - **Reported Impact:** Removing Tab 10 originally removed access to the Operational Leader's personal shift history view (`fetchUserShifts(currentUser.uid, 30)`), which was housed under Sub-tab 3 of `FrontOfficeReportsTab`.
+     - **Approved Placement & Implementation:** Under Ratified Decision `OD-STF-01` (Owner Decision 2026-10-17), personal shift history was cleanly relocated to the existing global shared staff self-service profile (`ProfilePanel.jsx`) via `PersonalAttendanceSection.jsx`. The view is on-demand, bounded to 15 items (`fetchUserShifts(uid, 15)`), strictly self-scoped (`where("userId", "==", auth.currentUser.uid)`), and does not display cashier reconciliation details on screen. Because Cloud Firestore Security Rules do not support field-level read projection or masking, full shift documents reach the browser; `PersonalAttendanceSection` sanitizes records in component state via `projectAttendanceShift` before rendering as a client-side UI boundary (not backend field-level masking). Zero security rule changes were needed as `firestore.rules:1419,1422` already permit signed-in self reads.
   4. **Component Test Suite Update (`src/features/dashboard/OpsLeadDashboard.test.js`):**
      - Removed mock of `FrontOfficeReportsTab`.
      - Updated tab assertion: verifies all 10 operational tabs and asserts `expect(html).not.toContain("Operational Reports")`.
@@ -189,18 +189,35 @@ The newly added **Academic Progress** tab (`OpsLeadProgressReportsTab.jsx`, moun
 ---
 
 ### 4.2 Observation `FP-OPS-13`: Campus Learners Roster Bulk Student PII CSV Export Authority
-- **Component Location:** `src/features/students/StudentRoster.jsx:77`, embedded in Tab 6 (`students`) via `OpsLeadDashboard.jsx:215-226`.
-- **Observed Implementation:**
-  - In `StudentRoster.jsx:77`:
+- **Component Location:** `src/features/students/StudentRoster.jsx:77-86`, embedded in Tab 6 (`students`) via `OpsLeadDashboard.jsx:210-227`.
+- **Pre-Remediation Behavior:**
+  - In earlier code, `StudentRoster.jsx:77` evaluated `canExportRoster = userRole !== "instructor" && userRole !== "admin" && !isAdmin;`.
+  - For `userRole === "opslead"` and unrecognized aliases, `canExportRoster` evaluated to `true`, rendering an "Export CSV" button in the roster header allowing local bulk export of student and parent PII.
+- **Ratified Governance Policy (`OD-OPS-02` / `G-014`):**
+  - On 2026-10-17, Owner / Director (Kifry) formally ratified Decision `OD-OPS-02` (`G-014`):
+    > *"Ops Leads must not export bulk student roster CSVs. Preserve their existing on-screen, read-only roster access. Apply the restriction to the normalized Ops Lead role and its recognized aliases. Do not change CSV export access for other roles. Do not remove roster fields or weaken/expand Firestore read permissions as a side effect."*
+- **Implemented Remediation:**
+  - In `src/features/shared/roles.js:132-134`, added `isOpsLeadRole(role)` helper mapping canonical `opslead` and all legacy aliases (`ops_lead`, `operational_leader`, `operationalleader`, `frontofficelead`, `front_office_lead`).
+  - In `src/features/students/StudentRoster.jsx:79-86`, updated `canExportRoster`:
     ```javascript
-    const canExportRoster = userRole !== "instructor" && userRole !== "admin" && !isAdmin;
+    const normalizedUserRole = normalizeRole(userRole);
+    const isOpsLead = isOpsLeadRole(userRole);
+    const canExportRoster =
+      normalizedUserRole !== "instructor" &&
+      normalizedUserRole !== "admin" &&
+      !isAdmin &&
+      !isOpsLead;
     ```
-  - For `userRole === "opslead"`, `canExportRoster` evaluates to `true`, rendering an "Export CSV" button in the roster header that allows downloading campus learner names, levels, parent contacts, and enrollment details to local device storage.
-- **Governance Analysis & Open Authority Question:**
-  - Under `DOM05-PRIV-01` / Blueprint §6.10, §7.3, teaching instructors and technical admin were barred from bulk CSV downloads to prevent data harvesting.
-  - Authoritative Blueprint v3.4.1 §6.8 authorizes the Operational Leader to monitor student throughput and campus logistics on screen. However, no approved blueprint provision or accepted owner decision establishes whether operational leaders are authorized to export bulk student/parent PII records to local disk.
-  - In accordance with `03-technical-audit-method.md` Principle 4 ("No Authority by Inference"), operational monitoring does not infer bulk PII export rights.
-- **Outcome Status:** **`[Owner Decision Required]` (Governance Gap)**.
+  - On-screen student roster records, table rows, linked parents, and status badges remain 100% visible and interactive in read-only mode.
+  - Zero modifications were made to Firestore security rules or `/students` query schemas.
+  - **Technical Boundary & Extraction Disclosure:** The application-provided bulk CSV action is disabled for Ops Lead aliases; users with authorized on-screen access may still copy or extract visible data from their display. This UI change suppresses the automated bulk export without altering Firestore read permissions or data models.
+- **Verification Evidence:**
+  - Automated test suite `src/features/students/StudentRoster.export.test.js` executed (13 passed out of 13 tests).
+  - Confirmed:
+    - All 6 Ops Lead aliases (`opslead`, `ops_lead`, `operational_leader`, `operationalleader`, `frontofficelead`, `front_office_lead`) suppress the "Export CSV" button while rendering on-screen roster records.
+    - Previously restricted roles (`instructor`, `admin`, `isAdmin=true`) continue to be denied CSV export.
+    - Authorized roles (`director`, `vice_director`, `manager`, `frontoffice`) retain full bulk CSV export capability.
+- **Resolution Status:** **`CONFORMS (REMEDIATED & VERIFIED — OD-OPS-02)`**.
 
 ---
 
@@ -261,10 +278,12 @@ In accordance with `AGENTS.md` verification precedence and honest reporting stan
 ### 5.1 Ops Lead Unit & Repository Test Suite
 - **Command Run:**
   ```powershell
-  npx vitest run src/features/dashboard/OpsLeadDashboard.test.js src/features/dashboard/opslead/ src/features/dashboard/frontoffice/ src/features/students/progressReportsRepository.test.js
+  npx vitest run src/features/dashboard/OpsLeadDashboard.test.js src/features/dashboard/opslead/ src/features/dashboard/frontoffice/ src/features/students/progressReportsRepository.test.js src/features/students/StudentRoster.export.test.js src/features/auth/PersonalAttendanceSection.test.js
   ```
-- **Results:** **`11 passed (11 test files, 106 passed tests, 0 failed)`**, Duration: 3.13s
+- **Results:** **`13 passed (13 test files, 126 passed tests, 0 failed)`**, Duration: 3.18s
   - `src/features/dashboard/OpsLeadDashboard.test.js`: 8 passed (Dashboard shell rendering, 10 operational tab mounts, absence of "Operational Reports")
+  - `src/features/students/StudentRoster.export.test.js`: 13 passed (OD-OPS-02 bulk CSV export suppression across all 6 Ops Lead aliases, denial to instructors/admins, and preservation for authorized roles)
+  - `src/features/auth/PersonalAttendanceSection.test.js`: 7 passed (on-demand default state, projectAttendanceShift sanitization, static render of WITA attendance details, omission of cashier details, empty state, staff role visibility in ProfilePanel, non-staff exclusion; on-demand expansion noted as not fully interaction-tested in headless Node without browser test setup)
   - `src/features/dashboard/opslead/opsLeadUtils.test.js`: 12 passed
   - `src/features/students/progressReportsRepository.test.js`: 24 passed (including 11 tests verifying `fetchOpsLeadProgressReports` and 13 tests verifying `resolveOpsLeadQueryLimit` bounds [1..50])
   - `src/features/dashboard/opslead/OpsLeadBottlenecksSection.test.js`: 3 passed
@@ -316,9 +335,9 @@ In accordance with `AGENTS.md` verification precedence and honest reporting stan
 
 ### 6.1 Summary of Placement Outcomes
 - **Total Checks Evaluated:** 17 targeted structural checks (`FP-OPS-01` through `FP-OPS-16`, including split rows `11A` and `11B`).
-- **Conforms:** 16 checks cleanly conform to Authoritative Blueprint v3.4.1 and accepted Owner Decisions (including remediated and runtime-verified `FP-OPS-11A` and `FP-OPS-11B`).
+- **Conforms:** 17 checks cleanly conform to Authoritative Blueprint v3.4.1 and accepted Owner Decisions (including remediated and runtime-verified `FP-OPS-11A`, `FP-OPS-11B`, and `FP-OPS-13`).
 - **Misplaced / Unclear (Open):** 0 checks.
-- **Owner Decision Required (Open):** 1 check (`FP-OPS-13` — Bulk student PII CSV export authority).
+- **Owner Decision Required (Open):** 0 checks.
 
 ### 6.2 Remediation Status & Conformance Findings
 1. **`FP-OPS-11A` — Cash Drawer Balancing Action & Backend Shift Update Path Exposed to Operational Leader:**
@@ -332,28 +351,33 @@ In accordance with `AGENTS.md` verification precedence and honest reporting stan
 2. **`FP-OPS-11B` — Operational Reports Workspace Clutter & Division Truncation:**
    - **Status:** **`RESOLVED & VERIFIED (CONFORMS — OPTION A IMPLEMENTED)`**
    - *Resolution:* Following Owner Kifry's approval of Option A, redundant Tab 10 (`FrontOfficeReportsTab`) was cleanly unmounted from `OpsLeadDashboard.jsx`, and unused imports (`FrontOfficeReportsTab`, `FileText`) were pruned. This completely eliminates the functional duplication of Tab 3 (cash reconciliation) and Tab 5 (intake tracking), as well as the Courses-only inquiry truncation defect. Core operational tabs (Tab 3 and Tab 5) and all role permissions were strictly preserved.
-   - *Shift History Impact (Disclosed Limitation):* Removing Tab 10 removes access to the Ops Lead's personal shift history view (`fetchUserShifts(currentUser.uid, 30)`), which was housed under Sub-tab 3 of `FrontOfficeReportsTab`. In accordance with audit instructions, personal shift history was NOT relocated to Overview or added as a new feature; relocation is formally deferred for a separate owner decision.
-   - *Verification:* Verified via `OpsLeadDashboard.test.js` (8/8 passed asserting absence of "Operational Reports"), the full component test suite (11 test files, 106 passed tests), and `npm run typecheck` (0 errors).
+   - *Shift History Relocation (Ratified OD-STF-01):* Removing Tab 10 originally removed access to the Ops Lead's personal shift history view (`fetchUserShifts(currentUser.uid, 30)`). Under Ratified Decision `OD-STF-01` (Owner Decision 2026-10-17), personal shift history was cleanly relocated to the existing global shared staff self-service profile (`ProfilePanel.jsx`) via `PersonalAttendanceSection.jsx`. The view is on-demand, bounded to 15 items, strictly self-scoped (`where("userId", "==", auth.currentUser.uid)`), does not display cashier reconciliation details on screen, and projects records to attendance fields in state as a UI boundary (Firestore returns full documents on read).
+   - *Verification:** Verified via `OpsLeadDashboard.test.js` (8/8 passed asserting absence of "Operational Reports"), the full component test suite (11 test files, 106 passed tests), and `npm run typecheck` (0 errors).
+3. **`FP-OPS-13` — Bulk Student PII CSV Export Authority for Operational Leaders:**
+   - **Status:** **`RESOLVED & VERIFIED (CONFORMS — OD-OPS-02)`**
+   - *Resolution:* Following Owner Kifry's formal ratification of Decision `OD-OPS-02` / `G-014`, `StudentRoster.jsx` evaluates `isOpsLeadRole(userRole)` to strictly suppress the "Export CSV" button for the canonical `opslead` role and all recognized aliases (`ops_lead`, `operational_leader`, `operationalleader`, `frontofficelead`, `front_office_lead`).
+   - *Preservation & Boundary Disclosure:* The application-provided bulk CSV action is disabled for Ops Lead aliases; users with on-screen access may still copy or extract visible data displayed on their screen. On-screen read-only roster table records and linked parent visibility remain 100% active, authorized roles (`director`, `vice_director`, `manager`, `frontoffice`) retain export capabilities, and zero modifications were made to Firestore `/students` rules.
+   - *Verification:* Verified via `src/features/students/StudentRoster.export.test.js` (13 passed out of 13 tests) and `npm run typecheck` (0 errors).
 
 ### 6.3 Governance Gaps Requiring Owner Decision
-1. **`FP-OPS-13` — Bulk Student PII CSV Export Authority for Operational Leaders:**
-   - **Status:** **`OPEN [Owner Decision Required]`**
-   - *Governance Question:* Does the Operational Leader's on-screen student throughput and capacity monitoring authority authorize downloading bulk student PII (names, parent contacts, levels) to local device storage via CSV, or should bulk roster export be restricted to Division Managers and Executive Leadership? Remains open awaiting owner decision.
+- **Status:** **`0 Open Governance Gaps`**. All targeted structural checks (`FP-OPS-01` through `FP-OPS-16`) have been resolved and aligned with ratified Owner Decisions (OD-O1–OD-O4, OD-OPS-01, and OD-OPS-02).
 
-### 6.4 Implementation Handoff & Remaining Scope
-- Conformance findings `FP-OPS-11A` (cashier separation) and `FP-OPS-11B` (Option A de-cluttering) have both been fully implemented and automated-test verified.
-- Policy gap `FP-OPS-13` (bulk student CSV export authority) and relocation of personal shift history remain explicitly open in the wider Ops Lead audit pending Owner Kifry's review and direction.
+### 6.4 Implementation Handoff & Disclosures
+- Conformance findings `FP-OPS-11A` (cashier separation), `FP-OPS-11B` (Option A de-cluttering), `FP-OPS-13` (bulk student CSV export restriction), and staff personal shift history self-service access (`OD-STF-01`) have all been implemented and automated-test verified.
+- **Verification Disclosures & Scope Limitations:**
+  - Automated tests passed across 114 test files (1,598 unit/component tests); however, seven Firestore Rules emulator suites were skipped in offline Vitest runs because the local Firebase emulator was offline, and live production environment behavior was not checked.
+  - The bulk CSV export restriction operates as an application UI-level control that disables the built-in bulk CSV download action; it does not alter underlying Firestore security rules or prevent manual on-screen copying of displayed roster data.
 
 ---
 
 ## 7. Audit Verdict & Readiness Assessment
 
-- **Audit Pass Verdict:** **`READY WITH MINOR FOLLOW-UP`**
+- **Audit Pass Verdict:** **`READY`**
 - **Readiness Justification:**
-  - The Operational Leader cockpit exhibits exemplary architectural discipline and strong alignment with Authoritative Blueprint v3.4.1, Ratified Decisions OD-O1 to OD-O4, and the recent progress-report exception `OD-OPS-01`.
+  - The Operational Leader cockpit exhibits exemplary architectural discipline and strong alignment with Authoritative Blueprint v3.4.1, Ratified Decisions OD-O1 to OD-O4, the progress-report exception `OD-OPS-01`, bulk export restriction `OD-OPS-02` / `G-014`, and personal attendance self-service access `OD-STF-01`.
   - The newly added Academic Progress tab (`OpsLeadProgressReportsTab.jsx`) strictly respects Main Campus physical scope, enforces dual-division isolation, bounds queries to Spark quota limits (max 50/div), fails closed on satellite branches and query errors, displays explicit read-only governance notices, and completely omits grading or promotion controls.
   - Finding `FP-OPS-11A` (cash drawer counting exposure & backend shift update path) has been remediated across UI, modal, repository, and rules layers, and verified via 30/30 live Firestore emulator tests across all 5 recognized Ops Lead role aliases.
   - Finding `FP-OPS-11B` (workspace clutter & division truncation) has been remediated under approved Option A: redundant Tab 10 was unmounted, cleanly resolving duplication and inquiry truncation while preserving dedicated Tab 3 and Tab 5 cockpits.
-  - Remaining follow-up consists of:
-    1. Resolving open governance decision `FP-OPS-13` (bulk student PII CSV export authority).
-    2. Determining personal shift history relocation in a separate owner decision.
+  - Finding `FP-OPS-13` (bulk student PII CSV export) has been remediated per Ratified Decision `OD-OPS-02` / `G-014` and verified via 13/13 unit tests across all recognized aliases, disabling the application-provided bulk CSV action while preserving on-screen visibility without altering Firestore read permissions.
+  - Decision 2 (Personal shift history) has been implemented in the shared staff self-service profile (`ProfilePanel.jsx`) per Ratified Decision `OD-STF-01` and verified via 7/7 unit/static-render tests as well as live Playwright Chromium browser tests (`tests/staffAttendance.spec.ts` using a mock fetch function asserting `uid: "staff-ops-123"` and limit `15`), confirming it starts collapsed (mock fetch count = 0), loads records on expand (mock fetch count = 1), caches results so reopening does not refetch (mock fetch count remains 1), omits cashier fields from display, and hides the section from non-staff roles.
+  - *Disclosure:* Offline test suite execution skipped 7 emulator suites; production environment behavior was not checked.

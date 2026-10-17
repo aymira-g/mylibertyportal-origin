@@ -124,6 +124,16 @@ export function isFrontOfficeRole(role) {
 }
 
 /**
+ * Checks whether a role belongs to the Operational Leader or its recognized aliases.
+ *
+ * @param {string | any} role
+ * @returns {boolean}
+ */
+export function isOpsLeadRole(role) {
+  return normalizeRole(role) === CANONICAL_ROLES.OPS_LEAD;
+}
+
+/**
  * Checks whether a role belongs to teaching staff or teaching leadership.
  *
  * @param {string | any} role

@@ -12,6 +12,7 @@ import {
   createApprovalEnvelope,
   GATED_ACTIONS,
 } from "../shared";
+import { isOpsLeadRole, normalizeRole } from "../shared/roles";
 import { submitApprovalRequest } from "../shared/approvalsRepository";
 import { auth } from "../../firebase";
 import {
@@ -74,7 +75,14 @@ export default function StudentRoster({
     ["manager", "frontoffice", "opslead", "frontofficelead"].includes(userRole);
   // DOM05-UX-03: Decouple CSV export from !readOnly so Vice Director (readOnly=true) retains roster export.
   // Teaching instructors and admin remain blocked from bulk student PII export (DOM05-PRIV-01).
-  const canExportRoster = userRole !== "instructor" && userRole !== "admin" && !isAdmin;
+  // OD-OPS-02 / G-014: Operational Leaders and aliases are blocked from bulk student CSV export.
+  const normalizedUserRole = normalizeRole(userRole);
+  const isOpsLead = isOpsLeadRole(userRole);
+  const canExportRoster =
+    normalizedUserRole !== "instructor" &&
+    normalizedUserRole !== "admin" &&
+    !isAdmin &&
+    !isOpsLead;
   const [rosterView, setRosterView] = useState("students"); // "students" | "parents"
 
   const linkedParentsMap = useMemo(() => {

@@ -4,6 +4,8 @@ import { sendPasswordResetEmail } from "firebase/auth";
 import { useToast, uploadToCloudinary, useOverlayHistory } from "../shared";
 import { fetchOwnProfile, updateProfilePhoto, updateProfileDetails } from "./authRepository";
 import { InstallButton } from "../pwa";
+import { isStaffRole } from "../shared/roles";
+import PersonalAttendanceSection from "./PersonalAttendanceSection";
 
 function getInitials(name) {
   if (!name) return "?";
@@ -15,30 +17,41 @@ function getInitials(name) {
     .join("");
 }
 
-export default function ProfilePanel({ onClose, onUpdated, onLogout }) {
+export default function ProfilePanel({
+  onClose,
+  onUpdated = null,
+  onLogout = null,
+  initialProfile = null,
+  attendanceFetchFn = null,
+}) {
   const toast = useToast();
-  const uid = auth.currentUser?.uid;
-  const email = auth.currentUser?.email;
-
-  const [profile, setProfile] = useState(null);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [dob, setDob] = useState("");
+  const [profile, setProfile] = useState(initialProfile);
+  const uid = auth.currentUser?.uid || profile?.uid || initialProfile?.uid;
+  const email = auth.currentUser?.email || profile?.email || initialProfile?.email;
+  const isStaff = isStaffRole(profile?.role);
+  const [name, setName] = useState(initialProfile?.displayName || "");
+  const [phone, setPhone] = useState(initialProfile?.phone || "");
+  const [dob, setDob] = useState(initialProfile?.dob || "");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [resetSent, setResetSent] = useState(false);
 
   useEffect(() => {
+    if (!auth.currentUser?.uid) return;
     (async () => {
-      const data = await fetchOwnProfile(uid);
-      if (data) {
-        setProfile(data);
-        setName(data.displayName || "");
-        setPhone(data.phone || "");
-        setDob(data.dob || "");
+      try {
+        const data = await fetchOwnProfile(auth.currentUser.uid);
+        if (data) {
+          setProfile(data);
+          setName(data.displayName || "");
+          setPhone(data.phone || "");
+          setDob(data.dob || "");
+        }
+      } catch (err) {
+        console.warn("Could not fetch own profile:", err);
       }
     })();
-  }, [uid]);
+  }, [auth.currentUser?.uid]);
 
   const handlePhotoChange = async (e) => {
     const file = e.target.files?.[0];
@@ -92,7 +105,7 @@ export default function ProfilePanel({ onClose, onUpdated, onLogout }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="profile-panel-title"
-        className="bg-white rounded-t-3xl shadow-xl w-full max-w-sm p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-xs space-y-4 sm:rounded-2xl sm:pb-5"
+        className="bg-white rounded-t-3xl shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-xs space-y-4 sm:rounded-2xl sm:pb-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto h-1.5 w-10 rounded-full bg-slate-200 sm:hidden" />
@@ -183,6 +196,17 @@ export default function ProfilePanel({ onClose, onUpdated, onLogout }) {
             {saving ? "Saving..." : "Save Changes"}
           </button>
         </form>
+
+        {/* Personal Shift Attendance History (Staff Self-Only, OD-STF-01) */}
+        {isStaff && (
+          <>
+            <hr className="border-gray-100" />
+            <PersonalAttendanceSection
+              uid={uid}
+              {...(attendanceFetchFn ? { fetchFn: attendanceFetchFn } : {})}
+            />
+          </>
+        )}
 
         <hr className="border-gray-100" />
 

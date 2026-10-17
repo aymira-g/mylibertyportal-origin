@@ -40,6 +40,8 @@ A decision document defines:
 | [`2026-10-17-exclusion-of-academic-and-operational-reports-from-system-admin.md`](./2026-10-17-exclusion-of-academic-and-operational-reports-from-system-admin.md) | Exclusion of Academic & Operational Report Views from System Administrator (OD-ADM-01) | 2026-10-17 | Active *(Ratified by Owner / Director Kifry)* |
 | [`2026-10-17-front-office-workspace-placement-and-access-boundaries.md`](./2026-10-17-front-office-workspace-placement-and-access-boundaries.md) | Front Office Placement: Corporate Events Read-Only Boundary, Progress Reports Gating & Reporting Parity (OD-FO-01, OD-FO-02, OD-FO-03) | 2026-10-17 | Active *(Ratified by Owner / Director Kifry)* |
 | [`2026-10-17-operational-leader-progress-reports-read-access-main-campus.md`](./2026-10-17-operational-leader-progress-reports-read-access-main-campus.md) | Operational Leader Read-Only Progress Reports Access at Main Campus (OD-OPS-01) | 2026-10-17 | Active *(Ratified by Owner / Director Kifry)* |
+| [`2026-10-17-operational-leader-bulk-roster-export-restriction.md`](./2026-10-17-operational-leader-bulk-roster-export-restriction.md) | Operational Leader Restriction on Bulk Student Roster CSV Export (OD-OPS-02 / G-014) | 2026-10-17 | Active *(Ratified by Owner / Director Kifry)* |
+| [`2026-10-17-staff-personal-shift-history-self-service-access.md`](./2026-10-17-staff-personal-shift-history-self-service-access.md) | Staff Personal Shift History Access in Self-Service Profile & Cashier Exclusion (OD-STF-01) | 2026-10-17 | Active *(Ratified by Owner / Director Kifry)* |
 
 
 ## Lifecycle Rule

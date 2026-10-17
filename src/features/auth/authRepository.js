@@ -19,6 +19,7 @@ export async function loginWithGoogle() {
  */
 
 export async function fetchOwnProfile(uid) {
+  if (!uid) return null;
   const snap = await getDoc(doc(db, "users", uid));
   return snap.exists() ? snap.data() : null;
 }

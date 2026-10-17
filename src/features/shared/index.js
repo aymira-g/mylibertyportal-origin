@@ -82,6 +82,7 @@ export {
   isDirectorRole,
   isViceDirectorRole,
   isFrontOfficeRole,
+  isOpsLeadRole,
   isInstructorRole,
   isManagerRole,
   isParentRole,

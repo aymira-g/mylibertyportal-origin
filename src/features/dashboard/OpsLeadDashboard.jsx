@@ -15,7 +15,6 @@ import OpsLeadFacilitiesTab from "./opslead/OpsLeadFacilitiesTab";
 import OpsLeadProgressReportsTab from "./opslead/OpsLeadProgressReportsTab";
 import FrontOfficePerformanceTab from "./opslead/FrontOfficePerformanceTab";
 import TodayScheduleBoard from "./frontoffice/TodayScheduleBoard";
-import FrontOfficeReportsTab from "./frontoffice/FrontOfficeReportsTab";
 import { StudentRoster } from "../students";
 import { AvailableBatches } from "../classes";
 import { CorporateEventsPanel } from "../attendance";
@@ -30,7 +29,6 @@ import {
   GraduationCap,
   BookOpen,
   DoorOpen,
-  FileText,
   Calendar,
 } from "lucide-react";
 
@@ -258,18 +256,6 @@ export default function OpsLeadDashboard({ branch = null, role = "opslead" }) {
         <TodayScheduleBoard
           classes={classes}
           instructors={instructors}
-        />
-      ),
-    },
-    {
-      id: "reports",
-      label: "Operational Reports",
-      icon: FileText,
-      component: (
-        <FrontOfficeReportsTab
-          myBranch={myBranch}
-          students={students}
-          userRole={effectiveRole}
         />
       ),
     },

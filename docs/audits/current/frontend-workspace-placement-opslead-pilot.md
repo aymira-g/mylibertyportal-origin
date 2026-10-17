@@ -4,21 +4,21 @@
 > **Target Scope:** Operational Leader / Ops Lead (`opslead`) Workspace Cockpit  
 > **Methodology Reference:** [`docs/audits/Role & Business Logic Conformance Audit/03-technical-audit-method.md`](../Role%20&%20Business%20Logic%20Conformance%20Audit/03-technical-audit-method.md) §3  
 > **Governance Authority:** Authoritative Blueprint v3.4.1 (§4, §5, §6.8, §6.10, §6.11, §15, §16, §18, §26 G-009, G-013, §41), Ratified Owner Decisions OD-O1 to OD-O4 (2026-10-08), Class Scheduling & Corporate Events Decision (2026-10-13), and Ratified Progress Reports Read Access Decision `OD-OPS-01` (2026-10-17)  
-> **Status:** SCOPED PILOT REPORT — STRICT READ-ONLY AUDIT MODE  
-> **Verification Method:** Static code inspection of React components, routing, repository contracts, and Firestore security rules, coupled with targeted read-only Vitest unit and security rules matrix test executions (*Live Firestore emulator skipped due to offline emulator host; rule claims remain static or matrix-supported rather than runtime-confirmed*)  
+> **Status:** SCOPED PILOT REPORT — REMEDIATION & VERIFICATION COMPLETED (FP-OPS-11A & FP-OPS-11B)
+> **Verification Method:** Static code inspection of React components, routing, repository contracts, and Firestore security rules, coupled with live Firestore Rules emulator execution (`attendanceAndShifts.emulator.test.js`, 30/30 passed across all 5 recognized Ops Lead aliases), Level 1 regression check suites (TypeScript `npm run typecheck` passed with 0 errors; focused Vitest component suite with 106 tests passed across 11 files), and security rules matrix suites (239 tests passed)
 
 ---
 
 ## 1. Pilot Scope & Executive Summary
 
-This pilot report documents a scoped, read-only static inspection and automated test audit of the **Operational Leader / Ops Lead (`opslead`)** workspace under the approved **Frontend Workspace Placement Pass (Role Workspace Coherence)** methodology ([`03-technical-audit-method.md`](../Role%20&%20Business%20Logic%20Conformance%20Audit/03-technical-audit-method.md) §3).
+This pilot report documents a scoped inspection and automated test audit of the **Operational Leader / Ops Lead (`opslead`)** workspace under the approved **Frontend Workspace Placement Pass (Role Workspace Coherence)** methodology ([`03-technical-audit-method.md`](../Role%20&%20Business%20Logic%20Conformance%20Audit/03-technical-audit-method.md) §3), updated with the verified remediations of findings `FP-OPS-11A` (ratified OD-O3 / G-009) and `FP-OPS-11B` (Option A de-cluttering).
 
 ### 1.1 Scope Boundaries & Operational Role Identity
-- **Single Role Cockpit:** This inspection is strictly focused on the Operational Leader (`opslead`) workspace mounted via `OpsLeadDashboard.jsx` in `src/App.jsx:604-610`. It evaluates the routing shell, 11 mounted tabs and nested components, shared controls, data queries, and underlying Firestore security rules.
+- **Single Role Cockpit:** This inspection is strictly focused on the Operational Leader (`opslead`) workspace mounted via `OpsLeadDashboard.jsx` in `src/App.jsx:604-610`. It evaluates the routing shell, 10 mounted tabs and nested components (following the verified removal of redundant Tab 10), shared controls, data queries, and underlying Firestore security rules.
 - **Strict Separation from Front Office:** Under Authoritative Blueprint v3.4.1 §6.8, §6.9 and Ratified Decisions OD-O1 through OD-O4, the Operational Leader is a branch-site operational coordinator, not a front-desk receptionist or cashier. Although legacy code aliases (`frontofficelead`, `ops_lead`) normalize to `opslead` for backward-compatible routing (OD-O1 Option A), the Operational Leader cockpit is distinct from `FrontOfficeDashboard.jsx`, `KidsFrontOfficeDashboard.jsx`, and `CrossDivDashboard.jsx`. Overlapping role aliases do not make their workspaces, permissions, or separation-of-duties boundaries interchangeable.
 - **Binding Governance Baseline for Academic Progress Reports (`OD-OPS-01` / `G-013`):** Under Owner Decision `OD-OPS-01` (ratified 2026-10-17) and Blueprint v3.4.1 (§6.8, G-013, §41), the Operational Leader is granted a narrow, read-only operational visibility exception over student progress reports strictly at the Main Campus (`kota_gorontalo`) across Course Academy and Kindergarten divisions. Operational Leaders hold zero academic, grading, student level promotion, or record mutation authority, and zero access to progress reports at satellite branches (`bone_bolango`, `limboto`, `pohuwato`).
 - **Preservation of Unresolved Legacy Reports:** Cloud Firestore query indexing requires explicit equality filters on `division`. Progress reports lacking an explicit `division` attribute (historical legacy records) or lacking `branchId` or `examDate` are excluded from Ops Lead queries and fail closed under security rules. In accordance with audit instructions, this known legacy state is preserved as excluded and unresolved; no historical data was backfilled or inferred during this pass.
-- **Strict Read-Only Audit Boundaries:** No application code (`src/`), security rules (`firestore.rules`), tests, or canonical governance documents were modified during this pass. All remediation items are documented as findings or open decisions awaiting owner authorization.
+- **Remediation & Remaining Open Scope:** Conformance findings `FP-OPS-11A` (cash drawer counting and shift reconciliation write access) and `FP-OPS-11B` (Tab 10 redundancy and Courses-only inquiry truncation) have both been remediated and verified. Following approved Option A, redundant Tab 10 (`FrontOfficeReportsTab`) was cleanly unmounted from `OpsLeadDashboard.jsx`. This removal also removes the Ops Lead's personal shift history view, leaving relocation for a separate owner decision. Governance question `FP-OPS-13` (bulk student CSV export) remains explicitly OPEN as `[Owner Decision Required]`.
 
 ---
 
@@ -38,11 +38,11 @@ The following ledger documents all targeted structural checks evaluated for the 
 | **`FP-OPS-08`** | `opslead` (Main Campus) | `src/features/dashboard/OpsLeadDashboard.jsx:228-237`<br>`src/features/dashboard/opslead/OpsLeadProgressReportsTab.jsx:1-647` | Student Academic Progress Oversight (Read-only progress evaluations, scores, teacher comments, division filters) | `INFORMATIONAL` | Authoritative Blueprint v3.4.1 §6.8, §41; Ratified Owner Decision 2026-10-17 (`OD-OPS-01` / `G-013`) | Ops Lead Dashboard -> Academic Progress Tab (`progress`) | Enforced in rules (`firestore.rules:1316-1321, 1328-1333`); verified via repository & unit tests | `CONFORMS` | Scoped strictly to Main Campus; Courses & Kindergarten divisions; read-only; Spark quota bounded (max 50/div) |
 | **`FP-OPS-09`** | `opslead` (Main Campus) | `src/features/dashboard/OpsLeadDashboard.jsx:239-252`<br>`src/features/classes/AvailableBatches.jsx:1-463` | Class Capacity & Cohort Scheduling (`AvailableBatches` mounted with `canEdit={true}`, `role="opslead"`) | `PRIMARY` | Authoritative Blueprint v3.4.1 §6.8; Ratified Owner Decision 2026-10-13 Decision 2 (Option B) | Ops Lead Dashboard -> Capacity & Batches Tab (`batches`) | Enforced in rules: `classes` create/update allowed for `isOpsLead()` (`firestore.rules:912-925`); delete blocked | `CONFORMS` | Primary class cohort scheduling & room allocation authority at Main Campus; batch deletion restricted to executives |
 | **`FP-OPS-10`** | `opslead` (Main Campus) | `src/features/dashboard/OpsLeadDashboard.jsx:254-263`<br>`src/features/dashboard/frontoffice/TodayScheduleBoard.jsx:1-123` | Live Class & Room Board (In-memory daily room schedule, class times, instructor and enrolled student counts) | `INFORMATIONAL` | Authoritative Blueprint v3.4.1 §6.8 (Room allocation, timetable conflict prevention, greeting coordination) | Ops Lead Dashboard -> Live Schedule Board Tab (`schedule`) | In-memory presentation; zero Firestore reads; zero mutations | `CONFORMS` | Read-only situational awareness for campus room navigation and timetable coordination |
-| **`FP-OPS-11A`** | `opslead` (Main Campus) | `src/features/dashboard/OpsLeadDashboard.jsx:265-274`<br>`src/features/dashboard/frontoffice/FrontOfficeReportsTab.jsx:189-200`<br>`src/features/dashboard/frontoffice/FrontDeskCashReconcile.jsx:182-190`<br>`src/features/dashboard/frontoffice/ShiftReconciliationModal.jsx:1-300` | Cash Drawer Balancing & End-of-Shift Reconciliation Action Exposed to Ops Lead | `INTENTIONALLY ABSENT` | Authoritative Blueprint v3.4.1 §6.8, §18; Ratified Decision OD-O3 (Option A) | Ops Lead Dashboard -> Operational Reports Tab (`reports`) -> Sub-tab "cash" -> Button "End Shift & Count Drawer" | Static rule inspection: `canUpdateShift` (`firestore.rules:1378-1392`) includes Ops Lead in `isFO` and permits `cashReconciliation` in `diffKeys`, indicating potential backend divergence from OD-O3; runtime unconfirmed (emulator skipped). Maker self-approval blocked by `firestore.rules:1270`. | `MISPLACED / UNCLEAR` | Conformance Finding: UI exposes cashier shift count/closing and rules permit cashReconciliation update, conflicting with OD-O3 (Finding 4.1) |
-| **`FP-OPS-11B`** | `opslead` (Main Campus) | `src/features/dashboard/OpsLeadDashboard.jsx:265-274`<br>`src/features/dashboard/frontoffice/FrontOfficeReportsTab.jsx:156-185, 202-400` | Operational Reports Workspace Clutter & Division Truncation (Duplicated Inquiries & Personal Shift Log) | `INFORMATIONAL` | Authoritative Blueprint v3.4.1 §6.8; OD-O2 | Ops Lead Dashboard -> Operational Reports Tab (`reports`) -> Sub-tabs "inquiries" & "shifts" | Static query inspection: defaults `division="courses"`; runtime behavior not tested | `MISPLACED / UNCLEAR` | Duplicates Tab 5 (`frontoffice`) and Tab 3 (`reconciliation`); artificially filters out Kindergarten inquiries (Finding 4.1) |
-| **`FP-OPS-12`** | `opslead` (Main Campus) | `src/features/dashboard/OpsLeadDashboard.jsx:276-280`<br>`src/features/attendance/CorporateEventsPanel.jsx:1-394` | Campus Corporate Events & Logistics Management (`CorporateEventsPanel` with `canCreate={true}`, `canCancel={true}`) | `PRIMARY` | Authoritative Blueprint v3.4.1 §6.8; Ratified Owner Decision 2026-10-13 Decision 3 | Ops Lead Dashboard -> Events & Logistics Tab (`events`) | Enforced in rules: `corporateEvents` branch-scoped create/cancel allowed for `isOpsLead()` (`firestore.rules:1020-1049`) | `CONFORMS` | Primary authority to schedule and cancel local branch events, workshops, training sessions, and school calendar meetings |
+| **`FP-OPS-11A`** | `opslead` (Main Campus) | `src/features/dashboard/OpsLeadDashboard.jsx` (former Tab 10 mount)<br>`src/features/dashboard/frontoffice/FrontOfficeReportsTab.jsx:189-200` (former container)<br>`src/features/dashboard/frontoffice/FrontDeskCashReconcile.jsx:182-190`<br>`src/features/dashboard/frontoffice/ShiftReconciliationModal.jsx:1-300` | Cash Drawer Balancing & End-of-Shift Reconciliation Action Exposed to Ops Lead | `INTENTIONALLY ABSENT` | Authoritative Blueprint v3.4.1 §6.8, §18; Ratified Decision OD-O3 (Option A) | Ops Lead Dashboard -> Operational Reports Tab (`reports`) [former location, now unmounted] -> Sub-tab "cash" -> Button "End Shift & Count Drawer" [suppressed in component] | **Remediated & Runtime-Verified:** `FrontDeskCashReconcile.jsx` hides button and displays "Duty Shift Active (Kiosk Attendance Only)"; `canUpdateShift` (`firestore.rules:1378-1436`) strictly restricts `cashReconciliation` to Front Office cashiers. Verified in live Firestore emulator (30/30 passed) across all 5 recognized Ops Lead aliases (`opslead`, `ops_lead`, `operational_leader`, `operationalleader`, `frontofficelead`). | `CONFORMS (REMEDIATED & VERIFIED)` | Conformance finding remediated per OD-O3 / G-009: Ops Lead drawer count controls omitted from UI, shiftsRepository throws, and backend rules strictly reject cashReconciliation writes while preserving legitimate kiosk attendance clock-out (Finding 4.1). |
+| **`FP-OPS-11B`** | `opslead` (Main Campus) | `src/features/dashboard/OpsLeadDashboard.jsx` (former Tab 10 mount, previously lines 265-274)<br>`src/features/dashboard/frontoffice/FrontOfficeReportsTab.jsx:1-408` (former mount) | Redundant Operational Reports Tab Mount & Courses-Only Truncation | `INTENTIONALLY ABSENT` | Authoritative Blueprint v3.4.1 §6.8; OD-O2; Ratified Option A (2026-10-17) | Ops Lead Dashboard (former Tab 10 mount unmounted; formerly `/portal#reports`) | Cleanly unmounted from `OpsLeadDashboard.jsx` and imports pruned; verified via `OpsLeadDashboard.test.js` (8/8 passed) and component suite (11 files, 106 passed) | `CONFORMS (REMEDIATED — OPTION A)` | Option A implemented: redundant Tab 10 unmounted, eliminating duplicate cashier/intake sub-tabs and inquiry truncation. Personal shift history access removed and deferred to separate decision (Finding 4.1.2). |
+| **`FP-OPS-12`** | `opslead` (Main Campus) | `src/features/dashboard/OpsLeadDashboard.jsx:264-268`<br>`src/features/attendance/CorporateEventsPanel.jsx:1-394` | Campus Corporate Events & Logistics Management (`CorporateEventsPanel` with `canCreate={true}`, `canCancel={true}`) | `PRIMARY` | Authoritative Blueprint v3.4.1 §6.8; Ratified Owner Decision 2026-10-13 Decision 3 | Ops Lead Dashboard -> Events & Logistics Tab (`events`) | Enforced in rules: `corporateEvents` branch-scoped create/cancel allowed for `isOpsLead()` (`firestore.rules:1020-1049`) | `CONFORMS` | Primary authority to schedule and cancel local branch events, workshops, training sessions, and school calendar meetings |
 | **`FP-OPS-13`** | `opslead` (Main Campus) | `src/features/students/StudentRoster.jsx:77` | Campus Learners Bulk Student PII CSV Export Feature (`canExportRoster` check) | `INFORMATIONAL` | Authoritative Blueprint v3.4.1 §6.8, §6.10, §7.3; DOM05-PRIV-01 [Owner Decision Required] | Campus Learners Tab -> Roster Header -> Export CSV Button | Pure client-side generation from loaded `students` array | `[Owner Decision Required]` | Authority to export bulk student PII is unresolved in approved sources; operational monitoring does not infer export authority (Finding 4.2) |
-| **`FP-OPS-14`** | `opslead` (global) | `src/features/dashboard/OpsLeadDashboard.jsx` (complete tab array: 11 tabs)<br>`firestore.rules:1138-1188` | Personal Cashier Tuition Payment Intake (`PaymentModal` / `PaymentCashierTab`) | `INTENTIONALLY ABSENT` | Authoritative Blueprint v3.4.1 §6.8, §18; Ratified Decision OD-O3 | Fully unmounted in Ops Lead shell; no payment intake buttons or cash register modal triggers | Enforced in rules: `canCreatePayment` denied to `opslead` (`firestore.rules:1138-1188`) | `CONFORMS` | Cleanly omitted from Ops Lead cockpit; preserves Maker-Checker separation between cashier and discrepancy approver |
+| **`FP-OPS-14`** | `opslead` (global) | `src/features/dashboard/OpsLeadDashboard.jsx` (complete tab array: 10 tabs)<br>`firestore.rules:1138-1188` | Personal Cashier Tuition Payment Intake (`PaymentModal` / `PaymentCashierTab`) | `INTENTIONALLY ABSENT` | Authoritative Blueprint v3.4.1 §6.8, §18; Ratified Decision OD-O3 | Fully unmounted in Ops Lead shell; no payment intake buttons or cash register modal triggers | Enforced in rules: `canCreatePayment` denied to `opslead` (`firestore.rules:1138-1188`) | `CONFORMS` | Cleanly omitted from Ops Lead cockpit; preserves Maker-Checker separation between cashier and discrepancy approver |
 | **`FP-OPS-15`** | `opslead` (global) | `src/features/dashboard/OpsLeadDashboard.jsx`<br>`firestore.rules:1337-1359` | Pedagogical Evaluation Grading, Mutation & Student Level Promotion Actions | `INTENTIONALLY ABSENT` | Authoritative Blueprint v3.4.1 §6.8, §6.11; Ratified Decisions OD-OPS-01, OD-IL-ENF1 | Fully omitted from `OpsLeadProgressReportsTab` and `StudentRoster`; no promotion buttons | Enforced in rules: `progressReports` update/delete denied to `isOpsLead()` (`firestore.rules:1345-1358`) | `CONFORMS` | Academic authority belongs exclusively to teaching staff, Central Academic Lead, and Division Managers |
 | **`FP-OPS-16`** | `opslead` (satellite) | `src/features/dashboard/opslead/OpsLeadProgressReportsTab.jsx:45, 92-94, 166-184`<br>`firestore.rules:1318-1320, 1330-1332` | Satellite Branch Progress Reports Access (`bone_bolango`, `limboto`, `pohuwato`) | `INTENTIONALLY ABSENT` | Authoritative Blueprint v3.4.1 §4, §5, §6.8; Ratified Decisions G-012, OD-OPS-01 | Gated fail-closed in UI (`if (!isMainCampus) return ...`); renders amber scope restriction banner | Enforced in rules: requires `userBranch() == 'kota_gorontalo' && resource.data.branchId == 'kota_gorontalo'` | `CONFORMS` | Satellite operational staff hold zero access to student academic evaluations; lean satellite model strictly preserved |
 
@@ -109,67 +109,82 @@ The newly added **Academic Progress** tab (`OpsLeadProgressReportsTab.jsx`, moun
 ### 4.1 Observation `FP-OPS-11A` & `FP-OPS-11B`: Front Office Reports Tab in Ops Lead Cockpit
 
 #### 4.1.1 Conformance Finding `FP-OPS-11A`: Cash Drawer Balancing Action & Backend Shift Update Path Exposed to Operational Leader
-- **Component Location:** `src/features/dashboard/OpsLeadDashboard.jsx:265-274`, `src/features/dashboard/frontoffice/FrontOfficeReportsTab.jsx:189-200`, `src/features/dashboard/frontoffice/FrontDeskCashReconcile.jsx:182-190`, and `src/features/dashboard/frontoffice/ShiftReconciliationModal.jsx:1-300`.
-- **Active-Shift Execution Path & Observed UI Exposure:**
+- **Component Location:** `src/features/dashboard/OpsLeadDashboard.jsx` (former Tab 10 mount, previously lines 265-274), `src/features/dashboard/frontoffice/FrontOfficeReportsTab.jsx:189-200` (former container), `src/features/dashboard/frontoffice/FrontDeskCashReconcile.jsx:182-190`, and `src/features/dashboard/frontoffice/ShiftReconciliationModal.jsx:1-300`.
+- **Active-Shift Execution Path & Pre-Remediation UI Exposure:**
   1. **Shift Initiation:** Operational Leaders perform on-duty station attendance clock-in at the attendance kiosk via `src/features/attendance/kioskScanProcessor.js:394-440` (`executeStaffClockIn`). This creates an open document in the `/shifts` collection with `userId == currentUser.uid`, `branchId`, and `clockOut == null`.
   2. **Active Shift Query in Reports Tab:** In `FrontOfficeReportsTab.jsx:49-57`, the tab independently executes `fetchOpenShiftFor(currentUser.uid, branchToId(myBranch))`. If the Ops Lead has an open duty shift, `internalActiveShift` is populated.
-  3. **Drawer Balancing Button Exposure:** `FrontOfficeReportsTab.jsx:191-198` renders `<FrontDeskCashReconcile>` under sub-tab `"cash"`, passing `activeShift`. In `FrontDeskCashReconcile.jsx:182-190`, `activeShift != null` triggers the unconditional rendering of the cashier action button:
+  3. **Button Exposure (Pre-Remediation Behavior):** In earlier un-remediated code, `FrontOfficeReportsTab.jsx:191-198` rendered `<FrontDeskCashReconcile>` under sub-tab `"cash"`, passing `activeShift`. In `FrontDeskCashReconcile.jsx:182-190`, `activeShift != null` previously triggered the unconditional rendering of the cashier action button (pre-remediation behavior; now suppressed for Ops Leads and replaced by the non-actionable duty shift badge):
      ```jsx
      <button onClick={() => setShowReconcileModal(true)}>End Shift & Count Drawer</button>
      ```
-  4. **Cashier Balancing Modal:** Clicking this button opens `ShiftReconciliationModal.jsx`. The Ops Lead can enter counted physical cash and QRIS, calculate drawer overage/shortage, enter notes, and submit `clockOutShiftWithCashReconciliation(activeShift.id, ...)`.
-  5. **Discrepancy Ticket Generation:** If counted cash differs from system expected totals by more than the threshold, submitting the modal calls `createApprovalEnvelope("CASH_DISCREPANCY", ...)` and submits an approval ticket with `requestedByUid == currentUser.uid`.
-- **Backend Security Rule Path (`canUpdateShift`) & Potential Governance/Security Divergence:**
-  - In `firestore.rules:1361-1409`, the helper function `canUpdateShift` governs mutations to `/shifts/{shiftId}`:
-    ```firestore
-    let isFO = r in ['frontoffice', 'opslead', 'ops_lead', 'operational_leader', 'operationalleader', 'frontofficelead'];
-    ...
-    (isFO
-      && sameBranch
-      && res.clockOut == null
-      && req.clockOut is string
-      && req.userId == res.userId
-      && (!('branch' in res) || req.branch == res.branch)
-      && (!('branchId' in res) || req.branchId == res.branchId)
-      && req.clockIn == res.clockIn
-      && diffKeys.hasOnly(['clockOut', 'updatedAt', 'cashReconciliation', 'notes', 'status', 'verifiedBy', 'verifiedAt', 'autoClosed']))
-    ```
-  - **Potential Backend Divergence:** Under line 1378, `isFO` includes the Ops Lead aliases (`'opslead'`, `'ops_lead'`, `'operational_leader'`, `'operationalleader'`, `'frontofficelead'`). Lines 1384–1392 permit users matching `isFO` to close their own active shift (`res.clockOut == null && req.clockOut is string && req.userId == res.userId`) while modifying `diffKeys` that explicitly include `'cashReconciliation'`.
-  - **Divergence Impact:** This rule path means an Ops Lead with an open shift document potentially has backend permission to close their own shift and persist physical cash drawer counts directly to Firestore, despite the ratified OD-O3 rule that the Ops Lead does not personally act as cashier.
-  - **Runtime Verification Status (Offline Emulator):** This rule path was identified through static code inspection and rule analysis. As documented in §5.3, live runtime verification against active security rules remains unconfirmed because the Firestore emulator host was offline and emulator tests were skipped during this audit session.
-- **Maker-Checker Separation & Blocked Self-Approval Trace:**
-  - *Correction on Earlier Draft:* The initial draft heading *"Self-Approval Path"* overstated what was established. The report established that an Ops Lead can generate a discrepancy ticket as maker, but code and security rules tracing confirms that **maker self-approval is strictly blocked across both backend rules and client controls**:
-    1. **Backend Rule Gate (`firestore.rules:1269-1271`):** In `match /approvals/{approvalId}`, approval updates require:
-       ```firestore
-       allow update: if isApproverForDoc(resource.data)
-           && request.auth.uid != resource.data.requestedByUid
-           && request.resource.data.requestedByUid == resource.data.requestedByUid
-       ```
-       The rule strictly requires `request.auth.uid != resource.data.requestedByUid`. Any direct Firestore write by the Ops Lead attempting to approve or decide an envelope they submitted as maker fails closed with `permission-denied`.
-    2. **Client UI Gate (`src/features/shared/ApprovalInbox.jsx:339-342, 444-447`):** Both `handleApprove` and `handleReject` evaluate:
-       ```javascript
-       if (approval.requestedByUid && approval.requestedByUid === currentUid) {
-         toast("Dual-control restriction: You cannot approve a request you submitted yourself.", "error");
-         return;
-       }
-       ```
-    3. **Actual Consequence — Operational Conflict & Potential Ticket Stranding:** While self-approval is blocked, permitting the Ops Lead to act as the drawer-counting cashier creates an operational conflict: under ratified Decisions OD-O3 and OD-O4, the Operational Leader is the designated branch checker for discrepancies < Rp 20.000. When the Ops Lead is the maker (`requestedByUid`), they are barred from checking their own ticket. If no other eligible checker is assigned or available at the branch, the discrepancy ticket cannot be approved locally at the branch and becomes stranded in the pending queue unless manually escalated to Executive Leadership (Director / Vice Director).
-- **Governance Conflict against Ratified Decision OD-O3:**
-  - On 2026-10-08, Owner Kifry formally ratified Decision **OD-O3 (Option A)**:
-    > *"Operational Leader reviews daily drawer reconciliation and approves discrepancies < Rp 20.000. Ops Lead does not personally act as cashier... Separation of duties: The person who counted the drawer cannot approve discrepancies."*
-  - Exposing cashier shift closing and physical drawer count controls to the Operational Leader in the frontend UI, coupled with backend permission in `canUpdateShift` allowing Ops Lead aliases to submit `cashReconciliation` fields, conflicts directly with OD-O3 and Maker-Checker separation of duties ([`Blueprint v3.4.1 §15, §18`](file:///E:/myliberty-portal/docs/governance/MYLIBERTY-AUTHORITATIVE-BLUEPRINT.md#L432-L442)).
-- **Outcome Status:** **`MISPLACED / UNCLEAR` (Conformance Finding — Governance Conflict against OD-O3 & Potential Backend Rule Divergence)**.
-- **Audit Handoff & Governance Boundary:** Under `03-technical-audit-method.md` §3.2, an audit pass documents the observation, execution path, and rule analysis without modifying production code or security rules. All rule changes (such as tightening `canUpdateShift` in `firestore.rules`) and implementation changes (such as unmounting cashier shift controls from the Ops Lead cockpit) are formally deferred to a separately authorized implementation task.
+  4. **Drawer-Count Entry (Pre-Remediation Behavior):** Prior to remediation, clicking this button opened `ShiftReconciliationModal.jsx`, allowing an Ops Lead to enter counted physical cash and QRIS, calculate drawer overage/shortage, enter notes, and submit `clockOutShiftWithCashReconciliation(activeShift.id, ...)` (pre-remediation behavior; now blocked across UI, modal, repository, and rules layers).
+  5. **Discrepancy-Ticket Flow (Pre-Remediation Flow):** Prior to remediation, if counted cash differed from system expected totals by more than the threshold, submitting the modal called `createApprovalEnvelope("CASH_DISCREPANCY", ...)` and submitted an approval ticket with `requestedByUid == currentUser.uid` (pre-remediation flow; now unreachable because drawer counting and cashier shift close are denied to Ops Leads).
+- **Identified Rule Divergence & Governance Conflict (OD-O3):**
+  - Prior to remediation, `canUpdateShift` in `firestore.rules:1378-1392` grouped Ops Lead aliases (`opslead`, `ops_lead`, `operational_leader`, `operationalleader`, `frontofficelead`) with Front Office in `isFO`. This permitted Ops Leads with active duty shifts to submit `cashReconciliation` fields during shift closing, creating backend permission to record cash drawer counts in direct violation of ratified Decision OD-O3 (*"Ops Lead does not personally act as cashier"*).
+  - Simultaneously, `FrontDeskCashReconcile.jsx` unconditionally exposed the "End Shift & Count Drawer" button when `activeShift != null`, allowing Ops Leads to launch `ShiftReconciliationModal.jsx` and generate discrepancy tickets.
+- **Implemented 4-Layer Defense-in-Depth Remediation:**
+  1. **Backend Security Rules (`firestore.rules:1378-1436`):**
+     - In `canUpdateShift(shiftId)`: Differentiated pure Front Office (`let isPureFO = r == 'frontoffice';`) and added `&& (!('cashReconciliation' in diffKeys) || isPureFO)` to Clause 1. Operational Leaders can still clock out active duty shifts for attendance kiosk check-out, but any write touching `cashReconciliation` fails closed with `PERMISSION_DENIED`.
+     - In `/shifts` `allow create`: Added `&& !('cashReconciliation' in request.resource.data)` to prevent pre-seeding closed cashier counts on new shift creation.
+  2. **Repository Gate (`src/features/attendance/shiftsRepository.js:442-455`):**
+     - `clockOutShiftWithCashReconciliation` inspects `requester.role` and throws an error if called with an Ops Lead role alias, refusing to create discrepancy tickets or write shift documents.
+  3. **Dialog Modal Defense (`src/features/dashboard/frontoffice/ShiftReconciliationModal.jsx:84-93`):**
+     - `handleSubmit` evaluates `effectiveRole` and aborts with an error toast if `currentUser.role` matches an Ops Lead alias.
+  4. **Workspace UI Presentation (`FrontDeskCashReconcile.jsx`, `FrontOfficeReportsTab.jsx`, `OpsLeadDashboard.jsx`):**
+     - `OpsLeadDashboard.jsx:272` passes `userRole={effectiveRole}` to `<FrontOfficeReportsTab>`.
+     - `FrontOfficeReportsTab.jsx:197` forwards `userRole={userRole}` to `<FrontDeskCashReconcile>`.
+     - `FrontDeskCashReconcile.jsx:55-58, 197-213` evaluates `isOpsLeadRole` and suppresses the "End Shift & Count Drawer" button, rendering a non-actionable badge: `Duty Shift Active (Kiosk Attendance Only)`.
+- **Live Runtime Emulator Verification Evidence:**
+  - Executed: `npx firebase emulators:exec --only firestore --project demo-myliberty-rules "npx vitest run src/features/shared/firestoreRulesEmulator/attendanceAndShifts.emulator.test.js"`.
+  - **Result:** **30 passed (30 tests)** in 10.94s with zero failures against the live Firestore rules emulator.
+  - Verified across all 5 recognized Ops Lead aliases (`opslead`, `ops_lead`, `operational_leader`, `operationalleader`, `frontofficelead`):
+    - Closing shift with `cashReconciliation` is strictly **DENIED** (`assertFails`).
+    - Closing shift without `cashReconciliation` is **ALLOWED** (`assertSucceeds`), preserving attendance clock-out.
+    - Front Office cashier reconciliation write is preserved and succeeds.
+- **Resolution Status:** **`CONFORMS (REMEDIATED & RUNTIME-VERIFIED)`**.
+- *Note on Sibling Observation:* Sibling observation `FP-OPS-11B` (tab duplication & Kindergarten inquiry truncation) has been **RESOLVED & VERIFIED** under approved Option A.
 
-#### 4.1.2 Observation `FP-OPS-11B`: Workspace Clutter & Division Truncation
-- **Component Location:** `src/features/dashboard/OpsLeadDashboard.jsx:265-274` and `src/features/dashboard/frontoffice/FrontOfficeReportsTab.jsx:156-185, 202-400`.
-- **Observed Deficiencies:**
+#### 4.1.2 Conformance Remediation `FP-OPS-11B`: Removal of Redundant Operational Reports Tab 10 (Option A)
+- **Component Locations:**
+  - `src/features/dashboard/OpsLeadDashboard.jsx` (Tab 10: `FrontOfficeReportsTab` unmounted; former lines 260-275)
+  - `src/features/dashboard/frontoffice/FrontOfficeReportsTab.jsx:1-408` (former Tab 10 mount)
+  - `src/features/dashboard/OpsLeadDashboard.test.js:64-67, 144` (Test assertion updated)
+  - `src/features/dashboard/opslead/OpsLeadReconciliationTab.jsx:1-205` (Tab 3: Preserved dedicated reconciliation cockpit)
+  - `src/features/dashboard/opslead/FrontOfficePerformanceTab.jsx:1-409` (Tab 5: Preserved dual-division intake cockpit)
+- **Problem Context & Root Cause Analysis:**
+  Mounting `<FrontOfficeReportsTab>` as Tab 10 in `OpsLeadDashboard.jsx` was an earlier workspace placement shortcut that introduced workspace incoherence:
   1. **Functional Duplication:**
-     - Sub-tab 1 ("Cash Register Reconciliation") duplicates the dedicated Operational Leader reconciliation cockpit in Tab 3 (`OpsLeadReconciliationTab.jsx`).
-     - Sub-tab 2 ("Today's Inquiry Count") duplicates the dual-division reception tracking in Tab 5 (`FrontOfficePerformanceTab.jsx`).
-  2. **Division Truncation Mismatch:**
-     - `FrontOfficeReportsTab` has default prop `division = "courses"`. Because `OpsLeadDashboard.jsx:269` does not pass `division="all"`, inquiry queries in `FrontOfficeReportsTab.jsx:67` filter strictly for `inq.division === "courses"`. This artificially truncates Kindergarten inquiries for an Operational Leader whose ratified scope covers whole-campus operations (OD-O2).
-- **Outcome Status:** **`MISPLACED / UNCLEAR`**.
+     - Sub-tab 1 ("Cash Register Reconciliation") duplicated the purpose-built reconciliation cockpit in Tab 3 (`OpsLeadReconciliationTab.jsx`), which already summarizes Cash, QRIS, and Transfer totals, displays the daily payments ledger, and enforces the G-009 discrepancy policy.
+     - Sub-tab 2 ("Today's Inquiry Count") duplicated Tab 5 (`FrontOfficePerformanceTab.jsx`), which is specifically designed for the Operational Leader to coordinate front-office responsiveness, intake velocity, follow-up stages, and lead conversion across both divisions.
+  2. **Courses-Only Inquiry Scope Truncation:**
+     - `OpsLeadDashboard.jsx` mounted `<FrontOfficeReportsTab>` without a `division` prop.
+     - `FrontOfficeReportsTab.jsx:30` defaulted to `division = "courses"`, causing `fetchRecentDeskInquiries` to append `where("division", "==", "courses")` and filter `inq.division === "courses"`.
+     - Consequently, Kindergarten inquiries at Main Campus were artificially truncated from Tab 10.
+- **Implemented Remediation (Approved Option A — De-clutter & Prune):**
+  1. **Clean Unmounting from Ops Lead Shell (`src/features/dashboard/OpsLeadDashboard.jsx`):**
+     - Removed `import FrontOfficeReportsTab from "./frontoffice/FrontOfficeReportsTab";`.
+     - Removed unused `FileText` icon import from `lucide-react`.
+     - Removed the Tab 10 definition (`id: "reports"`, `label: "Operational Reports"`) from the `tabs` array.
+     - Reduced Ops Lead dashboard tabs from 11 to 10 cleanly focused operational command tabs.
+  2. **Preservation of Core Workspaces & Invariants:**
+     - Tab 3 (`OpsLeadReconciliationTab.jsx`) remains the sole, dedicated shift cash reconciliation and discrepancy review cockpit.
+     - Tab 5 (`FrontOfficePerformanceTab.jsx`) remains the dedicated dual-division front-office performance and intake tracking cockpit, preserving complete visibility across Course Academy and Kindergarten inquiries.
+     - All other operational tabs (Overview, Approvals, Facilities, Campus Learners, Academic Progress, Capacity & Batches, Live Schedule Board, Events & Logistics) remain intact.
+     - No modifications were made to Firestore security rules, governance decisions, or Front Office workspaces (`FrontOfficeDashboard.jsx`, `KidsFrontOfficeDashboard.jsx`).
+  3. **Personal Shift History Impact (Disclosed Limitations):**
+     - **Reported Impact:** Removing Tab 10 completely removes access to the Operational Leader's personal shift history (`fetchUserShifts(currentUser.uid, 30)`), which was housed under Sub-tab 3 of `FrontOfficeReportsTab`.
+     - **Governance Discipline:** In strict accordance with audit instructions, personal shift history was NOT relocated to the Overview tab or added as a new self-service feature. Relocation of personal shift history is formally deferred for a separate owner decision.
+  4. **Component Test Suite Update (`src/features/dashboard/OpsLeadDashboard.test.js`):**
+     - Removed mock of `FrontOfficeReportsTab`.
+     - Updated tab assertion: verifies all 10 operational tabs and asserts `expect(html).not.toContain("Operational Reports")`.
+- **Verification Evidence:**
+  - **Component & Unit Suite:** `npx vitest run src/features/dashboard/OpsLeadDashboard.test.js src/features/dashboard/opslead/ src/features/dashboard/frontoffice/ src/features/students/progressReportsRepository.test.js`
+    - **Result:** **`11 passed (11 test files, 106 passed tests, 0 failed)`** in 3.13s.
+  - **TypeScript Typecheck:** `npm run typecheck`
+    - **Result:** **`Passed (0 errors)`** in 1.84s.
+  - **Security Rules Matrix:** `npx vitest run src/features/shared/securityRulesMatrix/`
+    - **Result:** **`5 passed (5 test files, 239 passed tests, 0 failed)`** in 264ms.
+- **Resolution Status:** **`CONFORMS (REMEDIATED & VERIFIED — OPTION A IMPLEMENTED)`**.
 
 ---
 
@@ -198,7 +213,7 @@ The remaining tabs in the Operational Leader workspace demonstrate exemplary ali
    - In `AvailableBatches.jsx:52-60`, `canAdminister` is enabled for `role === "opslead"`, exposing the `+ Add Available Batch` button and `BatchModal` for timetable and room allocation.
    - Batch deletion (`canDelete`) is cleanly restricted to Executive Leadership (`director`, `vice_director`), preventing accidental cohort destruction.
    - Backend security rules (`firestore.rules:912-925`) permit class creation and updates for `isOpsLead()` scoped to `isSameBranch()`.
-2. **Corporate Events & Logistics (`CorporateEventsPanel.jsx`, Tab 11):**
+2. **Corporate Events & Logistics (`CorporateEventsPanel.jsx`, Tab 10 [formerly Tab 11]):**
    - Implements Ratified Owner Decision 2026-10-13 Decision 3.
    - Exposes branch event creation and cancellation (`canCreate={true}`, `canCancel={true}`) for campus workshops, seminars, and calendar schedules.
    - Backend rules (`firestore.rules:1020-1049`) strictly restrict branch staff (including Ops Lead) to `audienceType == 'branch'` within `userBranch()`, while academy-wide events (`audienceType == 'all'`) remain reserved for Executive Leadership.
@@ -246,34 +261,54 @@ In accordance with `AGENTS.md` verification precedence and honest reporting stan
 ### 5.1 Ops Lead Unit & Repository Test Suite
 - **Command Run:**
   ```powershell
-  npx vitest run src/features/dashboard/opslead/ src/features/dashboard/OpsLeadDashboard.test.js src/features/students/progressReportsRepository.test.js
+  npx vitest run src/features/dashboard/OpsLeadDashboard.test.js src/features/dashboard/opslead/ src/features/dashboard/frontoffice/ src/features/students/progressReportsRepository.test.js
   ```
-- **Results:** **`5 passed (5 test files, 51 passed tests, 0 failed)`**, Duration: 1.84s
+- **Results:** **`11 passed (11 test files, 106 passed tests, 0 failed)`**, Duration: 3.13s
+  - `src/features/dashboard/OpsLeadDashboard.test.js`: 8 passed (Dashboard shell rendering, 10 operational tab mounts, absence of "Operational Reports")
   - `src/features/dashboard/opslead/opsLeadUtils.test.js`: 12 passed
   - `src/features/students/progressReportsRepository.test.js`: 24 passed (including 11 tests verifying `fetchOpsLeadProgressReports` and 13 tests verifying `resolveOpsLeadQueryLimit` bounds [1..50])
   - `src/features/dashboard/opslead/OpsLeadBottlenecksSection.test.js`: 3 passed
   - `src/features/dashboard/opslead/OpsLeadProgressReportsTab.test.js`: 4 passed (Main Campus rendering, satellite branch restriction notice for Bone Bolango & Limboto, and empty/loading states)
-  - `src/features/dashboard/OpsLeadDashboard.test.js`: 8 passed (Dashboard shell rendering, tab switching, and component mounts)
+  - `src/features/dashboard/frontoffice/FrontDeskCashReconcile.test.js`: 5 passed
+  - `src/features/dashboard/frontoffice/FrontOfficeReportsTab.test.js`: 2 passed
+  - `src/features/dashboard/frontoffice/FrontOfficeReportsIsolation.test.js`: 8 passed (division isolation)
+  - `src/features/dashboard/frontoffice/deskInquiriesRepository.test.js`: 17 passed
+  - `src/features/dashboard/frontoffice/WalkInInquiryTab.test.js`: 17 passed
+  - `src/features/dashboard/frontoffice/TuitionDueWidget.test.js`: 6 passed
 
 ### 5.2 Security Rules Matrix Test Suite
 - **Command Run:**
   ```powershell
   npx vitest run src/features/shared/securityRulesMatrix/
   ```
-- **Results:** **`5 passed (5 test files, 227 passed tests, 0 failed)`**, Duration: 251ms
+- **Results:** **`5 passed (5 test files, 239 passed tests, 0 failed)`**, Duration: 264ms
   - `userAuthorization.test.js`: 14 passed
   - `branchIsolation.test.js`: 18 passed
-  - `operationalResources.test.js`: 46 passed
+  - `operationalResources.test.js`: 58 passed (including tests verifying `canUpdateShift` denies `cashReconciliation` to all 5 Ops Lead role aliases and allows attendance clock-outs)
   - `divisionIsolation.test.js`: 112 passed (including test 7: `DOM04-SEC-05: /payments creation is restricted to frontoffice and denied to opslead`)
   - `approvals.test.js`: 37 passed (including Ops Lead approvals decoupling and discrepancy threshold tests)
 
-### 5.3 Live Firestore Rules Emulator Test Suite Status (Honest Reporting)
+### 5.3 Live Firestore Rules Emulator Test Suite Status (Attendance, Shifts & Cashier Separation)
 - **Command Run:**
   ```powershell
-  npx vitest run src/features/shared/firestoreRulesEmulator/classesAndAcademic.emulator.test.js
+  npx firebase emulators:exec --only firestore --project demo-myliberty-rules "npx vitest run src/features/shared/firestoreRulesEmulator/attendanceAndShifts.emulator.test.js"
   ```
-- **Results:** **`1 skipped (1 test file, 53 skipped tests, 0 failed)`**
-- **Reporting Reason:** The live Firebase emulator process was offline during this audit session (`FIRESTORE_EMULATOR_HOST` not connected). Tests gracefully skipped rather than executing against live rules. In strict adherence to `AGENTS.md` ("Never claim verification that did not happen"), backend enforcement outcomes in this report remain static rule inspections confirmed via repository rule logic and security matrix tests, but not runtime-confirmed against an active emulator instance.
+- **Results:** **`1 passed (1 test file, 30 passed tests, 0 failed, 0 skipped)`**, Duration: 10.94s
+- **Verification Evidence:**
+  - Verified live against active Firestore Security Rules in the Firebase emulator.
+  - Front Office staff (`foGto`) can close shift with `cashReconciliation` (preserves approved cashier workflow).
+  - Front Office staff (`foGto`) can close shift without `cashReconciliation` (regular attendance clock-out).
+  - All 5 recognized Ops Lead aliases (`opslead`, `ops_lead`, `operational_leader`, `operationalleader`, `frontofficelead`) are strictly **DENIED** (`assertFails`) closing shifts with `cashReconciliation` (enforces OD-O3 / G-009).
+  - All 5 recognized Ops Lead aliases are **ALLOWED** (`assertSucceeds`) closing shifts without `cashReconciliation` (preserves legitimate duty shift attendance clock-out).
+  - Creating new shifts pre-seeded with `cashReconciliation` is strictly **DENIED**.
+  - All 20 existing attendance, kiosk guard, correction gate, and shift audit event tests continue to pass.
+
+### 5.4 TypeScript Typecheck & Core Static Verification
+- **Command Run:**
+  ```powershell
+  npm run typecheck
+  ```
+- **Results:** **`Passed (0 errors)`**, Duration: 1.84s
 
 ---
 
@@ -281,23 +316,33 @@ In accordance with `AGENTS.md` verification precedence and honest reporting stan
 
 ### 6.1 Summary of Placement Outcomes
 - **Total Checks Evaluated:** 17 targeted structural checks (`FP-OPS-01` through `FP-OPS-16`, including split rows `11A` and `11B`).
-- **Conforms:** 14 checks cleanly conform to Authoritative Blueprint v3.4.1 and accepted Owner Decisions.
-- **Misplaced / Unclear:** 2 checks (`FP-OPS-11A` and `FP-OPS-11B`).
-- **Owner Decision Required:** 1 check (`FP-OPS-13`).
+- **Conforms:** 16 checks cleanly conform to Authoritative Blueprint v3.4.1 and accepted Owner Decisions (including remediated and runtime-verified `FP-OPS-11A` and `FP-OPS-11B`).
+- **Misplaced / Unclear (Open):** 0 checks.
+- **Owner Decision Required (Open):** 1 check (`FP-OPS-13` — Bulk student PII CSV export authority).
 
-### 6.2 Conformance Findings (Ratified Governance Conflicts)
+### 6.2 Remediation Status & Conformance Findings
 1. **`FP-OPS-11A` — Cash Drawer Balancing Action & Backend Shift Update Path Exposed to Operational Leader:**
-   - *Conflict:* Exposing the "End Shift & Count Drawer" button via `FrontDeskCashReconcile.jsx` inside Tab 10 allows an Ops Lead holding an open duty shift to count drawers, balance cash registers, and initiate discrepancy tickets. Furthermore, static inspection of `canUpdateShift` (`firestore.rules:1378-1392`) shows Ops Lead aliases are included in `isFO` and allowed `cashReconciliation` in `diffKeys`, indicating a potential backend governance/security divergence against ratified Decision OD-O3 (*"Ops Lead does not personally act as cashier"*), though runtime verification remains unconfirmed due to the offline emulator. Tracing confirms maker self-approval is strictly blocked by `firestore.rules:1270` (`request.auth.uid != resource.data.requestedByUid`) and `ApprovalInbox.jsx:339`, but this creates a maker-checker operational conflict that strands the ticket if no other eligible branch checker is available.
+   - **Status:** **`RESOLVED & RUNTIME-VERIFIED (CONFORMS)`**
+   - *Resolution:* Implemented 4-layer defense in depth:
+     - **UI:** `FrontDeskCashReconcile.jsx` hides the drawer counting button for Ops Lead roles, displaying an informational badge `Duty Shift Active (Kiosk Attendance Only)`. `OpsLeadDashboard.jsx` forwards `userRole={effectiveRole}` via `FrontOfficeReportsTab.jsx`.
+     - **Modal:** `ShiftReconciliationModal.jsx` rejects submissions from Ops Lead roles with an error toast.
+     - **Repository:** `shiftsRepository.js` throws an explicit error on `clockOutShiftWithCashReconciliation` calls from Ops Lead roles.
+     - **Rules:** `firestore.rules:canUpdateShift` restricts `cashReconciliation` field updates strictly to pure Front Office (`isPureFO`), while allowing legitimate attendance clock-outs for Ops Leads. The `/shifts` create rule blocks pre-seeding `cashReconciliation`.
+     - **Verification:** Verified via 30/30 live emulator tests covering all 5 Ops Lead role aliases (`opslead`, `ops_lead`, `operational_leader`, `operationalleader`, `frontofficelead`) and 58/58 security rules matrix tests.
 2. **`FP-OPS-11B` — Operational Reports Workspace Clutter & Division Truncation:**
-   - *Issue:* Mounting `FrontOfficeReportsTab` duplicates Tab 3 (cash reconciliation) and Tab 5 (inquiry tracking), while defaulting to `division="courses"`, which artificially truncates Kindergarten desk inquiries for a whole-campus leader.
+   - **Status:** **`RESOLVED & VERIFIED (CONFORMS — OPTION A IMPLEMENTED)`**
+   - *Resolution:* Following Owner Kifry's approval of Option A, redundant Tab 10 (`FrontOfficeReportsTab`) was cleanly unmounted from `OpsLeadDashboard.jsx`, and unused imports (`FrontOfficeReportsTab`, `FileText`) were pruned. This completely eliminates the functional duplication of Tab 3 (cash reconciliation) and Tab 5 (intake tracking), as well as the Courses-only inquiry truncation defect. Core operational tabs (Tab 3 and Tab 5) and all role permissions were strictly preserved.
+   - *Shift History Impact (Disclosed Limitation):* Removing Tab 10 removes access to the Ops Lead's personal shift history view (`fetchUserShifts(currentUser.uid, 30)`), which was housed under Sub-tab 3 of `FrontOfficeReportsTab`. In accordance with audit instructions, personal shift history was NOT relocated to Overview or added as a new feature; relocation is formally deferred for a separate owner decision.
+   - *Verification:* Verified via `OpsLeadDashboard.test.js` (8/8 passed asserting absence of "Operational Reports"), the full component test suite (11 test files, 106 passed tests), and `npm run typecheck` (0 errors).
 
 ### 6.3 Governance Gaps Requiring Owner Decision
 1. **`FP-OPS-13` — Bulk Student PII CSV Export Authority for Operational Leaders:**
-   - *Governance Question:* Does the Operational Leader's on-screen student throughput and capacity monitoring authority authorize downloading bulk student PII (names, parent contacts, levels) to local device storage via CSV, or should bulk roster export be restricted to Division Managers and Executive Leadership?
+   - **Status:** **`OPEN [Owner Decision Required]`**
+   - *Governance Question:* Does the Operational Leader's on-screen student throughput and capacity monitoring authority authorize downloading bulk student PII (names, parent contacts, levels) to local device storage via CSV, or should bulk roster export be restricted to Division Managers and Executive Leadership? Remains open awaiting owner decision.
 
-### 6.4 Implementation Handoff & Governance Boundaries
-- In strict adherence to `AGENTS.md` Read-Only Audit Boundaries and `03-technical-audit-method.md` §3.2, no application code, security rules, or decision documents were modified during this pass.
-- Remediation of findings `FP-OPS-11A` and `FP-OPS-11B` and resolution of policy gap `FP-OPS-13` are formally deferred to an owner-authorized implementation task following Owner Kifry's review.
+### 6.4 Implementation Handoff & Remaining Scope
+- Conformance findings `FP-OPS-11A` (cashier separation) and `FP-OPS-11B` (Option A de-cluttering) have both been fully implemented and automated-test verified.
+- Policy gap `FP-OPS-13` (bulk student CSV export authority) and relocation of personal shift history remain explicitly open in the wider Ops Lead audit pending Owner Kifry's review and direction.
 
 ---
 
@@ -307,4 +352,8 @@ In accordance with `AGENTS.md` verification precedence and honest reporting stan
 - **Readiness Justification:**
   - The Operational Leader cockpit exhibits exemplary architectural discipline and strong alignment with Authoritative Blueprint v3.4.1, Ratified Decisions OD-O1 to OD-O4, and the recent progress-report exception `OD-OPS-01`.
   - The newly added Academic Progress tab (`OpsLeadProgressReportsTab.jsx`) strictly respects Main Campus physical scope, enforces dual-division isolation, bounds queries to Spark quota limits (max 50/div), fails closed on satellite branches and query errors, displays explicit read-only governance notices, and completely omits grading or promotion controls.
-  - The operational follow-up consists of addressing the conformance finding on Tab 10 cash drawer balancing exposure and backend shift update divergence (`FP-OPS-11A`) and clarifying bulk CSV export authority (`FP-OPS-13`) through separate owner-authorized workflows.
+  - Finding `FP-OPS-11A` (cash drawer counting exposure & backend shift update path) has been remediated across UI, modal, repository, and rules layers, and verified via 30/30 live Firestore emulator tests across all 5 recognized Ops Lead role aliases.
+  - Finding `FP-OPS-11B` (workspace clutter & division truncation) has been remediated under approved Option A: redundant Tab 10 was unmounted, cleanly resolving duplication and inquiry truncation while preserving dedicated Tab 3 and Tab 5 cockpits.
+  - Remaining follow-up consists of:
+    1. Resolving open governance decision `FP-OPS-13` (bulk student PII CSV export authority).
+    2. Determining personal shift history relocation in a separate owner decision.

@@ -61,11 +61,6 @@ vi.mock("../classes", () => ({
   AvailableBatches: () => React.createElement("div", { "data-testid": "available-batches-mock" }, "Available Batches Mock"),
 }));
 
-// Mock FrontOfficeReportsTab
-vi.mock("./frontoffice/FrontOfficeReportsTab", () => ({
-  default: () => React.createElement("div", { "data-testid": "front-office-reports-mock" }, "Front Office Reports Mock"),
-}));
-
 // Mock paymentsRepository
 vi.mock("../finance/paymentsRepository", () => ({
   getPaymentsForRecordedDay: vi.fn().mockResolvedValue([
@@ -146,7 +141,7 @@ describe("OpsLeadDashboard Component Suite (Phase 1 & Phase 2 Conformance)", () 
     expect(html).toContain("Academic Progress");
     expect(html).toContain("Capacity &amp; Batches");
     expect(html).toContain("Live Schedule Board");
-    expect(html).toContain("Operational Reports");
+    expect(html).not.toContain("Operational Reports");
     expect(html).toContain("Events &amp; Logistics");
   });
 

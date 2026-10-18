@@ -13,11 +13,11 @@ The province-wide academic monitoring pipeline (monthly aggregation across 4 bra
 
 | Dimension | Policy / Readiness Status | Operational Constraint |
 |---|---|---|
-| **Schedule** | **Proposed Schedule:** Monthly on the 1st (04:00 WITA / 20:00 UTC) | Cloudflare Free Cron Trigger (1 scheduled job; undeployed) |
+| **Schedule** | **Approved Monthly Cadence (OD-AM-03); Proposed Trigger Timing:** Monthly on the 1st (04:00 WITA / 20:00 UTC) | Monthly generation cadence is approved by Owner decision (OD-AM-03); exact trigger date/time (1st of month at 04:00 WITA) is proposed pending deployment authorization. Cloudflare Free Cron Trigger undeployed. |
 | **Staleness Threshold** | **Approved Policy:** 35 calendar days | Monthly generation on the 1st + 4-day operational grace period |
 | **Worker CPU Limit** | **Architectural Constraint:** 10ms isolate CPU execution time | Cloudflare Free plan (Error 1102 risk if compute spikes) |
 | **Firestore Read Volume** | **Modeled Estimate (Unmeasured):** ~100–1,000 reads per batch run | Modeled workload estimate based on synthetic cohorts; draws against daily 50,000 Spark read limit (resetting PT). Not a verified limit. |
-| **Alert Destination** | **Pending Readiness Verification:** Vice Director email address | Destination proposed; live alert pipeline unverified (target Worker not deployed; sample test on unrelated Worker rejected). |
+| **Alert Destination** | **Blocked by Token Scopes & Undocumented Email:** Vice Director email | Account Alerting API returns 403 Authentication error (token lacks Alerting scopes); no approved Vice Director email documented in repo. Live alert pipeline remains unverified. |
 | **Write Authority** | **Pending Architecture Approval:** Backend write mechanism undecided | Client writes strictly denied (`allow write: if false;`) |
 
 ---
@@ -36,19 +36,29 @@ Before any summary Worker or production Cron Trigger is authorized for deploymen
   - **Modeled Batch Estimate:** Feasibility Proposal D models approximately **100–1,000 document reads per batch run** across all four branches based on synthetic cohort sizes. This is a modeled workload estimate, not an empirical wire count, verified budget limit, or guaranteed ceiling.
   - **Unresolved Baseline & Headroom:** The repository has no empirical baseline measurement or established daily traffic allowance for existing operational workflows (attendance kiosks, admissions, cashiering). Daily headroom and traffic allowances have not been decided or ratified by the Owner (`[Owner Decision / Empirical Baseline Required]`). Operators should observe real daily traffic patterns to ensure any future batch runs will not exhaust the project's 50,000 daily read limit.
 
-### 2.2 Cloudflare Live Dashboard Verification Result & Alert Delivery Status
-- **Objective:** Record the live dashboard verification findings regarding Worker inventory and alert policy readiness.
-- **Account Identity & Script Inventory Verified:**
+### 2.2 Cloudflare Isolated Test Worker Deployment & Alert Blocker Verification Result
+- **Objective:** Record the empirical verification results from deploying an isolated non-production test Worker (`academic-summary-alert-test`) to evaluate failure detection, alert configuration, and post-test cleanup.
+- **Account Identity Verified:**
   - Account Name: `Mylibertyies@gmail.com's Account`
   - Account ID: `da5c58a1009c09a01236ab90f1b84a3b`
-  - Active Workers & Pages: Confirmed in dashboard that the account list shows **only `myliberty-ai-proxy`**. The target academic-summary Cron Worker does not exist.
-- **Dashboard Inspection Findings:**
-  - *Worker Issues Inspection:* The Issues tab for `myliberty-ai-proxy` displays an "Enable issue detection" option. However, this belongs to an entirely separate, unrelated Worker (`myliberty-ai-proxy`), not the proposed academic-summary Cron Worker.
-  - *Operational Invariant & Prohibitions:* Issues detection must **not** be enabled on `myliberty-ai-proxy`. Creating a generic alert on an unrelated Worker, deploying a test or production Worker, and altering any Cloudflare account configuration remain strictly unauthorized.
-- **Readiness & Evidence Gap:**
-  - Scheduled academic-summary Worker failure detection and alert delivery remain **strictly unverified** because the target summary Worker is not deployed.
-  - Performing a sample alert test on an unrelated Worker (`myliberty-ai-proxy`) would not test or satisfy the academic monitoring failure detection requirement.
-  - Consequently, alert delivery readiness remains open, and Phase 3.5 / OD-AM-07 cannot be marked complete.
+- **Isolated Non-Production Test Worker Deployment:**
+  - *Script Name:* `academic-summary-alert-test` (clearly test-only name).
+  - *Boundaries Maintained:* Zero production data, credentials, Firestore bindings, or production routes.
+  - *Deployment Timestamp:* 2026-10-18T19:20:51Z (`wrangler deploy`, Version ID: `408879ea-c0d1-4ac0-a417-8f6baf9a5e80`).
+  - *Deliberate Failure Invocation:* Invoked via HTTP, returning deliberate HTTP 500 (`"[TEST_ONLY_FAILURE] Simulated test Worker failure for alert verification"`).
+- **Critical Verification Gaps & Blocker Findings:**
+  1. *Scheduled Cron Invocation Untested:* The isolated test Worker was invoked via HTTP, but **no scheduled Cron Trigger invocation was triggered or tested on Cloudflare edge infrastructure**. The Cron-specific scheduled event failure path remains unverified.
+  2. *API Token Permission Restriction:* Querying `/accounts/{accountId}/alerting/v3/policies` and `/available_alerts` returned HTTP 403 `{"code":10000,"message":"Authentication error"}`. The Wrangler OAuth CLI token contains `workers:write`, `workers_kv:write`, `d1:write`, etc., but does **not** possess `Account.Alerting` scopes (`alerting:read`, `alerting:write`).
+  3. *Undocumented Destination Email:* The repository records no approved live email address for the Vice Director (only placeholder `[vice-director-email]@myliberties.com` in bootstrap documentation and `vicedirector.test@myliberty.id` in local dev presets). In accordance with instructions, no email address was guessed or invented.
+  4. *Alert Delivery Unverified:* Because alert creation was blocked and no destination email was confirmed, no alert was configured and zero email delivery was verified.
+- **Mandatory Deletion & Cleanup Verification:**
+  - *Deletion Command:* Executed `npx wrangler delete academic-summary-alert-test --config ...` on 2026-10-18T19:21:30Z.
+  - *Post-Cleanup Inventory Evidence:* Cloudflare script inventory endpoint (`/accounts/{accountId}/workers/scripts`) confirmed script count returned to **1**: only `myliberty-ai-proxy` remains active. Zero residual test workers or routes exist.
+- **Readiness & Evidence Gap Summary:**
+  - **OD-AM-07 Remains Open:** Scheduled Cron failure detection, alert policy creation, and out-of-band email delivery remain **strictly unverified**.
+  - **Tested Building Blocks, Not an Operational Pipeline:** The repository contains pure calculation, strict validation (`parseValidScore`), and privacy-suppression building blocks (`academicSummaryService.js`), but **no end-to-end operational pipeline exists yet** (no background Worker or repository flow fetching cross-branch reports, partitioning into quarters, and writing summaries; Tab 4 dashboard indicator remains completely disconnected and dormant).
+  - **Client-Side Helpers Are Not Security Enforcement:** Helper functions such as `canReadAcademicSummaries()` and `canExportAcademicSummaries()` are client-side UI gating predicates only; the target `/academicSummaries` Firestore rule in `docs/specs/authorization-contract.md` §6.8 remains explicitly inactive and undeployed.
+  - **Prerequisites for Gate 4 Sign-Off:** An authorized account user must configure the alert policy in the Cloudflare dashboard with a confirmed Vice Director destination, and the Cron failure-to-alert path must be empirically tested before any production rollout.
   - All existing production, deployment, and authorization boundaries remain preserved.
 
 ### 2.3 UI Staleness Indicator Dormancy Verification

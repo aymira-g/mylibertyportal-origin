@@ -46,6 +46,7 @@ A decision document defines:
 | [`2026-10-18-instructor-leader-academic-monitoring-reporting-policy.md`](./2026-10-18-instructor-leader-academic-monitoring-reporting-policy.md) | Instructor Leader Academic Monitoring Reporting Policy: Weighting, Quarters, Suppression & Staff Metrics (OD-AM-02, OD-AM-03, OD-AM-04, OD-AM-06) | 2026-10-18 | Active *(Ratified by Owner / Director Kifry)* |
 | [`2026-10-18-instructor-leader-academic-monitoring-strategic-disposition.md`](./2026-10-18-instructor-leader-academic-monitoring-strategic-disposition.md) | Instructor Leader Province-Wide Academic Monitoring Strategic Disposition (OD-AM-01 Option B: Staged Path) | 2026-10-18 | Active *(Ratified by Owner / Director Kifry)* |
 | [`2026-10-19-instructor-leader-academic-monitoring-execution-readiness.md`](./2026-10-19-instructor-leader-academic-monitoring-execution-readiness.md) | Instructor Leader Academic Monitoring Stage 3: Cadence, Execution Model & Production Readiness Gate (OD-AM-03, OD-AM-05, OD-AM-07) | 2026-10-19 | Active *(Ratified by Owner / Director Kifry)* |
+| [`2026-10-19-instructor-leader-academic-monitoring-privacy-and-access.md`](./2026-10-19-instructor-leader-academic-monitoring-privacy-and-access.md) | Instructor Leader Academic Monitoring: Privacy, View Access & Export Boundaries (OD-AM-08 / Residual Privacy Resolution) | 2026-10-19 | Active *(Ratified by Owner / Director Kifry)* |
 
 
 ## Lifecycle Rule

@@ -176,3 +176,51 @@ Under the ratified Branch Typology Model ([`docs/decisions/2026-10-13-branch-typ
   - The Instructor Leader based at Kota Gorontalo holds province-wide academic coordination scope (`multi-branch`) across all branches.
   - Sensitive academic tickets from lean branches (`PLACEMENT_LEVEL_OVERRIDE`, `SUBSTITUTE_INSTRUCTOR`) route to and are approved by the Central Instructor Leader (with Vice Director as executive escalation under G-007).
 
+### 6.8 Target Authorization Contract: Province-Wide Academic Summaries (`/academicSummaries`)
+
+> **Contract Status:** `PROPOSED — INACTIVE PENDING PRODUCTION RULES AUTHORIZATION`  
+> **Authority:** Noncanonical Feasibility Study §10.3; Owner Decision 2026-10-19 ([`docs/decisions/2026-10-19-instructor-leader-academic-monitoring-privacy-and-access.md`](../decisions/2026-10-19-instructor-leader-academic-monitoring-privacy-and-access.md)).  
+> **Enforcement Notice:** This section specifies the target contract for a future collection (`/academicSummaries/{summaryId}`). It is **not** currently active in production `firestore.rules`. Production activation requires a separately authorized security rule deployment.
+
+#### 1. Fundamental Boundary Exception & Raw Data Isolation Invariant
+The authorization model enforces a strict architectural boundary between raw individual learner evaluations and precomputed privacy-preserving summary aggregates:
+- **Raw Evaluations (`/progressReports`):** Branch isolation remains strictly enforced (`isSameBranch(resource.data)` / `isSameBranchStrict(resource.data)`). The Central Academic Lead cannot read raw progress reports from other branches (`bone_bolango`, `limboto`, `pohuwato`). No cross-branch query or document retrieval on `/progressReports` is permitted.
+- **Precomputed Province-Wide Aggregates (`/academicSummaries`):** The Central Academic Lead is authorized to read precomputed branch- and division-level statistical partitions. These documents contain aggregate bands, average scores, and small-cell suppression flags ($N < 5$), with no student IDs, report IDs, or individual identifiable narratives, subject to the residual temporal differencing risk accepted under Owner Decision 2026-10-19.
+
+#### 2. Target Security Rule Specification
+```text
+// ============================================================================
+// PROPOSED / INACTIVE PENDING SEPARATELY AUTHORIZED DEPLOYMENT
+// Collection: /academicSummaries/{summaryId}
+// ============================================================================
+match /academicSummaries/{summaryId} {
+  // Read access: Limited to the Central Academic Lead
+  // Rule evaluates role and branch scope against user claims / profile.
+  // Note: uses canonical signedIn() helper from firestore.rules (not isAuthenticated()).
+  allow read: if signedIn() &&
+                 isInstructorLeader() &&
+                 userBranch() == 'kota_gorontalo';
+
+  // Client write denial: All clients (including leaders and admins) denied
+  // Backend generation / write mechanism remains unspecified pending
+  // production architecture authorization.
+  allow write: if false;
+}
+```
+
+#### 3. Role-and-Branch Scope vs. Singular Occupancy Boundary
+- **Target Authorization Condition:** `isInstructorLeader() && userBranch() == 'kota_gorontalo'`.
+- **Scope Alignment:** This rule targets the intended organizational scope of the Central Academic Lead (based at the Main Campus `kota_gorontalo` with province-wide pedagogical oversight per Blueprint v3.4 §4, §5, and ADR 2026-10-13).
+- **Singular Occupancy Governance Caveat:** The security rule evaluates user profile attributes (`role == 'instructorleader'` and `branchId == 'kota_gorontalo'`). It grants access to any account possessing those credentials; the rule **does not itself enforce that only a single physical person can hold that position**. Singular occupancy of the Central Academic Lead post is an organizational governance invariant enforced via user provisioning and role assignment Maker-Checker controls (Blueprint §16, §21, §41; Owner Decision 2026-10-07 §4.5), not by Firestore rules expression logic.
+
+#### 4. Absolute Client Write Denial
+- `allow write: if false;` applies to all authenticated client callers.
+- No client-side mutation, insertion, patch, or deletion of academic summary documents is permitted under any circumstances.
+- The backend generation mechanism (e.g., scheduled Cloudflare Worker with REST service account token) remains strictly unspecified in this contract pending separate production architecture approval.
+
+#### 5. Prohibition on Bulk CSV Export
+- In accordance with Owner Decision 2026-10-19, bulk CSV export of province-wide summary documents from `/academicSummaries` is strictly prohibited.
+- UI components consuming `/academicSummaries` must not expose "Export to CSV", "Download Raw Aggregates", or clipboard extraction workflows for cross-branch partitions.
+- This export ban applies specifically to `/academicSummaries`; it does not alter branch-local progress report export rules in unrelated reports workflows.
+
+

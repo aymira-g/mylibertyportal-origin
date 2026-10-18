@@ -43,6 +43,9 @@ A decision document defines:
 | [`2026-10-17-operational-leader-bulk-roster-export-restriction.md`](./2026-10-17-operational-leader-bulk-roster-export-restriction.md) | Operational Leader Restriction on Bulk Student Roster CSV Export (OD-OPS-02 / G-014) | 2026-10-17 | Active *(Ratified by Owner / Director Kifry)* |
 | [`2026-10-17-staff-personal-shift-history-self-service-access.md`](./2026-10-17-staff-personal-shift-history-self-service-access.md) | Staff Personal Shift History Access in Self-Service Profile & Cashier Exclusion (OD-STF-01) | 2026-10-17 | Active *(Ratified by Owner / Director Kifry)* |
 | [`2026-10-18-instructor-leader-academic-monitoring-scope.md`](./2026-10-18-instructor-leader-academic-monitoring-scope.md) | Instructor Leader Province-Wide Monitoring Feasibility and Branch-Scoped Raw Report Access | 2026-10-18 | Active *(Ratified by Owner / Director Kifry)* |
+| [`2026-10-18-instructor-leader-academic-monitoring-reporting-policy.md`](./2026-10-18-instructor-leader-academic-monitoring-reporting-policy.md) | Instructor Leader Academic Monitoring Reporting Policy: Weighting, Quarters, Suppression & Staff Metrics (OD-AM-02, OD-AM-03, OD-AM-04, OD-AM-06) | 2026-10-18 | Active *(Ratified by Owner / Director Kifry)* |
+| [`2026-10-18-instructor-leader-academic-monitoring-strategic-disposition.md`](./2026-10-18-instructor-leader-academic-monitoring-strategic-disposition.md) | Instructor Leader Province-Wide Academic Monitoring Strategic Disposition (OD-AM-01 Option B: Staged Path) | 2026-10-18 | Active *(Ratified by Owner / Director Kifry)* |
+| [`2026-10-19-instructor-leader-academic-monitoring-execution-readiness.md`](./2026-10-19-instructor-leader-academic-monitoring-execution-readiness.md) | Instructor Leader Academic Monitoring Stage 3: Cadence, Execution Model & Production Readiness Gate (OD-AM-03, OD-AM-05, OD-AM-07) | 2026-10-19 | Active *(Ratified by Owner / Director Kifry)* |
 
 
 ## Lifecycle Rule

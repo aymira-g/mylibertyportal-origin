@@ -655,7 +655,7 @@ match /academicSummaries/{summaryId} {
 #### G. Conditional Evaluation & Governance Status
 - **Promising Candidate:** Four branch-scoped Workers represents a **promising candidate that may preserve OD-AM-01's per-identity branch boundary if validated**, since each worker identity is bound strictly to its own branch for both reading reports and writing summaries.
 - **Status Not Settled:** Do **not** declare "zero governance exception needed" as settled policy. This architecture **appears compatible with current policy on paper**, subject to Owner review, empirical full-ruleset emulator verification, and the separate implementation/deployment authorization gate (`Gate 4`).
-- **Zero Production Mutation Invariant:** All production code, Firestore rules, indexes, Firebase Auth identities, Cloudflare settings, and deployments remain completely untouched.
+- **Zero Production Mutation Invariant:** All production code, Firestore rules, indexes, Firebase Auth identities, and production Cloudflare Workers/Triggers remain untouched (with the historical note that an unauthorized isolated test Worker was briefly deployed and deleted during pre-flight discovery without separate approval, as documented in runbook §2.2).
 
 ---
 

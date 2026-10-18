@@ -8,7 +8,7 @@ import {
   FinancialReportsTab,
 } from "./tabs";
 import { Clock, Download, Users, GraduationCap, TrendingUp, UserCheck, DollarSign } from "lucide-react";
-import { BRANCHES } from "../../constants/branches";
+import { BRANCHES, normalizeBranch } from "../../constants/branches";
 
 export default function ReportsDashboard({
   isAdminView = false,
@@ -26,7 +26,8 @@ export default function ReportsDashboard({
   const isSupervisor = isActualAdmin || isManager || isExecutiveView;
   const canPerformAdminActions = isActualAdmin && canEdit && !isExecutiveView;
   // DOM11-GOV-05: Strip isActualAdmin from province scope. System Admin is technical maintenance only (Blueprint §7, OD-2).
-  const canAccessProvinceScope = isExecutiveView || isInstructorLeader;
+  // 2026-10-18: Instructor Leader view is locked to home campus; province scope reserved for Executive Leadership.
+  const canAccessProvinceScope = isExecutiveView;
   // DOM11-PRIV-01 / OD-FO-03: Only leadership roles may bulk-export institutional reports; hidden from teaching instructors and front office.
   const canExportReports = isExecutiveView || isManager || isInstructorLeader;
 
@@ -41,7 +42,9 @@ export default function ReportsDashboard({
   const subTab =
     userSelectedSubTab ||
     initialSubTab ||
-    (isExecutiveView
+    (isInstructorLeader
+      ? "instructors"
+      : isExecutiveView
       ? "finance"
       : isFrontOffice || (!isAdminView && !isManager)
       ? "today"
@@ -59,11 +62,19 @@ export default function ReportsDashboard({
   // Shared Horizon Range (0 = all, or days)
   const [rangeDays, setRangeDays] = useState(30);
 
-  // Branch filter: Admin and Executive start with 'all' and can switch; branch-scoped roles are locked
+  // Branch filter: Executive starts with 'all' and can switch; branch-scoped roles are locked to normalized home campus
   const [branchFilter, setBranchFilter] = useState(() => {
     if (canAccessProvinceScope) return "all";
-    return userBranch || "Kota Gorontalo";
+    return normalizeBranch(userBranch);
   });
+  const [prevUserBranch, setPrevUserBranch] = useState(userBranch);
+
+  if (userBranch !== prevUserBranch) {
+    setPrevUserBranch(userBranch);
+    if (!canAccessProvinceScope) {
+      setBranchFilter(normalizeBranch(userBranch));
+    }
+  }
 
   // Ref to active tab for CSV export
   const activeTabRef = useRef(null);
@@ -223,7 +234,7 @@ export default function ReportsDashboard({
               </select>
             ) : (
               <div className="p-2 border border-slate-200 bg-slate-50 rounded-xl text-xs font-bold text-slate-700 truncate">
-                {branchFilter || userBranch || "Kota Gorontalo"}
+                {normalizeBranch(branchFilter || userBranch)}
               </div>
             )}
           </div>

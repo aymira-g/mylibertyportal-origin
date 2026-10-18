@@ -13,13 +13,32 @@ import {
 } from "lucide-react";
 import { LearnerCard } from "./LearnerCard";
 
+export const USER_SAFE_PROGRESS_ERROR_MESSAGE =
+  "Unable to load learner progress records. Access may be restricted or a network error occurred.";
+
 const LearnerProgressTab = forwardRef(
   /**
-   * @param {{ branchFilter?: string; rangeDays?: number; isAdminView?: boolean; isSupervisor?: boolean; isFrontOffice?: boolean; isManager?: boolean; division?: string }} props
+   * @param {{
+   *   branchFilter?: string;
+   *   rangeDays?: number;
+   *   isAdminView?: boolean;
+   *   isSupervisor?: boolean;
+   *   isFrontOffice?: boolean;
+   *   isManager?: boolean;
+   *   division?: string;
+   * }} props
    * @param {any} ref
    */
   function LearnerProgressTab(
-    { branchFilter = "all", rangeDays = 30, isAdminView = false, isSupervisor = false, isFrontOffice = false, isManager = false, division = "all" },
+    {
+      branchFilter = "all",
+      rangeDays = 30,
+      isAdminView = false,
+      isSupervisor = false,
+      isFrontOffice = false,
+      isManager = false,
+      division = "all",
+    },
     ref
   ) {
     const [students, setStudents] = useState([]);
@@ -27,6 +46,7 @@ const LearnerProgressTab = forwardRef(
     const [selectedClassId, setSelectedClassId] = useState("all");
     const [healthFilter, setHealthFilter] = useState("all"); // "all" | "at_risk" | "regular"
     const [studentsLoading, setStudentsLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [isProgressCapped, setIsProgressCapped] = useState(false);
     const [expandedId, setExpandedId] = useState(null);
     const [studentSearch, setStudentSearch] = useState("");
@@ -36,6 +56,7 @@ const LearnerProgressTab = forwardRef(
 
     const fetchStudentProgress = useCallback(async () => {
       setStudentsLoading(true);
+      setError(null);
       try {
         const branchId = branchFilter && branchFilter !== "all" ? branchToId(branchFilter) : null;
         const {
@@ -156,7 +177,8 @@ const LearnerProgressTab = forwardRef(
 
         setStudents(studentList);
       } catch (err) {
-        console.error(err);
+        console.error("fetchStudentProgress error:", err);
+        setError(USER_SAFE_PROGRESS_ERROR_MESSAGE);
       } finally {
         setStudentsLoading(false);
       }
@@ -245,7 +267,7 @@ const LearnerProgressTab = forwardRef(
               <span>Learner Attendance, Health &amp; Evaluation Archives</span>
             </h4>
             <p className="text-[11px] text-slate-400 font-medium">
-              {filteredStudents.length} Students in registry
+              {error ? "Unable to load registry" : `${filteredStudents.length} Students in registry`}
             </p>
           </div>
 
@@ -272,6 +294,27 @@ const LearnerProgressTab = forwardRef(
           <div className="p-12 text-center text-slate-400 text-xs italic flex items-center justify-center gap-2">
             <RefreshCw className="w-4 h-4 animate-spin text-[#1a3a8f]" />
             <span>Querying student registry &amp; progress records...</span>
+          </div>
+        ) : error ? (
+          <div
+            className="p-6 rounded-2xl border border-rose-200 bg-rose-50/80 text-xs text-rose-900 space-y-3"
+            role="alert"
+          >
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+              <h4 className="font-bold text-sm text-rose-900">Failed to Load Learner Progress</h4>
+            </div>
+            <p className="text-xs text-rose-700">
+              {error}
+            </p>
+            <button
+              type="button"
+              onClick={() => fetchStudentProgress()}
+              className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-xs transition cursor-pointer inline-flex items-center gap-1.5"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Retry Query</span>
+            </button>
           </div>
         ) : filteredStudents.length === 0 ? (
           <div className="p-8 text-center text-slate-400 text-xs italic bg-slate-50/70 rounded-2xl border border-dashed border-slate-200">

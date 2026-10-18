@@ -352,6 +352,23 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Classes and Academic Progres
       expect(ids).not.toContain("prBoba");
     });
 
+    it("strictly rejects the unscoped 'All Campuses' student users query with permission-denied (FP-IL-17)", async () => {
+      const ilDb = authed("ilGto");
+      // The exact usersQuery shape constructed by fetchStudentProgressData when branchFilter is 'all':
+      const unscopedUsersQuery = query(
+        collection(ilDb, "users"),
+        where("role", "in", ["student"])
+      );
+      await assertFails(getDocs(unscopedUsersQuery));
+    });
+
+    it("strictly rejects the unscoped 'All Campuses' attendance query with permission-denied (FP-IL-17)", async () => {
+      const ilDb = authed("ilGto");
+      // Verifies the unscoped branch query shape; the test omits the timestamp filter used by the report query.
+      const unscopedAttendanceQuery = collection(ilDb, "attendance");
+      await assertFails(getDocs(unscopedAttendanceQuery));
+    });
+
     it("reads branch attendance for classes the leader does not teach, and blocks cross-branch", async () => {
       await assertSucceeds(
         getDoc(doc(authed("ilGto"), "classAttendance", "classKota_student1_2026-09-27"))

@@ -328,10 +328,9 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Classes and Academic Progres
       );
     });
 
-    it("allows Central Academic Lead province-wide progress reports read under G-012 but denies non-academic staff", async () => {
-      // Under Blueprint v3.4 §4, §5, G-012, Central Academic Lead (Instructor Leader at Kota Gorontalo)
-      // holds province-wide pedagogical scope over evaluations, so ilGto can read satellite reports:
-      await assertSucceeds(getDoc(doc(authed("ilGto"), "progressReports", "prBoba")));
+    it("denies cross-branch raw progress report reads to Instructor Leaders", async () => {
+      await assertFails(getDoc(doc(authed("ilGto"), "progressReports", "prBoba")));
+      await assertFails(getDoc(doc(authed("ilBoba"), "progressReports", "prKotaCourses")));
       // Plain instructors cannot read cross-branch reports or other instructors' reports:
       await assertFails(getDoc(doc(authed("insGto"), "progressReports", "prBoba")));
       // Non-academic branch staff cannot read cross-branch reports:
@@ -350,6 +349,27 @@ describe.skipIf(!HAS_EMULATOR)("firestore.rules — Classes and Academic Progres
       const ids = snapshot.docs.map((d) => d.id);
       expect(ids).toEqual(expect.arrayContaining(["prKotaCourses", "prKotaKids"]));
       expect(ids).not.toContain("prBoba");
+    });
+
+    it("requires a strict branch constraint for Instructor Leader progress report lists", async () => {
+      await assertFails(getDocs(collection(authed("ilGto"), "progressReports")));
+      await assertFails(
+        getDocs(
+          query(
+            collection(authed("ilGto"), "progressReports"),
+            where("branchId", "==", "bone_bolango")
+          )
+        )
+      );
+      const satelliteSnapshot = await assertSucceeds(
+        getDocs(
+          query(
+            collection(authed("ilBoba"), "progressReports"),
+            where("branchId", "==", "bone_bolango")
+          )
+        )
+      );
+      expect(satelliteSnapshot.docs.map((d) => d.id)).toContain("prBoba");
     });
 
     it("strictly rejects the unscoped 'All Campuses' student users query with permission-denied (FP-IL-17)", async () => {

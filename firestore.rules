@@ -1321,8 +1321,9 @@ service cloud.firestore {
         )
         || (signedIn() && ('instructorId' in resource.data) && resource.data.instructorId == request.auth.uid)
         || (('studentId' in resource.data) && isParentOf(resource.data.studentId))
-        // Instructor Leader province-wide academic monitoring (read-only per Blueprint v3.4 §4, §5, G-012).
-        || isInstructorLeader();
+        // Owner-approved raw report access is branch-scoped; province-wide academic
+        // coordination does not itself grant unrestricted cross-branch document reads.
+        || (isInstructorLeader() && isSameBranch(resource.data));
       allow list: if isOrgExecutive()
         || ((isManager() || isFrontDeskStaff()) && isSameBranchStrict(resource.data) && isDivisionAllowedForProgressReportsList(resource.data))
         || (
@@ -1333,7 +1334,7 @@ service cloud.firestore {
         )
         || (signedIn() && ('instructorId' in resource.data) && resource.data.instructorId == request.auth.uid)
         || (isParent() && isSameBranchStrict(resource.data) && ('childStudentIds' in userProfile()) && ('studentId' in resource.data) && userProfile().childStudentIds.hasAny([resource.data.studentId]))
-        || isInstructorLeader();
+        || (isInstructorLeader() && isSameBranchStrict(resource.data));
       allow create: if signedIn()
         && request.resource.data.instructorId == request.auth.uid
         && request.resource.data.studentId is string

@@ -33,7 +33,7 @@ When working on this codebase as an engineer or AI coding assistant, orient your
 4. SUBSYSTEM CONTRACTS & EXECUTION PLANS (Concrete Behavior & Proposed Work)
    ├── specs/            Behavioral contracts, interfaces, and schemas.
    ├── plans/active/     Proposed implementation and remediation work (not authority).
-   └── proposals/        Designs and RFCs under evaluation.
+   └── proposals/        Designs and RFCs under evaluation (governed by Decision Brief Quality Gate).
 
 5. CODE & SECURITY RULES (Software Behavior)
    ├── src/              Application logic, React components, repositories.
@@ -95,7 +95,7 @@ docs/
 │   ├── README.md
 │   └── cross-feature-integration-audit.md
 │
-├── proposals/               # Forward-looking designs and RFCs under consideration
+├── proposals/               # Forward-looking designs and RFCs under consideration (must pass Decision Brief Quality Gate)
 │   ├── README.md
 │   └── archive/             # Archived proposals (e.g. converted to decisions)
 │
@@ -157,7 +157,7 @@ Intended technical contracts and behavioral rules:
 
 To prepare for the upcoming project refinement:
 - **Active Plans (`plans/active/`):** Cleared for incoming refinement plans. Past sprint plans safely archived under [`plans/archive/`](./plans/README.md).
-- **Proposals (`proposals/`):** Cleared for incoming RFCs. Past proposals archived under [`proposals/archive/`](./proposals/README.md).
+- **Proposals (`proposals/`):** Cleared for incoming RFCs (governed by Decision Brief Quality Gate per `AGENTS.md` and `docs/proposals/README.md`). Past proposals archived under [`proposals/archive/`](./proposals/README.md).
 - **Audit Findings Baseline (`audits/current/`):** Prior cycle investigation reports moved to [`audits/archive/`](./audits/archive/README.md) to make way for the new refinement verification baseline.
 - **Historical Material & Archives:** All historical documents are preserved in [`archive/`](./archive/README.md), [`audits/archive/`](./audits/archive/README.md), and [`plans/archive/`](./plans/archive/).
 

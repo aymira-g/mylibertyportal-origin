@@ -1302,11 +1302,13 @@ describe("Division Isolation Security Matrix (Kindergarten vs Courses vs divisio
       expect(canListProgressReports({ branchId: "kota_gorontalo" }, leaderLegacyGorontalo)).toBe(true);
     });
 
-    it("DOM05-GOV-03: grants Instructor Leader province-wide progress report read scope (Blueprint v3.4 §4, §5, G-012)", () => {
-      expect(canGetProgressReport(reportBoba, leaderGorontalo)).toBe(true);
-      expect(canListProgressReports({ branchId: "bone_bolango" }, leaderGorontalo)).toBe(true);
-      expect(canListProgressReports({}, leaderGorontalo)).toBe(true);
-      expect(canGetProgressReport(reportCoursesGtlo, leaderBoneBolango)).toBe(true);
+    it("keeps Instructor Leader raw progress report reads within the assigned branch", () => {
+      expect(canGetProgressReport(reportBoba, leaderGorontalo)).toBe(false);
+      expect(canListProgressReports({ branchId: "bone_bolango" }, leaderGorontalo)).toBe(false);
+      expect(canListProgressReports({}, leaderGorontalo)).toBe(false);
+      expect(canGetProgressReport(reportCoursesGtlo, leaderBoneBolango)).toBe(false);
+      expect(canGetProgressReport(reportBoba, leaderBoneBolango)).toBe(true);
+      expect(canListProgressReports({ branchId: "bone_bolango" }, leaderBoneBolango)).toBe(true);
     });
 
     it("denies a resigned Instructor Leader", () => {

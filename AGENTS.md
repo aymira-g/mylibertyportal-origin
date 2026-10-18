@@ -32,6 +32,7 @@ To keep execution safe, governed, and predictable, every executor must follow th
    - **Verification Precedence:** Repository verification requirements strictly take precedence over generic external instructions (such as *"Do not add or run tests unless asked"*). For any code, security rule, or workflow change, the executor is required to run the Level 1 Light Regression Check ([`docs/audits/Light Regression Check Playbook/00-README.md`](./docs/audits/Light%20Regression%20Check%20Playbook/00-README.md)), execute relevant targeted automated checks, and add or update tests when modifying critical logic, repositories, schemas, or authorization rules. Documentation-only changes do not require test execution unless explicitly requested or needed to verify documented claims.
    - **Honest Reporting:** Report exact commands run and results, skipped or unavailable checks (e.g., if an emulator was offline), and remaining manual verification. Never claim verification that did not happen.
 6. **Stop and surface the issue** if completing the task would require inventing or approving a governance decision, changing protected architecture without explicit human authorization, or making an unresolved high-impact choice about security, data, cost, destructive migration, or production behavior.
+7. **Apply the Decision Brief Quality Gate** before delivering any proposal, RFC, or evaluation concerning governance, role scope, security, privacy, or data access.
 
 ## Authority Chain
 
@@ -199,7 +200,7 @@ When an architecture change appears necessary but has not been approved, prefer 
 Recommended location:
 
 ```text
-docs/architecture/proposals/YYYY-MM-DD-short-description.md
+docs/proposals/YYYY-MM-DD-short-description.md
 ```
 
 A proposal should include:
@@ -213,6 +214,38 @@ A proposal should include:
 - approval status.
 
 The proposal is not the architecture itself. `docs/ARCHITECTURE.md` remains authoritative until the change is explicitly approved and implemented.
+
+### Decision Brief Quality Gate
+
+Before delivering a proposal involving governance, role scope, security, privacy, or data access:
+
+1. **Build an evidence map.** For each material claim, identify its source and classify it as:
+   - authoritative policy;
+   - accepted owner decision;
+   - current code or rule behavior;
+   - inference or recommendation;
+   - unresolved owner decision.
+
+   Do not present an inference or current implementation behavior as approved policy.
+
+2. **Reconcile sources before drawing conclusions.** Check the current Authoritative Blueprint, applicable accepted decisions, relevant specifications, live code, Firestore rules, indexes, and tests. Explain whether apparent conflicts are real conflicts or describe different layers (for example, role responsibility versus collection-level read permission).
+
+3. **Validate each technical option against its actual enforcement boundary.** For data-access proposals, check:
+   - what the user interface displays;
+   - what the client actually receives;
+   - what a user can request directly under the security rules;
+   - query and aggregation semantics, including whether results are sampled, complete, grouped, or distinct;
+   - indexes, legacy records, read costs, and quota effects.
+
+   Do not call a UI filter, client-side projection, or aggregate query a security boundary unless the backend rules enforce that boundary.
+
+4. **Do not invent policy thresholds or sufficiency claims.** Labels, score bands, time windows, minimum group sizes, and claims that existing workflows are “adequate” require an authoritative source or must be clearly marked as proposed choices for the owner.
+
+5. **Red-team the recommendation before delivery.** Look for contradictory sections, unsupported certainty, hidden dependencies, privacy inference risks, and options that cannot meet their stated goal. If a key feasibility question is unresolved, label the option conditional rather than validated.
+
+6. **Keep the approval boundary explicit.** A proposal may recommend an option, but it must remain noncanonical and must not change governance records, authorization contracts, production code, or security rules until the owner explicitly approves the relevant decision.
+
+7. **Report remaining uncertainty plainly.** Cite the exact files and sections checked, list material assumptions and evidence gaps, and say what must be decided or verified before implementation.
 
 ### Repository protection
 

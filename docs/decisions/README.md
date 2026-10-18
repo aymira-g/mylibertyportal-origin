@@ -42,9 +42,10 @@ A decision document defines:
 | [`2026-10-17-operational-leader-progress-reports-read-access-main-campus.md`](./2026-10-17-operational-leader-progress-reports-read-access-main-campus.md) | Operational Leader Read-Only Progress Reports Access at Main Campus (OD-OPS-01) | 2026-10-17 | Active *(Ratified by Owner / Director Kifry)* |
 | [`2026-10-17-operational-leader-bulk-roster-export-restriction.md`](./2026-10-17-operational-leader-bulk-roster-export-restriction.md) | Operational Leader Restriction on Bulk Student Roster CSV Export (OD-OPS-02 / G-014) | 2026-10-17 | Active *(Ratified by Owner / Director Kifry)* |
 | [`2026-10-17-staff-personal-shift-history-self-service-access.md`](./2026-10-17-staff-personal-shift-history-self-service-access.md) | Staff Personal Shift History Access in Self-Service Profile & Cashier Exclusion (OD-STF-01) | 2026-10-17 | Active *(Ratified by Owner / Director Kifry)* |
+| [`2026-10-18-instructor-leader-academic-monitoring-scope.md`](./2026-10-18-instructor-leader-academic-monitoring-scope.md) | Instructor Leader Province-Wide Monitoring Feasibility and Branch-Scoped Raw Report Access | 2026-10-18 | Active *(Ratified by Owner / Director Kifry)* |
 
 
 ## Lifecycle Rule
 
-Proposals under `docs/proposals/` do not represent binding policy until an accepted decision is recorded here. Once accepted, implementations and tests must align with these decisions and remain consistent with the Authoritative Governance Blueprint.
+Proposals under `docs/proposals/` do not represent binding policy until an accepted decision is recorded here. Before submission for owner acceptance, any proposal or decision brief involving governance, role scope, security, privacy, or data access must strictly satisfy the **Decision Brief Quality Gate** ([`AGENTS.md`](../../AGENTS.md) and [`docs/proposals/README.md`](../proposals/README.md)). Once accepted, implementations and tests must align with these decisions and remain consistent with the Authoritative Governance Blueprint.
 

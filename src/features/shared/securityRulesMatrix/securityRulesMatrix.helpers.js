@@ -460,8 +460,8 @@ export function canGetProgressReport(doc, user) {
   }
   if (doc.instructorId === user.uid) return true;
   if (isParentOf(doc.studentId, user)) return true;
-  // Instructor Leader province-wide academic monitoring (read-only per Blueprint v3.4 §4, §5, G-012).
-  if (isInstructorLeader(user)) return true;
+  // Raw progress-report reads stay within the Instructor Leader's assigned branch.
+  if (isInstructorLeader(user) && isSameBranch(doc, user)) return true;
   return false;
 }
 
@@ -492,8 +492,8 @@ export function canListProgressReports(queryData, user) {
     user.childStudentIds.includes(queryData.studentId)
   )
     return true;
-  // Instructor Leader province-wide academic monitoring (read-only per Blueprint v3.4 §4, §5, G-012).
-  if (isInstructorLeader(user)) return true;
+  // List authorization requires an explicit branch constraint.
+  if (isInstructorLeader(user) && isSameBranchStrict(queryData, user)) return true;
   return false;
 }
 
